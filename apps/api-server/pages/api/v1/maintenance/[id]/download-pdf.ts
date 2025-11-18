@@ -6,8 +6,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { MaintenanceService, MaintenanceRepository } from '@/lib/domains/maintenance';
+import { generateMaintenancePDF } from '@/lib/pdf-generator';
 const { prisma } = require('@/lib/prisma');
-const { generateMaintenancePDF } = require('@/lib/pdf-generator'); // Assuming this exists
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'GET') {
@@ -34,18 +34,22 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(404).json({ error: 'Maintenance request not found' });
     }
 
-    // Generate PDF (if PDF generator exists)
-    // For now, return a placeholder response
-    // TODO: Implement PDF generation for maintenance requests
-    return res.status(501).json({
-      error: 'PDF generation for maintenance requests is not yet implemented',
+    // Generate PDF
+    const pdfDoc = generateMaintenancePDF(maintenanceRequest as any);
+    
+    // Convert PDFDocument to buffer
+    const chunks: Buffer[] = [];
+    pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+      pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+      pdfDoc.on('error', reject);
     });
 
-    // When implemented:
-    // const pdfBuffer = await generateMaintenancePDF(maintenanceRequest);
-    // res.setHeader('Content-Type', 'application/pdf');
-    // res.setHeader('Content-Disposition', `attachment; filename="maintenance-${id}.pdf"`);
-    // return res.send(pdfBuffer);
+    // Stream PDF file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="maintenance-${maintenanceRequest.ticketNumber || id}.pdf"`);
+    return res.send(pdfBuffer);
   } catch (error) {
     console.error('[Maintenance PDF Download v1] Error:', error);
     return res.status(500).json({

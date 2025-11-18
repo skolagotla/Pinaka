@@ -298,19 +298,9 @@ export default function MessagesClient({ userRole = 'landlord' }) {
     }
 
     await withSending(async () => {
-      // Use v1Api client - Note: messages endpoint might need custom implementation
-      // For now, use direct fetch to v1 endpoint
-      const response = await fetch(`/api/v1/conversations/${selectedConversation.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messageText: newMessage.trim()
-        })
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to send message');
-      }
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
 
       setNewMessage('');
       // Reload messages immediately

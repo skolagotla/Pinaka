@@ -81,30 +81,25 @@ export default function VerificationsClient({ user, initialStats }) {
   const loadVerifications = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filters.verificationType) params.append('verificationType', filters.verificationType);
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const query = {};
+      if (filters.verificationType) query.verificationType = filters.verificationType;
       // Only add status filter if not using a tab filter
       if (filters.status && activeTab !== 'pending' && activeTab !== 'my-requests') {
-        params.append('status', filters.status);
+        query.status = filters.status;
       }
       if (activeTab === 'pending') {
-        params.append('status', 'PENDING');
+        query.status = 'PENDING';
       }
       if (activeTab === 'my-requests') {
-        params.append('requestedBy', user.id);
+        query.requestedBy = user.id;
       }
-
-      const response = await fetch(`/api/verifications?${params.toString()}`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      
+      const data = await adminApi.getVerifications(query);
+      if (data.success) {
         setVerifications(data.data || []);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Verifications] Error loading:', errorData.error || 'Failed to load verifications');
+        console.error('[Verifications] Error loading:', data.error || 'Failed to load verifications');
       }
     } catch (error) {
       console.error('[Verifications] Error loading:', error);
@@ -116,18 +111,9 @@ export default function VerificationsClient({ user, initialStats }) {
   // Load stats
   const loadStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/verifications/stats', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.data || {});
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Verifications] Error loading stats:', errorData.error || 'Failed to load stats');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const statsData = await adminApi.getVerificationStats();
+      setStats(statsData || {});
     } catch (error) {
       console.error('[Verifications] Error loading stats:', error);
     }
@@ -143,29 +129,17 @@ export default function VerificationsClient({ user, initialStats }) {
     if (!selectedVerification) return;
 
     try {
-      const response = await fetch(`/api/verifications/${selectedVerification.id}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          verificationNotes: values.verificationNotes || null,
-        }),
-      });
-
-      if (response.ok) {
-        message.success('Verification approved successfully');
-        setVerifyModalVisible(false);
-        setSelectedVerification(null);
-        form.resetFields();
-        loadVerifications();
-        loadStats();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        message.error(errorData.error || 'Failed to verify');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.verifyVerification(selectedVerification.id, values.verificationNotes || null);
+      message.success('Verification approved successfully');
+      setVerifyModalVisible(false);
+      setSelectedVerification(null);
+      form.resetFields();
+      loadVerifications();
+      loadStats();
     } catch (error) {
       console.error('[Verifications] Error verifying:', error);
-      message.error('Failed to verify');
+      message.error(error?.message || 'Failed to verify');
     }
   }, [selectedVerification, form, loadVerifications, loadStats]);
 
@@ -174,29 +148,17 @@ export default function VerificationsClient({ user, initialStats }) {
     if (!selectedVerification) return;
 
     try {
-      const response = await fetch(`/api/verifications/${selectedVerification.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          rejectionReason: values.rejectionReason,
-        }),
-      });
-
-      if (response.ok) {
-        message.success('Verification rejected');
-        setRejectModalVisible(false);
-        setSelectedVerification(null);
-        form.resetFields();
-        loadVerifications();
-        loadStats();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        message.error(errorData.error || 'Failed to reject verification');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.rejectVerification(selectedVerification.id, values.rejectionReason);
+      message.success('Verification rejected');
+      setRejectModalVisible(false);
+      setSelectedVerification(null);
+      form.resetFields();
+      loadVerifications();
+      loadStats();
     } catch (error) {
       console.error('[Verifications] Error rejecting:', error);
-      message.error('Failed to reject verification');
+      message.error(error?.message || 'Failed to reject verification');
     }
   }, [selectedVerification, form, loadVerifications, loadStats]);
 

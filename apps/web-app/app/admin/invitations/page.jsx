@@ -51,9 +51,9 @@ export default function AdminInvitationsPage() {
     try {
       // Determine if we should show archived (approved) invitations
       const archive = tab === 'approved' ? 'true' : 'false';
-      const response = await fetch(`/api/admin/invitations?archive=${archive}`);
-      const data = await response.json();
-      if (response.ok && data.success) {
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.getInvitations({ archive: archive === 'true' });
+      if (data.success) {
         setInvitations(Array.isArray(data.data) ? data.data : []);
         // PHASE 1: Store counts for tab badges
         if (data.counts) {

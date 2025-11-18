@@ -87,19 +87,14 @@ export default function SettingsForm({ landlord }) {
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/landlords/${landlord.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.landlords.update(landlord.id, formData);
       
-      if (response.ok) {
+      if (data.success || data) {
         // Redirect to properties page after successful update
         router.push("/dashboard");
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(errorData.error || 'Failed to update settings');
+        alert(data.error || 'Failed to update settings');
       }
     } catch (error) {
       console.error('[Settings] Error:', error);

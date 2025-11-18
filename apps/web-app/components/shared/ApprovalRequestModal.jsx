@@ -37,34 +37,22 @@ export default function ApprovalRequestModal({
     try {
       setLoading(true);
 
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch('/api/approvals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.createApproval({
+        landlordId,
+        approvalType: values.approvalType,
+        entityType: entityType || 'other',
+        entityId: entityId || null,
+        title: values.title,
+        amount: values.amount || null,
+        description: values.description || null,
+        metadata: {
+          ...initialData,
+          ...values.metadata,
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          landlordId,
-          approvalType: values.approvalType,
-          entityType: entityType || 'other',
-          entityId: entityId || null,
-          title: values.title,
-          amount: values.amount || null,
-          description: values.description || null,
-          metadata: {
-            ...initialData,
-            ...values.metadata,
-          },
-        }),
       });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to send approval request');
-      }
-      
-      const data = await response.json();
       if (data.success || data) {
         message.success('Approval request sent successfully');
         form.resetFields();

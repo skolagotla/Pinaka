@@ -326,5 +326,180 @@ export class TenantRepository {
       return tenant;
     });
   }
+
+  /**
+   * Check if tenant belongs to landlord's properties
+   */
+  async belongsToLandlord(tenantId: string, landlordId: string): Promise<boolean> {
+    const tenantLease = await this.prisma.leaseTenant.findFirst({
+      where: {
+        tenantId,
+        lease: {
+          unit: {
+            property: {
+              landlordId,
+            },
+          },
+        },
+      },
+    });
+    return !!tenantLease;
+  }
+
+  /**
+   * Get leaseTenants with lease and property information
+   */
+  async getLeaseTenantsWithLease(tenantId: string) {
+    return this.prisma.leaseTenant.findMany({
+      where: { tenantId },
+      include: {
+        lease: {
+          include: {
+            unit: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get tenant with payment history
+   */
+  async getTenantWithPaymentHistory(tenantId: string) {
+    return this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        leaseTenants: {
+          include: {
+            lease: {
+              include: {
+                rentPayments: {
+                  orderBy: { dueDate: 'desc' },
+                },
+                unit: {
+                  include: {
+                    property: {
+                      select: {
+                        id: true,
+                        propertyName: true,
+                        addressLine1: true,
+                        city: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get tenants with outstanding balance (unpaid rent payments)
+   * Returns tenants who have at least one unpaid or overdue rent payment
+   */
+  async getTenantsWithOutstandingBalance(landlordId?: string) {
+    try {
+      // Build the where clause for leases
+      const leaseWhere: any = {
+        status: 'Active',
+        rentPayments: {
+          some: {
+            OR: [
+              { status: 'Unpaid' },
+              { status: 'Overdue' },
+              { status: 'Partial' },
+            ],
+          },
+        },
+      };
+
+      // Add landlord filter if provided
+      if (landlordId) {
+        leaseWhere.unit = {
+          property: {
+            landlordId,
+          },
+        };
+      }
+
+      // Query leases directly - simpler and more reliable
+      const leases = await this.prisma.lease.findMany({
+        where: leaseWhere,
+        include: {
+          leaseTenants: {
+            include: {
+              tenant: true,
+            },
+          },
+          rentPayments: {
+            where: {
+              OR: [
+                { status: 'Unpaid' },
+                { status: 'Overdue' },
+                { status: 'Partial' },
+              ],
+            },
+            include: {
+              partialPayments: true,
+            },
+            orderBy: { dueDate: 'desc' },
+          },
+          unit: {
+            include: {
+                  property: {
+                    select: {
+                      id: true,
+                      propertyName: true,
+                      addressLine1: true,
+                      city: true,
+                      provinceState: true,
+                      postalZip: true,
+                    },
+                  },
+            },
+          },
+        },
+      });
+
+      // Extract unique tenants and build the response structure
+      const tenantMap = new Map<string, any>();
+
+      for (const lease of leases) {
+        for (const leaseTenant of lease.leaseTenants) {
+          const tenant = leaseTenant.tenant;
+          const tenantId = tenant.id;
+
+          if (!tenantMap.has(tenantId)) {
+            tenantMap.set(tenantId, {
+              ...tenant,
+              leaseTenants: [],
+            });
+          }
+
+          const tenantData = tenantMap.get(tenantId);
+          tenantData.leaseTenants.push({
+            lease: {
+              ...lease,
+              rentPayments: lease.rentPayments,
+              unit: lease.unit,
+            },
+          });
+        }
+      }
+
+      return Array.from(tenantMap.values());
+    } catch (error: any) {
+      console.error('[TenantRepository] Error in getTenantsWithOutstandingBalance:', error);
+      console.error('[TenantRepository] Error stack:', error.stack);
+      throw new Error(`Failed to fetch tenants with outstanding balance: ${error.message}`);
+    }
+  }
 }
 

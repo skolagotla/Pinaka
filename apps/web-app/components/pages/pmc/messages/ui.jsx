@@ -50,29 +50,20 @@ export default function PMCMessagesClient() {
       try {
         // Use v1Api client (Note: landlords/tenants endpoints might not be in v1 yet, keep legacy for now)
         const { v1Api } = await import('@/lib/api/v1-client');
-        const [landlordsRes, tenantsRes] = await Promise.all([
-          fetch('/api/landlords', {}, { operation: 'Load landlords', showUserMessage: false }).catch(() => null),
+        const [landlordsData, tenantsData] = await Promise.all([
+          v1Api.landlords.list({ page: 1, limit: 1000 }).then(response => {
+            const landlords = response.data?.data || response.data || [];
+            return { landlords: Array.isArray(landlords) ? landlords : [], data: Array.isArray(landlords) ? landlords : [] };
+          }).catch(() => ({ landlords: [], data: [] })),
           v1Api.tenants.list({ page: 1, limit: 1000 }).then(response => {
-            const tenantsData = response.data?.data || response.data || [];
-            return { ok: true, json: async () => ({ tenants: Array.isArray(tenantsData) ? tenantsData : [] }) };
-          }).catch(() => null),
+            const tenants = response.data?.data || response.data || [];
+            return Array.isArray(tenants) ? tenants : [];
+          }).catch(() => []),
         ]);
 
-        if (landlordsRes?.ok) {
-          const data = await landlordsRes.json();
-          const landlordsData = data.landlords || data.data || data;
-          setLandlords(Array.isArray(landlordsData) ? landlordsData : []);
-        } else {
-          setLandlords([]);
-        }
-
-        if (tenantsRes?.ok) {
-          const data = await tenantsRes.json();
-          const tenantsData = data.tenants || data.data || data;
-          setTenants(Array.isArray(tenantsData) ? tenantsData : []);
-        } else {
-          setTenants([]);
-        }
+        const landlordsArray = landlordsData.landlords || landlordsData.data || (Array.isArray(landlordsData) ? landlordsData : []);
+        setLandlords(Array.isArray(landlordsArray) ? landlordsArray : []);
+        setTenants(Array.isArray(tenantsData) ? tenantsData : []);
       } catch (error) {
         console.error('[PMC Messages] Error loading contacts:', error);
       }
@@ -126,21 +117,9 @@ export default function PMCMessagesClient() {
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
-      // Use v1 API endpoint for messages
-      const response = await fetch(`/api/v1/conversations/${selectedConversation.id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          messageText: newMessage.trim(),
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to send message');
-      }
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
       setNewMessage('');
       fetchMessages(selectedConversation.id);
       fetchConversations();

@@ -108,8 +108,8 @@ export default function PermissionMatrixEditor({
         }
       } else if (selectedRole && !roleId) {
         // Fetch role by name to get ID
-        const rolesResponse = await fetch('/api/rbac/roles');
-        const rolesData = await rolesResponse.json();
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const rolesData = await adminApi.getRBACRoles();
         if (rolesData.success && rolesData.data) {
           const role = rolesData.data.find((r: any) => r.name === selectedRole);
           if (role) {
@@ -121,8 +121,8 @@ export default function PermissionMatrixEditor({
       
       // Fetch permissions via API
       if (roleNameToUse) {
-        const response = await fetch(`/api/rbac/roles/by-name/${encodeURIComponent(roleNameToUse)}/permissions`);
-        const data = await response.json();
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const data = await adminApi.getRolePermissionsByName(roleNameToUse);
         if (data.success) {
           // Process permissions into our format
           let perms: PermissionEntry[] = [];

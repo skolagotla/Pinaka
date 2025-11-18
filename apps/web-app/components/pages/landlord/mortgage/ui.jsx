@@ -16,20 +16,24 @@ export default function MortgageClient() {
 
   const loadMortgageData = useCallback(async () => {
     try {
-      const response = await fetch(
-        '/api/financials/mortgage',
-        { method: 'GET' },
-        { operation: 'Load mortgage data' }
-      );
-      if (response) {
+      // Use v1Api for mortgage analytics
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient('/api/v1/analytics/mortgage', {
+        method: 'GET',
+      });
+      if (response && response.ok) {
         const data = await response.json();
-        setMortgageData(data);
+        if (data.success && data.data) {
+          setMortgageData(data.data);
+        } else {
+          setMortgageData(data);
+        }
       }
     } catch (error) {
       console.error('Error loading mortgage data:', error);
       setMortgageData(null);
     }
-  }, [fetch]);
+  }, []);
 
   useEffect(() => {
     loadMortgageData();

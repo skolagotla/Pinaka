@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic';
 import { formatDateForInput, getDateComponents } from '@/lib/utils/date-utils';
 import { formatDateDisplay, formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
+import { rules } from '@/lib/utils/validation-rules';
 
 // Dynamically import Recharts components to avoid SSR issues
 const IncomeExpensesChart = dynamic(
@@ -72,7 +73,7 @@ export default function FinancialsClient() {
     error: dataLoaderError
   } = useDataLoader({
     endpoints: {
-      dashboard: '/api/financials/dashboard', // Keep legacy dashboard endpoint
+      dashboard: '/api/v1/analytics/dashboard', // v1 endpoint
       expenses: '/api/v1/expenses', // v1 endpoint
       properties: '/api/v1/properties' // v1 endpoint
     },
@@ -86,20 +87,21 @@ export default function FinancialsClient() {
   const loadMortgageData = useCallback(async () => {
     await withMortgageLoading(async () => {
       try {
-        const response = await fetchApi(
-          '/api/financials/mortgage',
-          { method: 'GET' },
-          { operation: 'Load mortgage data', showUserMessage: false }
-        );
-        if (response) {
-          const data = await response.json();
+        const { apiClient } = await import('@/lib/utils/api-client');
+        const response = await apiClient('/api/v1/analytics/mortgage', {
+          method: 'GET',
+        });
+        const data = await response.json();
+        if (data.success && data.data) {
+          setMortgageData(data.data);
+        } else {
           setMortgageData(data);
         }
       } catch (error) {
         console.error('Error loading mortgage data:', error);
       }
     });
-  }, [fetchApi, withMortgageLoading]);
+  }, [withMortgageLoading]);
 
   useEffect(() => {
     if (activeTab === 'mortgage' && !mortgageData) {
@@ -110,13 +112,10 @@ export default function FinancialsClient() {
   const handleViewTicket = useCallback(async (ticketId) => {
     await withTicketLoading(async () => {
       try {
-        const response = await fetchApi(
-          `/api/maintenance/${ticketId}`,
-          { method: 'GET' },
-          { operation: 'Load ticket details', showUserMessage: false }
-        );
-        if (response) {
-          const ticket = await response.json();
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const ticketData = await v1Api.maintenance.get(ticketId);
+        const ticket = ticketData.data || ticketData;
+        if (ticket) {
           setSelectedTicket(ticket);
           openTicketModal();
         }
@@ -129,23 +128,15 @@ export default function FinancialsClient() {
 
   const handleApproveExpense = useCallback(async (approvalId) => {
     try {
-      const response = await fetchApi(
-        `/api/approvals/${approvalId}/approve`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes: null }),
-        },
-        { operation: 'Approve expense', showUserMessage: true }
-      );
-      if (response && response.ok) {
-        notify.success('Expense approved successfully');
-        refetch();
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.approveApproval(approvalId, null);
+      notify.success('Expense approved successfully');
+      refetch();
     } catch (error) {
       console.error('Error approving expense:', error);
+      notify.error(error.message || 'Failed to approve expense');
     }
-  }, [fetchApi, refetch]);
+  }, [refetch]);
 
   const { isOpen: rejectModalOpen, open: openRejectModal, close: closeRejectModal, editingItem: rejectingApprovalId, openForEdit: openRejectModalForEdit } = useModalState();
   const [rejectForm] = Form.useForm();
@@ -157,29 +148,21 @@ export default function FinancialsClient() {
 
   const handleRejectSubmit = useCallback(async (values) => {
     try {
-      const response = await fetchApi(
-        `/api/approvals/${rejectingApprovalId}/reject`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: values.reason }),
-        },
-        { operation: 'Reject expense', showUserMessage: true }
-      );
-      if (response.success) {
-        notify.success('Expense rejected');
-        closeRejectModal();
-        rejectForm.resetFields();
-        refetch();
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.rejectApproval(rejectingApprovalId, values.reason);
+      notify.success('Expense rejected');
+      closeRejectModal();
+      rejectForm.resetFields();
+      refetch();
     } catch (error) {
       if (error.errorFields) {
         // Form validation error, don't show message
         return;
       }
       console.error('Error rejecting expense:', error);
+      notify.error(error.message || 'Failed to reject expense');
     }
-  }, [fetchApi, refetch, rejectForm, rejectingApprovalId]);
+  }, [refetch, rejectForm, rejectingApprovalId, closeRejectModal]);
 
   // Listen for expense updates from other parts of the app (e.g., maintenance tickets)
   useEffect(() => {

@@ -56,15 +56,9 @@ function NotificationCenter() {
 
   const markAllAsRead = async () => {
     try {
-      // Use v1 API endpoint for bulk update
-      const response = await fetch('/api/v1/notifications/read-all', {
-        method: 'PUT',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to mark all as read');
-      }
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.markAllNotificationsAsRead();
       loadNotifications();
     } catch (error) {
       console.error('[NotificationCenter] Error marking all as read:', error);
@@ -256,23 +250,13 @@ function NotificationCenter() {
                             e.stopPropagation();
                             setProcessingAction(`mark-unpaid-${notification.id}`);
                             try {
-                              // Use direct fetch for marking rent as unpaid (no v1 equivalent yet)
-                              const response = await fetch(
-                                `/api/rent-payments/${notification.entityId}/mark-unpaid`,
-                                {
-                                  method: 'POST',
-                                  credentials: 'include',
-                                }
-                              );
-                              if (response.ok) {
-                                message.success('Rent payment marked as unpaid');
-                                loadNotifications();
-                                if (notification.actionUrl) {
-                                  router.push(notification.actionUrl);
-                                }
-                              } else {
-                                const error = await response.json().catch(() => ({}));
-                                throw new Error(error.error || error.message || 'Failed to mark rent as unpaid');
+                              // Use v1Api specialized method for marking rent as unpaid
+                              const { v1Api } = await import('@/lib/api/v1-client');
+                              await v1Api.specialized.markRentPaymentUnpaid(notification.entityId);
+                              message.success('Rent payment marked as unpaid');
+                              loadNotifications();
+                              if (notification.actionUrl) {
+                                router.push(notification.actionUrl);
                               }
                             } catch (error) {
                               console.error('[NotificationCenter] Error marking rent as unpaid:', error);

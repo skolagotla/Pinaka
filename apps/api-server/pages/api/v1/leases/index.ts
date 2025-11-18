@@ -5,7 +5,7 @@
  * Generated from schema registry - DO NOT EDIT MANUALLY
  * Run `npm run generate:api-routes` to regenerate
  * 
- * Generated: 2025-11-18T03:18:40.730Z
+ * Generated: 2025-11-18T17:00:22.922Z
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -21,7 +21,7 @@ import { z } from 'zod';
 async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const query = leaseQuerySchema.parse(req.query);
-    const result = await leaseService.list(query);
+    const result = await leasesService.list(query);
     
     return res.status(200).json({
       success: true,
@@ -51,7 +51,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = leaseCreateSchema.parse(req.body);
-    const created = await leaseService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await leasesService.create(data, { userId: user.userId, userRole: user.role });
     
     return res.status(201).json({
       success: true,

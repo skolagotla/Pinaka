@@ -87,14 +87,17 @@ export default function LandlordDashboardClient({
   
   // Fetch organization status on mount
   useEffect(() => {
-    fetch('/api/organizations/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data.organization) {
+    (async () => {
+      try {
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const data = await adminApi.getOrganization();
+        if (data.success && data.data?.organization) {
           setOrganizationStatus(data.data);
         }
-      })
-      .catch(err => console.error('Error fetching organization status:', err));
+      } catch (err) {
+        console.error('Error fetching organization status:', err);
+      }
+    })();
   }, []);
   
   // Extract N4 form counts with explicit defaults to prevent stale data

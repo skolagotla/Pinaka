@@ -82,6 +82,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     const tenantId = Array.isArray(fields.tenantId) ? fields.tenantId[0] : fields.tenantId;
     const propertyId = Array.isArray(fields.propertyId) ? fields.propertyId[0] : fields.propertyId;
     const replaceExisting = Array.isArray(fields.replaceExisting) ? fields.replaceExisting[0] : fields.replaceExisting;
+    const replaceId = req.query.replaceId as string | undefined;
 
     // Use DocumentService to create document
     const repository = new DocumentRepository(prisma);

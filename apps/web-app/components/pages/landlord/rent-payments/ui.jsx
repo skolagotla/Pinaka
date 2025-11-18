@@ -301,20 +301,15 @@ function RentPaymentsClient({ leases, landlordCountry }) {
     try {
       notify.loading('Generating receipt PDF...');
       
-      // Use v1 API endpoint
-      const response = await fetch(`/api/v1/rent-payments/${payment.id}/send-receipt`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to send receipt');
-      }
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.sendRentPaymentReceipt(payment.id);
       
       notify.success('Receipt generated and sent to tenant!');
       // Refresh payments to update UI (receipt buttons will change)
       await fetchPayments();
     } catch (error) {
-      notify.error(error.message);
+      notify.error(error.message || 'Failed to send receipt');
     }
   }
 
@@ -517,18 +512,12 @@ function RentPaymentsClient({ leases, landlordCountry }) {
                   onClick={async () => {
                     setMarkingUnpaid(true);
                     try {
-                      const response = await fetch(`/api/v1/rent-payments/${payment.id}/mark-unpaid`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                      });
-                      if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error || errorData.message || 'Failed to mark payment as unpaid');
-                      }
+                      const { v1Api } = await import('@/lib/api/v1-client');
+                      await v1Api.specialized.markRentPaymentUnpaid(payment.id);
                       notify.success('Rent payment marked as unpaid');
                       await fetchPayments();
                     } catch (error) {
-                      // Error already handled
+                      notify.error(error.message || 'Failed to mark payment as unpaid');
                     } finally {
                       setMarkingUnpaid(false);
                     }

@@ -5,9 +5,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-const prismaLib = require('@/lib/prisma');
-const apiCache = require('@/lib/utils/api-response-cache').default;
-const { createCacheKey } = require('@/lib/utils/api-response-cache');
+const { prisma } = require('@/lib/prisma');
 
 type ReferenceData = {
   countries: any[];
@@ -21,25 +19,15 @@ type ReferenceData = {
   paymentStatuses: any[];
 };
 
-const { withCache } = require('@/lib/cache/api-cache-wrapper');
-
-const handler = withCache(
-  '/api/reference-data',
-  async (req: NextApiRequest, res: NextApiResponse<ReferenceData | { error: string }>) => {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ReferenceData | { error: string }>
+) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { prisma } = prismaLib;
-
-    // Check cache first (reference data changes infrequently)
-    const cacheKey = createCacheKey('/api/reference-data');
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return res.status(200).json(cached);
-    }
-
     // Fetch all reference data in parallel
     const [
       countries,
@@ -98,28 +86,24 @@ const handler = withCache(
       .filter(rd => rd.category === 'payment_status')
       .map(rd => ({ name: rd.name, color: rd.color }));
 
-    const responseData = {
-      countries,
-      regions,
-      propertyTypes,
-      unitStatuses,
-      maintenanceCategories,
-      maintenancePriorities,
-      maintenanceStatuses,
-      leaseStatuses,
-      paymentStatuses,
+    const responseData: ReferenceData = {
+      countries: countries || [],
+      regions: regions || [],
+      propertyTypes: propertyTypes || [],
+      unitStatuses: unitStatuses || [],
+      maintenanceCategories: maintenanceCategories || [],
+      maintenancePriorities: maintenancePriorities || [],
+      maintenanceStatuses: maintenanceStatuses || [],
+      leaseStatuses: leaseStatuses || [],
+      paymentStatuses: paymentStatuses || [],
     };
-
-    // Cache response for 1 hour (reference data is relatively static)
-    apiCache.setReferenceData(cacheKey, responseData);
-
-    // Cache the response (1 hour TTL - reference data rarely changes)
-    await cache.set('api:reference-data', responseData, 3600);
     
     return res.status(200).json(responseData);
-  } catch (error) {
-    console.error('Error fetching reference data:', error);
-    return res.status(500).json({ error: 'Failed to fetch reference data' });
+  } catch (error: any) {
+    console.error('[Reference Data API] Error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch reference data',
+      message: error?.message || 'Unknown error',
+    });
   }
 }
-

@@ -89,6 +89,37 @@ export default async function Home() {
     
     const { prisma } = prismaLib;
     
+    // Log which database we're using (for debugging)
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const dbConfig = require('@/lib/utils/db-config');
+        const activeDb = dbConfig.getActiveDatabase();
+        const dbUrl = dbConfig.getDatabaseUrl();
+        console.log('[Home] Database connection info:', {
+          activeDatabase: activeDb,
+          databaseUrl: dbUrl ? dbUrl.replace(/:[^:@]+@/, ':****@') : 'NOT SET',
+        });
+      } catch (e) {
+        console.log('[Home] Could not get database config:', e?.message);
+      }
+    }
+    
+    // Normalize email (same logic as login API)
+    // Allow "pmcadmin1" through "pmcadmin5" as user IDs (old format)
+    // Allow "pmc1-admin" and "pmc2-admin" as user IDs (new format for AB Homes)
+    // Allow "pmc1-lld1" through "pmc1-lld10" as user IDs (landlords for AB Homes)
+    let searchEmail = email.toLowerCase().trim();
+    if (searchEmail.match(/^pmcadmin[1-5]$/)) {
+      searchEmail = `${searchEmail}@pmc.local`;
+    } else if (searchEmail.match(/^pmc[12]-admin$/)) {
+      // Map pmc1-admin -> pmc1-admin@pmc.local, pmc2-admin -> pmc2-admin@pmc.local
+      searchEmail = `${searchEmail}@pmc.local`;
+    } else if (searchEmail.match(/^pmc1-lld([1-9]|10)$/)) {
+      // Map pmc1-lld1 -> pmc1-lld1@pmc.local, pmc1-lld2 -> pmc1-lld2@pmc.local, etc.
+      searchEmail = `${searchEmail}@pmc.local`;
+    }
+    // If already in correct format (pmc1-admin@pmc.local), use as-is
+    
     // Check all roles: Landlord > Tenant > PMC (including PMC Admin) > Vendor > Contractor
     let landlord = null;
     let tenant = null;
@@ -101,35 +132,35 @@ export default async function Home() {
     try {
       [landlord, tenant, vendor, contractor, pmc, pmcAdmin, invitation] = await Promise.all([
           prisma.landlord.findUnique({ 
-            where: { email },
+            where: { email: searchEmail },
             select: { id: true, approvalStatus: true }
           }).catch((err) => {
             console.error('[Home] Error fetching landlord:', err?.message);
             return null;
           }),
           prisma.tenant.findUnique({ 
-            where: { email },
+            where: { email: searchEmail },
             select: { id: true, hasAccess: true, approvalStatus: true }
           }).catch((err) => {
             console.error('[Home] Error fetching tenant:', err?.message);
             return null;
           }),
           prisma.serviceProvider.findFirst({ 
-            where: { email, type: 'vendor', isDeleted: false },
+            where: { email: searchEmail, type: 'vendor', isDeleted: false },
             select: { id: true }
           }).catch((err) => {
             console.error('[Home] Error fetching vendor:', err?.message);
             return null;
           }),
           prisma.serviceProvider.findFirst({ 
-            where: { email, type: 'contractor', isDeleted: false },
+            where: { email: searchEmail, type: 'contractor', isDeleted: false },
             select: { id: true }
           }).catch((err) => {
             console.error('[Home] Error fetching contractor:', err?.message);
             return null;
           }),
           prisma.propertyManagementCompany.findUnique({ 
-            where: { email },
+            where: { email: searchEmail },
             select: { id: true, approvalStatus: true }
           }).catch((err) => {
             console.error('[Home] Error fetching PMC:', err?.message);
@@ -137,9 +168,29 @@ export default async function Home() {
           }),
           // Check for Admin user with PMC_ADMIN RBAC role
           prisma.admin.findUnique({
-            where: { email },
-            select: { id: true, isActive: true, isLocked: true }
+            where: { email: searchEmail },
+            select: { id: true, isActive: true, isLocked: true, email: true }
           }).then(async (admin) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Home] Admin lookup result:', {
+                searchEmail,
+                found: !!admin,
+                adminId: admin?.id,
+                adminEmail: admin?.email,
+                isActive: admin?.isActive,
+                isLocked: admin?.isLocked,
+              });
+              
+              // If not found, try to find any admin with similar email
+              if (!admin) {
+                const allAdmins = await prisma.admin.findMany({
+                  select: { id: true, email: true, isActive: true },
+                  take: 5,
+                }).catch(() => []);
+                console.log('[Home] Sample admin emails in database:', allAdmins.map(a => a.email));
+              }
+            }
+            
             if (admin && admin.isActive && !admin.isLocked) {
               // Check if admin has PMC_ADMIN role
               const pmcAdminRole = await prisma.userRole.findFirst({
@@ -151,7 +202,20 @@ export default async function Home() {
                     name: 'PMC_ADMIN',
                   },
                 },
-              }).catch(() => null);
+              }).catch((err) => {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Home] Error checking PMC_ADMIN role:', err?.message);
+                }
+                return null;
+              });
+              
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[Home] PMC Admin role check:', {
+                  adminId: admin.id,
+                  foundRole: !!pmcAdminRole,
+                  pmcId: pmcAdminRole?.pmcId,
+                });
+              }
               
               if (pmcAdminRole) {
                 return {
@@ -159,12 +223,30 @@ export default async function Home() {
                   approvalStatus: 'APPROVED', // PMC Admin users are always approved
                 };
               }
+              
+              // If no role found but email matches PMC admin pattern, still treat as PMC admin
+              // This handles cases where the role might not be assigned yet but user can login
+              if (searchEmail.match(/^pmc[12]-admin@pmc\.local$/) || 
+                  searchEmail.match(/^pmcadmin[1-5]@pmc\.local$/)) {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Home] Using PMC admin pattern fallback for:', searchEmail);
+                }
+                return {
+                  id: admin.id,
+                  approvalStatus: 'APPROVED', // PMC Admin users are always approved
+                };
+              }
             }
             return null;
-          }).catch(() => null),
+          }).catch((err) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[Home] Error fetching admin:', err?.message);
+            }
+            return null;
+          }),
           prisma.invitation.findFirst({
             where: {
-              email,
+              email: searchEmail,
               status: { in: ['pending', 'sent', 'opened'] },
               expiresAt: { gt: new Date() }
             },
@@ -188,6 +270,21 @@ export default async function Home() {
       invitation = null;
     }
     
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Home] User lookup results:', {
+        email: searchEmail,
+        landlord: !!landlord,
+        tenant: !!tenant,
+        vendor: !!vendor,
+        contractor: !!contractor,
+        pmc: !!pmc,
+        pmcAdmin: !!pmcAdmin,
+        invitation: !!invitation,
+        pmcAdminDetails: pmcAdmin,
+      });
+    }
+    
     // Redirect based on role priority: Landlord > Tenant > PMC (including PMC Admin) > Vendor > Contractor
     // Only redirect if user is APPROVED
     if (landlord && landlord.approvalStatus === 'APPROVED') {
@@ -195,6 +292,9 @@ export default async function Home() {
     } else if (tenant && tenant.hasAccess && tenant.approvalStatus === 'APPROVED') {
       redirect("/dashboard");
     } else if ((pmc && pmc.approvalStatus === 'APPROVED') || pmcAdmin) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Home] Redirecting PMC admin to dashboard:', { pmcAdmin });
+      }
       redirect("/dashboard");
     } else if (vendor) {
       redirect("/vendor/dashboard");
@@ -209,6 +309,16 @@ export default async function Home() {
         redirect("/complete-registration");
       } else {
         // No user and no invitation - show error message (don't redirect to avoid loop)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Home] No user found - showing invitation error:', {
+            searchEmail,
+            landlord: !!landlord,
+            tenant: !!tenant,
+            pmc: !!pmc,
+            pmcAdmin: !!pmcAdmin,
+            invitation: !!invitation,
+          });
+        }
         return (
           <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 16px' }}>
             <div

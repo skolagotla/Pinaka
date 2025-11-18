@@ -544,3 +544,390 @@ export function generateRentReceiptPDF(rentPayment: RentPayment): InstanceType<t
   return doc;
 }
 
+/**
+ * Maintenance Request Interface
+ */
+interface MaintenanceRequest {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  ticketNumber: string | null;
+  requestedDate: Date;
+  completedDate: Date | null;
+  scheduledDate: Date | null;
+  estimatedCost: number | null;
+  actualCost: number | null;
+  completionNotes: string | null;
+  tenantFeedback: string | null;
+  rating: number | null;
+  tenantApproved: boolean;
+  landlordApproved: boolean;
+  initiatedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  tenant?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+  };
+  property?: {
+    id: string;
+    propertyName: string | null;
+    addressLine1: string;
+    addressLine2?: string | null;
+    city: string;
+    provinceState: string | null;
+    postalZip: string | null;
+    country: string;
+  };
+  assignedToProvider?: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    type: string;
+  } | null;
+  comments?: Array<{
+    id?: string;
+    comment: string;
+    authorEmail: string;
+    authorName: string;
+    authorRole: string;
+    isStatusUpdate: boolean;
+    oldStatus?: string | null;
+    newStatus?: string | null;
+    createdAt?: Date;
+  }>;
+}
+
+/**
+ * Generates a maintenance request PDF document
+ * 
+ * @param maintenanceRequest - The maintenance request data with related tenant, property, and provider info
+ * @returns PDFKit document stream
+ */
+export function generateMaintenancePDF(maintenanceRequest: MaintenanceRequest): InstanceType<typeof PDFDocument> {
+  const doc = new PDFDocument({ margin: 50, size: "LETTER" });
+
+  const pageWidth = doc.page.width;
+  
+  // Extract tenant and property info
+  const tenant = maintenanceRequest.tenant;
+  const property = maintenanceRequest.property;
+  const provider = maintenanceRequest.assignedToProvider;
+
+  // Modern Vaadin-style accent bar at top
+  doc
+    .fillColor("#00B4F0") // Vaadin blue
+    .rect(0, 0, pageWidth, 8)
+    .fill()
+    .fillColor("black");
+
+  doc.moveDown(2);
+
+  // Title - centered and modern
+  doc
+    .fontSize(24)
+    .font("Helvetica-Bold")
+    .fillColor("#2C3E50") // Dark professional blue
+    .text("MAINTENANCE REQUEST", { align: "center" })
+    .fillColor("black")
+    .moveDown(0.5);
+
+  // Ticket Number - right aligned
+  if (maintenanceRequest.ticketNumber) {
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D")
+      .text(`Ticket #: ${maintenanceRequest.ticketNumber}`, { align: "right" })
+      .fillColor("black");
+  }
+
+  doc.moveDown(1);
+
+  // Request Information Section
+  const sectionStartY = doc.y;
+  const leftColumn = 50;
+  const rightColumn = 320;
+  const labelWidth = 100;
+  const valueWidth = 200;
+
+  // Title
+  doc
+    .fontSize(10)
+    .font("Helvetica-Bold")
+    .fillColor("#2C3E50")
+    .text("Request Title:", leftColumn, doc.y)
+    .font("Helvetica")
+    .fillColor("#5A6C7D")
+    .text(maintenanceRequest.title, leftColumn + labelWidth, doc.y - 10, { width: valueWidth });
+
+  doc.y += 20;
+
+  // Description
+  doc
+    .font("Helvetica-Bold")
+    .fillColor("#2C3E50")
+    .text("Description:", leftColumn, doc.y)
+    .font("Helvetica")
+    .fillColor("#5A6C7D");
+  
+  const descriptionY = doc.y + 10;
+  doc.text(maintenanceRequest.description, leftColumn + labelWidth, descriptionY, { 
+    width: valueWidth,
+    align: "left"
+  });
+  
+  // Calculate height used by description
+  const descriptionHeight = doc.heightOfString(maintenanceRequest.description, { width: valueWidth });
+  doc.y = descriptionY + descriptionHeight + 10;
+
+  // Category, Priority, Status - Left column
+  doc
+    .font("Helvetica-Bold")
+    .fillColor("#2C3E50")
+    .text("Category:", leftColumn, doc.y)
+    .text("Priority:", leftColumn, doc.y + 20)
+    .text("Status:", leftColumn, doc.y + 40)
+    .font("Helvetica")
+    .fillColor("#5A6C7D")
+    .text(maintenanceRequest.category, leftColumn + labelWidth, doc.y - 10)
+    .text(maintenanceRequest.priority, leftColumn + labelWidth, doc.y + 10)
+    .text(maintenanceRequest.status, leftColumn + labelWidth, doc.y + 30);
+
+  // Dates - Right column
+  doc
+    .font("Helvetica-Bold")
+    .fillColor("#2C3E50")
+    .text("Requested Date:", rightColumn, sectionStartY + 20)
+    .text("Scheduled Date:", rightColumn, sectionStartY + 40)
+    .text("Completed Date:", rightColumn, sectionStartY + 60)
+    .font("Helvetica")
+    .fillColor("#5A6C7D")
+    .text(maintenanceRequest.requestedDate ? new Date(maintenanceRequest.requestedDate).toLocaleDateString() : "N/A", rightColumn + labelWidth, sectionStartY + 10)
+    .text(maintenanceRequest.scheduledDate ? new Date(maintenanceRequest.scheduledDate).toLocaleDateString() : "N/A", rightColumn + labelWidth, sectionStartY + 30)
+    .text(maintenanceRequest.completedDate ? new Date(maintenanceRequest.completedDate).toLocaleDateString() : "N/A", rightColumn + labelWidth, sectionStartY + 50);
+
+  doc.y = Math.max(doc.y + 20, sectionStartY + 80);
+  doc.moveDown(1);
+
+  // Property Information Section
+  if (property) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Property Information", leftColumn, doc.y)
+      .moveDown(0.5)
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D")
+      .text(property.propertyName || property.addressLine1, leftColumn, doc.y)
+      .text(property.addressLine1 !== property.propertyName ? property.addressLine1 : "", leftColumn, doc.y + 15)
+      .text(`${property.city}, ${property.provinceState || ""} ${property.postalZip || ""}`, leftColumn, doc.y + 30);
+    
+    doc.y += 50;
+  }
+
+  // Tenant Information Section
+  if (tenant) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Tenant Information", leftColumn, doc.y)
+      .moveDown(0.5)
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D")
+      .text(`${tenant.firstName} ${tenant.lastName}`, leftColumn, doc.y)
+      .text(tenant.email, leftColumn, doc.y + 15)
+      .text(tenant.phone || "N/A", leftColumn, doc.y + 30);
+    
+    doc.y += 50;
+  }
+
+  // Assigned Provider Section
+  if (provider) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Assigned Provider", leftColumn, doc.y)
+      .moveDown(0.5)
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D")
+      .text(provider.name, leftColumn, doc.y)
+      .text(provider.email || "N/A", leftColumn, doc.y + 15)
+      .text(provider.phone || "N/A", leftColumn, doc.y + 30);
+    
+    doc.y += 50;
+  }
+
+  // Cost Information
+  if (maintenanceRequest.estimatedCost || maintenanceRequest.actualCost) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Cost Information", leftColumn, doc.y)
+      .moveDown(0.5)
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D");
+    
+    if (maintenanceRequest.estimatedCost) {
+      doc
+        .font("Helvetica-Bold")
+        .text("Estimated Cost:", leftColumn, doc.y)
+        .font("Helvetica")
+        .text(`$${maintenanceRequest.estimatedCost.toFixed(2)}`, leftColumn + 100, doc.y - 10);
+      doc.y += 20;
+    }
+    
+    if (maintenanceRequest.actualCost) {
+      doc
+        .font("Helvetica-Bold")
+        .text("Actual Cost:", leftColumn, doc.y)
+        .font("Helvetica")
+        .text(`$${maintenanceRequest.actualCost.toFixed(2)}`, leftColumn + 100, doc.y - 10);
+      doc.y += 20;
+    }
+    
+    doc.y += 10;
+  }
+
+  // Completion Information
+  if (maintenanceRequest.completedDate) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Completion Information", leftColumn, doc.y)
+      .moveDown(0.5)
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor("#5A6C7D");
+    
+    if (maintenanceRequest.completionNotes) {
+      doc
+        .font("Helvetica-Bold")
+        .text("Completion Notes:", leftColumn, doc.y)
+        .font("Helvetica");
+      const notesY = doc.y + 10;
+      doc.text(maintenanceRequest.completionNotes, leftColumn, notesY, { width: 500 });
+      const notesHeight = doc.heightOfString(maintenanceRequest.completionNotes, { width: 500 });
+      doc.y = notesY + notesHeight + 10;
+    }
+    
+    if (maintenanceRequest.tenantFeedback) {
+      doc
+        .font("Helvetica-Bold")
+        .text("Tenant Feedback:", leftColumn, doc.y)
+        .font("Helvetica");
+      const feedbackY = doc.y + 10;
+      doc.text(maintenanceRequest.tenantFeedback, leftColumn, feedbackY, { width: 500 });
+      const feedbackHeight = doc.heightOfString(maintenanceRequest.tenantFeedback, { width: 500 });
+      doc.y = feedbackY + feedbackHeight + 10;
+    }
+    
+    if (maintenanceRequest.rating) {
+      doc
+        .font("Helvetica-Bold")
+        .text("Rating:", leftColumn, doc.y)
+        .font("Helvetica")
+        .text(`${maintenanceRequest.rating}/5`, leftColumn + 100, doc.y - 10);
+      doc.y += 20;
+    }
+    
+    doc.y += 10;
+  }
+
+  // Comments Section
+  if (maintenanceRequest.comments && maintenanceRequest.comments.length > 0) {
+    // Check if we need a new page
+    if (doc.y > 650) {
+      doc.addPage();
+    }
+    
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .fillColor("#2C3E50")
+      .text("Comments & Updates", leftColumn, doc.y)
+      .moveDown(0.5);
+    
+    // Filter out status-only updates for cleaner display
+    const nonStatusComments = maintenanceRequest.comments.filter(c => !c.isStatusUpdate);
+    
+    if (nonStatusComments.length > 0) {
+      nonStatusComments.forEach((comment, index) => {
+        // Check if we need a new page
+        if (doc.y > 700) {
+          doc.addPage();
+        }
+        
+        const commentY = doc.y;
+        doc
+          .fontSize(9)
+          .font("Helvetica-Bold")
+          .fillColor("#2C3E50")
+          .text(`${comment.authorName} (${comment.authorRole})`, leftColumn, commentY)
+          .font("Helvetica")
+          .fillColor("#5A6C7D")
+          .fontSize(8)
+          .text(comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : "", leftColumn + 200, commentY);
+        
+        doc.y += 15;
+        doc
+          .fontSize(9)
+          .font("Helvetica")
+          .fillColor("#5A6C7D")
+          .text(comment.comment, leftColumn, doc.y, { width: 500 });
+        
+        const commentHeight = doc.heightOfString(comment.comment, { width: 500 });
+        doc.y += commentHeight + 15;
+        
+        // Add separator line
+        if (index < nonStatusComments.length - 1) {
+          doc
+            .strokeColor("#E0E0E0")
+            .lineWidth(0.5)
+            .moveTo(leftColumn, doc.y)
+            .lineTo(leftColumn + 500, doc.y)
+            .stroke();
+          doc.y += 10;
+        }
+      });
+    } else {
+      doc
+        .fontSize(9)
+        .font("Helvetica")
+        .fillColor("#5A6C7D")
+        .text("No comments available", leftColumn, doc.y);
+      doc.y += 20;
+    }
+  }
+
+  // Footer
+  const footerY = doc.page.height - 50;
+  doc
+    .fontSize(8)
+    .font("Helvetica")
+    .fillColor("#999999")
+    .text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, leftColumn, footerY, { align: "left" })
+    .text(`Request ID: ${maintenanceRequest.id}`, leftColumn + 300, footerY, { align: "right" });
+
+  // Finalize the PDF and end the stream
+  doc.end();
+  
+  return doc;
+}
+

@@ -83,16 +83,13 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
 
   const loadLandlords = async () => {
     try {
-      const res = await fetch(
-        '/api/landlords',
-        {},
-        { operation: 'Load landlords', showUserMessage: false }
-      );
-      const json = res ? await res.json() : null;
-      if (json.success && json.landlords) {
-        setLandlords(json.landlords || []);
-        if (json.landlords.length > 0 && !selectedLandlord) {
-          setSelectedLandlord(json.landlords[0].id);
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.landlords.list({ page: 1, limit: 1000 });
+      const landlords = response.data?.data || response.data || [];
+      if (Array.isArray(landlords)) {
+        setLandlords(landlords);
+        if (landlords.length > 0 && !selectedLandlord) {
+          setSelectedLandlord(landlords[0].id);
         }
       }
     } catch (error) {
@@ -103,15 +100,14 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
   const loadProperties = async () => {
     if (!selectedLandlord) return;
     try {
-      const res = await fetch(
-        `/api/properties?landlordId=${selectedLandlord}`,
-        {},
-        { operation: 'Load properties', showUserMessage: false }
-      );
-      const json = res ? await res.json() : null;
-      if (json.success) {
-        setProperties(json.properties || []);
-      }
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.properties.list({ 
+        page: 1, 
+        limit: 1000,
+        landlordId: selectedLandlord,
+      });
+      const props = response.data?.data || response.data || [];
+      setProperties(props);
     } catch (error) {
       // Error handled
     }
@@ -124,73 +120,64 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         const [startDate, endDate] = dateRange;
 
       // Load portfolio performance
-      const portfolioRes = await fetch(
-        `/api/analytics/portfolio-performance?landlordId=${selectedLandlord}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
-        {},
-        { operation: 'Load portfolio analytics', showUserMessage: false }
-      );
-      const portfolioJson = portfolioRes ? await portfolioRes.json() : null;
-      if (portfolioJson.success) {
-        setPortfolioData(portfolioJson.data);
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const portfolioResponse = await v1Api.specialized.portfolioperformance({
+        landlordId: selectedLandlord,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+      if (portfolioResponse.success) {
+        setPortfolioData(portfolioResponse.data);
       }
 
       // Load property performance if property selected
       if (selectedProperty) {
-        const propertyRes = await fetch(
-          `/api/analytics/property-performance?propertyId=${selectedProperty}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
-          {},
-          { operation: 'Load property analytics', showUserMessage: false }
-        );
-        const propertyJson = propertyRes ? await propertyRes.json() : null;
-        if (propertyJson.success) {
-          setPropertyData(propertyJson.data);
+        const propertyResponse = await v1Api.specialized.propertyperformance({
+          propertyId: selectedProperty,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        });
+        if (propertyResponse.success) {
+          setPropertyData(propertyResponse.data);
         }
       }
 
       // Load cash flow forecast
-      const cashFlowRes = await fetch(
-        `/api/analytics/cash-flow-forecast?landlordId=${selectedLandlord}&months=12`,
-        {},
-        { operation: 'Load cash flow forecast', showUserMessage: false }
-      );
-      const cashFlowJson = cashFlowRes ? await cashFlowRes.json() : null;
-      if (cashFlowJson.success) {
-        setCashFlowData(cashFlowJson.data);
+      const cashFlowResponse = await v1Api.specialized.cashflowforecast({
+        landlordId: selectedLandlord,
+        months: 12,
+      });
+      if (cashFlowResponse.success) {
+        setCashFlowData(cashFlowResponse.data);
       }
 
       // Load tenant risks
-      const tenantsRes = await fetch(
-        `/api/tenants?landlordId=${selectedLandlord}`,
-        {},
-        { operation: 'Load tenants', showUserMessage: false }
-      );
-      const tenantsJson = tenantsRes ? await tenantsRes.json() : null;
-      if (tenantsJson.success && tenantsJson.tenants) {
-        // Load risk for each tenant
-        const riskPromises = tenantsJson.tenants.map(async (tenant) => {
-          try {
-            const riskRes = await fetch(
-              `/api/analytics/tenant-delinquency-risk?tenantId=${tenant.id}`,
-              {},
-              { operation: 'Load tenant risk', showUserMessage: false }
-            );
-            const riskJson = riskRes ? await riskRes.json() : null;
-            if (riskJson.success) {
-              return {
-                tenantId: tenant.id,
-                firstName: tenant.firstName,
-                lastName: tenant.lastName,
-                ...riskJson.data,
-              };
-            }
-          } catch (error) {
-            // Skip if error
+      const tenantsResponse = await v1Api.tenants.list({ 
+        page: 1, 
+        limit: 1000,
+        landlordId: selectedLandlord,
+      });
+      const tenants = tenantsResponse.data?.data || tenantsResponse.data || [];
+      
+      // Load risk for each tenant
+      const riskPromises = tenants.map(async (tenant) => {
+        try {
+          const riskResponse = await v1Api.specialized.tenantdelinquencyrisk({ tenantId: tenant.id });
+          if (riskResponse.success) {
+            return {
+              tenantId: tenant.id,
+              firstName: tenant.firstName,
+              lastName: tenant.lastName,
+              ...riskResponse.data,
+            };
           }
-          return null;
-        });
-        const risks = (await Promise.all(riskPromises)).filter(r => r !== null);
-        setTenantRisks(risks);
-      }
+        } catch (error) {
+          // Skip if error
+        }
+        return null;
+      });
+      const risks = (await Promise.all(riskPromises)).filter(r => r !== null);
+      setTenantRisks(risks);
       } catch (error) {
         // Error already handled
       }
@@ -213,7 +200,16 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         params.append('landlordId', selectedLandlord);
       }
 
-      const response = await fetch(`/api/analytics/export?${params.toString()}`);
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const query = {
+        type,
+        format,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        ...(selectedProperty && { propertyId: selectedProperty }),
+        ...(selectedLandlord && { landlordId: selectedLandlord }),
+      };
+      const response = await v1Api.specialized.exportAnalytics(query);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

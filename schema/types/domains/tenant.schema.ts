@@ -166,6 +166,21 @@ export const tenantQuerySchema = z.object({
   search: z.string().max(100).optional(), // Search by name or email
 });
 
+/**
+ * Tenant Approval Schema
+ */
+export const tenantApprovalSchema = z.object({
+  notes: z.string().optional(),
+  approvedBy: z.string().optional(),
+});
+
+/**
+ * Tenant Rejection Schema
+ */
+export const tenantRejectionSchema = z.object({
+  reason: z.string().min(1, 'Rejection reason is required'),
+});
+
 // Export types
 export type ApprovalStatus = z.infer<typeof approvalStatusSchema>;
 export type EmploymentStatus = z.infer<typeof employmentStatusSchema>;
@@ -176,4 +191,6 @@ export type TenantUpdate = z.infer<typeof tenantUpdateSchema>;
 export type TenantResponse = z.infer<typeof tenantResponseSchema>;
 export type TenantListResponse = z.infer<typeof tenantListResponseSchema>;
 export type TenantQuery = z.infer<typeof tenantQuerySchema>;
+export type TenantApproval = z.infer<typeof tenantApprovalSchema>;
+export type TenantRejection = z.infer<typeof tenantRejectionSchema>;
 

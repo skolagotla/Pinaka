@@ -112,6 +112,15 @@ export type ServiceProviderQuery = z.infer<typeof serviceProviderQuerySchema>;
 export type ServiceProviderResponse = z.infer<typeof serviceProviderResponseSchema>;
 export type ServiceProviderListResponse = z.infer<typeof serviceProviderListResponseSchema>;
 
+/**
+ * Vendor Search Query Schema
+ */
+export const vendorSearchQuerySchema = z.object({
+  q: z.string().min(1, 'Search query is required').optional(),
+  type: z.enum(['vendor', 'contractor']).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+});
+
 // Aliases for backward compatibility (vendor naming)
 export const vendorCreateSchema = serviceProviderCreateSchema;
 export const vendorUpdateSchema = serviceProviderUpdateSchema;
@@ -123,4 +132,5 @@ export type VendorUpdate = ServiceProviderUpdate;
 export type VendorQuery = ServiceProviderQuery;
 export type VendorResponse = ServiceProviderResponse;
 export type VendorListResponse = ServiceProviderListResponse;
+export type VendorSearchQuery = z.infer<typeof vendorSearchQuerySchema>;
 

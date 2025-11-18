@@ -13,16 +13,17 @@ export default function AccountSuspendedPage() {
 
   useEffect(() => {
     // Try to get organization info to show more details
-    fetch('/api/organizations/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data.organization) {
+    (async () => {
+      try {
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const data = await adminApi.getOrganization();
+        if (data.success && data.data?.organization) {
           setOrganizationInfo(data.data.organization);
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching organization info:', err);
-      });
+      }
+    })();
   }, []);
 
   const getStatusMessage = () => {

@@ -25,27 +25,31 @@ export default function TaxReportingClient({ user, userRole }) {
   const handleGenerate = async (values) => {
     await withLoading(async () => {
       try {
-        const response = await fetch(
-          `/api/financials/t776/generate`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              landlordId: values.landlordId || user.userId,
-              taxYear: values.taxYear,
-              propertyIds: values.propertyIds,
-            }),
-          },
-          { operation: 'Generate tax report' }
-        );
-
-        if (response && response.ok) {
-          const data = await response.json();
-          setReport(data.report);
-          notify.success('Tax report generated successfully');
+        // Use v1Api for T776 generation
+        const { apiClient } = await import('@/lib/utils/api-client');
+        const response = await apiClient('/api/v1/analytics/t776/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            landlordId: values.landlordId || user.userId,
+            taxYear: values.taxYear,
+            propertyIds: values.propertyIds,
+          }),
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || data.message || 'Failed to generate tax report');
         }
+        if (data.success && data.data) {
+          setReport(data.data);
+        } else {
+          setReport(data.report || data);
+        }
+        notify.success('Tax report generated successfully');
       } catch (error) {
-        // Error already handled
+        console.error('Error generating tax report:', error);
+        notify.error(error.message || 'Failed to generate tax report');
       }
     });
   };

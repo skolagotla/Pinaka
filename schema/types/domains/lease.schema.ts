@@ -89,7 +89,7 @@ export const leaseCreateSchema = z.object({
 /**
  * Lease Update Schema (all fields optional)
  */
-export const leaseUpdateSchema = leaseCreateSchema.partial().extend({
+export const leaseUpdateSchema = leaseCreateSchema.partial().safeExtend({
   unitId: commonFields.cuid.optional(), // Can't change unit
 });
 
@@ -172,6 +172,24 @@ export const leaseQuerySchema = z.object({
   landlordId: commonFields.cuid.optional(),
 });
 
+/**
+ * Lease Renewal Schema
+ */
+export const leaseRenewalSchema = z.object({
+  decision: z.enum(['renew', 'month-to-month', 'terminate']),
+  newLeaseEnd: z.string().datetime().optional(),
+  newRentAmount: z.number().optional(),
+});
+
+/**
+ * Lease Termination Schema
+ */
+export const leaseTerminationSchema = z.object({
+  reason: z.string().min(1, 'Termination reason is required'),
+  terminationDate: z.string().datetime().or(z.date()),
+  actualLoss: z.number().optional(),
+});
+
 // Export types
 export type LeaseStatus = z.infer<typeof leaseStatusSchema>;
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
@@ -182,4 +200,6 @@ export type LeaseUpdate = z.infer<typeof leaseUpdateSchema>;
 export type LeaseResponse = z.infer<typeof leaseResponseSchema>;
 export type LeaseListResponse = z.infer<typeof leaseListResponseSchema>;
 export type LeaseQuery = z.infer<typeof leaseQuerySchema>;
+export type LeaseRenewal = z.infer<typeof leaseRenewalSchema>;
+export type LeaseTermination = z.infer<typeof leaseTerminationSchema>;
 

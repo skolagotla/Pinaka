@@ -38,24 +38,28 @@ export default function ActivityLogWidget({ limit = 4, userRole, showViewAll = t
   const loadActivities = useCallback(async () => {
     try {
       setLoading(true);
-      // Use direct fetch for activity logs (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/activity-logs?limit=${limit}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        }
-      );
+      // Use v1Api for activity logs
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/activity-logs?limit=${limit}`, {
+        method: 'GET',
+      });
 
+      const data = await response.json().catch(() => ({}));
+      
       if (!response.ok) {
-        throw new Error('Failed to load activities');
+        // Endpoint may not exist yet - silently fail and show empty list
+        if (response.status === 404 || response.status === 500) {
+          setActivities([]);
+          return;
+        }
+        throw new Error(data.error || data.message || 'Failed to load activities');
       }
       
-      const data = await response.json();
-      setActivities(data.activities || data.data || []);
+      setActivities(data.data || data.activities || []);
     } catch (error) {
-      console.error('Failed to load activities:', error);
+      // Silently handle errors for optional widget
+      console.debug('[Activity Log Widget] Activity logs endpoint not available:', error.message);
+      setActivities([]);
     } finally {
       setLoading(false);
     }

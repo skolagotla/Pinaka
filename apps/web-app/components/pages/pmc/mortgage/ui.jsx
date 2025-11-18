@@ -17,24 +17,24 @@ export default function PMCMortgageClient() {
 
   const loadMortgageData = useCallback(async () => {
     try {
-      const response = await fetch(
-        '/api/financials/mortgage',
-        { method: 'GET' },
-        { operation: 'Load mortgage data' }
-      );
-      if (response) {
-        const data = await safeJsonParse(response);
-        if (data) {
-          setMortgageData(data);
+      // Use v1Api for mortgage analytics
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient('/api/v1/analytics/mortgage', {
+        method: 'GET',
+      });
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setMortgageData(data.data);
         } else {
-          setMortgageData(null);
+          setMortgageData(data);
         }
       }
     } catch (error) {
       console.error('Error loading mortgage data:', error);
       setMortgageData(null);
     }
-  }, [fetch]);
+  }, []);
 
   useEffect(() => {
     loadMortgageData();

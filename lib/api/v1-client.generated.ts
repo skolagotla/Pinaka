@@ -90,6 +90,11 @@ import type {
   UnitQuery,
   UnitResponse,
   UnitListResponse,
+  LandlordCreate,
+  LandlordUpdate,
+  LandlordQuery,
+  LandlordResponse,
+  LandlordListResponse,
 } from '@/lib/schemas';
 
 
@@ -104,22 +109,22 @@ class ApiResource<TCreate, TUpdate, TQuery, TResponse, TListResponse> {
     const response = await apiClient(`/api/v1/${this.basePath}${queryString}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
   }
 
   async get(id: string): Promise<TResponse> {
     const response = await apiClient(`/api/v1/${this.basePath}/${id}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
   }
 
   async create(data: TCreate): Promise<TResponse> {
@@ -128,11 +133,11 @@ class ApiResource<TCreate, TUpdate, TQuery, TResponse, TListResponse> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    const responseData = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(responseData.error || responseData.message || 'Request failed');
     }
-    return response.json();
+    return responseData;
   }
 
   async update(id: string, data: TUpdate): Promise<TResponse> {
@@ -141,23 +146,22 @@ class ApiResource<TCreate, TUpdate, TQuery, TResponse, TListResponse> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    const responseData = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(responseData.error || responseData.message || 'Request failed');
     }
-    return response.json();
+    return responseData;
   }
 
   async delete(id: string): Promise<void> {
     const response = await apiClient(`/api/v1/${this.basePath}/${id}`, {
       method: 'DELETE',
     });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
-    }
     if (response.status !== 204) {
-      await response.json(); // Consume response body
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(responseData.error || responseData.message || 'Request failed');
+      }
     }
   }
 }
@@ -194,11 +198,11 @@ class SpecializedApi {
     const response = await apiClient(`/api/v1/analytics/property-performance${queryString}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
   }
 
   async portfolioperformance(query?: any): Promise<any> {
@@ -206,11 +210,11 @@ class SpecializedApi {
     const response = await apiClient(`/api/v1/analytics/portfolio-performance${queryString}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
   }
 
   async tenantdelinquencyrisk(query?: any): Promise<any> {
@@ -218,11 +222,11 @@ class SpecializedApi {
     const response = await apiClient(`/api/v1/analytics/tenant-delinquency-risk${queryString}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
   }
 
   async cashflowforecast(query?: any): Promise<any> {
@@ -230,11 +234,333 @@ class SpecializedApi {
     const response = await apiClient(`/api/v1/analytics/cash-flow-forecast${queryString}`, {
       method: 'GET',
     });
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Request failed');
+      throw new Error(data.error || data.message || 'Request failed');
     }
-    return response.json();
+    return data;
+  }
+
+  // Public Invitations
+  async getPublicInvitationByToken(token: string): Promise<any> {
+    const response = await apiClient(`/api/v1/public/invitations/${token}`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async acceptPublicInvitation(token: string, formData: any): Promise<any> {
+    const response = await apiClient(`/api/v1/public/invitations/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, formData }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // User Status
+  async getUserStatus(): Promise<any> {
+    const response = await apiClient(`/api/v1/user/status`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Tenant Invitations
+  async listTenantInvitations(query?: any): Promise<any> {
+    const queryString = query ? buildQueryString(query) : '';
+    const response = await apiClient(`/api/v1/tenants/invitations${queryString}`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async createTenantInvitation(data: any): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseData.error || responseData.message || 'Request failed');
+    }
+    return responseData;
+  }
+
+  async getTenantInvitationById(id: string): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/invitations/${id}`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async resendTenantInvitation(id: string): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/invitations/${id}/resend`, {
+      method: 'POST',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async cancelTenantInvitation(id: string): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/invitations/${id}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Notifications
+  async markAllNotificationsAsRead(): Promise<any> {
+    const response = await apiClient(`/api/v1/notifications/read-all`, {
+      method: 'PUT',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Rent Payment Actions
+  async sendRentPaymentReceipt(id: string): Promise<any> {
+    const response = await apiClient(`/api/v1/rent-payments/${id}/send-receipt`, {
+      method: 'POST',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async markRentPaymentUnpaid(id: string): Promise<any> {
+    const response = await apiClient(`/api/v1/rent-payments/${id}/mark-unpaid`, {
+      method: 'POST',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Conversation Messages
+  async sendConversationMessage(conversationId: string, messageText: string): Promise<any> {
+    const response = await apiClient(`/api/v1/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageText }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Maintenance Actions
+  async addMaintenanceComment(id: string, comment: string, authorInfo?: any): Promise<any> {
+    const response = await apiClient(`/api/v1/maintenance/${id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment, ...authorInfo }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async markMaintenanceViewed(id: string, role: string): Promise<any> {
+    const response = await apiClient(`/api/v1/maintenance/${id}/mark-viewed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async approveMaintenance(id: string, data?: any): Promise<any> {
+    const response = await apiClient(`/api/v1/maintenance/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data || {}),
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseData.error || responseData.message || 'Request failed');
+    }
+    return responseData;
+  }
+
+  // Document & File Viewing
+  async viewDocument(id: string, fileIndex?: number, versionIndex?: number): Promise<Response> {
+    const params = new URLSearchParams();
+    if (fileIndex !== undefined) params.append('fileIndex', fileIndex.toString());
+    if (versionIndex !== undefined) params.append('versionIndex', versionIndex.toString());
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiClient(`/api/v1/documents/${id}/view${queryString}`, {
+      method: 'GET',
+    });
+  }
+
+  async viewRentPaymentReceipt(id: string): Promise<Response> {
+    return apiClient(`/api/v1/rent-payments/${id}/view-receipt`, {
+      method: 'GET',
+    });
+  }
+
+  async downloadMaintenancePDF(id: string): Promise<Response> {
+    return apiClient(`/api/v1/maintenance/${id}/download-pdf`, {
+      method: 'GET',
+    });
+  }
+
+  async previewForm(id: string): Promise<Response> {
+    return apiClient(`/api/v1/forms/generated/${id}/preview`, {
+      method: 'GET',
+    });
+  }
+
+  // Document Messages
+  async getDocumentMessages(documentId: string): Promise<any> {
+    const response = await apiClient(`/api/v1/documents/${documentId}/messages`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  async sendDocumentMessage(documentId: string, message: string): Promise<any> {
+    const response = await apiClient(`/api/v1/documents/${documentId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Invitation Application
+  async getInvitationApplication(invitationId: string): Promise<any> {
+    const response = await apiClient(`/api/v1/invitations/${invitationId}/application`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Tenant Payment History
+  async getTenantPaymentHistory(): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/payments`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Analytics Export
+  async exportAnalytics(query: any): Promise<Response> {
+    const queryString = query ? buildQueryString(query) : '';
+    return apiClient(`/api/v1/analytics/export${queryString}`, {
+      method: 'GET',
+    });
+  }
+
+  // Tenants with Outstanding Balance
+  async getTenantsWithOutstandingBalance(): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/with-outstanding-balance`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Tenant Rent Data
+  async getTenantRentData(tenantId: string): Promise<any> {
+    const response = await apiClient(`/api/v1/tenants/${tenantId}/rent-data`, {
+      method: 'GET',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Request failed');
+    }
+    return data;
+  }
+
+  // Application Actions
+  async approveApplication(id: string, data?: any): Promise<any> {
+    const response = await apiClient(`/api/v1/applications/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data || {}),
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseData.error || responseData.message || 'Request failed');
+    }
+    return responseData;
+  }
+
+  async rejectApplication(id: string, reason: string): Promise<any> {
+    const response = await apiClient(`/api/v1/applications/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    });
+    const responseData = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseData.error || responseData.message || 'Request failed');
+    }
+    return responseData;
   }
 }
 
@@ -258,6 +584,7 @@ export const v1Api = {
   invitations: new ApiResource<InvitationCreate, InvitationUpdate, InvitationQuery, InvitationResponse, InvitationListResponse>('invitations'),
   generatedForms: new ApiResource<GeneratedFormCreate, GeneratedFormUpdate, GeneratedFormQuery, GeneratedFormResponse, GeneratedFormListResponse>('generated-forms'),
   units: new ApiResource<UnitCreate, UnitUpdate, UnitQuery, UnitResponse, UnitListResponse>('units'),
+  landlords: new ApiResource<LandlordCreate, LandlordUpdate, LandlordQuery, LandlordResponse, LandlordListResponse>('landlords'),
   specialized: new SpecializedApi(),
 };
 

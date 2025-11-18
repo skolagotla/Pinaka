@@ -285,7 +285,7 @@ export function withAuth(handler: ApiHandler, options: ApiMiddlewareOptions = {}
       const isLandlordRoute = url.startsWith('/api/lld/') || url.startsWith('/api/landlords') || url.startsWith('/api/properties') || url.startsWith('/api/tenants') || url.startsWith('/api/leases');
       const isTenantRoute = url.startsWith('/api/tnt/') || url.startsWith('/api/tenants');
       const isVendorRoute = url.startsWith('/api/vendor/') || url.startsWith('/api/vendors');
-      const isContractorRoute = url.startsWith('/api/contractor/') || url.startsWith('/api/contractors');
+      const isContractorRoute = url.startsWith('/api/contractor/'); // Legacy contractors route removed, use /api/v1/vendors with type='contractor'
       const isPMCRoute = url.startsWith('/api/pmc/');
       
       if (process.env.NODE_ENV === 'development') {

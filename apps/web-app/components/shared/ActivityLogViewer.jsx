@@ -43,16 +43,16 @@ export default function ActivityLogViewer({ propertyId, userRole, limit = 50 }) 
         params.append('userType', filter.userType);
       }
 
-      // Use direct fetch for activity logs (no v1 equivalent yet)
-      const response = await fetch(`/api/activity-logs?${params.toString()}`, {
-        credentials: 'include',
-      });
+      // Use adminApi for activity logs
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const query = {};
+      if (filter.userType) query.userType = filter.userType;
+      if (filter.type) query.type = filter.type;
+      if (filter.page) query.page = filter.page;
+      if (filter.limit) query.limit = filter.limit;
+      if (filter.userId) query.userId = filter.userId;
+      const data = await adminApi.getActivityLogs(query);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch activity logs');
-      }
-      
-      const data = await response.json();
       if (data.success || data.data) {
         setLogs(data.data || data.logs || []);
       }

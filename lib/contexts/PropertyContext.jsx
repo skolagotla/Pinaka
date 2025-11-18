@@ -56,20 +56,16 @@ export function PropertyProvider({ children, userRole, initialProperties = [] })
     
     setLoading(true);
     try {
-      const endpoint = '/api/properties'; // Same endpoint for both landlord and PMC
-      const response = await fetch(endpoint, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok && (data.success || data.properties)) {
-        const props = data.properties || data.data?.properties || data.data || [];
-        const propertiesArray = Array.isArray(props) ? props : [];
-        setProperties(propertiesArray);
-        
-        // If selected property no longer exists, clear selection
-        if (selectedProperty && !propertiesArray.find(p => p.id === selectedProperty.id)) {
-          setSelectedProperty(null);
-        }
+      // Use v1Api for properties list
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.properties.list();
+      const props = response.data || response.properties || [];
+      const propertiesArray = Array.isArray(props) ? props : [];
+      setProperties(propertiesArray);
+      
+      // If selected property no longer exists, clear selection
+      if (selectedProperty && !propertiesArray.find(p => p.id === selectedProperty.id)) {
+        setSelectedProperty(null);
       }
     } catch (error) {
       console.error('Error refreshing properties:', error);

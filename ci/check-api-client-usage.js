@@ -41,13 +41,8 @@ const LEGACY_ENDPOINTS = [
 // Specialized v1 endpoints that don't have generated client methods yet
 // TODO: Add these to the generated client
 const SPECIALIZED_V1_ENDPOINTS = [
-  '/api/v1/public/invitations/', // Public invitation endpoints
-  '/api/v1/user/status', // User status endpoint
-  '/api/v1/rent-payments/', // Specialized rent payment actions (send-receipt, mark-unpaid)
-  '/api/v1/tenants/invitations', // Tenant invitations (different from main invitations)
-  '/api/v1/conversations/', // Conversation messages endpoint
-  '/api/v1/notifications/read-all', // Bulk notification actions
-  '/api/v1/maintenance/', // Specialized maintenance actions (comments, mark-viewed)
+  // All specialized endpoints have been added to v1Api.specialized
+  // Keeping this list empty - any remaining endpoints should be added to the client
 ];
 
 function shouldExclude(filePath) {

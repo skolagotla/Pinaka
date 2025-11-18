@@ -36,26 +36,13 @@ export default function TimezoneSelector({ currentTimezone, userId, userRole }) 
       setSaving(true);
       setSelectedTimezone(newTimezone);
 
-      // Determine the API endpoint based on userRole
-      const endpoint = userRole === 'landlord' 
-        ? `/api/landlords/${userId}`
-        : `/api/tenants/${userId}`;
-
-      // Use direct fetch for timezone update (no v1 equivalent yet)
-      const response = await fetch(endpoint, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          timezone: newTimezone,
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to update timezone');
+      // Use v1Api to update timezone for both tenants and landlords
+      const { v1Api } = await import('@/lib/api/v1-client');
+      if (userRole === 'tenant') {
+        await v1Api.tenants.update(userId, { timezone: newTimezone });
+      } else {
+        // For landlords, use v1Api.landlords
+        await v1Api.landlords.update(userId, { timezone: newTimezone });
       }
 
       // Update app-wide timezone context

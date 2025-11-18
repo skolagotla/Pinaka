@@ -17,19 +17,19 @@ export default function UserMenu({ firstName, lastName, userRole, collapsed = fa
     router.push("/settings");
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     // Admin users should use admin logout endpoint
     if (userRole === 'admin') {
-      // Call admin logout API and redirect to admin login
-      fetch('/api/admin/auth/logout', { method: 'POST' })
-        .then(() => {
-          window.location.href = '/admin/login';
-        })
-        .catch((err) => {
-          console.error('Admin logout error:', err);
-          // Still redirect even if API call fails
-          window.location.href = '/admin/login';
-        });
+      try {
+        // Call admin logout API and redirect to admin login
+        const { adminApi } = await import('@/lib/api/admin-api');
+        await adminApi.logout();
+        window.location.href = '/admin/login';
+      } catch (err) {
+        console.error('Admin logout error:', err);
+        // Still redirect even if API call fails
+        window.location.href = '/admin/login';
+      }
     } else {
       // Check if user is using email/password login (has auth0_test_email cookie)
       // or Auth0 login

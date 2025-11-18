@@ -32,16 +32,11 @@ export default function FinancialReports() {
 
   const fetchLandlords = async () => {
     try {
-      // Use direct fetch for legacy endpoint (no v1 equivalent yet)
-      const response = await fetch('/api/landlords', {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch landlords');
-      }
-      const data = await response.json();
-      if (data.success || data.landlords) {
-        setLandlords(data.landlords || data.data || []);
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.landlords.list({ page: 1, limit: 1000 });
+      const landlords = response.data?.data || response.data || [];
+      if (Array.isArray(landlords)) {
+        setLandlords(landlords);
       }
     } catch (error) {
       console.error('[Financial Reports] Error fetching landlords:', error);

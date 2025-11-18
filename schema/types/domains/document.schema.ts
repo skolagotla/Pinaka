@@ -131,6 +131,34 @@ export const documentListResponseSchema = z.object({
   }),
 });
 
+/**
+ * Document Message Schema
+ */
+export const documentMessageSchema = z.object({
+  message: z.string().min(1, 'Message is required'),
+});
+
+/**
+ * Document Approve Deletion Schema
+ */
+export const documentApproveDeletionSchema = z.object({
+  reason: z.string().max(1000).optional().nullable(),
+});
+
+/**
+ * Document Mutual Approve Schema
+ */
+export const documentMutualApproveSchema = z.object({
+  comment: z.string().max(1000).optional().nullable(),
+});
+
+/**
+ * Document Promote Version Schema
+ */
+export const documentPromoteVersionSchema = z.object({
+  versionIndex: z.number().int().min(0),
+});
+
 // Export types
 export type DocumentVisibility = z.infer<typeof documentVisibilitySchema>;
 export type DocumentCreate = z.infer<typeof documentCreateSchema>;
@@ -138,4 +166,8 @@ export type DocumentUpdate = z.infer<typeof documentUpdateSchema>;
 export type DocumentQuery = z.infer<typeof documentQuerySchema>;
 export type DocumentResponse = z.infer<typeof documentResponseSchema>;
 export type DocumentListResponse = z.infer<typeof documentListResponseSchema>;
+export type DocumentMessage = z.infer<typeof documentMessageSchema>;
+export type DocumentApproveDeletion = z.infer<typeof documentApproveDeletionSchema>;
+export type DocumentMutualApprove = z.infer<typeof documentMutualApproveSchema>;
+export type DocumentPromoteVersion = z.infer<typeof documentPromoteVersionSchema>;
 

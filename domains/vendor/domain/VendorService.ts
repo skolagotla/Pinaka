@@ -43,5 +43,28 @@ export class VendorService {
   async softDelete(id: string) {
     return this.repository.softDelete(id);
   }
+
+  /**
+   * Get usage statistics for a vendor
+   */
+  async getUsageStats(vendorId: string) {
+    // Verify vendor exists
+    const vendor = await this.repository.findById(vendorId);
+    if (!vendor) {
+      throw new Error('Vendor not found');
+    }
+
+    // Get statistics via repository
+    const statistics = await this.repository.getUsageStats(vendorId);
+
+    return {
+      vendor: {
+        id: vendor.id,
+        name: vendor.name,
+        type: vendor.type,
+      },
+      statistics,
+    };
+  }
 }
 

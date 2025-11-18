@@ -64,6 +64,7 @@ import * as taskSchemas from './domains/task.schema';
 import * as invitationSchemas from './domains/invitation.schema';
 import * as generatedFormSchemas from './domains/generated-form.schema';
 import * as unitSchemas from './domains/unit.schema';
+import * as landlordSchemas from './domains/landlord.schema';
 
 /**
  * Canonical Schema Registry
@@ -324,6 +325,21 @@ export const schemaRegistry: Record<string, DomainSchemaDefinition> = {
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     tags: ['Units'],
     description: 'Unit management operations',
+  },
+  landlords: {
+    domain: 'landlord',
+    version: '1.0.0',
+    schemas: {
+      create: landlordSchemas.landlordCreateSchema,
+      update: landlordSchemas.landlordUpdateSchema,
+      query: landlordSchemas.landlordQuerySchema,
+      response: landlordSchemas.landlordResponseSchema,
+      listResponse: landlordSchemas.landlordListResponseSchema,
+    },
+    apiPath: '/api/v1/landlords',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    tags: ['Landlords'],
+    description: 'Landlord management operations',
   },
 };
 

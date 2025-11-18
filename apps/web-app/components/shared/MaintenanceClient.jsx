@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
+import { v1Api } from '@/lib/api/v1-client';
 
 // Custom Hooks
 import { useBulkOperations, useMaintenanceRequests, useMaintenanceActions } from '@/lib/hooks';
@@ -306,7 +307,7 @@ export default function MaintenanceClient({
     if (userRole !== 'landlord') return;
     try {
       // Use v1Api for tenants
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.tenants.list({});
       const data = response.data || response;
       // API returns { tenants: [...] } or { data: { tenants: [...] } }, so extract the tenants array
@@ -324,7 +325,7 @@ export default function MaintenanceClient({
     if (userRole !== 'landlord') return;
     try {
       // Use v1Api for properties
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.properties.list({});
       const result = response.data || response;
       // Handle both old format (array) and new format (object with data property)
@@ -347,7 +348,7 @@ export default function MaintenanceClient({
     if (userRole !== 'landlord') return;
     try {
       // Use v1Api for tenant details
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.tenants.get(tenantId);
       const tenant = response.data || response;
       const activeLeases = tenant.leaseTenants?.filter(lt => 
@@ -411,20 +412,15 @@ export default function MaintenanceClient({
     if (userRole !== 'landlord' || !maintenanceRequestId) return;
     setExpenseLoading(true);
     try {
-      // Use direct fetch for maintenance expenses (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${maintenanceRequestId}/expenses`,
-        {
-          method: 'GET',
-          credentials: 'include',
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to fetch expenses');
-      }
-      const data = await response.json();
-      setExpenses(data.expenses || []);
+      // Use v1Api for expenses filtered by maintenance request
+      // v1Api imported at top of file
+      const response = await v1Api.expenses.list({ 
+        maintenanceRequestId,
+        page: 1,
+        limit: 1000,
+      });
+      const expenses = response.data?.data || response.data || [];
+      setExpenses(expenses);
     } catch (error) {
       console.error('[MaintenanceClient] Error fetching expenses:', error);
     } finally {
@@ -436,7 +432,7 @@ export default function MaintenanceClient({
     if (userRole !== 'landlord') return;
     try {
       // Use v1Api for vendors
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.vendors.list({ isActive: true });
       const data = response.data || response;
       setVendors(Array.isArray(data.vendors) ? data.vendors : 
@@ -452,7 +448,7 @@ export default function MaintenanceClient({
     setLoadingVendors(true);
     try {
       // Use v1Api for vendors with category filter
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.vendors.list({ category, isActive: true });
       const data = response.data || response;
       setSuggestedVendors(Array.isArray(data.vendors) ? data.vendors : 
@@ -470,7 +466,7 @@ export default function MaintenanceClient({
     setLoadingAllVendors(true);
     try {
       // Use v1Api for vendors
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const response = await v1Api.vendors.list({ isActive: true });
       const data = response.data || response;
       setAllVendors(Array.isArray(data.vendors) ? data.vendors : 
@@ -504,21 +500,15 @@ export default function MaintenanceClient({
     
     setLoadingVendorStats(prev => ({ ...prev, [vendorId]: true }));
     try {
-      // Use direct fetch for vendor usage stats (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/vendors/${vendorId}/usage-stats`,
-        {
-          method: 'GET',
-          credentials: 'include',
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to fetch vendor usage stats');
-      }
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/vendors/${vendorId}/usage-stats`, {
+        method: 'GET',
+      });
       const data = await response.json();
-      if (data.success) {
+      if (data.success && data.data) {
         setVendorUsageStats(prev => ({ ...prev, [vendorId]: data.data }));
+      } else if (data.success) {
+        setVendorUsageStats(prev => ({ ...prev, [vendorId]: data }));
       }
     } catch (error) {
       console.error('[MaintenanceClient] Error fetching vendor usage stats:', error);
@@ -544,7 +534,7 @@ export default function MaintenanceClient({
       
       try {
         // Use v1Api for maintenance request update
-        const { v1Api } = await import('@/lib/api/v1-client');
+        // v1Api imported at top of file
         result = await v1Api.maintenance.update(selectedRequest.id, { 
           assignedToProviderId: vendorId || null 
         });
@@ -575,7 +565,7 @@ export default function MaintenanceClient({
         }
         // Refresh the request to show pending approval status
         try {
-          const { v1Api } = await import('@/lib/api/v1-client');
+          // v1Api imported at top of file
           const refreshed = await v1Api.maintenance.get(selectedRequest.id);
           const refreshedData = refreshed.data || refreshed;
           if (refreshedData && typeof refreshedData === 'object') {
@@ -601,7 +591,7 @@ export default function MaintenanceClient({
         // Get vendor details
         let vendor;
         try {
-          const { v1Api } = await import('@/lib/api/v1-client');
+          // v1Api imported at top of file
           const vendorResponse = await v1Api.vendors.get(vendorId);
           vendor = vendorResponse.data || vendorResponse;
         } catch (vendorError) {
@@ -632,26 +622,16 @@ export default function MaintenanceClient({
           vendorComment = `Your ticket has been assigned to ${vendorName}, please get in touch with ${contactPerson}${contactInfo ? ` at ${contactInfo}` : ''} to schedule an appointment.`;
         }
 
-        // Use direct fetch for maintenance comments (no v1 equivalent yet)
-        const commentResponse = await fetch(
-          `/api/maintenance/${selectedRequest.id}/comments`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              comment: vendorComment,
-              ...authorInfo,
-            }),
-          }
+        // Use v1Api specialized method for maintenance comments
+        // v1Api imported at top of file
+        await v1Api.specialized.addMaintenanceComment(
+          selectedRequest.id,
+          vendorComment,
+          authorInfo
         );
-        if (!commentResponse.ok) {
-          const error = await commentResponse.json().catch(() => ({}));
-          throw new Error(error.error || error.message || 'Failed to add comment');
-        }
 
         // Refresh to get updated comments
-        const { v1Api } = await import('@/lib/api/v1-client');
+        // v1Api imported at top of file
         const refreshedResponse = await v1Api.maintenance.get(selectedRequest.id);
         const refreshed = refreshedResponse.data || refreshedResponse;
         if (refreshed && typeof refreshed === 'object') {
@@ -668,7 +648,7 @@ export default function MaintenanceClient({
               landlord = refreshed.property.landlord;
             } else if (refreshed.propertyId) {
               // Fetch property separately if not included
-              const { v1Api } = await import('@/lib/api/v1-client');
+              // v1Api imported at top of file
               const propertyResponse = await v1Api.properties.get(refreshed.propertyId);
               const propertyData = propertyResponse.data || propertyResponse;
               landlord = propertyData.property?.landlord || propertyData?.landlord;
@@ -676,7 +656,7 @@ export default function MaintenanceClient({
             
             if (landlord) {
               // Use v1Api for notifications
-              const { v1Api } = await import('@/lib/api/v1-client');
+              // v1Api imported at top of file
               await v1Api.notifications.create({
                 userId: landlord.id,
                 userRole: 'landlord',
@@ -728,7 +708,7 @@ export default function MaintenanceClient({
             console.log('1-minute timer fired for vendor assignment, checking ticket status...');
             try {
               // Re-fetch the ticket to ensure it hasn't been updated by someone else
-              const { v1Api } = await import('@/lib/api/v1-client');
+              // v1Api imported at top of file
               const currentTicketResponse = await v1Api.maintenance.get(refreshed.id);
               const currentData = currentTicketResponse.data || currentTicketResponse;
               
@@ -746,7 +726,7 @@ export default function MaintenanceClient({
               if ((currentData.status === 'Pending' || currentData.status === 'New') && stillFirstComment) {
                 console.log('Updating status to In Progress after vendor assignment...');
                 // Use v1Api for maintenance request update
-                const { v1Api } = await import('@/lib/api/v1-client');
+                // v1Api imported at top of file
                 const statusUpdated = await v1Api.maintenance.update(refreshed.id, { 
                   status: 'In Progress',
                   ...authorInfo
@@ -799,9 +779,9 @@ export default function MaintenanceClient({
       const formData = new FormData();
       formData.append('invoice', existingExpenseInvoiceFileList[0].originFileObj);
       
-      // Use direct fetch for expense invoice upload (no v1 equivalent yet)
+      // Use v1 API for expense invoice upload
       const uploadResponse = await fetch(
-        '/api/expenses/upload-invoice',
+        '/api/v1/expenses/upload-invoice',
         {
           method: 'POST',
           credentials: 'include',
@@ -820,7 +800,7 @@ export default function MaintenanceClient({
       }
 
       // Then update the expense with the receiptUrl using v1Api
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const updateResponse = await v1Api.expenses.update(uploadingExpenseId, { 
         receiptUrl: uploadData.receiptUrl 
       });
@@ -857,7 +837,7 @@ export default function MaintenanceClient({
         : { ...values, tenantId: user.id };
 
       // Use v1Api for creating maintenance request
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       await v1Api.maintenance.create(requestData);
 
       message.success(userRole === 'landlord' 
@@ -973,7 +953,7 @@ export default function MaintenanceClient({
         : { authorEmail: user.email, authorName: `${user.firstName} ${user.lastName}`, authorRole: 'tenant' };
 
       // Use v1Api for maintenance request update
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       await v1Api.maintenance.update(request.id, { 
         status: 'Pending',
         ...authorInfo
@@ -993,18 +973,9 @@ export default function MaintenanceClient({
   async function handleReject(id) {
     setLoading(true);
     try {
-      // Use direct fetch for maintenance rejection (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${id}/reject`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to reject request');
-      }
+      // Use v1Api to update maintenance status to rejected
+      // v1Api imported at top of file
+      await v1Api.maintenance.update(id, { status: 'Rejected' });
       
       await fetchRequests();
       message.success('Request rejected');
@@ -1020,27 +991,16 @@ export default function MaintenanceClient({
   async function handleApproveMaintenanceRequest(approvalId) {
     setLoading(true);
     try {
-      // Use direct fetch for approval (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/approvals/${approvalId}/approve`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ notes: null }),
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to approve maintenance request');
-      }
-      const result = await response.json();
-      if (result.success) {
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const result = await adminApi.approveApproval(approvalId, null);
+      if (result.success || result) {
         message.success('Maintenance request approved successfully');
         await fetchRequests();
       }
     } catch (error) {
       console.error('Error approving maintenance request:', error);
+      message.error(error.message || 'Failed to approve maintenance request');
     } finally {
       setLoading(false);
     }
@@ -1060,34 +1020,21 @@ export default function MaintenanceClient({
   async function handleRejectMaintenanceSubmit() {
     try {
       const values = await rejectMaintenanceForm.validateFields();
-      // Use direct fetch for approval rejection (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/approvals/${rejectingMaintenanceApprovalId}/reject`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ reason: values.reason }),
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to reject maintenance request');
-      }
-      const result = await response.json();
-      if (result.success) {
-        message.success('Maintenance request rejected');
-        setRejectMaintenanceModalOpen(false);
-        setRejectingMaintenanceApprovalId(null);
-        rejectMaintenanceForm.resetFields();
-        await fetchRequests();
-      }
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.rejectApproval(rejectingMaintenanceApprovalId, values.reason);
+      message.success('Maintenance request rejected successfully');
+      setRejectMaintenanceModalOpen(false);
+      setRejectingMaintenanceApprovalId(null);
+      rejectMaintenanceForm.resetFields();
+      await fetchRequests();
     } catch (error) {
       if (error.errorFields) {
         // Form validation error, don't show message
         return;
       }
       console.error('Error rejecting maintenance request:', error);
+      message.error(error.message || 'Failed to reject maintenance request');
     }
   }
 
@@ -1100,26 +1047,13 @@ export default function MaintenanceClient({
         ? { authorEmail: userEmail, authorName: userName, authorRole: 'landlord' }
         : { authorEmail: user.email, authorName: `${user.firstName} ${user.lastName}`, authorRole: 'tenant' };
 
-      // Use direct fetch for maintenance comments (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${selectedRequest.id}/comments`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            comment: newComment,
-            ...authorInfo,
-          }),
-        }
+      // Use v1Api specialized method for maintenance comments
+      // v1Api imported at top of file
+      const updated = await v1Api.specialized.addMaintenanceComment(
+        selectedRequest.id,
+        newComment,
+        authorInfo
       );
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to add comment');
-      }
-      
-      const updated = await response.json();
       setSelectedRequest(updated);
       setNewComment('');
       
@@ -1151,7 +1085,7 @@ export default function MaintenanceClient({
           console.log('1-minute timer fired, checking ticket status...');
           try {
             // Re-fetch the ticket to ensure it hasn't been updated by someone else
-            const { v1Api } = await import('@/lib/api/v1-client');
+            // v1Api imported at top of file
             const currentTicketResponse = await v1Api.maintenance.get(updated.id);
             const currentData = currentTicketResponse.data || currentTicketResponse;
             
@@ -1169,7 +1103,7 @@ export default function MaintenanceClient({
             if ((currentData.status === 'Pending' || currentData.status === 'New') && stillFirstComment) {
               console.log('Updating status to In Progress...');
               // Use v1Api for maintenance request update
-              const { v1Api } = await import('@/lib/api/v1-client');
+              // v1Api imported at top of file
               const statusUpdatedResponse = await v1Api.maintenance.update(updated.id, { 
                 status: 'In Progress',
                 ...authorInfo
@@ -1192,20 +1126,10 @@ export default function MaintenanceClient({
       
       await fetchRequests();
       
-      // Mark as viewed after adding comment (use direct fetch - no v1 equivalent yet)
+      // Mark as viewed after adding comment
       try {
-        const markViewedResponse = await fetch(
-          `/api/maintenance/${selectedRequest.id}/mark-viewed`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ role: userRole }),
-          }
-        );
-        if (!markViewedResponse.ok) {
-          console.error('[MaintenanceClient] Failed to mark as viewed');
-        }
+        // v1Api imported at top of file
+        await v1Api.specialized.markMaintenanceViewed(selectedRequest.id, userRole);
       } catch (error) {
         console.error('[MaintenanceClient] Error marking as viewed:', error);
       }
@@ -1221,9 +1145,9 @@ export default function MaintenanceClient({
   async function handleDownloadTicketPDF(request) {
     try {
       setLoading(true);
-      // Use direct fetch for PDF download (specialized endpoint)
+      // Use v1 API for PDF download
       const response = await fetch(
-        `/api/maintenance/${request.id}/download-pdf`,
+        `/api/v1/maintenance/${request.id}/download-pdf`,
         {
           method: 'GET',
           credentials: 'include',
@@ -1598,7 +1522,7 @@ export default function MaintenanceClient({
                     if (request.status === 'New' && request.initiatedBy === 'landlord') {
                       try {
                         // Use v1Api for maintenance request update
-                        const { v1Api } = await import('@/lib/api/v1-client');
+                        // v1Api imported at top of file
                         await v1Api.maintenance.update(request.id, { status: 'Pending' });
                         await fetchRequests();
                       } catch (error) {
@@ -1614,7 +1538,7 @@ export default function MaintenanceClient({
                     if (request.status === 'New' && request.initiatedBy === 'tenant') {
                       try {
                         // Use v1Api for maintenance request update
-                        const { v1Api } = await import('@/lib/api/v1-client');
+                        // v1Api imported at top of file
                         const updatedResponse = await v1Api.maintenance.update(request.id, { 
                           status: 'Pending',
                           authorEmail: userEmail,
@@ -1804,27 +1728,17 @@ export default function MaintenanceClient({
       }
       
       // Use v1Api for maintenance request update
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const updatedResponse = await v1Api.maintenance.update(selectedRequest.id, updateData);
       const updated = updatedResponse.data || updatedResponse;
       setSelectedRequest(updated);
       setNewStatus(newStatusValue);
       await fetchRequests();
       
-      // Mark as viewed after status update (use direct fetch - no v1 equivalent yet)
+      // Mark as viewed after status update
       try {
-        const markViewedResponse = await fetch(
-          `/api/maintenance/${selectedRequest.id}/mark-viewed`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ role: userRole }),
-          }
-        );
-        if (!markViewedResponse.ok) {
-          console.error('[MaintenanceClient] Failed to mark as viewed');
-        }
+        // v1Api imported at top of file
+        await v1Api.specialized.markMaintenanceViewed(selectedRequest.id, userRole);
       } catch (error) {
         console.error('[MaintenanceClient] Error marking as viewed:', error);
       }
@@ -1848,23 +1762,13 @@ export default function MaintenanceClient({
         ? { authorEmail: userEmail, authorName: userName, authorRole: 'landlord' }
         : { authorEmail: user.email, authorName: `${user.firstName} ${user.lastName}`, authorRole: 'tenant' };
 
-      // First add the comment (use direct fetch - no v1 equivalent yet)
-      const commentResponse = await fetch(
-        `/api/maintenance/${selectedRequest.id}/comments`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            comment: closeComment,
-            ...authorInfo,
-          }),
-        }
+      // First add the comment using v1Api
+      // v1Api imported at top of file
+      await v1Api.specialized.addMaintenanceComment(
+        selectedRequest.id,
+        closeComment,
+        authorInfo
       );
-      if (!commentResponse.ok) {
-        const error = await commentResponse.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to add closing comment');
-      }
 
       // Then update status to Closed
       let updateData = { status: 'Closed' };
@@ -1885,7 +1789,7 @@ export default function MaintenanceClient({
       }
 
       // Use v1Api for maintenance request update
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // v1Api imported at top of file
       const updatedResponse = await v1Api.maintenance.update(selectedRequest.id, updateData);
       const updated = updatedResponse.data || updatedResponse;
       setSelectedRequest(updated);
@@ -1912,26 +1816,12 @@ export default function MaintenanceClient({
         ? { authorEmail: userEmail, authorName: userName, authorRole: 'landlord' }
         : { authorEmail: user.email, authorName: `${user.firstName} ${user.lastName}`, authorRole: 'tenant' };
 
-      // Use direct fetch for closure approval (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${selectedRequest.id}/approve`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            approved,
-            ...authorInfo
-          }),
-        }
+      // Use v1Api specialized method for maintenance approval
+      // v1Api imported at top of file
+      const updated = await v1Api.specialized.approveMaintenance(
+        selectedRequest.id,
+        { approved, ...authorInfo }
       );
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to approve closure');
-      }
-      
-      const updated = await response.json();
       setSelectedRequest(updated);
       await fetchRequests();
       
@@ -2006,7 +1896,7 @@ export default function MaintenanceClient({
                 if (record.status === 'New' && record.initiatedBy === 'landlord') {
                   try {
                     // Use v1Api for maintenance request update
-                    const { v1Api } = await import('@/lib/api/v1-client');
+                    // v1Api imported at top of file
                     await v1Api.maintenance.update(record.id, { 
                       status: 'Pending',
                       authorEmail: user.email,
@@ -2027,7 +1917,7 @@ export default function MaintenanceClient({
                 if (record.status === 'New' && record.initiatedBy === 'tenant') {
                   try {
                     // Use v1Api for maintenance request update
-                    const { v1Api } = await import('@/lib/api/v1-client');
+                    // v1Api imported at top of file
                     const updatedResponse = await v1Api.maintenance.update(record.id, { 
                       status: 'Pending',
                       authorEmail: userEmail,
@@ -2044,12 +1934,12 @@ export default function MaintenanceClient({
                 }
               }
               
-              // Mark ticket as viewed (use direct fetch - no v1 equivalent yet)
+              // Mark ticket as viewed (use v1 API)
               try {
                 const markViewedResponse = await fetch(
-                  `/api/maintenance/${record.id}/mark-viewed`,
+                  `/api/v1/maintenance/${record.id}/mark-viewed`,
                   {
-                    method: 'PATCH',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ role: userRole }),

@@ -5,7 +5,7 @@
  * Generated from schema registry - DO NOT EDIT MANUALLY
  * Run `npm run generate:api-routes` to regenerate
  * 
- * Generated: 2025-11-18T03:18:40.730Z
+ * Generated: 2025-11-18T17:00:22.922Z
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';

@@ -1,7 +1,6 @@
 /**
- * Landlord Domain Re-export
+ * Landlord Domain Exports
  */
 
-export * from './LandlordRepository';
 export { LandlordRepository } from './LandlordRepository';
-
+export { LandlordService } from './LandlordService';

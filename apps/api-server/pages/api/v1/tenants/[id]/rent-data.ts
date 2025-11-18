@@ -5,8 +5,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
-import { TenantService } from '@/domains/tenant/domain/TenantService';
-import { TenantRepository } from '@/domains/tenant/domain/TenantRepository';
+import { tenantService } from '@/lib/domains/tenant';
 import { RentPaymentRepository } from '@/domains/rent-payment/domain/RentPaymentRepository';
 import { tenantRentDataResponseSchema } from '@/lib/schemas';
 const { prisma } = require('@/lib/prisma');
@@ -28,29 +27,14 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     }
 
     // Get tenant via service (includes RBAC check)
-    const tenantRepository = new TenantRepository(prisma);
-    const tenantService = new TenantService(tenantRepository);
     const tenant = await tenantService.getById(id, { leases: true });
 
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    // Get leaseTenants with lease relation
-    const leaseTenants = await prisma.leaseTenant.findMany({
-      where: { tenantId: id },
-      include: {
-        lease: {
-          include: {
-            unit: {
-              include: {
-                property: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Get leaseTenants with lease relation using domain service
+    const leaseTenants = await tenantService.getLeaseTenantsWithLease(id);
 
     // Find active lease for this landlord
     const activeLease = leaseTenants.find(

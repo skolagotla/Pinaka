@@ -484,12 +484,8 @@ function TenantsClient({ initialTenants, user }) {
 
   async function loadInvitations() {
     return await withLoadingInvitations(async () => {
-      const response = await fetch(
-        '/api/v1/tenants/invitations',
-        { method: 'GET' },
-        { operation: 'Load invitations' }
-      );
-      const data = await response.json();
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.listTenantInvitations();
       // Handle standardized API response format
       const invitationsData = data?.data?.invitations || data?.invitations || [];
       setInvitations(invitationsData);
@@ -504,143 +500,39 @@ function TenantsClient({ initialTenants, user }) {
   async function sendInvitation(tenant) {
     logger.action('Tenant: Send invitation clicked', { tenantId: tenant.id, tenantEmail: tenant.email });
     try {
-      const response = await fetch(
-        '/api/v1/tenants/invitations',
-        {
-          method: "POST",
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: tenant.email,
-            prefillData: {
-              firstName: tenant.firstName,
-              lastName: tenant.lastName,
-              phone: tenant.phone,
-              email: tenant.email,
-            },
-          }),
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.createTenantInvitation({
+        email: tenant.email,
+        prefillData: {
+          firstName: tenant.firstName,
+          lastName: tenant.lastName,
+          phone: tenant.phone,
+          email: tenant.email,
         },
-        { operation: 'Send invitation' }
-      );
-      
-      const data = await response.json();
+      });
       logger.apiResponse('POST', '/api/v1/tenants/invitations', 200, data);
       notify.success(`Invitation sent to ${tenant.firstName} ${tenant.lastName}`);
       await loadInvitations(); // Refresh invitations list
     } catch (error) {
       logger.apiError('POST', '/api/v1/tenants/invitations', error);
-      // Error already handled by useUnifiedApi
+      notify.error(error.message || 'Failed to send invitation');
     }
   }
 
   async function inviteNewTenant(values) {
     try {
-      // Make the request directly to catch the response before error handling
-      const response = await fetch('/api/v1/tenants/invitations', {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: values.email,
-          prefillData: {
-            firstName: values.firstName,
-            lastName: values.lastName,
-            phone: values.phone,
-          },
-          expiresInDays: values.expiresInDays || 14,
-        }),
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.createTenantInvitation({
+        email: values.email,
+        prefillData: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phone: values.phone,
+        },
+        expiresInDays: values.expiresInDays || 14,
       });
       
-      if (!response.ok) {
-        // Parse error response
-        const errorData = await response.json().catch(() => ({}));
-        console.log('[Invite Tenant] Error response:', { status: response.status, errorData });
-        
-        // Check if it's a duplicate invitation error (409 Conflict)
-        if (response.status === 409) {
-          // Try multiple possible error response structures
-          const errorCode = errorData?.error?.code || errorData?.code;
-          let invitationId = errorData?.error?.details?.invitationId || errorData?.details?.invitationId;
-          
-          console.log('[Invite Tenant] 409 Conflict - Error code:', errorCode, 'Invitation ID:', invitationId);
-          
-          // If no invitation ID in response, try to find it by loading invitations
-          if (!invitationId) {
-            try {
-              console.log('[Invite Tenant] Loading invitations to find existing invitation...');
-              const loadedInvitations = await loadInvitations();
-              // Use the returned invitations directly instead of state
-              const existingInvitation = loadedInvitations.find(inv => 
-                inv.email === values.email && 
-                ['pending', 'sent', 'opened'].includes(inv.status)
-              );
-              if (existingInvitation) {
-                invitationId = existingInvitation.id;
-                console.log('[Invite Tenant] Found existing invitation:', invitationId);
-              } else {
-                console.log('[Invite Tenant] No existing invitation found in loaded list');
-              }
-            } catch (e) {
-              console.error('[Invite Tenant] Error loading invitations:', e);
-            }
-          }
-          
-          // Show modal with resend option
-          Modal.confirm({
-            title: 'Invitation Already Exists',
-            content: (
-              <div>
-                <p>An active invitation already exists for <strong>{values.email}</strong>.</p>
-                <p style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
-                  Would you like to resend it? The invitation will appear in the "Pending Invitations" section above the tenants table.
-                </p>
-              </div>
-            ),
-            okText: 'Yes, Resend',
-            cancelText: 'Cancel',
-            width: 500,
-            onOk: async () => {
-              if (invitationId) {
-                try {
-                  await resendInvitation(invitationId);
-                  notify.success(`Invitation resent to ${values.email}`);
-                  closeInviteModal();
-                  inviteForm.resetFields();
-                  await loadInvitations(); // Refresh to show in pending section
-                } catch (resendError) {
-                  console.error('[Invite Tenant] Resend error:', resendError);
-                  notify.error('Failed to resend invitation. Please try again.');
-                }
-              } else {
-                notify.warning('Could not find invitation ID. Please check the "Pending Invitations" section above.');
-                await loadInvitations();
-              }
-            },
-            onCancel: () => {
-              // User cancelled, just close the modal
-              closeInviteModal();
-              inviteForm.resetFields();
-            }
-          });
-          return; // Don't show default error
-        }
-        
-        // For other errors, show error message
-        let errorMessage = 'Failed to send invitation';
-        if (errorData?.error) {
-          errorMessage = typeof errorData.error === 'string' 
-            ? errorData.error 
-            : (errorData.error?.message || errorData.error?.code || errorMessage);
-        } else if (errorData?.message) {
-          errorMessage = typeof errorData.message === 'string' 
-            ? errorData.message 
-            : errorMessage;
-        }
-        notify.error(errorMessage);
-        console.error('[Invite Tenant] Error details:', errorData);
-        return;
-      }
-      
       // Success
-      const data = await response.json();
       const responseData = data?.data || data;
       
       // Close modal immediately for better UX
@@ -659,30 +551,77 @@ function TenantsClient({ initialTenants, user }) {
         console.error('[Invite Tenant] Error refreshing invitations:', err);
       });
     } catch (error) {
-      // Network errors or other issues
-      console.error('Invitation error:', error);
-      // Error will be handled by useUnifiedApi if we called it
-      // Otherwise, show a generic message
-      if (!error.message?.includes('fetch')) {
-        notify.error('Failed to send invitation. Please try again.');
+      console.error('[Invite Tenant] Error:', error);
+      
+      // Check if it's a duplicate invitation error (409 Conflict)
+      if (error?.message?.includes('already exists') || error?.message?.includes('INVITATION_EXISTS') || error?.message?.includes('TENANT_EXISTS')) {
+        let invitationId;
+        
+        // Try to extract invitation ID from error message or load invitations
+        try {
+          const loadedInvitations = await loadInvitations();
+          const existingInvitation = loadedInvitations.find(inv => 
+            inv.email === values.email && 
+            ['pending', 'sent', 'opened'].includes(inv.status)
+          );
+          if (existingInvitation) {
+            invitationId = existingInvitation.id;
+            console.log('[Invite Tenant] Found existing invitation:', invitationId);
+          }
+        } catch (e) {
+          console.error('[Invite Tenant] Error loading invitations:', e);
+        }
+        
+        // Show modal with resend option
+        Modal.confirm({
+          title: 'Invitation Already Exists',
+          content: (
+            <div>
+              <p>An active invitation already exists for <strong>{values.email}</strong>.</p>
+              <p style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+                Would you like to resend it? The invitation will appear in the "Pending Invitations" section above the tenants table.
+              </p>
+            </div>
+          ),
+          okText: 'Yes, Resend',
+          cancelText: 'Cancel',
+          width: 500,
+          onOk: async () => {
+            if (invitationId) {
+              try {
+                await resendInvitation(invitationId);
+                notify.success(`Invitation resent to ${values.email}`);
+                closeInviteModal();
+                inviteForm.resetFields();
+                await loadInvitations(); // Refresh to show in pending section
+              } catch (resendError) {
+                console.error('[Invite Tenant] Resend error:', resendError);
+                notify.error('Failed to resend invitation. Please try again.');
+              }
+            } else {
+              notify.warning('Could not find invitation ID. Please check the "Pending Invitations" section above.');
+              await loadInvitations();
+            }
+          },
+          onCancel: () => {
+            // User cancelled, just close the modal
+            closeInviteModal();
+            inviteForm.resetFields();
+          }
+        });
+        return; // Don't show default error
       }
+      
+      // For other errors, show error message
+      notify.error(error?.message || 'Failed to send invitation. Please try again.');
     }
   }
 
   async function resendInvitation(invitationId) {
     try {
       console.log('[Resend Invitation] Attempting to resend:', invitationId);
-      const response = await fetch(
-        `/api/v1/tenants/invitations/${invitationId}/resend`,
-        { 
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        },
-        { operation: 'Resend invitation' }
-      );
-      
-      // If we get here, response is ok
-      const data = await response.json();
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.resendTenantInvitation(invitationId);
       console.log('[Resend Invitation] Response:', data);
       
       // Success response
@@ -705,7 +644,7 @@ function TenantsClient({ initialTenants, user }) {
       }
     } catch (error) {
       console.error('[Resend Invitation] Error:', error);
-      // Error already handled by useUnifiedApi
+      notify.error(error instanceof Error ? error.message : 'Failed to resend invitation');
       // Just refresh invitations list in case status changed
       await loadInvitations();
     }
@@ -713,18 +652,12 @@ function TenantsClient({ initialTenants, user }) {
 
   async function cancelInvitation(invitationId) {
     try {
-      await fetch(
-        `/api/v1/tenants/invitations/${invitationId}`,
-        { 
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        },
-        { operation: 'Cancel invitation' }
-      );
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.cancelTenantInvitation(invitationId);
       notify.success('Invitation cancelled');
       await loadInvitations();
     } catch (error) {
-      // Error already handled
+      notify.error(error instanceof Error ? error.message : 'Failed to cancel invitation');
     }
   }
 
@@ -754,14 +687,17 @@ function TenantsClient({ initialTenants, user }) {
     if (!selectedTenant) return;
     
     await withApproving(async () => {
-      await fetch(
-        `/api/approvals/tenants/${selectedTenant.id}/approve`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        },
-        { operation: 'Approve tenant application' }
-      );
+      // Use v1Api for tenant approval
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/tenants/${selectedTenant.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to approve tenant');
+      }
       
       notify.success('Tenant application approved successfully');
       closeApprovalModal();
@@ -773,17 +709,20 @@ function TenantsClient({ initialTenants, user }) {
     if (!selectedTenant) return;
     
     await withRejecting(async () => {
-      await fetch(
-        `/api/approvals/tenants/${selectedTenant.id}/reject`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: values.reason }),
-        },
-        { operation: 'Reject tenant application' }
-      );
+      // Use v1Api for tenant rejection
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/tenants/${selectedTenant.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: values.reason }),
+      });
       
-      notify.success('Tenant application rejected');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to reject tenant');
+      }
+      
+      notify.success('Tenant application rejected successfully');
       closeRejectModal();
       rejectForm.resetFields();
       await pinaka.refresh();

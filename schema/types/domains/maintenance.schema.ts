@@ -170,6 +170,33 @@ export const maintenanceRequestListResponseSchema = z.object({
   }),
 });
 
+/**
+ * Maintenance Comment Add Schema
+ */
+export const maintenanceCommentAddSchema = z.object({
+  comment: z.string().min(1, 'Comment is required'),
+  authorInfo: z.object({
+    authorEmail: z.string().email().optional(),
+    authorName: z.string().optional(),
+    authorRole: z.enum(['landlord', 'tenant', 'pmc', 'vendor']).optional(),
+  }).optional(),
+});
+
+/**
+ * Maintenance Mark Viewed Schema
+ */
+export const maintenanceMarkViewedSchema = z.object({
+  role: z.enum(['landlord', 'tenant', 'pmc']),
+});
+
+/**
+ * Maintenance Approval Schema
+ */
+export const maintenanceApprovalSchema = z.object({
+  approvedAmount: z.number().optional(),
+  notes: z.string().optional(),
+}).optional();
+
 // Export types
 // Note: These types are also available from '@/lib/schemas/generated-types' (auto-generated)
 // The generated types use shorter names (MaintenanceCreate vs MaintenanceRequestCreate)
@@ -182,6 +209,9 @@ export type MaintenanceRequestQuery = z.infer<typeof maintenanceRequestQuerySche
 export type MaintenanceComment = z.infer<typeof maintenanceCommentSchema>;
 export type MaintenanceRequestResponse = z.infer<typeof maintenanceRequestResponseSchema>;
 export type MaintenanceRequestListResponse = z.infer<typeof maintenanceRequestListResponseSchema>;
+export type MaintenanceCommentAdd = z.infer<typeof maintenanceCommentAddSchema>;
+export type MaintenanceMarkViewed = z.infer<typeof maintenanceMarkViewedSchema>;
+export type MaintenanceApproval = z.infer<typeof maintenanceApprovalSchema>;
 // Re-export shorter names for consistency with generated types
 export type MaintenanceCreate = MaintenanceRequestCreate;
 export type MaintenanceUpdate = MaintenanceRequestUpdate;

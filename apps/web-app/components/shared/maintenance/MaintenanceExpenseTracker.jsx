@@ -72,9 +72,9 @@ export default function MaintenanceExpenseTracker({
           const formData = new FormData();
           formData.append('invoice', invoiceFileList[0].originFileObj);
           
-          // Use direct fetch for expense invoice upload (no v1 equivalent yet)
+          // Use v1 API for expense invoice upload
           const uploadResponse = await fetch(
-            '/api/expenses/upload-invoice',
+            '/api/v1/expenses/upload-invoice',
             {
               method: 'POST',
               credentials: 'include',
@@ -106,23 +106,12 @@ export default function MaintenanceExpenseTracker({
       
       delete expenseData.invoice;
       
-      // Use direct fetch for maintenance expenses (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${selectedRequest.id}/expenses`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(expenseData),
-        }
-      );
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to add expense');
-      }
-      
-      const data = await response.json();
+      // Use v1Api to create expense
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.expenses.create({
+        ...expenseData,
+        maintenanceRequestId: selectedRequest.id,
+      });
       messageApi.success('Expense recorded successfully');
       form.resetFields();
       setInvoiceFileList([]);

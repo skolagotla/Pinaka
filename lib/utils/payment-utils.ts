@@ -8,20 +8,33 @@
 /**
  * Calculate balance from a rent payment and its partial payments
  * @param payment - Rent payment object with partialPayments included
- * @returns Calculated balance (0 if fully paid or not partial)
+ * @returns Calculated balance (0 if fully paid)
  */
 export function calculateBalance(payment: any): number {
-  if (!payment.partialPayments || payment.partialPayments.length === 0) {
-    return payment.status === 'Unpaid' ? payment.amount : 0;
+  // If payment is marked as paid, balance is 0
+  if (payment.status === 'Paid') {
+    return 0;
   }
 
-  const totalPartialPaid = payment.partialPayments.reduce(
-    (sum: number, pp: any) => sum + pp.amount,
+  // Calculate total partial payments
+  const totalPartialPaid = (payment.partialPayments || []).reduce(
+    (sum: number, pp: any) => sum + (pp.amount || 0),
     0
   );
 
-  if (payment.status === 'Partial' && totalPartialPaid > 0) {
-    return payment.amount - totalPartialPaid;
+  // If there are partial payments, calculate remaining balance
+  if (totalPartialPaid > 0) {
+    return Math.max(0, (payment.amount || 0) - totalPartialPaid);
+  }
+
+  // For Unpaid or Overdue status with no partial payments, return full amount
+  if (payment.status === 'Unpaid' || payment.status === 'Overdue') {
+    return payment.amount || 0;
+  }
+
+  // For Partial status, calculate remaining balance
+  if (payment.status === 'Partial') {
+    return Math.max(0, (payment.amount || 0) - totalPartialPaid);
   }
 
   return 0;

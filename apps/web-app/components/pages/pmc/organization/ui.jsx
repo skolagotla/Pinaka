@@ -52,10 +52,10 @@ export default function PMCOrganizationClient({ user, pmcData }) {
       setError(null);
       try {
         // Fetch usage statistics for managed properties
-        const response = await fetch('/api/organizations/usage');
-        const data = await safeJsonParse(response);
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const data = await adminApi.getOrganizationUsage();
 
-        if (response.ok && data.success) {
+        if (data.success) {
           setUsage(data.data);
         } else {
           // If API doesn't exist yet, set default usage

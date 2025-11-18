@@ -120,11 +120,32 @@ export default function PDFViewerModal({
         setLoadingViewUrl(true);
         try {
           const { v1Api } = await import('@/lib/api/v1-client');
-          const blob = await v1Api.forms.viewDocument(
+          
+          // Check if it's a rent payment receipt
+          if (currentDoc.type === 'rent-receipt' || currentDoc.rentPaymentId) {
+            const response = await v1Api.specialized.viewRentPaymentReceipt(currentDoc.rentPaymentId || currentDoc.id);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            setViewUrl(url);
+            return;
+          }
+          
+          // Check if it's a maintenance ticket
+          if (currentDoc.type === 'maintenance-ticket' || currentDoc.ticketNumber) {
+            const response = await v1Api.specialized.downloadMaintenancePDF(currentDoc.id);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            setViewUrl(url);
+            return;
+          }
+          
+          // Default to documents API (v1)
+          const response = await v1Api.specialized.viewDocument(
             currentDoc.id,
             currentDoc.fileIndex,
             currentDoc.versionIndex
           );
+          const blob = await response.blob();
           const url = URL.createObjectURL(blob);
           setViewUrl(url);
         } catch (error) {
@@ -133,22 +154,6 @@ export default function PDFViewerModal({
         } finally {
           setLoadingViewUrl(false);
         }
-        return;
-      }
-      
-      if (currentDoc.id) {
-        // Check if it's a rent payment receipt
-        if (currentDoc.type === 'rent-receipt' || currentDoc.rentPaymentId) {
-          setViewUrl(`/api/rent-payments/${currentDoc.rentPaymentId || currentDoc.id}/view-receipt`);
-          return;
-        }
-        // Check if it's a maintenance ticket
-        if (currentDoc.type === 'maintenance-ticket' || currentDoc.ticketNumber) {
-          setViewUrl(`/api/maintenance/${currentDoc.id}/download-pdf`);
-          return;
-        }
-        // Default to documents API (legacy)
-        setViewUrl(`/api/documents/${currentDoc.id}/view`);
         return;
       }
       setViewUrl(null);

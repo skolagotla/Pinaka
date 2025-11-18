@@ -253,7 +253,10 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
           const tenantsData = response.data?.data || response.data || [];
           return { ok: true, json: async () => ({ tenants: Array.isArray(tenantsData) ? tenantsData : [] }) };
         }).catch(() => null),
-        fetch('/api/tenants/with-outstanding-balance', {}, { operation: 'Load tenants with balance', showUserMessage: false }).catch(() => null),
+        v1Api.specialized.getTenantsWithOutstandingBalance().then(data => {
+          const tenants = data.tenants || data.data || [];
+          return { ok: true, json: async () => ({ tenants: Array.isArray(tenants) ? tenants : [] }) };
+        }).catch(() => null),
         v1Api.properties.list({ page: 1, limit: 1000 }).then(response => {
           const propertiesData = response.data?.data || response.data || [];
           return { ok: true, json: async () => ({ properties: Array.isArray(propertiesData) ? propertiesData : [] }) };
@@ -328,7 +331,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
     try {
       // Use v1Api to get tenant rent data
       const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.signatures.getTenantRentData(tenantId);
+      const data = await v1Api.specialized.getTenantRentData(tenantId);
       
       const payments = data.rentPayments || [];
       const unpaidPayments = payments.filter(p => {
@@ -635,11 +638,8 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleDeleteForm = async (formId) => {
     try {
-      await fetch(
-        `/api/forms/generated/${formId}`,
-        { method: 'DELETE' },
-        { operation: 'Delete form' }
-      );
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.generatedForms.delete(formId);
 
       notify.success('Form deleted successfully');
       loadData();

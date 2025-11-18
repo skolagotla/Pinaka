@@ -268,5 +268,38 @@ export class MaintenanceRepository {
   async count(where: any) {
     return this.prisma.maintenanceRequest.count({ where });
   }
+
+  /**
+   * Check if maintenance request belongs to landlord
+   */
+  async belongsToLandlord(maintenanceId: string, landlordId: string): Promise<boolean> {
+    const request = await this.prisma.maintenanceRequest.findUnique({
+      where: { id: maintenanceId },
+      include: {
+        property: true,
+      },
+    });
+    return request?.property?.landlordId === landlordId;
+  }
+
+  /**
+   * Add comment to maintenance request
+   */
+  async addComment(maintenanceId: string, commentData: {
+    comment: string;
+    authorEmail: string;
+    authorName: string;
+    authorRole: string;
+  }) {
+    return this.prisma.maintenanceComment.create({
+      data: {
+        maintenanceRequestId: maintenanceId,
+        authorEmail: commentData.authorEmail,
+        authorName: commentData.authorName,
+        authorRole: commentData.authorRole,
+        comment: commentData.comment,
+      },
+    });
+  }
 }
 

@@ -30,21 +30,19 @@ export default function PMCDashboardWidget({ pmcName, landlordId }) {
   const fetchPendingApprovals = async () => {
     try {
       setLoading(true);
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch('/api/approvals?status=PENDING', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending approvals');
-      }
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.getApprovals({ status: 'PENDING' });
       
-      const data = await response.json();
       if (data.success || data.data) {
         setPendingApprovals(data.data || data.approvals || []);
+      } else {
+        setPendingApprovals([]);
       }
     } catch (error) {
-      console.error('[PMC Dashboard Widget] Error:', error);
+      // Silently handle errors for optional widget
+      console.debug('[PMC Dashboard Widget] Approvals endpoint not available:', error.message);
+      setPendingApprovals([]);
     } finally {
       setLoading(false);
     }

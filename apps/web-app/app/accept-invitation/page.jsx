@@ -63,13 +63,9 @@ export default function AcceptInvitationPage() {
     dedupeRequest(
       `invitation-${token}`,
       async () => {
-        const res = await fetch(`/api/v1/public/invitations/${token}`);
-        if (res.status === 429) {
-          const data = await res.json();
-          const retryAfter = data.meta?.retryAfter || 60;
-          throw new Error(`Too many requests. Please wait ${retryAfter} seconds and refresh the page.`);
-        }
-        return res.json();
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const data = await v1Api.specialized.getPublicInvitationByToken(token);
+        return data;
       },
       { ttl: 10000 } // 10 second deduplication window
     )
@@ -194,19 +190,11 @@ export default function AcceptInvitationPage() {
       // Use prepareTenantData to include emergency contacts and employers
       const formData = prepareTenantData(baseFormData);
 
-      const response = await fetch('/api/v1/public/invitations/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          formData,
-        }),
-      });
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.acceptPublicInvitation(token, formData);
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error?.message || 'Failed to accept invitation');
+      if (!data.success) {
+        throw new Error(data.error?.message || data.error || 'Failed to accept invitation');
       }
 
       // Mark as submitted to show thank you message

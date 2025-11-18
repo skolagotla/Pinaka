@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:client` to regenerate.
  * 
- * Generated: 2025-11-18T03:19:08.324Z
+ * Generated: 2025-11-18T17:00:28.485Z
  */
 
 import type {
@@ -89,6 +89,11 @@ import type {
   UnitQuery,
   UnitResponse,
   UnitListResponse,
+  LandlordCreate,
+  LandlordUpdate,
+  LandlordQuery,
+  LandlordResponse,
+  LandlordListResponse,
 } from '@pinaka/schema';
 
 
@@ -205,6 +210,7 @@ export const v1Api = {
   invitations: new ApiResource<InvitationCreate, InvitationUpdate, InvitationQuery, InvitationResponse, InvitationListResponse>('invitations'),
   generatedForms: new ApiResource<GeneratedFormCreate, GeneratedFormUpdate, GeneratedFormQuery, GeneratedFormResponse, GeneratedFormListResponse>('generated-forms'),
   units: new ApiResource<UnitCreate, UnitUpdate, UnitQuery, UnitResponse, UnitListResponse>('units'),
+  landlords: new ApiResource<LandlordCreate, LandlordUpdate, LandlordQuery, LandlordResponse, LandlordListResponse>('landlords'),
 };
 
 export default v1Api;

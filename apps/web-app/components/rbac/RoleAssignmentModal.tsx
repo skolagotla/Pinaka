@@ -87,10 +87,10 @@ export default function RoleAssignmentModal({
       setLoading(true);
 
       // Get role ID from role name
-      const rolesResponse = await fetch('/api/rbac/roles');
-      const rolesData = await rolesResponse.json();
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const rolesData = await adminApi.getRBACRoles();
       
-      if (!rolesResponse.ok || !rolesData.success) {
+      if (!rolesData.success) {
         throw new Error(rolesData.error || 'Failed to fetch roles');
       }
 
@@ -104,27 +104,19 @@ export default function RoleAssignmentModal({
           return;
         }
 
-        const response = await fetch(`/api/rbac/users/${userId}/roles?userType=${userType}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roleId,
-            scope: {
-              pmcId,
-              landlordId,
-              propertyId: values.propertyId,
-              unitId: values.unitId,
-              portfolioId: values.portfolioId,
-            },
-            assignedBy,
-            assignedByType,
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok || !data.success) {
+        const data = await adminApi.assignUserRole(
+          userId,
+          userType,
+          roleId,
+          {
+            pmcId,
+            landlordId,
+            propertyId: values.propertyId,
+            unitId: values.unitId,
+            portfolioId: values.portfolioId,
+          }
+        );
+        if (!data.success) {
           throw new Error(data.error || `Failed to assign role ${roleName}`);
         }
       });

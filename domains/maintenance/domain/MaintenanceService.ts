@@ -81,5 +81,24 @@ export class MaintenanceService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Check if maintenance request belongs to landlord
+   */
+  async belongsToLandlord(maintenanceId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(maintenanceId, landlordId);
+  }
+
+  /**
+   * Add comment to maintenance request
+   */
+  async addComment(maintenanceId: string, commentData: {
+    comment: string;
+    authorEmail: string;
+    authorName: string;
+    authorRole: string;
+  }) {
+    return this.repository.addComment(maintenanceId, commentData);
+  }
 }
 

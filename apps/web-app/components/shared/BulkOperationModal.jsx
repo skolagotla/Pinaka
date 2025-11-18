@@ -59,37 +59,25 @@ export default function BulkOperationModal({
       
       // Create approval request for bulk operation
       const formValues = form.getFieldsValue();
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch('/api/approvals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.createApproval({
+        landlordId,
+        approvalType: 'WORK_ORDER',
+        entityType: 'bulk_operation',
+        entityId: `bulk_${Date.now()}`,
+        title: `Bulk ${operationTypes.find(t => t.value === operationType)?.label || 'Operation'}`,
+        amount: operationType === 'rent_update' 
+          ? previewData.reduce((sum, item) => sum + (item.newValue - item.currentValue), 0)
+          : null,
+        description: formValues.description || `Bulk operation on ${selectedItems.length} items`,
+        metadata: {
+          operationType,
+          items: previewData,
+          formValues,
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          landlordId,
-          approvalType: 'WORK_ORDER',
-          entityType: 'bulk_operation',
-          entityId: `bulk_${Date.now()}`,
-          title: `Bulk ${operationTypes.find(t => t.value === operationType)?.label || 'Operation'}`,
-          amount: operationType === 'rent_update' 
-            ? previewData.reduce((sum, item) => sum + (item.newValue - item.currentValue), 0)
-            : null,
-          description: formValues.description || `Bulk operation on ${selectedItems.length} items`,
-          metadata: {
-            operationType,
-            items: previewData,
-            formValues,
-          },
-        }),
       });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to submit bulk operation request');
-      }
-      
-      const data = await response.json();
       if (data.success || data) {
         message.success('Bulk operation request sent for approval');
         form.resetFields();

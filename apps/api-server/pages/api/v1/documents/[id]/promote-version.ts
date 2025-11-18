@@ -6,12 +6,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { DocumentService, DocumentRepository } from '@/lib/domains/document';
+import { documentPromoteVersionSchema } from '@/lib/schemas';
 import { z } from 'zod';
 const { prisma } = require('@/lib/prisma');
-
-const promoteVersionSchema = z.object({
-  versionIndex: z.number().int().min(0),
-});
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'POST') {
@@ -25,7 +22,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     }
 
     // Validate request body
-    const { versionIndex } = promoteVersionSchema.parse(req.body);
+    const { versionIndex } = documentPromoteVersionSchema.parse(req.body);
 
     // Get document via service
     const repository = new DocumentRepository(prisma);

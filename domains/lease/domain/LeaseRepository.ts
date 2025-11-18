@@ -347,5 +347,39 @@ export class LeaseRepository {
   async count(where: any) {
     return this.prisma.lease.count({ where });
   }
+
+  /**
+   * Check if lease belongs to landlord
+   */
+  async belongsToLandlord(leaseId: string, landlordId: string): Promise<boolean> {
+    const lease = await this.prisma.lease.findUnique({
+      where: { id: leaseId },
+      include: {
+        unit: {
+          include: {
+            property: true,
+          },
+        },
+      },
+    });
+    return lease?.unit?.property?.landlordId === landlordId;
+  }
+
+  /**
+   * Check if tenant is on lease
+   */
+  async hasTenant(leaseId: string, tenantId: string): Promise<boolean> {
+    const lease = await this.prisma.lease.findUnique({
+      where: { id: leaseId },
+      include: {
+        leaseTenants: {
+          where: {
+            tenantId,
+          },
+        },
+      },
+    });
+    return (lease?.leaseTenants?.length || 0) > 0;
+  }
 }
 

@@ -155,5 +155,50 @@ export class DocumentRepository {
   async count(where: any) {
     return this.prisma.document.count({ where });
   }
+
+  /**
+   * Get messages for a document
+   */
+  async getMessages(documentId: string) {
+    return this.prisma.documentMessage.findMany({
+      where: { documentId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Add message to a document
+   */
+  async addMessage(documentId: string, messageData: {
+    message: string;
+    senderEmail: string;
+    senderName: string;
+    senderRole: string;
+  }) {
+    return this.prisma.documentMessage.create({
+      data: {
+        documentId,
+        message: messageData.message,
+        senderEmail: messageData.senderEmail,
+        senderName: messageData.senderName,
+        senderRole: messageData.senderRole,
+      },
+    });
+  }
+
+  /**
+   * Check if document belongs to landlord's property
+   */
+  async belongsToLandlord(documentId: string, landlordId: string): Promise<boolean> {
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: {
+        property: {
+          select: { landlordId: true },
+        },
+      },
+    });
+    return document?.property?.landlordId === landlordId;
+  }
 }
 

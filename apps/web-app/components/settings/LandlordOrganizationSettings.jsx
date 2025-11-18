@@ -42,11 +42,11 @@ export default function LandlordOrganizationSettings() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/organizations/me');
-      const data = await response.json();
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.getOrganization();
 
-      if (response.ok && data.success) {
-        setOrganization(data.data.organization);
+      if (data.success) {
+        setOrganization(data.data?.organization);
         setUsage(data.data);
       } else {
         setError(data.error || 'Failed to fetch organization data');

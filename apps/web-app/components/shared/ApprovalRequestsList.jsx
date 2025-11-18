@@ -27,16 +27,10 @@ export default function ApprovalRequestsList() {
   const fetchApprovals = async () => {
     try {
       setLoading(true);
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch('/api/approvals', {
-        credentials: 'include',
-      });
+      // Use adminApi for approvals
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.getApprovals();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch approvals');
-      }
-      
-      const data = await response.json();
       if (data.success || data.data) {
         setApprovals(data.data || data.approvals || []);
       }
@@ -50,27 +44,9 @@ export default function ApprovalRequestsList() {
 
   const handleApprove = async (values) => {
     try {
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/approvals/${selectedApproval.id}/approve`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            notes: values.notes || null,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to approve request');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.approveApproval(selectedApproval.id, values.notes || null);
       
-      const data = await response.json();
       if (data.success || data) {
         message.success('Approval request approved');
         setApproveModalVisible(false);
@@ -86,27 +62,9 @@ export default function ApprovalRequestsList() {
 
   const handleReject = async (values) => {
     try {
-      // Use direct fetch for approvals (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/approvals/${selectedApproval.id}/reject`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            reason: values.reason,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to reject request');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.rejectApproval(selectedApproval.id, values.reason);
       
-      const data = await response.json();
       if (data.success || data) {
         message.success('Approval request rejected');
         setRejectModalVisible(false);

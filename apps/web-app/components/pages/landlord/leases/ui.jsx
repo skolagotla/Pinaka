@@ -35,6 +35,9 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
   const [form] = Form.useForm();
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [selectedTenantIds, setSelectedTenantIds] = useState([]);
+  const [selectedLease, setSelectedLease] = useState(null);
+  const [renewalModalVisible, setRenewalModalVisible] = useState(false);
+  const [terminationModalVisible, setTerminationModalVisible] = useState(false);
   
   // Ensure units and tenants are arrays (safety check)
   const safeUnits = Array.isArray(units) ? units : [];
@@ -117,7 +120,7 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
   }, []);
 
   const availableTenants = selectedUnit 
-    ? tenants.filter(t => !t.hasActiveLease || isEditing)
+    ? tenants.filter(t => !t.hasActiveLease || pinaka.isEditing)
     : tenants;
 
   function handleAddClick() {

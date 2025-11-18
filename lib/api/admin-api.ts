@@ -318,6 +318,264 @@ export const adminApi = {
     });
     return parseResponse(response, 'Failed to delete announcement');
   },
+
+  /**
+   * Get single user by ID
+   */
+  async getUserById(id: string, role?: string) {
+    const queryString = role ? `?role=${role}` : '';
+    const response = await apiClient(`/api/admin/users/${id}${queryString}`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get user');
+  },
+
+  /**
+   * Get user RBAC roles
+   */
+  async getUserRoles(userId: string, userType: string) {
+    const response = await apiClient(`/api/rbac/users/${userId}/roles?userType=${userType}`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get user roles');
+  },
+
+  /**
+   * Assign role to user
+   */
+  async assignUserRole(userId: string, userType: string, roleId: string, scope?: any) {
+    const response = await apiClient(`/api/rbac/users/${userId}/roles?userType=${userType}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roleId, scope }),
+    });
+    return parseResponse(response, 'Failed to assign role');
+  },
+
+  /**
+   * Initialize RBAC system
+   */
+  async initializeRBAC() {
+    const response = await apiClient('/api/rbac/initialize', {
+      method: 'POST',
+    });
+    return parseResponse(response, 'Failed to initialize RBAC');
+  },
+
+  /**
+   * Get role permissions by role name
+   */
+  async getRolePermissionsByName(roleName: string) {
+    const response = await apiClient(`/api/rbac/roles/by-name/${encodeURIComponent(roleName)}/permissions`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get role permissions');
+  },
+
+  /**
+   * List verifications
+   */
+  async getVerifications(query?: { verificationType?: string; status?: string; requestedBy?: string }) {
+    const queryString = query ? '?' + new URLSearchParams(query as any).toString() : '';
+    const response = await apiClient(`/api/verifications${queryString}`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get verifications');
+  },
+
+  /**
+   * Verify a verification request
+   */
+  async verifyVerification(id: string, verificationNotes?: string) {
+    const response = await apiClient(`/api/verifications/${id}/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ verificationNotes: verificationNotes || null }),
+    });
+    return parseResponse(response, 'Failed to verify');
+  },
+
+  /**
+   * Reject a verification request
+   */
+  async rejectVerification(id: string, rejectionReason: string) {
+    const response = await apiClient(`/api/verifications/${id}/reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rejectionReason }),
+    });
+    return parseResponse(response, 'Failed to reject verification');
+  },
+
+  /**
+   * Get current organization
+   */
+  async getOrganization() {
+    const response = await apiClient('/api/organizations/me', {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get organization');
+  },
+
+  /**
+   * Get organization usage stats
+   */
+  async getOrganizationUsage() {
+    const response = await apiClient('/api/organizations/usage', {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get organization usage');
+  },
+
+  /**
+   * @deprecated Use v1Api.landlords instead
+   * Get landlords list
+   */
+  async getLandlords(query?: { search?: string; limit?: number; page?: number }) {
+    console.warn('[adminApi.getLandlords] Deprecated: Use v1Api.landlords.list() instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.landlords.list(query || {});
+  },
+
+  /**
+   * @deprecated Use v1Api.landlords instead
+   * Create landlord
+   */
+  async createLandlord(data: any) {
+    console.warn('[adminApi.createLandlord] Deprecated: Use v1Api.landlords.create() instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.landlords.create(data);
+  },
+
+  /**
+   * @deprecated Use v1Api.landlords instead
+   * Get single landlord by ID
+   */
+  async getLandlord(id: string) {
+    console.warn('[adminApi.getLandlord] Deprecated: Use v1Api.landlords.getById() instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.landlords.getById(id);
+  },
+
+  /**
+   * @deprecated Use v1Api.landlords instead
+   * Update landlord
+   */
+  async updateLandlord(id: string, data: any) {
+    console.warn('[adminApi.updateLandlord] Deprecated: Use v1Api.landlords.update() instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.landlords.update(id, data);
+  },
+
+  /**
+   * Get approvals list
+   */
+  async getApprovals(query?: { status?: string; page?: number; limit?: number }) {
+    const queryString = query ? '?' + new URLSearchParams(query as any).toString() : '';
+    const response = await apiClient(`/api/approvals${queryString}`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get approvals');
+  },
+
+  /**
+   * Approve an approval request
+   */
+  async approveApproval(approvalId: string, notes?: string | null) {
+    const response = await apiClient(`/api/approvals/${approvalId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ notes: notes || null }),
+    });
+    return parseResponse(response, 'Failed to approve request');
+  },
+
+  /**
+   * Reject an approval request
+   */
+  async rejectApproval(approvalId: string, reason: string) {
+    const response = await apiClient(`/api/approvals/${approvalId}/reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    return parseResponse(response, 'Failed to reject request');
+  },
+
+  /**
+   * Create approval request
+   */
+  async createApproval(data: any) {
+    const response = await apiClient('/api/approvals', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return parseResponse(response, 'Failed to create approval');
+  },
+
+  /**
+   * Get activity logs
+   */
+  async getActivityLogs(query?: { type?: string; page?: number; limit?: number; userId?: string }) {
+    const queryString = query ? '?' + new URLSearchParams(query as any).toString() : '';
+    const response = await apiClient(`/api/activity-logs${queryString}`, {
+      method: 'GET',
+    });
+    return parseResponse(response, 'Failed to get activity logs');
+  },
+
+  /**
+   * @deprecated Use v1Api.vendors instead (contractors are vendors with type='contractor')
+   * Get contractors (vendors)
+   */
+  async getContractors(query?: { search?: string; category?: string; isActive?: boolean }) {
+    console.warn('[adminApi.getContractors] Deprecated: Use v1Api.vendors.list({ type: "contractor" }) instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.vendors.list({ type: 'contractor', ...query });
+  },
+
+  /**
+   * @deprecated Use v1Api.vendors instead
+   * Search contractors globally
+   */
+  async searchContractorsGlobal(searchTerm: string) {
+    console.warn('[adminApi.searchContractorsGlobal] Deprecated: Use v1Api.vendors.list({ type: "contractor", search }) instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.vendors.list({ type: 'contractor', search: searchTerm });
+  },
+
+  /**
+   * @deprecated Use v1Api.vendors specialized endpoint instead
+   * Add contractor to landlord
+   */
+  async addContractorToLandlord(contractorId: string, landlordId: string) {
+    console.warn('[adminApi.addContractorToLandlord] Deprecated: Use v1Api.specialized.addContractorToLandlord() instead');
+    // This would need a specialized endpoint in v1Api
+    throw new Error('Use v1Api.specialized.addContractorToLandlord() instead');
+  },
+
+  /**
+   * @deprecated Use v1Api.vendors.delete() instead
+   * Soft delete contractor
+   */
+  async softDeleteContractor(contractorId: string) {
+    console.warn('[adminApi.softDeleteContractor] Deprecated: Use v1Api.vendors.delete() instead');
+    const { v1Api } = await import('@/lib/api/v1-client');
+    return v1Api.vendors.delete(contractorId);
+  },
 };
 
 export default adminApi;

@@ -145,5 +145,22 @@ export class ApplicationRepository {
       where: { id },
     });
   }
+
+  /**
+   * Check if application belongs to landlord
+   */
+  async belongsToLandlord(applicationId: string, landlordId: string): Promise<boolean> {
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        unit: {
+          include: {
+            property: true,
+          },
+        },
+      },
+    });
+    return application?.unit?.property?.landlordId === landlordId;
+  }
 }
 

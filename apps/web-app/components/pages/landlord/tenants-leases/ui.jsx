@@ -98,7 +98,8 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
 
   // 🎯 PINAKA UNIFIED HOOK
   const pinaka = usePinakaCRUD({
-    apiEndpoint: '/api/leases',
+    domain: 'leases',
+    useV1Api: true,
     initialData: initialLeases,
     entityName: 'Lease',
     messages: {
@@ -249,12 +250,8 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
   async function handleEditTenantClick(tenant) {
     try {
       // Fetch full tenant data with emergency contacts and employers
-      const response = await fetch(`/api/tenants/${tenant.id}`);
-      if (!response.ok) {
-        throw new Error('Failed to load tenant data');
-      }
-      
-      const fullTenant = await response.json();
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const fullTenant = await v1Api.tenants.get(tenant.id);
       openAddTenantModalForEdit(fullTenant);
       
       // Set country and update countryRegion hook
@@ -316,44 +313,27 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
       // Sanitize form data
       const sanitizedData = sanitizeFormData(tenantData, { mode: 'storage' });
       
-      const url = isEditing ? `/api/tenants/${editingTenant.id}` : '/api/tenants';
-      const method = isEditing ? 'PATCH' : 'POST';
-      
-      const response = await fetch(
-        url,
-        {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sanitizedData)
-        },
-        { operation: `${isEditing ? 'Update' : 'Create'} tenant` }
-      );
-
-      const updatedTenant = await response.json();
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const updatedTenant = isEditing
+        ? await v1Api.tenants.update(editingTenant.id, sanitizedData)
+        : await v1Api.tenants.create(sanitizedData);
       
       notify.success(
         `Tenant ${updatedTenant.firstName} ${updatedTenant.lastName} ${isEditing ? 'updated' : 'added'} successfully!`
       );
       
       // Refresh tenant and lease data - force a full refresh
-      // Force refresh by calling the API directly first, then update state
-      const tenantsResponse = await fetch('/api/tenants');
-      if (tenantsResponse.ok) {
-        const responseData = await tenantsResponse.json();
-        // Handle { tenants: [...] } format
-        const allTenants = Array.isArray(responseData) ? responseData : (responseData.tenants || []);
-        
-        // Update all tenant states
+      const refreshResult = await tenantPinaka.refresh();
+      if (refreshResult && refreshResult.success && Array.isArray(refreshResult.data)) {
+        setTenants(refreshResult.data);
+        setTenantsData([...refreshResult.data]); // Update tenantsData directly
+      } else {
+        // Fallback: fetch directly
+        const response = await v1Api.tenants.list({ page: 1, limit: 1000 });
+        const allTenants = response.data?.data || response.data || [];
         setTenants(allTenants);
         tenantPinaka.setData(allTenants);
-        setTenantsData([...allTenants]); // Update tenantsData directly
-      } else {
-        // Fallback to refresh function
-        const refreshResult = await tenantPinaka.refresh();
-        if (refreshResult && refreshResult.success && Array.isArray(refreshResult.data)) {
-          setTenants(refreshResult.data);
-          setTenantsData([...refreshResult.data]); // Update tenantsData directly
-        }
+        setTenantsData([...allTenants]);
       }
       await pinaka.refresh();
       
@@ -734,7 +714,8 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
 
   // Tenant management hook (for Tenants tab)
   const tenantPinaka = usePinakaCRUD({
-    apiEndpoint: '/api/tenants',
+    domain: 'tenants',
+    useV1Api: true,
     initialData: initialTenants,
     entityName: 'Tenant',
     messages: {
@@ -978,9 +959,9 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
             description="This action cannot be undone."
             onConfirm={async () => {
               try {
-                const response = await fetch(`/api/tenants/${tenant.id}`, { method: 'DELETE' });
-                if (response.ok) {
-                  notify.success('Tenant deleted successfully');
+                const { v1Api } = await import('@/lib/api/v1-client');
+                await v1Api.tenants.delete(tenant.id);
+                notify.success('Tenant deleted successfully');
                   
                   // Optimistically remove from UI immediately
                   const filtered = tenantPinaka.data.filter(t => t.id !== tenant.id);
@@ -1048,9 +1029,9 @@ export default function TenantsLeasesClient({ units, tenants: initialTenants, in
                 onEditTenant={handleEditTenantClick}
                 onDeleteTenant={async (tenantId) => {
                   try {
-                    const response = await fetch(`/api/tenants/${tenantId}`, { method: 'DELETE' });
-                    if (response.ok) {
-                      notify.success('Tenant deleted successfully');
+                    const { v1Api } = await import('@/lib/api/v1-client');
+                    await v1Api.tenants.delete(tenantId);
+                    notify.success('Tenant deleted successfully');
                       const filtered = tenantPinaka.data.filter(t => t.id !== tenantId);
                       tenantPinaka.setData(filtered);
                       setTenantsData([...filtered]);

@@ -71,21 +71,9 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
-      // Use v1 API endpoint for messages
-      const response = await fetch(`/api/v1/conversations/${selectedConversation.id}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          messageText: newMessage.trim(), // v1 API uses messageText
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to send message');
-      }
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
       setNewMessage('');
       fetchMessages(selectedConversation.id);
       fetchConversations();

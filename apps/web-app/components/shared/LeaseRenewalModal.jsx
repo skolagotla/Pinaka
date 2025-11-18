@@ -36,23 +36,22 @@ export default function LeaseRenewalModal({
         }
       }
 
-      // Use direct fetch for lease renewal (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/leases/${lease.id}/renew`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to renew lease');
+      // Use v1Api for lease renewal
+      if (!lease?.id) {
+        throw new Error('Lease ID is required');
       }
       
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/leases/${lease.id}/renew`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to renew lease');
+      }
       message.success('Lease renewal decision saved successfully');
       form.resetFields();
       onSuccess?.();
@@ -69,6 +68,11 @@ export default function LeaseRenewalModal({
     form.resetFields();
     onCancel();
   };
+
+  // Don't render if lease is not provided
+  if (!lease) {
+    return null;
+  }
 
   return (
     <Modal
@@ -88,7 +92,7 @@ export default function LeaseRenewalModal({
       >
         <Alert
           message="Lease Expiring Soon"
-          description={`Your lease expires on ${lease.leaseEnd ? new Date(lease.leaseEnd).toLocaleDateString() : 'N/A'}. Please choose how you'd like to proceed.`}
+          description={`Your lease expires on ${lease?.leaseEnd ? new Date(lease.leaseEnd).toLocaleDateString() : 'N/A'}. Please choose how you'd like to proceed.`}
           type="info"
           showIcon
           style={{ marginBottom: 24 }}
@@ -151,7 +155,7 @@ export default function LeaseRenewalModal({
                     <Input
                       type="number"
                       prefix="$"
-                      placeholder={lease.rentAmount?.toString()}
+                      placeholder={lease?.rentAmount?.toString() || '0.00'}
                     />
                   </Form.Item>
                 </>

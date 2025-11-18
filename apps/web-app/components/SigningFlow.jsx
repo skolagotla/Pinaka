@@ -79,11 +79,9 @@ export default function SigningFlow({
 
   const loadPDFPreview = async () => {
     try {
-      // Use direct fetch for preview endpoint (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/forms/generated/${formId}/preview`,
-        { credentials: 'include' }
-      );
+      // Use v1Api specialized method for form preview
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.specialized.previewForm(formId);
       if (!response.ok) {
         throw new Error('Failed to load PDF preview');
       }

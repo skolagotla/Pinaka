@@ -71,12 +71,10 @@ export default function DocumentChat({ documentId, document, userRole, userName,
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/documents/${documentId}/messages`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
-        setTimeout(scrollToBottom, 100);
-      }
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.getDocumentMessages(documentId);
+      setMessages(data);
+      setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('[DocumentChat] Error fetching messages:', error);
     } finally {
@@ -90,21 +88,12 @@ export default function DocumentChat({ documentId, document, userRole, userName,
 
     try {
       setSending(true);
-      const res = await fetch(`/api/documents/${documentId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: newMessage.trim() }),
-      });
-
-      if (res.ok) {
-        const sentMessage = await res.json();
-        setMessages((prev) => [...prev, sentMessage]);
-        setNewMessage('');
-        setTimeout(scrollToBottom, 100);
-        message.success('Message sent');
-      } else {
-        message.error('Failed to send message');
-      }
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const sentMessage = await v1Api.specialized.sendDocumentMessage(documentId, newMessage.trim());
+      setMessages((prev) => [...prev, sentMessage]);
+      setNewMessage('');
+      setTimeout(scrollToBottom, 100);
+      message.success('Message sent');
     } catch (error) {
       console.error('[DocumentChat] Error sending message:', error);
       message.error('Failed to send message');

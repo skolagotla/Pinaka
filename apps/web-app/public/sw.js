@@ -18,8 +18,8 @@ const STATIC_ASSETS = [
 
 // API endpoints to cache (GET requests only)
 const CACHEABLE_API_ENDPOINTS = [
-  '/api/properties',
-  '/api/tenants',
+  '/api/v1/properties',
+  '/api/v1/tenants',
   // Add other cacheable endpoints
 ];
 

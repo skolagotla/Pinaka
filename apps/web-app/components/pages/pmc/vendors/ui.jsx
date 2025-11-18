@@ -101,26 +101,24 @@ export default function PMCVendorsClient({ vendorsData }) {
 
   const handleDeleteVendor = async (vendorId) => {
     try {
-      const response = await fetch(
-        `/api/vendors/${vendorId}`,
-        { method: 'DELETE' },
-        { operation: 'Delete vendor' }
-      );
-
+      // Use v1Api for vendor deletion
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.vendors.delete(vendorId);
       notify.success('Vendor deleted successfully');
       refetch();
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('Error deleting vendor:', error);
+      notify.error(error.message || 'Failed to delete vendor');
     }
   };
 
   const handleAddGlobalVendor = async () => {
     try {
-      const response = await fetch(
-        '/api/vendors/search-global',
-        { method: 'GET' },
-        { operation: 'Search global vendors', showUserMessage: false }
-      );
+      // Use v1Api for vendor search
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient('/api/v1/vendors/search', {
+        method: 'GET',
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -128,42 +126,49 @@ export default function PMCVendorsClient({ vendorsData }) {
         notify.info('Global vendor search functionality coming soon');
       }
     } catch (error) {
-      // Error already handled
+      console.error('Error searching vendors:', error);
     }
   };
 
   const handleAddToMyList = async (vendorId) => {
     try {
-      const response = await fetch(
-        `/api/vendors/${vendorId}/add-to-landlord`,
-        { method: 'POST' },
-        { operation: 'Add vendor to list' }
-      );
+      // Use v1Api for adding vendor to landlord
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/vendors/${vendorId}/add-to-landlord`, {
+        method: 'POST',
+      });
 
       if (response.ok) {
         notify.success('Vendor added to your list');
         refetch();
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || data.message || 'Failed to add vendor');
       }
     } catch (error) {
-      // Error already handled
+      console.error('Error adding vendor to list:', error);
+      notify.error(error.message || 'Failed to add vendor to list');
     }
   };
 
   const handleRemoveFromList = async (vendorId) => {
     try {
-      // Remove from landlord's list (delete the relationship)
-      const response = await fetch(
-        `/api/vendors/${vendorId}/remove-from-landlord`,
-        { method: 'DELETE' },
-        { operation: 'Remove vendor from list' }
-      );
+      // Use v1Api for removing vendor from landlord
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/vendors/${vendorId}/remove-from-landlord`, {
+        method: 'DELETE',
+      });
 
       if (response.ok) {
         notify.success('Vendor removed from your list');
         refetch();
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || data.message || 'Failed to remove vendor');
       }
     } catch (error) {
-      // Error already handled
+      console.error('Error removing vendor from list:', error);
+      notify.error(error.message || 'Failed to remove vendor from list');
     }
   };
 

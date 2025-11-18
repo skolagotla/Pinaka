@@ -132,7 +132,7 @@ export const propertyCreateSchema = z.object({
 /**
  * Property Update Schema (all fields optional)
  */
-export const propertyUpdateSchema = propertyCreateSchema.partial().extend({
+export const propertyUpdateSchema = propertyCreateSchema.partial().safeExtend({
   landlordId: commonFields.cuid.optional(), // Can't change landlord
 });
 

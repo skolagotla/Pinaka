@@ -162,19 +162,14 @@ export default function TicketViewModal({
   async function fetchExpenses(ticketId) {
     try {
       setExpenseLoading(true);
-      // Use direct fetch for maintenance expenses (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/maintenance/${ticketId}/expenses`,
-        { credentials: 'include' }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch expenses');
-      }
-      
-      const data = await response.json();
-      // Handle both array response and object with expenses array
-      const expensesArray = Array.isArray(data) ? data : (data.expenses || data.data || []);
+      // Use v1Api for expenses filtered by maintenance request
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.expenses.list({ 
+        maintenanceRequestId: ticketId,
+        page: 1,
+        limit: 1000,
+      });
+      const expensesArray = response.data?.data || response.data || [];
       console.log('[TicketViewModal] Fetched expenses:', expensesArray.length, 'expenses');
       if (expensesArray.length > 0) {
         console.log('[TicketViewModal] First expense receiptUrl:', expensesArray[0].receiptUrl);
@@ -201,9 +196,9 @@ export default function TicketViewModal({
       const formData = new FormData();
       formData.append('invoice', invoiceFileList[0].originFileObj);
       
-      // Use direct fetch for expense invoice upload (no v1 equivalent yet)
+      // Use v1 API for expense invoice upload
       const uploadResponse = await fetch(
-        '/api/expenses/upload-invoice',
+        '/api/v1/expenses/upload-invoice',
         {
           method: 'POST',
           credentials: 'include',
@@ -221,23 +216,12 @@ export default function TicketViewModal({
         throw new Error('Failed to upload invoice');
       }
 
-      // Then update the expense with the receiptUrl
-      const updateResponse = await fetch(
-        `/api/expenses/${uploadingExpenseId}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ receiptUrl: uploadData.receiptUrl }),
-        }
-      );
-      
-      if (!updateResponse.ok) {
-        const error = await updateResponse.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to update expense');
-      }
-
-      const updateData = await updateResponse.json();
+      // Then update the expense with the receiptUrl using v1Api
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const updateResponse = await v1Api.expenses.update(uploadingExpenseId, { 
+        receiptUrl: uploadData.receiptUrl 
+      });
+      const updateData = updateResponse.data || updateResponse;
       if (updateData.success && updateData.expense) {
         // Update local expenses state
         setExpenses(prevExpenses => 
@@ -265,7 +249,7 @@ export default function TicketViewModal({
   if (!ticket) return null;
 
   const handleDownload = onDownload || (() => {
-    window.open(`/api/maintenance/${ticket.id}/download-pdf`, '_blank');
+    window.open(`/api/v1/maintenance/${ticket.id}/download-pdf`, '_blank');
   });
 
   return (

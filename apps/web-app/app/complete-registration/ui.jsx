@@ -32,19 +32,14 @@ export default function CompleteRegistrationForm({ firstName, middleName, lastNa
   async function handleSubmit(values) {
     setLoading(true);
     try {
-      const response = await fetch("/api/landlords", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify(values),
-      });
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.landlords.create(values);
       
-      if (response.ok) {
+      if (data.success || data) {
         message.success('Registration completed successfully!');
         router.push("/dashboard");
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        message.error(errorData.error || 'Failed to complete registration');
+        message.error(data.error || 'Failed to complete registration');
       }
     } catch (error) {
       console.error('[Complete Registration] Error:', error);

@@ -28,18 +28,22 @@ export default function YearEndClosingClient({ user, userRole }) {
   const handleValidate = async (values) => {
     await withValidating(async () => {
       try {
-        const response = await fetch(
-          `/api/financials/close-period?periodId=${values.periodId}`,
-          { method: 'GET' },
-          { operation: 'Validate period', showUserMessage: false }
-        );
+        // Use v1Api for period validation
+        const { apiClient } = await import('@/lib/utils/api-client');
+        const response = await apiClient(`/api/v1/analytics/close-period?periodId=${values.periodId}`, {
+          method: 'GET',
+        });
 
         if (response && response.ok) {
           const data = await response.json();
-          setValidationResult(data.validation);
+          if (data.success && data.validation) {
+            setValidationResult(data.validation);
+          } else {
+            setValidationResult(data);
+          }
         }
       } catch (error) {
-        // Error already handled
+        console.error('Error validating period:', error);
       }
     });
   };
@@ -47,17 +51,15 @@ export default function YearEndClosingClient({ user, userRole }) {
   const handleClose = async (values) => {
     await withLoading(async () => {
       try {
-        const response = await fetch(
-          `/api/financials/close-period`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              periodId: values.periodId,
-            }),
-          },
-          { operation: 'Close period' }
-        );
+        // Use v1Api for period closing
+        const { apiClient } = await import('@/lib/utils/api-client');
+        const response = await apiClient('/api/v1/analytics/close-period', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            periodId: values.periodId,
+          }),
+        });
 
         if (response && response.ok) {
           notify.success('Period closed successfully');

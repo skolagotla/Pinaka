@@ -748,21 +748,16 @@ export default function AdminUsersPage() {
       
       // Fetch user details first
       const { adminApi } = await import('@/lib/api/admin-api');
-      // Note: adminApi.getUsers() doesn't support getting single user by ID yet
-      // For now, keep using fetch for this endpoint
-      const response = await fetch(`/api/admin/users/${user.id}?role=${user.role}`);
-      const data = await response.json();
+      const data = await adminApi.getUserById(user.id, user.role);
       console.log('[handleEditUser] API response:', data);
-      if (response.ok && data.success) {
+      if (data.success) {
         setEditingUser(data.data);
         
         // Load both available roles and user roles in parallel to avoid closure issues
-        const [availableRolesData, userRolesResponse] = await Promise.all([
+        const [availableRolesData, userRolesData] = await Promise.all([
           adminApi.getRBACRoles(),
-          fetch(`/api/rbac/users/${user.id}/roles?userType=${user.role}`),
+          adminApi.getUserRoles(user.id, user.role),
         ]);
-        
-        const userRolesData = await userRolesResponse.json();
         
         let loadedAvailableRoles = [];
         let loadedUserRoles = [];
@@ -773,7 +768,7 @@ export default function AdminUsersPage() {
           console.log('[handleEditUser] Loaded available roles:', loadedAvailableRoles.length);
         }
         
-        if (userRolesResponse.ok && userRolesData.success) {
+        if (userRolesData.success) {
           loadedUserRoles = userRolesData.data || [];
           setUserRBACRoles(loadedUserRoles);
           setInitialRBACRoles(loadedUserRoles);

@@ -101,7 +101,7 @@ export async function invalidateCache(endpoint: string, pattern?: string): Promi
  */
 export const CACHE_CONFIG = {
   // Dashboard endpoints - cache for 1 minute (frequently accessed)
-  '/api/dashboard': { ttl: 60 },
+  '/api/v1/analytics/dashboard': { ttl: 60 },
   
   // Admin users - cache for 2 minutes (moderate update frequency)
   '/api/admin/users': { ttl: 120 },

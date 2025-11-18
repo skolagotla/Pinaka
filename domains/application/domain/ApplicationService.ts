@@ -62,5 +62,12 @@ export class ApplicationService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Check if application belongs to landlord
+   */
+  async belongsToLandlord(applicationId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(applicationId, landlordId);
+  }
 }
 

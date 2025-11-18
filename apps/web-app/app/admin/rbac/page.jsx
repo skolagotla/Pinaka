@@ -162,14 +162,10 @@ export default function AdminRBACPage() {
   const handleInitializeRBAC = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/rbac/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.initializeRBAC();
       
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
+      if (data.success) {
         message.success('RBAC system initialized successfully! All system roles and permissions have been created.');
         fetchRoles();
       } else {
@@ -177,7 +173,7 @@ export default function AdminRBACPage() {
       }
     } catch (error) {
       console.error('Error initializing RBAC:', error);
-      message.error('Failed to initialize RBAC system');
+      message.error(error?.message || 'Failed to initialize RBAC system');
     } finally {
       setLoading(false);
     }

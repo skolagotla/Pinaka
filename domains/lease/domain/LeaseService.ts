@@ -100,5 +100,19 @@ export class LeaseService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Check if lease belongs to landlord
+   */
+  async belongsToLandlord(leaseId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(leaseId, landlordId);
+  }
+
+  /**
+   * Check if tenant is on lease
+   */
+  async hasTenant(leaseId: string, tenantId: string): Promise<boolean> {
+    return this.repository.hasTenant(leaseId, tenantId);
+  }
 }
 

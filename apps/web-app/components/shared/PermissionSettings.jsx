@@ -32,11 +32,11 @@ export default function PermissionSettings({ relationshipId }) {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch permissions');
-      }
+      const data = await response.json().catch(() => ({}));
       
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to fetch permissions');
+      }
       if (data.success || data.permissions) {
         const permissionsData = data.permissions || data.data?.permissions || data.data;
         setPermissions(permissionsData);

@@ -173,5 +173,34 @@ export class TenantService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Check if tenant belongs to landlord's properties
+   */
+  async belongsToLandlord(tenantId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(tenantId, landlordId);
+  }
+
+  /**
+   * Get leaseTenants with lease and property information
+   */
+  async getLeaseTenantsWithLease(tenantId: string) {
+    return this.repository.getLeaseTenantsWithLease(tenantId);
+  }
+
+  /**
+   * Get tenant with payment history
+   */
+  async getTenantWithPaymentHistory(tenantId: string) {
+    return this.repository.getTenantWithPaymentHistory(tenantId);
+  }
+
+  /**
+   * Get tenants with outstanding balance
+   * Returns tenants who have unpaid, overdue, or partial rent payments
+   */
+  async getTenantsWithOutstandingBalance(landlordId?: string) {
+    return this.repository.getTenantsWithOutstandingBalance(landlordId);
+  }
 }
 

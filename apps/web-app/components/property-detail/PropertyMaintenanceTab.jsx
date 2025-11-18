@@ -21,15 +21,10 @@ export default function PropertyMaintenanceTab({ property }) {
   const fetchMaintenanceRequests = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/maintenance?propertyId=${property.id}`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setRequests(data.data || []);
-      } else {
-        message.error('Failed to load maintenance requests');
-      }
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.maintenance.list({ propertyId: property.id });
+      const requests = response.data?.data || response.data || [];
+      setRequests(requests);
     } catch (error) {
       console.error('Error fetching maintenance requests:', error);
       message.error('Error loading maintenance requests');

@@ -86,5 +86,31 @@ export class DocumentService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Get messages for a document
+   */
+  async getMessages(documentId: string) {
+    return this.repository.getMessages(documentId);
+  }
+
+  /**
+   * Add message to a document
+   */
+  async addMessage(documentId: string, messageData: {
+    message: string;
+    senderEmail: string;
+    senderName: string;
+    senderRole: string;
+  }) {
+    return this.repository.addMessage(documentId, messageData);
+  }
+
+  /**
+   * Check if document belongs to landlord's property
+   */
+  async belongsToLandlord(documentId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(documentId, landlordId);
+  }
 }
 

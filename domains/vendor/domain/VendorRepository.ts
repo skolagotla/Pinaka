@@ -134,5 +134,64 @@ export class VendorRepository {
       data: { isActive: false },
     });
   }
+
+  /**
+   * Get usage statistics for a vendor
+   */
+  async getUsageStats(vendorId: string) {
+    const [totalJobs, completedJobs, activeJobs, totalSpent, averageRating] = await Promise.all([
+      this.prisma.maintenanceRequest.count({
+        where: {
+          assignedToProviderId: vendorId,
+        }
+      }),
+      this.prisma.maintenanceRequest.count({
+        where: {
+          assignedToProviderId: vendorId,
+          status: 'Completed',
+        }
+      }),
+      this.prisma.maintenanceRequest.count({
+        where: {
+          assignedToProviderId: vendorId,
+          status: {
+            in: ['New', 'Pending', 'In Progress']
+          }
+        }
+      }),
+      this.prisma.maintenanceRequest.aggregate({
+        where: {
+          assignedToProviderId: vendorId,
+          status: 'Completed',
+          actualCost: {
+            not: null
+          }
+        },
+        _sum: {
+          actualCost: true
+        }
+      }),
+      this.prisma.maintenanceRequest.aggregate({
+        where: {
+          assignedToProviderId: vendorId,
+          rating: {
+            not: null
+          }
+        },
+        _avg: {
+          rating: true
+        }
+      })
+    ]);
+
+    return {
+      totalJobs,
+      completedJobs,
+      activeJobs,
+      totalSpent: totalSpent._sum.actualCost || 0,
+      averageRating: averageRating._avg.rating ? Number(averageRating._avg.rating.toFixed(2)) : null,
+      completionRate: totalJobs > 0 ? ((completedJobs / totalJobs) * 100).toFixed(2) : 0,
+    };
+  }
 }
 

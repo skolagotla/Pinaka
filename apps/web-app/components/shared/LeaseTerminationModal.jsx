@@ -24,6 +24,10 @@ export default function LeaseTerminationModal({
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      if (!lease?.id) {
+        throw new Error('Lease ID is required');
+      }
+
       const payload = {
         reason: values.reason,
         terminationDate: values.terminationDate.toISOString(),
@@ -33,23 +37,18 @@ export default function LeaseTerminationModal({
         payload.actualLoss = parseFloat(values.actualLoss);
       }
 
-      // Use direct fetch for lease termination (no v1 equivalent yet)
-      const response = await fetch(
-        `/api/leases/${lease.id}/terminate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || error.message || 'Failed to terminate lease');
-      }
+      // Use v1Api for lease termination
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/leases/${lease.id}/terminate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to terminate lease');
+      }
       message.success('Termination request submitted successfully');
       form.resetFields();
       onSuccess?.();
@@ -66,6 +65,11 @@ export default function LeaseTerminationModal({
     form.resetFields();
     onCancel();
   };
+
+  // Don't render if lease is not provided
+  if (!lease) {
+    return null;
+  }
 
   return (
     <Modal

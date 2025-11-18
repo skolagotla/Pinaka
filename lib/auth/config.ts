@@ -12,14 +12,15 @@ export type AuthMode = 'auth0' | 'password' | 'auto';
 
 /**
  * Get the configured AUTH_MODE from environment
- * Defaults to 'auto' if not set
+ * Defaults to 'password' for testing (can be changed to 'auth0' later)
  */
 export function getAuthMode(): AuthMode {
   const mode = process.env.AUTH_MODE?.toLowerCase();
   if (mode === 'auth0' || mode === 'password' || mode === 'auto') {
     return mode;
   }
-  return 'auto';
+  // Default to password for testing - change to 'auto' or 'auth0' when ready
+  return 'password';
 }
 
 /**

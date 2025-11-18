@@ -83,12 +83,8 @@ export default function PaymentsClient() {
   const loadPayments = async () => {
     await withLoading(async () => {
       try {
-        const response = await fetch(
-          '/api/tenants/payments',
-          {},
-          { operation: 'Load payment history', showUserMessage: false }
-        );
-        const data = await response.json();
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const data = await v1Api.specialized.getTenantPaymentHistory();
         if (data.success) {
           setPayments(data.payments || []);
           setSummary(data.summary || null);

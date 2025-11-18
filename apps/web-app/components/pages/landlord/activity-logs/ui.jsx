@@ -71,20 +71,17 @@ export default function ActivityLogsClient({ user }) {
       if (filters.startDate) params.append('startDate', filters.startDate.format('YYYY-MM-DD'));
       if (filters.endDate) params.append('endDate', filters.endDate.format('YYYY-MM-DD'));
 
-      const response = await fetch(
-        `/api/activity-logs?${params.toString()}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        },
-        { operation: 'Load activity logs' }
-      );
+      // Use v1Api for activity logs
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient(`/api/v1/activity-logs?${params.toString()}`, {
+        method: 'GET',
+      });
 
       if (response && response.ok) {
         const data = await response.json();
-        console.log('[Activity Logs UI] Received activities:', data.activities?.length || 0);
-        if (data.activities && data.activities.length > 0) {
-          const propertyUpdate = data.activities.find(a => a.entityType === 'property' && a.action === 'update');
+        console.log('[Activity Logs UI] Received activities:', data.data?.length || 0);
+        if (data.data && data.data.length > 0) {
+          const propertyUpdate = data.data.find(a => a.type === 'property' && a.action === 'update');
           if (propertyUpdate) {
             console.log('[Activity Logs UI] Property update entry:', {
               description: propertyUpdate.description,
@@ -94,7 +91,7 @@ export default function ActivityLogsClient({ user }) {
             });
           }
         }
-        setActivities(data.activities || []);
+        setActivities(data.data || data.activities || []);
         setPagination(prev => ({
           ...prev,
           total: data.pagination?.total || 0,

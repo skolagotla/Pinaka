@@ -16,19 +16,19 @@ export default function OrganizationStatusBanner() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/organizations/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data.organization) {
+    (async () => {
+      try {
+        const { adminApi } = await import('@/lib/api/admin-api');
+        const data = await adminApi.getOrganization();
+        if (data.success && data.data?.organization) {
           setOrganizationStatus(data.data);
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching organization status:', err);
-      })
-      .finally(() => {
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, []);
 
   if (loading || !organizationStatus) {

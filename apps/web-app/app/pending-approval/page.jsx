@@ -17,34 +17,18 @@ export default function PendingApprovalPage() {
     const checkUserStatus = async () => {
       try {
         // Fetch user status from API (which handles authentication)
-        const response = await fetch('/api/v1/user/status', {
-          credentials: 'include', // Include cookies for authentication
-        });
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const data = await v1Api.specialized.getUserStatus();
         
         if (!isMounted) return;
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.success) {
-            if (isMounted) {
-              setUserInfo(data);
-              setApprovalStatus(data.approvalStatus || 'PENDING');
-            }
-          } else {
-            console.error('Invalid response format:', data);
-            if (isMounted) {
-              setApprovalStatus('PENDING');
-            }
-          }
-        } else if (response.status === 401) {
-          // Not authenticated, redirect to home
+        if (data && data.success) {
           if (isMounted) {
-            window.location.href = '/';
+            setUserInfo(data);
+            setApprovalStatus(data.approvalStatus || 'PENDING');
           }
-          return;
         } else {
-          console.error('Failed to fetch user status:', response.status);
-          // Set default status if API fails
+          console.error('Invalid response format:', data);
           if (isMounted) {
             setApprovalStatus('PENDING');
           }

@@ -16,32 +16,55 @@ export const dateRangeSchema = z.object({
 });
 
 // Property Performance Query Schema
-export const propertyPerformanceQuerySchema = dateRangeSchema.extend({
+export const propertyPerformanceQuerySchema = dateRangeSchema.safeExtend({
   propertyId: cuidSchema,
 });
 
 // Portfolio Performance Query Schema
-export const portfolioPerformanceQuerySchema = dateRangeSchema.extend({
+export const portfolioPerformanceQuerySchema = dateRangeSchema.safeExtend({
   landlordId: cuidSchema.optional(), // For PMC, optional to specify landlord
 });
 
 // Tenant Delinquency Risk Query Schema
-export const tenantDelinquencyRiskQuerySchema = dateRangeSchema.extend({
+export const tenantDelinquencyRiskQuerySchema = dateRangeSchema.safeExtend({
   landlordId: cuidSchema.optional(), // For PMC, optional to specify landlord
 });
 
 // Cash Flow Forecast Query Schema
-export const cashFlowForecastQuerySchema = dateRangeSchema.extend({
+export const cashFlowForecastQuerySchema = dateRangeSchema.safeExtend({
   landlordId: cuidSchema.optional(), // For PMC, optional to specify landlord
   months: z.string().transform(Number).pipe(z.number().int().min(1).max(24)).optional().default(12),
 });
 
 // Analytics Export Query Schema
-export const analyticsExportQuerySchema = dateRangeSchema.extend({
+export const analyticsExportQuerySchema = dateRangeSchema.safeExtend({
   format: z.enum(['csv', 'json', 'xlsx']).optional().default('csv'),
   type: z.enum(['property', 'portfolio', 'tenant', 'cashflow']).optional(),
   landlordId: cuidSchema.optional(),
   propertyId: cuidSchema.optional(),
+});
+
+// Close Period Validation Schema
+export const validatePeriodSchema = z.object({
+  periodId: z.string().min(1, 'Period ID is required'),
+});
+
+// Close Period Schema
+export const closePeriodSchema = z.object({
+  periodId: z.string().min(1, 'Period ID is required'),
+});
+
+// Generate T776 Schema
+export const generateT776Schema = z.object({
+  landlordId: z.string().optional(),
+  taxYear: z.string().or(z.number()).refine((val) => {
+    const year = typeof val === 'string' ? parseInt(val) : val;
+    const currentYear = new Date().getFullYear();
+    return year >= 2000 && year <= currentYear;
+  }, {
+    message: `Tax year must be between 2000 and ${new Date().getFullYear()}`,
+  }),
+  propertyIds: z.array(z.string()).optional(),
 });
 
 // Property Performance Response Schema

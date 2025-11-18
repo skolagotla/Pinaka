@@ -8,9 +8,13 @@
  * - /auth/me
  * 
  * For Auth0 SDK v4 with App Router, we use the recommended pattern.
+ * 
+ * NOTE: If AUTH_MODE is set to 'password', this route will redirect to home
+ * since password-based auth doesn't use Auth0 routes.
  */
 
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Check if Auth0 is configured
 const isAuth0Configured = () => {
@@ -21,6 +25,21 @@ const isAuth0Configured = () => {
     process.env.AUTH0_CLIENT_ID &&
     process.env.AUTH0_CLIENT_SECRET
   );
+};
+
+// Check if password mode is active
+const isPasswordMode = () => {
+  const mode = process.env.AUTH_MODE?.toLowerCase();
+  // If explicitly set to password, use password mode
+  if (mode === 'password') {
+    return true;
+  }
+  // If explicitly set to auth0, use auth0 mode
+  if (mode === 'auth0') {
+    return false;
+  }
+  // For 'auto' or no mode set: use password if Auth0 is not configured
+  return !isAuth0Configured();
 };
 
 // Initialize Auth0 client
@@ -153,6 +172,19 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   
+  // If password mode is active, redirect Auth0 routes to home
+  if (isPasswordMode()) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth0 Route] Password mode active - redirecting to home');
+    }
+    // For logout, redirect to home (password logout is handled by /api/auth/logout)
+    if (pathname.includes('/logout')) {
+      return NextResponse.redirect(new URL('/', url.origin), 302);
+    }
+    // For other routes, redirect to home
+    return NextResponse.redirect(new URL('/', url.origin), 302);
+  }
+  
   if (process.env.NODE_ENV === 'development') {
     console.log('[Auth0 Route] GET request to:', pathname);
   }
@@ -195,6 +227,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const pathname = url.pathname;
+  
+  // If password mode is active, redirect Auth0 routes to home
+  if (isPasswordMode()) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth0 Route] Password mode active - redirecting to home');
+    }
+    return NextResponse.redirect(new URL('/', url.origin), 302);
+  }
   
   if (process.env.NODE_ENV === 'development') {
     console.log('[Auth0 Route] POST request to:', pathname);

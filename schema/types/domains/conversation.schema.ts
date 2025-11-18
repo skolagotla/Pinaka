@@ -146,6 +146,16 @@ export const conversationListResponseSchema = z.object({
   }),
 });
 
+/**
+ * Conversation Send Message Schema (supports both 'message' and 'messageText' for compatibility)
+ */
+export const conversationSendMessageSchema = z.object({
+  message: z.string().min(1, 'Message is required').optional(),
+  messageText: z.string().min(1, 'Message is required').optional(),
+}).refine(data => data.message || data.messageText, {
+  message: 'Either message or messageText is required',
+});
+
 // Export types
 export type ConversationType = z.infer<typeof conversationTypeSchema>;
 export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
@@ -157,4 +167,5 @@ export type ConversationQuery = z.infer<typeof conversationQuerySchema>;
 export type MessageResponse = z.infer<typeof messageResponseSchema>;
 export type ConversationResponse = z.infer<typeof conversationResponseSchema>;
 export type ConversationListResponse = z.infer<typeof conversationListResponseSchema>;
+export type ConversationSendMessage = z.infer<typeof conversationSendMessageSchema>;
 

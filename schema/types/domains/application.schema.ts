@@ -116,6 +116,21 @@ export const applicationListResponseSchema = z.object({
   }),
 });
 
+/**
+ * Application Approval Schema
+ */
+export const applicationApprovalSchema = z.object({
+  notes: z.string().optional(),
+  approvedBy: z.string().optional(),
+}).optional();
+
+/**
+ * Application Rejection Schema
+ */
+export const applicationRejectionSchema = z.object({
+  reason: z.string().min(1, 'Rejection reason is required'),
+});
+
 // Export types
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;
 export type ApplicationCreate = z.infer<typeof applicationCreateSchema>;
@@ -123,4 +138,6 @@ export type ApplicationUpdate = z.infer<typeof applicationUpdateSchema>;
 export type ApplicationQuery = z.infer<typeof applicationQuerySchema>;
 export type ApplicationResponse = z.infer<typeof applicationResponseSchema>;
 export type ApplicationListResponse = z.infer<typeof applicationListResponseSchema>;
+export type ApplicationApproval = z.infer<typeof applicationApprovalSchema>;
+export type ApplicationRejection = z.infer<typeof applicationRejectionSchema>;
 

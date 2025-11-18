@@ -135,18 +135,77 @@ export default function GlobalSearch({ open, onClose }) {
 
       setLoading(true);
       try {
-        // Use direct fetch for search endpoint (no v1 equivalent yet)
-        const response = await fetch(
-          `/api/search/global?q=${encodeURIComponent(query)}&limit=20`,
-          { credentials: 'include' }
-        );
+        // Use v1Api for search
+        const { apiClient } = await import('@/lib/utils/api-client');
+        const response = await apiClient(`/api/v1/search?q=${encodeURIComponent(query)}&limit=20`, {
+          method: 'GET',
+        });
+        
+        const data = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-          throw new Error('Search failed');
+          throw new Error(data.error || data.message || 'Search failed');
         }
-        
-        const data = await response.json();
-        setResults(data.results || []);
+        // Transform v1 search results to match expected format
+        const transformedResults = [];
+        if (data.data) {
+          if (data.data.properties) {
+            data.data.properties.forEach((p) => {
+              transformedResults.push({
+                type: 'property',
+                id: p.id,
+                title: p.propertyName || p.addressLine1,
+                subtitle: p.city,
+                url: `/properties/${p.id}`,
+              });
+            });
+          }
+          if (data.data.tenants) {
+            data.data.tenants.forEach((t) => {
+              transformedResults.push({
+                type: 'tenant',
+                id: t.id,
+                title: `${t.firstName} ${t.lastName}`,
+                subtitle: t.email,
+                url: `/tenants/${t.id}`,
+              });
+            });
+          }
+          if (data.data.leases) {
+            data.data.leases.forEach((l) => {
+              transformedResults.push({
+                type: 'lease',
+                id: l.id,
+                title: l.leaseNumber || `Lease ${l.id}`,
+                subtitle: l.unit?.property?.propertyName || l.unit?.unitName,
+                url: `/leases/${l.id}`,
+              });
+            });
+          }
+          if (data.data.maintenance) {
+            data.data.maintenance.forEach((m) => {
+              transformedResults.push({
+                type: 'maintenance',
+                id: m.id,
+                title: m.title,
+                subtitle: m.ticketNumber,
+                url: `/maintenance/${m.id}`,
+              });
+            });
+          }
+          if (data.data.documents) {
+            data.data.documents.forEach((d) => {
+              transformedResults.push({
+                type: 'document',
+                id: d.id,
+                title: d.originalName || d.fileName,
+                subtitle: d.category,
+                url: `/documents/${d.id}`,
+              });
+            });
+          }
+        }
+        setResults(transformedResults);
       } catch (error) {
         console.error('[GlobalSearch] Error:', error);
         setResults([]);

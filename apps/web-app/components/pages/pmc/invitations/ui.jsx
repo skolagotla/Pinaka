@@ -103,13 +103,11 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
     openViewModalForEdit(invitation);
 
     await withLoadingDetails(async () => {
-      // Fetch application details directly from invitation ID
-      const response = await fetch(`/api/invitations/${invitation.id}/application`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
+      // Fetch application details using v1Api
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.getInvitationApplication(invitation.id);
       
-      if (response.ok && data.success && data.data) {
+      if (data.success && data.data) {
         setApplicationDetails(data.data);
       } else {
         notify.error(data.error || 'Failed to fetch application details');
@@ -156,14 +154,10 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
       if (!currentApprovalStatus && invitation.status === 'completed') {
         try {
           console.log('[PMC Invitations] Approval status missing, fetching from application details...');
-          const statusResponse = await fetch(`/api/invitations/${invitationId}/application`, {
-            credentials: 'include',
-          });
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            currentApprovalStatus = statusData.data?.approvalStatus || statusData.approvalStatus;
-            console.log('[PMC Invitations] Fetched approval status:', currentApprovalStatus);
-          }
+          const { v1Api } = await import('@/lib/api/v1-client');
+          const statusData = await v1Api.specialized.getInvitationApplication(invitationId);
+          currentApprovalStatus = statusData.data?.approvalStatus || statusData.approvalStatus;
+          console.log('[PMC Invitations] Fetched approval status:', currentApprovalStatus);
         } catch (statusError) {
           console.warn('[PMC Invitations] Could not fetch approval status:', statusError);
         }
@@ -187,21 +181,15 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
 
       console.log('[PMC Invitations] Approval status is PENDING, proceeding with approval...');
       console.log('[PMC Invitations] Calling approve API...');
-      const response = await fetch(`/api/applications/${invitationId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      
-      console.log('[PMC Invitations] Approve API response status:', response.status);
-      const data = await response.json();
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.approveApplication(invitationId);
       console.log('[PMC Invitations] Approve API response data:', data);
       
-      if (response.ok && data.success) {
+      if (data.success) {
         notify.success('Application approved successfully');
         await fetchInvitations();
       } else {
-        const errorMsg = data.error || data.message || `Failed to approve application (${response.status})`;
+        const errorMsg = data.error || data.message || 'Failed to approve application';
         console.error('[PMC Invitations] Approve failed:', errorMsg);
         
         // Handle specific error cases
@@ -229,14 +217,9 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
         return;
       }
 
-      const response = await fetch(`/api/applications/${invitationId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ reason }),
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.rejectApplication(invitationId, reason);
+      if (data.success) {
         notify.success('Application rejected');
         fetchInvitations();
       } else {
