@@ -538,9 +538,9 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
       let adminsWithRoles: any[] = [];
 
       try {
-        // OPTIMIZATION: Fetch admins with RBAC roles in a single query
-        const [adminsWithRolesResult, landlordsResult, pmcsResult, tenantsResult] = await Promise.all([
-          // Get ALL admins with RBAC roles - no filtering at DB level
+        // OPTIMIZATION: Fetch admins and RBAC roles separately, then join
+        const [adminsResult, landlordsResult, pmcsResult, tenantsResult] = await Promise.all([
+          // Get ALL admins - no filtering at DB level
           prisma.admin.findMany({
             select: {
               id: true,
@@ -552,21 +552,6 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
               isActive: true,
               isLocked: true,
               createdAt: true,
-              userRoles: {
-                where: {
-                  userType: 'admin',
-                  isActive: true,
-                },
-                select: {
-                  role: {
-                    select: {
-                      id: true,
-                      name: true,
-                      displayName: true,
-                    },
-                  },
-                },
-              },
             },
           }),
           // Get ALL landlords - no filtering at DB level
@@ -616,8 +601,44 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
           }),
         ]);
         
-        // Assign results to variables
-        adminsWithRoles = adminsWithRolesResult;
+        // Fetch UserRoles for all admins separately (Admin model doesn't have userRoles relation)
+        const adminIds = adminsResult.map(a => a.id);
+        const userRolesForAdmins = adminIds.length > 0 ? await prisma.userRole.findMany({
+          where: {
+            userId: { in: adminIds },
+            userType: 'admin',
+            isActive: true,
+          },
+          select: {
+            userId: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+              },
+            },
+          },
+        }) : [];
+        
+        // Group userRoles by userId
+        const userRolesByAdminId = userRolesForAdmins.reduce((acc, ur) => {
+          if (!acc[ur.userId]) {
+            acc[ur.userId] = [];
+          }
+          if (ur.role) { // Filter out null roles
+            acc[ur.userId].push(ur.role);
+          }
+          return acc;
+        }, {} as Record<string, any[]>);
+        
+        // Join admins with their userRoles
+        adminsWithRoles = adminsResult.map(admin => ({
+          ...admin,
+          userRoles: (userRolesByAdminId[admin.id] || []).map(role => ({ role })),
+        }));
+        
+        // Assign other results
         landlords = landlordsResult;
         pmcs = pmcsResult;
         tenants = tenantsResult;
@@ -629,6 +650,12 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
           meta: queryError.meta,
         });
         throw queryError; // Re-throw to be caught by outer catch
+      }
+      
+      // Ensure adminsWithRoles is an array (safety check)
+      if (!Array.isArray(adminsWithRoles)) {
+        console.error('[Admin Users API] adminsWithRoles is not an array:', typeof adminsWithRoles, adminsWithRoles);
+        adminsWithRoles = [];
       }
       
       // Map to the expected format
