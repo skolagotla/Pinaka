@@ -219,9 +219,8 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         }
       }
 
-      // OPTIMIZATION: Fetch admins with RBAC roles in a single query using include
-      // This reduces from 2 queries to 1 query (50% reduction)
-      const adminsWithRoles = await prisma.admin.findMany({
+      // Fetch admins first, then get their RBAC roles separately (Admin model doesn't have userRoles relation)
+      const adminsResult = await prisma.admin.findMany({
         where: adminWhere,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -234,23 +233,45 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
           isActive: true,
           isLocked: true,
           createdAt: true,
-          userRoles: {
-            where: {
-              userType: 'admin',
-              isActive: true,
-            },
+        },
+      });
+      
+      // Fetch UserRoles for these admins
+      const adminIds = adminsResult.map(a => a.id);
+      const userRolesForAdmins = adminIds.length > 0 ? await prisma.userRole.findMany({
+        where: {
+          userId: { in: adminIds },
+          userType: 'admin',
+          isActive: true,
+        },
+        select: {
+          userId: true,
+          role: {
             select: {
-              role: {
-                select: {
-                  id: true,
-                  name: true,
-                  displayName: true,
-                },
-              },
+              id: true,
+              name: true,
+              displayName: true,
             },
           },
         },
-      });
+      }) : [];
+      
+      // Group userRoles by userId
+      const userRolesByAdminId = userRolesForAdmins.reduce((acc, ur) => {
+        if (!acc[ur.userId]) {
+          acc[ur.userId] = [];
+        }
+        if (ur.role) { // Filter out null roles
+          acc[ur.userId].push(ur.role);
+        }
+        return acc;
+      }, {} as Record<string, any[]>);
+      
+      // Join admins with their userRoles
+      const adminsWithRoles = adminsResult.map(admin => ({
+        ...admin,
+        userRoles: (userRolesByAdminId[admin.id] || []).map(role => ({ role })),
+      }));
       
       console.log('[Admin Users API] Admins found (role=admin, optimized):', {
         count: adminsWithRoles.length,
