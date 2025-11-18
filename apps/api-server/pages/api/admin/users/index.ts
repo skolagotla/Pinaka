@@ -260,7 +260,7 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
           role: a.role, 
           isActive: a.isActive, 
           isLocked: a.isLocked,
-          rbacRolesCount: a.userRoles.length
+          rbacRolesCount: (a.userRoles || []).length
         }))
       });
 
@@ -282,20 +282,24 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         createdAt: a.createdAt,
       }));
       
+      // Extract userRoles from the included data
+      // Filter out any userRoles where role is null (data integrity issue)
       const userRoles = adminsWithRoles.flatMap(a => 
-        a.userRoles.map(ur => ({
-          userId: a.id,
-          userType: 'admin',
-          role: ur.role,
-        }))
+        (a.userRoles || [])
+          .filter(ur => ur.role != null) // Filter out null roles
+          .map(ur => ({
+            userId: a.id,
+            userType: 'admin',
+            role: ur.role,
+          }))
       );
       
       console.log('[Admin Users API] RBAC roles found (optimized query):', {
         count: userRoles.length,
         roles: userRoles.map(ur => ({
           userId: ur.userId,
-          roleName: ur.role.name,
-          displayName: ur.role.displayName
+          roleName: ur.role?.name || 'Unknown',
+          displayName: ur.role?.displayName || 'Unknown'
         }))
       });
 
@@ -317,13 +321,13 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         }
         // Check RBAC roles
         const userRBACRoles = rbacRolesByUserId[a.id] || [];
-        const hasSuperAdmin = userRBACRoles.some(ur => ur.role.name === 'SUPER_ADMIN');
-        const hasPMCAdmin = userRBACRoles.some(ur => ur.role.name === 'PMC_ADMIN');
+        const hasSuperAdmin = userRBACRoles.some(ur => ur.role?.name === 'SUPER_ADMIN');
+        const hasPMCAdmin = userRBACRoles.some(ur => ur.role?.name === 'PMC_ADMIN');
         if (hasSuperAdmin || hasPMCAdmin) {
           console.log('[Admin Users API] Found admin by RBAC role:', {
             email: a.email,
             baseRole: a.role,
-            rbacRoles: userRBACRoles.map(ur => ur.role.name)
+            rbacRoles: userRBACRoles.map(ur => ur.role?.name).filter(Boolean)
           });
           return true;
         }
@@ -331,7 +335,7 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         console.log('[Admin Users API] Admin filtered out:', {
           email: a.email,
           baseRole: a.role,
-          rbacRoles: userRBACRoles.map(ur => ur.role.name),
+          rbacRoles: userRBACRoles.map(ur => ur.role?.name).filter(Boolean),
           reason: 'No SUPER_ADMIN base role and no SUPER_ADMIN/PMC_ADMIN RBAC roles'
         });
         return false;
@@ -451,12 +455,15 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
       }));
 
       // Extract userRoles from the included data
+      // Filter out any userRoles where role is null (data integrity issue)
       const userRoles = adminsWithRoles.flatMap(a => 
-        a.userRoles.map(ur => ({
-          userId: a.id,
-          userType: 'admin',
-          role: ur.role,
-        }))
+        (a.userRoles || [])
+          .filter(ur => ur.role != null) // Filter out null roles
+          .map(ur => ({
+            userId: a.id,
+            userType: 'admin',
+            role: ur.role,
+          }))
       );
 
       // Group RBAC roles by userId
@@ -471,7 +478,7 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
       // Filter to show only PMC_ADMIN users (RBAC role)
       let pmcAdmins = admins.filter(a => {
         const userRBACRoles = rbacRolesByUserId[a.id] || [];
-        const hasPMCAdmin = userRBACRoles.some(ur => ur.role.name === 'PMC_ADMIN');
+        const hasPMCAdmin = userRBACRoles.some(ur => ur.role?.name === 'PMC_ADMIN');
         return hasPMCAdmin;
       });
 
@@ -638,12 +645,15 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
       }));
       
       // Extract userRoles from the included data
+      // Filter out any userRoles where role is null (data integrity issue)
       const userRoles = adminsWithRoles.flatMap(a => 
-        a.userRoles.map(ur => ({
-          userId: a.id,
-          userType: 'admin',
-          role: ur.role,
-        }))
+        (a.userRoles || [])
+          .filter(ur => ur.role != null) // Filter out null roles
+          .map(ur => ({
+            userId: a.id,
+            userType: 'admin',
+            role: ur.role,
+          }))
       );
 
       // Group RBAC roles by userId
@@ -668,13 +678,13 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         }
         // Check RBAC roles
         const userRBACRoles = rbacRolesByUserId[a.id] || [];
-        const hasSuperAdmin = userRBACRoles.some(ur => ur.role.name === 'SUPER_ADMIN');
-        const hasPMCAdmin = userRBACRoles.some(ur => ur.role.name === 'PMC_ADMIN');
+        const hasSuperAdmin = userRBACRoles.some(ur => ur.role?.name === 'SUPER_ADMIN');
+        const hasPMCAdmin = userRBACRoles.some(ur => ur.role?.name === 'PMC_ADMIN');
         if (hasSuperAdmin || hasPMCAdmin) {
           console.log('[Admin Users API] Found admin by RBAC role:', {
             email: a.email,
             baseRole: a.role,
-            rbacRoles: userRBACRoles.map(ur => ur.role.name)
+            rbacRoles: userRBACRoles.map(ur => ur.role?.name).filter(Boolean)
           });
           return true;
         }
@@ -682,7 +692,7 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         console.log('[Admin Users API] Admin filtered out:', {
           email: a.email,
           baseRole: a.role,
-          rbacRoles: userRBACRoles.map(ur => ur.role.name),
+          rbacRoles: userRBACRoles.map(ur => ur.role?.name).filter(Boolean),
           reason: 'No SUPER_ADMIN base role and no SUPER_ADMIN/PMC_ADMIN RBAC roles'
         });
         return false;
@@ -708,7 +718,7 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
             role: 'admin',
             adminRole: a.role,
             rbacRoles: userRBACRoles,
-            rbacRoleNames: userRBACRoles.map(ur => ur.role.name),
+            rbacRoleNames: userRBACRoles.map(ur => ur.role?.name).filter(Boolean),
             status: a.isActive && !a.isLocked ? 'active' : a.isLocked ? 'locked' : 'inactive',
             createdAt: a.createdAt,
           };
