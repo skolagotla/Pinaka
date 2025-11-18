@@ -1,0 +1,32 @@
+{
+  "name": "@pinaka/api-server",
+  "version": "1.0.0",
+  "description": "Pinaka API Server",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@pinaka/domain-common": "workspace:*",
+    "@pinaka/generated": "workspace:*",
+    "@pinaka/schemas": "workspace:*",
+    "@pinaka/shared-utils": "workspace:*",
+    "@prisma/client": "^6.18.0",
+    "bcryptjs": "^2.4.3",
+    "cookie": "^0.6.0",
+    "next": "^16.0.0",
+    "nodemailer": "^6.9.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.0",
+    "@types/cookie": "^0.6.0",
+    "@types/node": "^20.0.0",
+    "@types/nodemailer": "^6.4.0",
+    "prisma": "^6.18.0",
+    "typescript": "^5.0.0"
+  }
+}

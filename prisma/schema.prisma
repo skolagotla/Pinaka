@@ -1,0 +1,3459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Country {
+  id        String   @id
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  // Relations
+  regions          Region[]
+  properties       Property[]                  @relation("PropertyCountry") // Properties in this country
+  landlords        Landlord[]                  @relation("LandlordCountry") // Landlords in this country
+  tenants          Tenant[]                    @relation("TenantCountry") // Tenants in this country
+  serviceProviders ServiceProvider[]           @relation("ServiceProviderCountry") // Unified service providers
+  pmcs             PropertyManagementCompany[] @relation("PMCCountry") // PMCs in this country
+
+  // Optional: Business logic fields
+  currencyCode   String? // 'CAD', 'USD', etc.
+  currencySymbol String? // '$', '€', etc.
+  dateFormat     String? @default("YYYY-MM-DD") // Date format preference
+  timeFormat     String? @default("24h") // 12h or 24h
+  legalSystem    String? // 'Common Law', 'Civil Law', etc.
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Document {
+  id                  String             @id
+  tenantId            String
+  propertyId          String? // Property-centric: Link document to property
+  fileName            String
+  originalName        String
+  fileType            String
+  fileSize            Int
+  category            String
+  description         String             @default("")
+  storagePath         String
+  uploadedAt          DateTime           @default(now())
+  updatedAt           DateTime
+  canLandlordDelete   Boolean            @default(true)
+  canTenantDelete     Boolean            @default(true)
+  expirationDate      DateTime?
+  isRequired          Boolean            @default(false)
+  isVerified          Boolean            @default(false)
+  reminderSent        Boolean            @default(false)
+  reminderSentAt      DateTime?
+  subcategory         String?
+  tags                String[]
+  uploadedBy          String
+  uploadedByEmail     String
+  uploadedByName      String
+  verifiedAt          DateTime?
+  verifiedBy          String?
+  visibility          String             @default("shared")
+  deletedAt           DateTime?
+  deletedBy           String?
+  deletedByEmail      String?
+  deletedByName       String?
+  deletionReason      String?
+  isDeleted           Boolean            @default(false)
+  verifiedByName      String?
+  verifiedByRole      String?
+  documentHash        String?            @unique
+  metadata            String?
+  isRejected          Boolean            @default(false)
+  rejectedAt          DateTime?
+  rejectedBy          String?
+  rejectedByName      String?
+  rejectedByRole      String?
+  rejectionReason     String?
+  verificationComment String?
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property            Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  auditLogs           DocumentAuditLog[]
+  messages            DocumentMessage[]
+
+  @@index([category])
+  @@index([expirationDate])
+  @@index([isDeleted])
+  @@index([isRequired])
+  @@index([isVerified])
+  @@index([tenantId])
+  @@index([tenantId, isDeleted])
+  @@index([uploadedAt])
+  @@index([tenantId, category])
+  @@index([propertyId])
+  @@index([propertyId, isDeleted])
+}
+
+model DocumentAuditLog {
+  id               String   @id
+  documentId       String
+  action           String
+  performedBy      String
+  performedByEmail String
+  performedByName  String
+  ipAddress        String?
+  userAgent        String?
+  details          String?
+  createdAt        DateTime @default(now())
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([documentId])
+}
+
+model DocumentMessage {
+  id          String    @id
+  documentId  String
+  message     String
+  senderRole  String
+  senderEmail String
+  senderName  String
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([documentId, isRead])
+  @@index([isRead])
+  @@index([senderRole])
+}
+
+model EmergencyContact {
+  id          String   @id
+  tenantId    String
+  contactName String
+  email       String?
+  phone       String
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Employer {
+  id                  String               @id
+  tenantId            String
+  employerName        String
+  employerAddress     String?
+  income              Float?
+  isCurrent           Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employmentDocuments EmploymentDocument[]
+
+  @@index([isCurrent])
+  @@index([tenantId])
+}
+
+model EmploymentDocument {
+  id         String   @id
+  employerId String
+  fileName   String
+  filePath   String
+  fileSize   Int?
+  mimeType   String?
+  uploadedAt DateTime @default(now())
+  employer   Employer @relation(fields: [employerId], references: [id], onDelete: Cascade)
+
+  @@index([employerId])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ORGANIZATION MODEL - SaaS Multi-Tenancy
+// ═══════════════════════════════════════════════════════════════
+enum PlanType {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  TRIAL
+}
+
+model Organization {
+  id        String             @id @default(cuid())
+  name      String
+  subdomain String?            @unique // e.g., "acme" for acme.pinaka.com
+  plan      PlanType           @default(FREE)
+  status    OrganizationStatus @default(ACTIVE)
+
+  // Subscription details
+  subscriptionId     String? // External subscription ID (Stripe, Chargebee, etc.)
+  subscriptionStatus String? // 'active', 'canceled', 'past_due', etc.
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+
+  // Usage limits (null = unlimited for enterprise)
+  maxProperties       Int? // Maximum properties allowed
+  maxTenants          Int? // Maximum tenants allowed
+  maxUsers            Int? // Maximum users allowed
+  maxStorageGB        Int? // Maximum storage in GB
+  maxApiCallsPerMonth Int? // Maximum API calls per month
+
+  // Billing
+  billingEmail      String?
+  billingAddress    String?
+  billingCity       String?
+  billingState      String?
+  billingPostalCode String?
+  billingCountry    String?
+
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  trialEndsAt DateTime? // Trial expiration date
+
+  // Relations
+  landlords  Landlord[]
+  properties Property[]
+  settings   OrganizationSettings?
+
+  @@index([subdomain])
+  @@index([status])
+  @@index([plan])
+  @@index([subscriptionStatus])
+  @@index([createdAt])
+}
+
+model OrganizationSettings {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  // Branding
+  logoUrl        String?
+  primaryColor   String? @default("#1890ff")
+  secondaryColor String? @default("#52c41a")
+  companyName    String?
+
+  // Features
+  features Json? // Feature flags: { "advancedReports": true, "apiAccess": false }
+
+  // Integrations
+  integrations Json? // Integration settings: { "stripe": {...}, "slack": {...} }
+
+  // Notifications
+  emailNotifications Boolean @default(true)
+  smsNotifications   Boolean @default(false)
+
+  // Customization
+  customDomain String? @unique // Custom domain for white-label
+  customCss    String? // Custom CSS for branding
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customDomain])
+}
+
+model Landlord {
+  id            String  @id
+  landlordId    String  @unique
+  firstName     String
+  middleName    String?
+  lastName      String
+  email         String  @unique
+  phone         String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  provinceState String? // Legacy field - keep for backward compat
+  postalZip     String?
+  country       String? // Legacy field - keep for backward compat
+
+  // Organization (SaaS Multi-Tenancy)
+  organizationId String? // Optional for backward compatibility during migration
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Country/Region FKs
+  countryCode String? // ISO 3166-1 alpha-2 (CA, US, etc.)
+  regionCode  String? // Region code within country (ON, BC, NY, etc.)
+  countryFK   Country? @relation("LandlordCountry", fields: [countryCode], references: [code], onDelete: SetNull)
+  regionFK    Region?  @relation("LandlordRegion", fields: [countryCode, regionCode], references: [countryCode, code], onDelete: SetNull)
+
+  timezone          String?  @default("America/Toronto")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime
+  theme             String?  @default("default")
+  signatureFileName String?
+
+  // Approval workflow - Converted to FKs for referential integrity
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedBy      String? // Admin ID who approved (FK)
+  approvedByAdmin Admin?         @relation("AdminApprovedLandlords", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?
+  rejectedBy      String? // Admin ID who rejected (FK)
+  rejectedByAdmin Admin?         @relation("AdminRejectedLandlords", fields: [rejectedBy], references: [id], onDelete: SetNull)
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // Invitation tracking
+  invitedBy      String? // Admin ID who invited (FK)
+  invitedByAdmin Admin?    @relation("AdminInvitedLandlords", fields: [invitedBy], references: [id], onDelete: SetNull)
+  invitedAt      DateTime?
+
+  properties             Property[]
+  tenantInvitations      TenantInvitation[] // Legacy - will be migrated to Invitation
+  invitations            Invitation[] // Unified invitation system
+  serviceProviders       LandlordServiceProvider[] // Unified - Many-to-many with service providers
+  pmcRelationships       PMCLandlord[] // PMC-Landlord relationships
+  ownershipVerifications PropertyOwnershipVerification[] // Property ownership verification documents
+  bankReconciliations    BankReconciliation[]
+  ownerPayouts           OwnerPayout[]
+  ownerStatements        OwnerStatement[]
+  sentInvitations        Invitation[]                    @relation("LandlordInvitations") // Invitations sent by this landlord
+  activityLogs           ActivityLog[] // Activity logs for this landlord
+  createdSupportTickets  SupportTicket[]                 @relation("LandlordSupportTickets") // Support tickets created by this landlord
+  assignedSupportTickets SupportTicket[]                 @relation("AssignedLandlordSupportTickets") // Support tickets assigned to this landlord
+  conversations          Conversation[]                  @relation("LandlordConversations") // Conversations where this landlord is primary participant
+  createdConversations   Conversation[]                  @relation("CreatedLandlordConversations") // Conversations created by this landlord
+  sentMessages           Message[]                       @relation("LandlordMessages") // Messages sent by this landlord
+  // Note: Unified verifications requested by this landlord are queried by requestedBy = id (no direct relation)
+
+  @@index([approvalStatus])
+  @@index([countryCode])
+  @@index([countryCode, regionCode])
+  @@index([approvedBy])
+  @@index([invitedBy])
+  @@index([organizationId])
+  @@index([organizationId, approvalStatus])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANDLORD-VENDOR RELATIONSHIP (Many-to-Many)
+// ═══════════════════════════════════════════════════════════════
+// LEGACY MODELS REMOVED - Data migrated to unified models:
+// - LandlordVendor → LandlordServiceProvider
+// - LandlordContractor → LandlordServiceProvider
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN AUTHENTICATION SYSTEM - GOOGLE OAUTH
+// ═══════════════════════════════════════════════════════════════
+// Admin authentication using Google OAuth (separate from Auth0)
+// ═══════════════════════════════════════════════════════════════
+enum AdminRole {
+  SUPER_ADMIN // Full system access
+  PLATFORM_ADMIN // Platform management
+  SUPPORT_ADMIN // Support access
+  BILLING_ADMIN // Financial access
+  AUDIT_ADMIN // Audit logs only
+}
+
+// Platform-wide settings (singleton)
+model PlatformSettings {
+  id String @id @default("platform_settings") // Singleton - always same ID
+
+  // Feature flags
+  maintenanceMode Boolean @default(false)
+  featureFlags    Json? // { tenantInvitations: true, documentVault: true, ... }
+
+  // Email configuration
+  email Json? // { enabled: true, provider: 'gmail' }
+
+  // Notification configuration
+  notifications Json? // { enabled: true, channels: ['email'] }
+
+  // Stripe payment configuration
+  stripe Json? // { enabled: false, secretKey: '', publishableKey: '', webhookSecret: '' }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+model Admin {
+  id          String    @id @default(cuid())
+  email       String    @unique // Google email
+  googleId    String?   @unique // Google user ID
+  firstName   String
+  lastName    String
+  phone       String?
+  role        AdminRole @default(PLATFORM_ADMIN)
+  isActive    Boolean   @default(true)
+  isLocked    Boolean   @default(false)
+  lastLoginAt DateTime?
+  lastLoginIp String?
+
+  // Security settings
+  allowedGoogleDomains String[] // e.g., ['@gmail.com', '@yourcompany.com']
+  ipWhitelist          String[] // Allowed IP addresses
+  requireIpWhitelist   Boolean  @default(false)
+
+  // Relations
+  permissions AdminPermission[]
+  auditLogs   AdminAuditLog[]
+  sessions    AdminSession[]
+
+  // Approval/Invitation tracking relations
+  approvedLandlords Landlord[] @relation("AdminApprovedLandlords")
+  rejectedLandlords Landlord[] @relation("AdminRejectedLandlords")
+  invitedLandlords  Landlord[] @relation("AdminInvitedLandlords")
+
+  approvedPMCs PropertyManagementCompany[] @relation("AdminApprovedPMCs")
+  rejectedPMCs PropertyManagementCompany[] @relation("AdminRejectedPMCs")
+  invitedPMCs  PropertyManagementCompany[] @relation("AdminInvitedPMCs")
+
+  approvedServiceProviders ServiceProvider[] @relation("AdminApprovedServiceProviders")
+  invitedServiceProviders  ServiceProvider[] @relation("AdminInvitedServiceProviders")
+
+  sentInvitations        Invitation[]    @relation("AdminInvitations")
+  approvedInvitations    Invitation[]    @relation("AdminApprovedInvitations") // PHASE 2: Invitations approved by this admin
+  rejectedInvitations    Invitation[]    @relation("AdminRejectedInvitations") // PHASE 2: Invitations rejected by this admin
+  assignedSupportTickets SupportTicket[] @relation("AdminSupportTickets") // Support tickets assigned to this admin
+
+  // Audit trail
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String? // Admin who created this
+  updatedBy String? // Admin who last updated
+
+  @@index([email])
+  @@index([googleId])
+  @@index([isActive])
+  @@index([role])
+}
+
+model AdminPermission {
+  id         String @id @default(cuid())
+  adminId    String
+  resource   String // 'users', 'settings', 'billing', etc.
+  action     String // 'read', 'write', 'delete', 'manage'
+  conditions Json? // Additional conditions (e.g., only own region)
+  admin      Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, resource, action])
+  @@index([adminId])
+}
+
+model AdminAuditLog {
+  id         String  @id @default(cuid())
+  adminId    String?
+  action     String // 'login', 'logout', 'create_user', 'update_setting', 'approve_landlord', 'invite_pmc', etc.
+  resource   String? // What was affected
+  resourceId String? // ID of affected resource
+
+  // Enhanced context tracking
+  targetUserId     String? // If action affects a user (landlord, PMC, tenant, etc.)
+  targetUserRole   String? // 'landlord', 'pmc', 'tenant', 'vendor', 'contractor'
+  targetEntityType String? // What was affected: 'landlord', 'pmc', 'property', 'tenant', etc.
+  targetEntityId   String? // ID of affected entity
+
+  // Approval/Invitation context
+  approvalType     String? // 'landlord', 'pmc', 'vendor', 'contractor'
+  approvalEntityId String? // ID of approved entity
+
+  // State tracking for updates
+  beforeState   Json? // State before action
+  afterState    Json? // State after action
+  changedFields String[] // List of changed field names
+
+  // Additional context
+  details      Json? // Additional context/metadata
+  ipAddress    String?
+  userAgent    String?
+  success      Boolean
+  errorMessage String?
+  googleEmail  String? // Google email used for login
+  createdAt    DateTime @default(now())
+  admin        Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([resource])
+  @@index([targetUserId])
+  @@index([targetEntityType, targetEntityId])
+  @@index([approvalType])
+  @@index([createdAt])
+  @@index([success])
+}
+
+model AdminSession {
+  id                 String   @id @default(cuid())
+  adminId            String
+  token              String   @unique
+  refreshToken       String?  @unique
+  googleAccessToken  String? // Google OAuth access token (encrypted)
+  googleRefreshToken String? // Google OAuth refresh token (encrypted)
+  ipAddress          String
+  userAgent          String
+  deviceFingerprint  String?
+  expiresAt          DateTime
+  lastActivityAt     DateTime @default(now())
+  isRevoked          Boolean  @default(false)
+  admin              Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([token])
+  @@index([expiresAt])
+  @@index([isRevoked])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RBAC SYSTEM - Role-Based Access Control
+// ═══════════════════════════════════════════════════════════════
+// Phase 1: Data Model & Schema Implementation
+// ═══════════════════════════════════════════════════════════════
+
+// Role definitions for all user types
+enum RBACRole {
+  // Admin roles (existing, kept for backward compatibility)
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  SUPPORT_ADMIN
+  BILLING_ADMIN
+  AUDIT_ADMIN
+
+  // PMC roles
+  PMC_ADMIN
+  PROPERTY_MANAGER
+  LEASING_AGENT
+  MAINTENANCE_TECH
+  ACCOUNTANT
+
+  // User roles
+  OWNER_LANDLORD
+  TENANT
+  VENDOR_SERVICE_PROVIDER
+}
+
+// Scope types for hierarchical access control
+enum ScopeType {
+  PORTFOLIO
+  PROPERTY
+  UNIT
+}
+
+// Permission actions
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  APPROVE
+  SUBMIT
+  VIEW
+  MANAGE
+  ASSIGN
+  EXPORT
+  SEND
+  UPLOAD
+  DOWNLOAD
+}
+
+// Resource categories for permissions
+enum ResourceCategory {
+  PROPERTY_UNIT_MANAGEMENT
+  TENANT_MANAGEMENT
+  LEASING_APPLICATIONS
+  RENT_PAYMENTS
+  ACCOUNTING
+  REPORTING_OWNER_STATEMENTS
+  MAINTENANCE
+  VENDOR_MANAGEMENT
+  COMMUNICATION_MESSAGING
+  DOCUMENT_MANAGEMENT
+  MARKETING_LISTINGS
+  TASK_WORKFLOW_MANAGEMENT
+  USER_ROLE_MANAGEMENT
+  PORTFOLIO_PROPERTY_ASSIGNMENT
+  SYSTEM_SETTINGS
+}
+
+// Role model - Defines roles and their default permissions
+model Role {
+  id          String   @id @default(cuid())
+  name        RBACRole @unique
+  displayName String
+  description String?
+  isActive    Boolean  @default(true)
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
+
+  // Default permissions for this role (can be overridden per user)
+  defaultPermissions RolePermission[]
+
+  // Users with this role
+  userRoles UserRole[]
+
+  // Custom roles created by PMC Admin
+  createdBy      String? // PMC Admin ID who created (if custom)
+  createdByPMCId String? // PMC ID (if custom role)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+  @@index([createdByPMCId])
+}
+
+// Role-Permission mapping (default permissions for roles)
+model RolePermission {
+  id         String           @id @default(cuid())
+  roleId     String
+  category   ResourceCategory
+  resource   String // Specific resource within category
+  action     PermissionAction
+  conditions Json? // Additional conditions (e.g., scope restrictions)
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, category, resource, action])
+  @@index([roleId])
+  @@index([category])
+}
+
+// User-Role relationship with scopes
+model UserRole {
+  id       String @id @default(cuid())
+  userId   String // User ID (can be Admin, Landlord, Tenant, PMC user, etc.)
+  userType String // 'admin', 'landlord', 'tenant', 'pmc', 'vendor'
+  roleId   String
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  // Scope assignment (Portfolio → Property → Unit hierarchy)
+  portfolioId String? // Portfolio scope
+  propertyId  String? // Property scope
+  unitId      String? // Unit scope
+
+  // PMC context (if user is part of PMC)
+  pmcId String? // PMC ID (if role is PMC-related)
+
+  // Landlord context (if role is landlord-related)
+  landlordId String? // Landlord ID (if role is landlord-related)
+
+  // Status
+  isActive   Boolean   @default(true)
+  assignedAt DateTime  @default(now())
+  assignedBy String? // Who assigned this role
+  expiresAt  DateTime? // Optional expiration date
+
+  // Custom permissions override (if user has custom permissions)
+  customPermissions UserPermission[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, roleId, portfolioId, propertyId, unitId])
+  @@index([userId, userType])
+  @@index([roleId])
+  @@index([pmcId])
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([isActive])
+}
+
+// User-specific permission overrides
+model UserPermission {
+  id         String   @id @default(cuid())
+  userRoleId String
+  userRole   UserRole @relation(fields: [userRoleId], references: [id], onDelete: Cascade)
+
+  category   ResourceCategory
+  resource   String
+  action     PermissionAction
+  conditions Json? // Additional conditions
+
+  // Override type
+  isGranted Boolean @default(true) // true = grant, false = deny
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userRoleId, category, resource, action])
+  @@index([userRoleId])
+  @@index([category])
+}
+
+// Scope model - Portfolio → Property → Unit hierarchy
+model Scope {
+  id       String    @id @default(cuid())
+  type     ScopeType
+  name     String
+  parentId String? // Parent scope (e.g., Property's parent is Portfolio)
+  parent   Scope?    @relation("ScopeHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Scope[]   @relation("ScopeHierarchy")
+
+  // Entity references
+  portfolioId String? // If type is PORTFOLIO
+  propertyId  String? // If type is PROPERTY
+  unitId      String? // If type is UNIT
+
+  // PMC context
+  pmcId String? // Which PMC owns this scope
+
+  // Metadata
+  metadata Json?
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([parentId])
+  @@index([portfolioId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([pmcId])
+  @@index([isActive])
+}
+
+// RBAC Audit Log - Tracks all permission and role changes
+model RBACAuditLog {
+  id        String  @id @default(cuid())
+  userId    String? // User who performed the action
+  userType  String? // 'admin', 'landlord', 'tenant', 'pmc', etc.
+  userEmail String?
+  userName  String?
+
+  action     String // 'assign_role', 'remove_role', 'grant_permission', 'revoke_permission', 'change_scope', etc.
+  resource   String? // What was affected
+  resourceId String? // ID of affected resource
+
+  // Role/Permission context
+  roleId       String?
+  permissionId String?
+  scopeId      String?
+
+  // State tracking
+  beforeState Json? // State before action
+  afterState  Json? // State after action
+
+  // Additional context
+  details   Json?
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userType])
+  @@index([action])
+  @@index([resource])
+  @@index([roleId])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APPROVAL WORKFLOWS - Phase 5
+// ═══════════════════════════════════════════════════════════════
+enum ApprovalWorkflowType {
+  PROPERTY_EDIT
+  BIG_EXPENSE
+  LEASE
+  LEASE_RENEWAL
+  REFUND
+  OTHER
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+model ApprovalRequest {
+  id           String               @id @default(cuid())
+  workflowType ApprovalWorkflowType
+  entityType   String // 'property', 'expense', 'lease', 'refund', etc.
+  entityId     String // ID of the entity needing approval
+
+  // Requester
+  requestedBy      String
+  requestedByType  String // 'pmc', 'landlord', 'tenant', etc.
+  requestedByEmail String?
+  requestedByName  String?
+  requestedAt      DateTime @default(now())
+
+  // Status
+  status    ApprovalRequestStatus @default(PENDING)
+  expiresAt DateTime? // For auto-expiry (e.g., 3 days for property edits)
+
+  // Approvers (stored as JSON array)
+  approvers Json // Array of { userId, userType, role, status, approvedAt?, rejectedAt?, notes? }
+
+  // Approval/Rejection
+  approvedBy      String?
+  approvedByType  String?
+  approvedByEmail String?
+  approvedByName  String?
+  approvedAt      DateTime?
+  approvalNotes   String?
+
+  rejectedBy      String?
+  rejectedByType  String?
+  rejectedByEmail String?
+  rejectedByName  String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // State tracking
+  beforeState Json? // State before changes
+  afterState  Json? // State after changes (if approved)
+
+  // Metadata
+  metadata    Json? // Additional context
+  description String?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowType])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([requestedBy])
+  @@index([requestedAt])
+  @@index([expiresAt])
+  @@index([approvedBy])
+  @@index([rejectedBy])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUPPORT TICKET MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model SupportTicket {
+  id           String         @id @default(cuid())
+  ticketNumber String         @unique
+  subject      String
+  description  String
+  priority     TicketPriority @default(MEDIUM)
+  status       TicketStatus   @default(OPEN)
+
+  // Property context (for routing)
+  propertyId String? // FK to Property (if ticket is property-related)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  // User information (keep for backward compat, but use FKs below)
+  createdBy      String // User ID (landlord or tenant) - kept for backward compat
+  createdByEmail String
+  createdByName  String
+  createdByRole  String // 'landlord' or 'tenant'
+
+  // Creator FKs (for proper tracking)
+  createdByLandlordId String? // FK to Landlord (if landlord created)
+  createdByLandlord   Landlord? @relation("LandlordSupportTickets", fields: [createdByLandlordId], references: [id], onDelete: SetNull)
+
+  createdByTenantId String? // FK to Tenant (if tenant created)
+  createdByTenant   Tenant? @relation("TenantSupportTickets", fields: [createdByTenantId], references: [id], onDelete: SetNull)
+
+  // Assignment - Routing based on property management
+  // Keep existing assignedTo for backward compat (Admin ID)
+  assignedTo      String? // Admin ID (for general tickets or backward compat)
+  assignedToEmail String?
+  assignedToName  String?
+
+  // Routing FKs (who should handle this ticket)
+  assignedToAdminId String? // FK to Admin (for general support or escalation)
+  assignedToAdmin   Admin?  @relation("AdminSupportTickets", fields: [assignedToAdminId], references: [id], onDelete: SetNull)
+
+  assignedToLandlordId String? // FK to Landlord (if landlord manages property)
+  assignedToLandlord   Landlord? @relation("AssignedLandlordSupportTickets", fields: [assignedToLandlordId], references: [id], onDelete: SetNull)
+
+  assignedToPMCId String? // FK to PropertyManagementCompany (if PMC manages property)
+  assignedToPMC   PropertyManagementCompany? @relation("AssignedPMCSupportTickets", fields: [assignedToPMCId], references: [id], onDelete: SetNull)
+
+  // Related entities (if ticket is related to contractor/vendor work)
+  contractorId      String? // Legacy - kept as plain string for backward compat (no FK)
+  vendorId          String? // Legacy - kept as plain string for backward compat (no FK)
+  serviceProviderId String? // Unified - FK to ServiceProvider
+  serviceProvider   ServiceProvider? @relation("ServiceProviderSupportTickets", fields: [serviceProviderId], references: [id], onDelete: SetNull)
+
+  // Resolution
+  resolvedAt DateTime?
+  resolvedBy String?
+  resolution String?
+
+  // Relations
+  notes       TicketNote[]
+  attachments TicketAttachment[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdBy])
+  @@index([assignedTo])
+  @@index([propertyId])
+  @@index([createdByLandlordId])
+  @@index([createdByTenantId])
+  @@index([assignedToAdminId])
+  @@index([assignedToLandlordId])
+  @@index([assignedToPMCId])
+  @@index([contractorId])
+  @@index([vendorId])
+  @@index([serviceProviderId])
+  @@index([createdAt])
+}
+
+model TicketNote {
+  id             String        @id @default(cuid())
+  ticketId       String
+  content        String
+  isInternal     Boolean       @default(false) // Internal notes only visible to admins
+  createdBy      String // Admin ID or user ID
+  createdByEmail String
+  createdByName  String
+  createdByRole  String // 'admin', 'landlord', or 'tenant'
+  ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
+model TicketAttachment {
+  id           String        @id @default(cuid())
+  ticketId     String
+  fileName     String
+  originalName String
+  fileType     String
+  fileSize     Int
+  storagePath  String
+  uploadedBy   String
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedAt   DateTime      @default(now())
+
+  @@index([ticketId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM ANNOUNCEMENTS
+// ═══════════════════════════════════════════════════════════════
+model SystemAnnouncement {
+  id             String    @id @default(cuid())
+  title          String
+  message        String
+  type           String    @default("info") // 'info', 'warning', 'error', 'success'
+  isActive       Boolean   @default(true)
+  targetAudience String[] // ['landlord', 'tenant', 'all']
+  startDate      DateTime?
+  endDate        DateTime?
+  createdBy      String // Admin ID
+  createdByEmail String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECURITY - FAILED LOGIN ATTEMPTS
+// ═══════════════════════════════════════════════════════════════
+model FailedLoginAttempt {
+  id          String   @id @default(cuid())
+  email       String
+  ipAddress   String
+  userAgent   String?
+  attemptType String // 'admin', 'landlord', 'tenant'
+  reason      String? // 'invalid_password', 'user_not_found', 'account_locked', etc.
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([attemptType])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTENT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+enum ContentType {
+  FAQ
+  HELP_ARTICLE
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  EMAIL_TEMPLATE
+  DOCUMENT_TEMPLATE
+  FORM_TEMPLATE
+  ANNOUNCEMENT
+}
+
+model ContentItem {
+  id             String      @id @default(cuid())
+  type           ContentType
+  title          String
+  content        String // HTML or markdown content
+  slug           String?     @unique
+  isPublished    Boolean     @default(false)
+  version        Int         @default(1)
+  parentId       String? // For versioning
+  metadata       Json? // Additional metadata
+  createdBy      String // Admin ID
+  createdByEmail String
+  updatedBy      String? // Admin ID
+  updatedByEmail String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([type])
+  @@index([isPublished])
+  @@index([slug])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API KEY MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+model ApiKey {
+  id             String    @id @default(cuid())
+  name           String
+  key            String    @unique
+  keyHash        String    @unique // Hashed version for verification
+  permissions    String[] // ['read', 'write', 'delete']
+  rateLimit      Int? // Requests per minute
+  isActive       Boolean   @default(true)
+  lastUsedAt     DateTime?
+  lastUsedIp     String?
+  expiresAt      DateTime?
+  createdBy      String // Admin ID
+  createdByEmail String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([createdBy])
+  @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USER ACTIVITY TRACKING
+// ═══════════════════════════════════════════════════════════════
+model UserActivity {
+  id         String   @id @default(cuid())
+  userId     String // Landlord or Tenant ID
+  userEmail  String
+  userName   String
+  userRole   String // 'landlord' or 'tenant'
+  action     String // 'login', 'logout', 'view_property', 'upload_document', etc.
+  resource   String? // What was accessed
+  resourceId String? // ID of resource
+  ipAddress  String?
+  userAgent  String?
+  details    Json? // Additional context
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([userRole])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userEmail])
+}
+
+model Lease {
+  id                    String            @id
+  unitId                String
+  leaseStart            DateTime
+  leaseEnd              DateTime?
+  rentAmount            Float
+  rentDueDay            Int               @default(1)
+  securityDeposit       Float?
+  paymentMethod         String?
+  status                String            @default("Active")
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime
+  renewalReminderSent   Boolean           @default(false)
+  renewalReminderSentAt DateTime?
+  renewalDecision       String?           // 'renew', 'terminate', 'month_to_month', null = pending
+  renewalDecisionAt     DateTime?
+  renewalDecisionBy     String?           // User ID who made the decision
+  unit                  Unit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  leaseDocuments        LeaseDocument[]
+  leaseTenants          LeaseTenant[]
+  rentPayments          RentPayment[]
+  securityDeposits      SecurityDeposit[]
+  applications          Application[]
+  evictions             Eviction[]
+  notifications         LeaseNotification[]
+  terminations          LeaseTermination[]
+
+  @@index([status])
+  @@index([unitId])
+  @@index([leaseEnd])
+  @@index([renewalReminderSent])
+  @@index([createdAt])
+  @@index([unitId, status])
+  @@index([renewalDecision])
+}
+
+model LeaseNotification {
+  id                    String   @id @default(cuid())
+  leaseId               String
+  notificationType      String   // 'expiration_reminder', 'renewal_reminder', 'conversion_notice'
+  daysBeforeExpiration  Int?     // Days before expiration when notification was sent
+  sentAt                DateTime @default(now())
+  lease                 Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([leaseId])
+  @@index([notificationType])
+  @@index([sentAt])
+}
+
+model LeaseTermination {
+  id              String    @id @default(cuid())
+  leaseId         String
+  initiatedBy     String    // User ID who initiated
+  reason          String
+  terminationDate DateTime
+  actualLoss      Float?    // Actual loss (manual entry, no flat fees)
+  formType        String    // 'N11', 'N9', 'N15'
+  status          String    @default("pending") // 'pending', 'approved', 'rejected', 'completed'
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lease           Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([leaseId])
+  @@index([status])
+  @@index([terminationDate])
+}
+
+model LeaseDocument {
+  id           String   @id
+  leaseId      String
+  fileName     String
+  originalName String
+  fileType     String
+  fileSize     Int
+  description  String?
+  storagePath  String
+  uploadedAt   DateTime @default(now())
+  updatedAt    DateTime
+  lease        Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([leaseId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED REFERENCE DATA MODEL
+// ═══════════════════════════════════════════════════════════════
+// Consolidates all status/lookup tables into a single unified model
+// Categories: 'lease_status', 'maintenance_status', 'payment_status', 
+//            'unit_status', 'maintenance_category', 'maintenance_priority', 'property_type'
+model ReferenceData {
+  id          String   @id @default(cuid())
+  category    String // 'lease_status', 'maintenance_status', 'payment_status', 'unit_status', 'maintenance_category', 'maintenance_priority', 'property_type'
+  code        String // Unique code within category (e.g., 'active', 'pending', 'plumbing')
+  name        String // Display name
+  description String?
+  color       String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  metadata    Json? // Additional flexible data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, code])
+  @@index([category])
+  @@index([category, isActive])
+  @@index([category, sortOrder])
+  @@index([code])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEGACY STATUS/LOOKUP TABLES REMOVED - Data migrated to ReferenceData:
+// - LeaseStatus → ReferenceData (category: 'lease_status')
+// - MaintenanceStatus → ReferenceData (category: 'maintenance_status')
+// - PaymentStatus → ReferenceData (category: 'payment_status')
+// - UnitStatus → ReferenceData (category: 'unit_status')
+// - MaintenanceCategory → ReferenceData (category: 'maintenance_category')
+// - MaintenancePriority → ReferenceData (category: 'maintenance_priority')
+// - PropertyType → ReferenceData (category: 'property_type')
+// ═══════════════════════════════════════════════════════════════
+
+model LeaseTenant {
+  leaseId         String
+  tenantId        String
+  isPrimaryTenant Boolean  @default(false)
+  addedAt         DateTime @default(now())
+  lease           Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([leaseId, tenantId])
+  @@index([tenantId])
+}
+
+model MaintenanceComment {
+  id                   String             @id
+  maintenanceRequestId String
+  authorEmail          String
+  authorName           String
+  authorRole           String
+  comment              String
+  isStatusUpdate       Boolean            @default(false)
+  oldStatus            String?
+  newStatus            String?
+  createdAt            DateTime           @default(now())
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceRequestId])
+}
+
+model MaintenanceRequest {
+  id                   String    @id
+  propertyId           String
+  tenantId             String
+  title                String
+  description          String
+  category             String
+  priority             String    @default("Medium")
+  status               String    @default("New")
+  requestedDate        DateTime  @default(now())
+  completedDate        DateTime?
+  tenantApproved       Boolean   @default(false)
+  landlordApproved     Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  ticketNumber         String?   @unique
+  initiatedBy          String    @default("tenant")
+  lastViewedByLandlord DateTime?
+  lastViewedByTenant   DateTime?
+  actualCost           Float?
+  afterPhotos          Json?
+  assignedToVendorId   String? // Legacy - kept as plain string for backward compat (no FK)
+  assignedToProviderId String? // New unified field - FK to ServiceProvider
+  beforePhotos         Json?
+  completionNotes      String?
+  estimatedCost        Float?
+  photos               Json?
+  rating               Int?
+  scheduledDate        DateTime?
+  tenantFeedback       String?
+
+  // PMC tracking
+  createdByPMC         Boolean              @default(false)
+  pmcId                String? // If created by PMC
+  pmcApprovalRequestId String?              @unique // Link to approval request if created by PMC
+  pmcApprovalRequest   PMCLandlordApproval? @relation("MaintenanceApproval", fields: [pmcApprovalRequestId], references: [id], onDelete: SetNull)
+
+  comments           MaintenanceComment[]
+  expenses           Expense[]
+  property           Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedToProvider ServiceProvider?     @relation(fields: [assignedToProviderId], references: [id], onDelete: SetNull) // New unified
+  vendorRatings      VendorRating[]       @relation("VendorRatingWorkOrder")
+  tenantRatings      TenantRating[]       @relation("TenantRatingWorkOrder")
+
+  @@index([priority])
+  @@index([propertyId])
+  @@index([propertyId, status])
+  @@index([requestedDate])
+  @@index([status])
+  @@index([tenantId])
+  @@index([assignedToVendorId])
+  @@index([assignedToProviderId])
+  @@index([createdAt])
+  @@index([propertyId, createdAt])
+  @@index([pmcId])
+  @@index([pmcApprovalRequestId])
+}
+
+model PartialPayment {
+  id              String      @id
+  rentPaymentId   String
+  amount          Float
+  paidDate        DateTime
+  paymentMethod   String?
+  referenceNumber String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime
+  rentPayment     RentPayment @relation(fields: [rentPaymentId], references: [id], onDelete: Cascade)
+
+  @@index([rentPaymentId])
+}
+
+model Property {
+  id             String  @id
+  propertyId     String  @unique
+  landlordId     String
+  organizationId String? // Optional for backward compatibility during migration
+  propertyName   String?
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  provinceState  String // Legacy field - keep for backward compat
+  postalZip      String
+  country        String // Legacy field - keep for backward compat
+
+  // Organization (SaaS Multi-Tenancy)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Country/Region FKs (Option A: Direct FK to Region)
+  countryCode         String? // ISO 3166-1 alpha-2 (CA, US, etc.)
+  regionCode          String? // Region code within country (ON, BC, NY, etc.)
+  countryFK           Country?  @relation("PropertyCountry", fields: [countryCode], references: [code], onDelete: SetNull)
+  regionFK            Region?   @relation("PropertyRegion", fields: [countryCode, regionCode], references: [countryCode, code], onDelete: SetNull)
+  propertyType        String?
+  unitCount           Int       @default(1)
+  yearBuilt           Int?
+  purchasePrice       Float?
+  rent                Float?
+  rented              String    @default("No")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime
+  depositAmount       Float?
+  interestRate        Float?
+  mortgageAmount      Float?
+  mortgageTermYears   Int? // Mortgage term in years (e.g., 25, 30)
+  mortgageStartDate   DateTime? // When the mortgage started
+  paymentFrequency    String?   @default("biweekly") // "biweekly" or "monthly"
+  squareFootage       Int? // Total living area in square feet
+  propertyDescription String? // Additional details, features, or notes about the property
+  propertyTaxes       Float? // Annual property taxes
+
+  // Location for 50KM radius search
+  latitude  Float?
+  longitude Float?
+
+  maintenanceRequests    MaintenanceRequest[]
+  landlord               Landlord                        @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  units                  Unit[]
+  documents              Document[] // Property-centric: Documents linked to this property
+  expenses               Expense[] // Property-centric: Expenses linked to this property
+  tasks                  Task[] // Property-centric: Tasks linked to this property
+  activityLogs           ActivityLog[] // Activity logs for this property
+  supportTickets         SupportTicket[] // Support tickets related to this property
+  conversations          Conversation[] // Conversations related to this property
+  ownershipVerifications PropertyOwnershipVerification[] // Property ownership verification documents
+  securityDeposits       SecurityDeposit[]
+  applications           Application[]
+  bankReconciliations    BankReconciliation[]
+  ownerPayouts           OwnerPayout[]
+  ownerStatements        OwnerStatement[]
+  vendorRatings          VendorRating[]
+  tenantRatings          TenantRating[]
+  evictions              Eviction[]
+  listings               Listing[]
+
+  @@index([landlordId])
+  @@index([organizationId])
+  @@index([organizationId, landlordId])
+  @@index([createdAt])
+  @@index([landlordId, createdAt])
+  @@index([latitude, longitude]) // For geospatial queries
+  @@index([countryCode]) // Filter by country
+  @@index([regionCode]) // Filter by region
+  @@index([countryCode, regionCode]) // Composite for region lookup
+  @@index([countryCode, city]) // Common query pattern
+  @@index([countryCode, regionCode, city]) // Most specific location query
+}
+
+model Region {
+  id          String   @id
+  countryCode String
+  code        String
+  name        String
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  // Relations
+  country          Country                     @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+  properties       Property[]                  @relation("PropertyRegion") // Properties in this region
+  landlords        Landlord[]                  @relation("LandlordRegion") // Landlords in this region
+  tenants          Tenant[]                    @relation("TenantRegion") // Tenants in this region
+  serviceProviders ServiceProvider[]           @relation("ServiceProviderRegion") // Unified service providers
+  pmcs             PropertyManagementCompany[] @relation("PMCRegion") // PMCs in this region
+
+  // Optional: Geographic and business logic fields
+  timezone       String? // 'America/Toronto', 'America/New_York', etc.
+  utcOffset      Int? // UTC offset in hours (e.g., -5 for EST)
+  latitude       Float? // Center point
+  longitude      Float? // Center point
+  currencyCode   String? // 'CAD', 'USD', etc. (can override country default)
+  taxRate        Float? // Default tax rate for region
+  legalFramework String? // 'Common Law', 'Civil Law', etc.
+  rentControl    Boolean? @default(false) // Rent control laws
+  evictionRules  Json? // Region-specific eviction rules
+
+  @@unique([countryCode, code])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@index([countryCode])
+  @@index([timezone])
+}
+
+model RentPayment {
+  id                    String           @id
+  leaseId               String
+  amount                Float
+  dueDate               DateTime
+  paidDate              DateTime?
+  paymentMethod         String?
+  referenceNumber       String?
+  status                String           @default("Unpaid")
+  notes                 String?
+  receiptNumber         String?
+  receiptSent           Boolean          @default(false)
+  receiptSentAt         DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime
+  overdueReminderSent   Boolean          @default(false)
+  overdueReminderSentAt DateTime?
+  reminderSent          Boolean          @default(false)
+  reminderSentAt        DateTime?
+  partialPayments       PartialPayment[]
+  lease                 Lease            @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  // Late fees and Stripe payments
+  lateFees       LateFee[]
+  stripePayments StripePayment[] @relation("StripePayments")
+
+  @@index([dueDate])
+  @@index([leaseId])
+  @@index([leaseId, status])
+  @@index([receiptSent])
+  @@index([status])
+  @@index([reminderSent])
+  @@index([overdueReminderSent])
+  @@index([createdAt])
+  @@index([leaseId, dueDate])
+}
+
+model Tenant {
+  id            String  @id
+  tenantId      String  @unique
+  firstName     String
+  lastName      String
+  email         String  @unique
+  phone         String?
+  country       String? // Legacy field - keep for backward compat
+  provinceState String? // Legacy field - keep for backward compat
+
+  // Country/Region FKs
+  countryCode String? // ISO 3166-1 alpha-2 (CA, US, etc.)
+  regionCode  String? // Region code within country (ON, BC, NY, etc.)
+  countryFK   Country? @relation("TenantCountry", fields: [countryCode], references: [code], onDelete: SetNull)
+  regionFK    Region?  @relation("TenantRegion", fields: [countryCode, regionCode], references: [countryCode, code], onDelete: SetNull)
+
+  dateOfBirth           DateTime?
+  currentAddress        String?
+  city                  String? // City for address
+  numberOfAdults        Int? // Number of adults in household (for lease agreements)
+  numberOfChildren      Int? // Number of children in household (for lease agreements)
+  moveInDate            DateTime? // Desired move-in date
+  leaseTerm             String? // Desired lease term (e.g., "12 months", "24 months")
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  employmentStatus      String?
+  monthlyIncome         Float?
+  invitationToken       String?   @unique
+  invitationSentAt      DateTime?
+  invitedBy             String? // Landlord ID who invited
+  hasAccess             Boolean   @default(false)
+  lastLoginAt           DateTime?
+  timezone              String?   @default("America/New_York")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+  middleName            String?
+  postalZip             String?
+  theme                 String?   @default("default")
+
+  // Approval workflow
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedBy      String? // Landlord ID who approved
+  approvedAt      DateTime?
+  rejectedBy      String? // Landlord ID who rejected
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  documents             Document[]
+  emergencyContacts     EmergencyContact[]
+  employers             Employer[]
+  leaseTenants          LeaseTenant[]
+  maintenanceRequests   MaintenanceRequest[]
+  inspectionChecklists  InspectionChecklist[]
+  invitations           TenantInvitation[] // Legacy - will be migrated to Invitation
+  unifiedInvitations    Invitation[] // Unified invitation system
+  activityLogs          ActivityLog[] // Activity logs for this tenant
+  createdSupportTickets SupportTicket[]       @relation("TenantSupportTickets") // Support tickets created by this tenant
+  conversations         Conversation[]        @relation("TenantConversations") // Conversations where this tenant is primary participant
+  createdConversations  Conversation[]        @relation("CreatedTenantConversations") // Conversations created by this tenant
+  sentMessages          Message[]             @relation("TenantMessages") // Messages sent by this tenant
+  securityDeposits      SecurityDeposit[]
+  tenantRatings         TenantRating[]
+  // Note: Unified verifications requested by this tenant are queried by requestedBy = id (no direct relation)
+  Eviction              Eviction[]
+
+  @@index([approvalStatus])
+  @@index([countryCode])
+  @@index([countryCode, regionCode])
+  @@index([approvedBy])
+  @@index([invitedBy])
+  @@index([createdAt])
+  @@index([invitedBy, createdAt])
+  @@index([invitedBy, approvalStatus])
+}
+
+model Unit {
+  id               String            @id
+  propertyId       String
+  unitName         String
+  floorNumber      Int?
+  bedrooms         Int?
+  bathrooms        Float?
+  rentPrice        Float?
+  depositAmount    Float?
+  status           String            @default("Vacant")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime
+  leases           Lease[]
+  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  securityDeposits SecurityDeposit[]
+  applications     Application[]
+  vendorRatings    VendorRating[]
+  tenantRatings    TenantRating[]
+  evictions        Eviction[]
+  listings         Listing[]
+
+  @@index([propertyId])
+  @@index([createdAt])
+}
+
+model GeneratedForm {
+  id          String   @id
+  formType    String
+  tenantId    String?
+  leaseId     String?
+  propertyId  String?
+  unitId      String?
+  generatedBy String
+  generatedAt DateTime @default(now())
+  formData    Json
+  pdfUrl      String?
+  status      String   @default("draft")
+  notes       String?
+  updatedAt   DateTime
+
+  @@index([tenantId])
+  @@index([leaseId])
+  @@index([propertyId])
+  @@index([generatedBy])
+  @@index([status])
+}
+
+model Expense {
+  id                   String   @id
+  propertyId           String? // Property-centric: Link expense to property (required if not maintenance-related)
+  maintenanceRequestId String?
+  category             String
+  amount               Float
+  date                 DateTime
+  description          String
+  receiptUrl           String?
+  paidTo               String?
+  paymentMethod        String?
+  isRecurring          Boolean  @default(false)
+  recurringFrequency   String?
+  createdBy            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime
+
+  // PMC approval tracking
+  createdByPMC         Boolean              @default(false)
+  pmcId                String? // If created by PMC
+  pmcApprovalRequestId String?              @unique // Link to approval request if created by PMC
+  pmcApprovalRequest   PMCLandlordApproval? @relation("ExpenseApproval", fields: [pmcApprovalRequestId], references: [id], onDelete: SetNull)
+
+  maintenanceRequest MaintenanceRequest? @relation(fields: [maintenanceRequestId], references: [id], onDelete: SetNull)
+  property           Property?           @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId])
+  @@index([category])
+  @@index([date])
+  @@index([createdBy])
+  @@index([maintenanceRequestId])
+  @@index([createdAt])
+  @@index([propertyId, date])
+  @@index([pmcId])
+  @@index([pmcApprovalRequestId])
+}
+
+model FinancialSnapshot {
+  id            String   @id
+  month         String
+  propertyId    String?
+  totalIncome   Float
+  totalExpenses Float
+  netIncome     Float
+  occupancyRate Float
+  createdAt     DateTime @default(now())
+
+  @@index([month])
+  @@index([propertyId])
+}
+
+model Task {
+  id               String    @id
+  userId           String
+  propertyId       String? // Property-centric: Link task to property
+  title            String
+  description      String?
+  type             String
+  category         String
+  dueDate          DateTime
+  isCompleted      Boolean   @default(false)
+  completedAt      DateTime?
+  priority         String    @default("medium")
+  linkedEntityType String?
+  linkedEntityId   String?
+  reminderDays     Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime
+  property         Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([dueDate])
+  @@index([isCompleted])
+  @@index([category])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([propertyId])
+  @@index([propertyId, isCompleted])
+}
+
+model TaskReminder {
+  id           String    @id
+  taskId       String
+  reminderDate DateTime
+  isSent       Boolean   @default(false)
+  sentAt       DateTime?
+
+  @@index([taskId])
+  @@index([reminderDate])
+  @@index([isSent])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONVERSATION TYPES
+// ═══════════════════════════════════════════════════════════════
+enum ConversationType {
+  LANDLORD_TENANT // Standard landlord-tenant conversation
+  LANDLORD_PMC // Landlord-PMC conversation
+  PMC_TENANT // PMC-Tenant conversation
+  GROUP // Multi-party conversation (with ConversationParticipant)
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONVERSATION MODEL - Enhanced with FKs and explicit relationships
+// ═══════════════════════════════════════════════════════════════
+model Conversation {
+  id String @id @default(cuid())
+
+  // Required Property Context
+  propertyId String // REQUIRED, FK to Property
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // Explicit Primary Participants (Required)
+  landlordId String // FK to Landlord (required)
+  landlord   Landlord @relation("LandlordConversations", fields: [landlordId], references: [id], onDelete: Cascade)
+
+  tenantId String // FK to Tenant (required)
+  tenant   Tenant @relation("TenantConversations", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // PMC Support (if property is managed by PMC)
+  pmcId String? // FK to PMC (optional, if PMC is involved)
+  pmc   PropertyManagementCompany? @relation("PMCConversations", fields: [pmcId], references: [id], onDelete: SetNull)
+
+  // Conversation Metadata
+  subject          String
+  conversationType ConversationType   @default(LANDLORD_TENANT)
+  status           ConversationStatus @default(ACTIVE)
+
+  // Flexible Linking (keep for backward compat)
+  linkedEntityType String? // 'maintenance', 'lease', 'expense', etc.
+  linkedEntityId   String? // ID of linked entity
+
+  // Tracking
+  createdBy           String // Creator ID (keep for backward compat)
+  createdByLandlordId String? // FK to Landlord (if landlord created)
+  createdByLandlord   Landlord? @relation("CreatedLandlordConversations", fields: [createdByLandlordId], references: [id], onDelete: SetNull)
+
+  createdByTenantId String? // FK to Tenant (if tenant created)
+  createdByTenant   Tenant? @relation("CreatedTenantConversations", fields: [createdByTenantId], references: [id], onDelete: SetNull)
+
+  createdByPMCId String? // FK to PMC (if PMC created)
+  createdByPMC   PropertyManagementCompany? @relation("CreatedPMCConversations", fields: [createdByPMCId], references: [id], onDelete: SetNull)
+
+  // Activity Tracking
+  lastMessageAt DateTime? // Last message timestamp (for sorting)
+  lastMessageId String? // FK to last message
+  lastMessage   Message?  @relation("LastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
+
+  // Read Tracking (per primary participant)
+  landlordLastReadAt DateTime? // When landlord last read
+  tenantLastReadAt   DateTime? // When tenant last read
+  pmcLastReadAt      DateTime? // When PMC last read
+
+  // Notification Settings
+  notifyLandlord Boolean @default(true)
+  notifyTenant   Boolean @default(true)
+  notifyPMC      Boolean @default(false)
+
+  // Metadata
+  metadata Json? // Additional context (tags, priority, etc.)
+  priority String? // 'low', 'normal', 'high', 'urgent'
+  tags     String[] // For categorization
+
+  // Legacy field (keep for backward compat, but use ConversationParticipant instead)
+  participants Json? // Deprecated: Use ConversationParticipant table instead
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  messages         Message[]                 @relation("ConversationMessages")
+  participantsList ConversationParticipant[] // Explicit participants (replaces JSON)
+  activityLogs     ActivityLog[] // Track conversation views/actions
+
+  @@index([propertyId])
+  @@index([landlordId])
+  @@index([tenantId])
+  @@index([pmcId])
+  @@index([status])
+  @@index([conversationType])
+  @@index([createdBy])
+  @@index([lastMessageAt])
+  @@index([updatedAt])
+  @@index([propertyId, landlordId, tenantId]) // Composite for common queries
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE MODEL - Enhanced with sender FKs and read tracking
+// ═══════════════════════════════════════════════════════════════
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Sender Tracking (FK-based)
+  senderId         String // Keep for backward compat
+  senderLandlordId String? // FK to Landlord (if landlord sent)
+  senderLandlord   Landlord? @relation("LandlordMessages", fields: [senderLandlordId], references: [id], onDelete: SetNull)
+
+  senderTenantId String? // FK to Tenant (if tenant sent)
+  senderTenant   Tenant? @relation("TenantMessages", fields: [senderTenantId], references: [id], onDelete: SetNull)
+
+  senderPMCId String? // FK to PMC (if PMC sent)
+  senderPMC   PropertyManagementCompany? @relation("PMCMessages", fields: [senderPMCId], references: [id], onDelete: SetNull)
+
+  senderRole String // 'landlord', 'tenant', 'pmc'
+
+  messageText String
+  // Legacy field (keep for backward compat, but use MessageAttachment table instead)
+  attachments Json? // Deprecated: Use MessageAttachment table instead
+
+  // Read Tracking (per primary participant)
+  readByLandlord Boolean   @default(false)
+  readByTenant   Boolean   @default(false)
+  readByPMC      Boolean   @default(false)
+  readAt         DateTime? // When first read by any participant
+
+  // Legacy read tracking (keep for backward compat)
+  isRead Boolean @default(false) // Deprecated: Use readByLandlord/readByTenant instead
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  attachmentsList MessageAttachment[] // Explicit attachments (replaces JSON)
+  lastMessageIn   Conversation[]      @relation("LastMessage") // Conversations where this is the last message
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([senderLandlordId])
+  @@index([senderTenantId])
+  @@index([senderPMCId])
+  @@index([senderRole])
+  @@index([isRead])
+  @@index([readByLandlord])
+  @@index([readByTenant])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONVERSATION PARTICIPANT MODEL - Explicit participant tracking
+// ═══════════════════════════════════════════════════════════════
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  participantId   String // User ID (landlord, tenant, PMC, or other)
+  participantType String // 'landlord', 'tenant', 'pmc', 'admin'
+  participantRole String @default("PARTICIPANT") // 'PARTICIPANT', 'OBSERVER'
+
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+  isActive   Boolean   @default(true)
+
+  @@unique([conversationId, participantId])
+  @@index([conversationId])
+  @@index([participantId])
+  @@index([participantType])
+  @@index([isActive])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE ATTACHMENT MODEL - Explicit attachment tracking
+// ═══════════════════════════════════════════════════════════════
+model MessageAttachment {
+  id        String  @id @default(cuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  fileName     String
+  originalName String
+  fileType     String
+  fileSize     Int
+  storagePath  String
+  mimeType     String?
+
+  uploadedAt DateTime @default(now())
+
+  @@index([messageId])
+  @@index([uploadedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE NOTIFICATION MODEL - Legacy (kept for backward compat)
+// ═══════════════════════════════════════════════════════════════
+model MessageNotification {
+  id        String    @id
+  userId    String
+  messageId String
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+
+  @@index([userId])
+  @@index([messageId])
+  @@index([isRead])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED SERVICE PROVIDER MODEL
+// ═══════════════════════════════════════════════════════════════
+// Consolidates Vendor and Contractor into a single unified model
+// type: 'vendor' (regular services) or 'contractor' (one-time jobs)
+model ServiceProvider {
+  id         String @id @default(cuid())
+  providerId String @unique
+  type       String // 'vendor' or 'contractor'
+
+  // Name fields (flexible for both types)
+  name          String // For vendors: name, For contractors: companyName
+  businessName  String? // For vendors: businessName, For contractors: null
+  contactName   String? // For contractors: contactName, For vendors: null
+  licenseNumber String? // For contractors
+
+  // Contact info
+  email String @unique
+  phone String
+
+  // Service classification
+  category    String? // For vendors (single category)
+  specialties String[] // For contractors (multiple specialties)
+
+  // Location (same for both)
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  provinceState String? // Legacy field - keep for backward compat
+  postalZip     String?
+  country       String? // Legacy field - keep for backward compat
+  countryCode   String? // ISO 3166-1 alpha-2 (CA, US, etc.)
+  regionCode    String? // Region code within country (ON, BC, NY, etc.)
+
+  // Location for 50KM radius search
+  latitude  Float?
+  longitude Float?
+
+  // Business fields (same for both)
+  rating     Float?
+  hourlyRate Float?
+  notes      String?
+
+  // Global vs Local distinction
+  isGlobal        Boolean   @default(false) // true = admin-invited (global), false = landlord-invited (local)
+  invitedBy       String? // ID of admin (if global) or landlord (if local) - FK for admin
+  invitedByRole   String? // 'admin' or 'landlord'
+  invitedByAdmin  Admin?    @relation("AdminInvitedServiceProviders", fields: [invitedBy], references: [id], onDelete: SetNull)
+  approvedBy      String? // Admin ID who approved (for global providers) - FK
+  approvedByAdmin Admin?    @relation("AdminApprovedServiceProviders", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?
+
+  // Soft delete with record retention
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  deletedBy      String? // ID of user who deleted
+  deletedByRole  String? // 'landlord', 'admin', etc.
+  deletionReason String?
+
+  // Retention fields (always preserved even after deletion)
+  retainedName  String? // Preserved name for accounting/legal
+  retainedEmail String? // Preserved email for accounting/legal
+  retainedPhone String? // Preserved phone for accounting/legal
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  landlordProviders   LandlordServiceProvider[] // Many-to-many with landlords
+  maintenanceRequests MaintenanceRequest[]
+  invitations         Invitation[]
+  countryFK           Country?                  @relation("ServiceProviderCountry", fields: [countryCode], references: [code], onDelete: SetNull)
+  regionFK            Region?                   @relation("ServiceProviderRegion", fields: [countryCode, regionCode], references: [countryCode, code], onDelete: SetNull)
+  supportTickets      SupportTicket[]           @relation("ServiceProviderSupportTickets") // Support tickets related to this provider
+  vendorRatings       VendorRating[]
+  tenantRatings       TenantRating[]
+
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+  @@index([email])
+  @@index([isGlobal])
+  @@index([isDeleted])
+  @@index([latitude, longitude]) // For geospatial queries
+  @@index([invitedBy])
+  @@index([countryCode])
+  @@index([countryCode, regionCode])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LANDLORD-SERVICE PROVIDER RELATIONSHIP (Many-to-Many)
+// ═══════════════════════════════════════════════════════════════
+// Tracks which landlords have added which service providers (local providers)
+model LandlordServiceProvider {
+  id         String   @id @default(cuid())
+  landlordId String
+  providerId String
+  addedAt    DateTime @default(now())
+  addedBy    String // Landlord ID who added this provider
+  notes      String? // Optional notes about this relationship
+
+  landlord Landlord        @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  provider ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([landlordId, providerId])
+  @@index([landlordId])
+  @@index([providerId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEGACY MODELS REMOVED - Data migrated to ServiceProvider:
+// - Vendor → ServiceProvider (type: 'vendor')
+// - Contractor → ServiceProvider (type: 'contractor')
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTY MANAGEMENT COMPANY MODEL - For future expansion
+// ═══════════════════════════════════════════════════════════════
+model PropertyManagementCompany {
+  id            String  @id @default(cuid())
+  companyId     String  @unique
+  companyName   String
+  email         String  @unique
+  phone         String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  provinceState String? // Legacy field - keep for backward compat
+  postalZip     String?
+  country       String? // Legacy field - keep for backward compat
+
+  // Country/Region FKs
+  countryCode String? // ISO 3166-1 alpha-2 (CA, US, etc.)
+  regionCode  String? // Region code within country (ON, BC, NY, etc.)
+  countryFK   Country? @relation("PMCCountry", fields: [countryCode], references: [code], onDelete: SetNull)
+  regionFK    Region?  @relation("PMCRegion", fields: [countryCode, regionCode], references: [countryCode, code], onDelete: SetNull)
+
+  // Commission settings (for future use)
+  defaultCommissionRate Float? // e.g., 8.5% (0.085)
+  commissionStructure   Json? // Flexible commission rules
+
+  // Approval workflow - Same as Landlord
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedBy      String? // Admin ID who approved (FK)
+  approvedByAdmin Admin?         @relation("AdminApprovedPMCs", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?
+  rejectedBy      String? // Admin ID who rejected (FK)
+  rejectedByAdmin Admin?         @relation("AdminRejectedPMCs", fields: [rejectedBy], references: [id], onDelete: SetNull)
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // Invitation tracking
+  invitedBy      String? // Admin ID who invited (FK)
+  invitedByAdmin Admin?    @relation("AdminInvitedPMCs", fields: [invitedBy], references: [id], onDelete: SetNull)
+  invitedAt      DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  invitations            Invitation[]
+  pmcRelationships       PMCLandlord[] // PMC-Landlord relationships
+  sentInvitations        Invitation[]         @relation("PMCInvitations") // Invitations sent by this PMC
+  activityLogs           ActivityLog[] // Activity logs for this PMC
+  bankReconciliations    BankReconciliation[]
+  ownerPayouts           OwnerPayout[]
+  assignedSupportTickets SupportTicket[]      @relation("AssignedPMCSupportTickets") // Support tickets assigned to this PMC
+  conversations          Conversation[]       @relation("PMCConversations") // Conversations where this PMC is involved
+  createdConversations   Conversation[]       @relation("CreatedPMCConversations") // Conversations created by this PMC
+  sentMessages           Message[]            @relation("PMCMessages") // Messages sent by this PMC
+  // Note: Unified verifications requested by this PMC are queried by requestedBy = id (no direct relation)
+
+  @@index([email])
+  @@index([companyId])
+  @@index([isActive])
+  @@index([approvalStatus])
+  @@index([approvedBy])
+  @@index([invitedBy])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PMC-LANDLORD RELATIONSHIP (Many-to-Many)
+// ═══════════════════════════════════════════════════════════════
+// Tracks which PMCs manage which landlords and their properties
+model PMCLandlord {
+  id            String    @id @default(cuid())
+  pmcId         String
+  landlordId    String
+  status        String    @default("active") // 'active', 'suspended', 'terminated'
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  contractTerms Json? // Store contract details, commission rates, etc.
+  notes         String? // Additional notes about the relationship
+
+  pmc      PropertyManagementCompany @relation(fields: [pmcId], references: [id], onDelete: Cascade)
+  landlord Landlord                  @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+
+  // PMC actions that need landlord approval
+  approvalRequests PMCLandlordApproval[]
+
+  // Property ownership verification documents
+  ownershipVerifications PropertyOwnershipVerification[]
+
+  @@unique([pmcId, landlordId])
+  @@index([pmcId])
+  @@index([landlordId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PMC-LANDLORD APPROVAL SYSTEM
+// ═══════════════════════════════════════════════════════════════
+// Tracks approval requests from PMC to Landlord for expenses, work orders, etc.
+enum PMCApprovalType {
+  EXPENSE
+  WORK_ORDER
+  MAINTENANCE_REQUEST
+  TENANT_REQUEST
+  LEASE_MODIFICATION
+  VENDOR_ASSIGNMENT
+  CONTRACTOR_ASSIGNMENT
+  OTHER
+}
+
+enum PMCApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model PMCLandlordApproval {
+  id            String            @id @default(cuid())
+  pmcLandlordId String // Which PMC-Landlord relationship
+  approvalType  PMCApprovalType
+  status        PMCApprovalStatus @default(PENDING)
+
+  // What needs approval
+  entityType String // 'expense', 'maintenance', 'work_order', 'vendor', 'contractor', etc.
+  entityId   String // ID of the entity needing approval
+
+  // Request details
+  title            String
+  description      String
+  amount           Float? // For expenses
+  requestedBy      String // PMC user ID
+  requestedByEmail String
+  requestedByName  String
+  requestedAt      DateTime @default(now())
+
+  // Approval/Rejection
+  approvedBy      String? // Landlord ID
+  approvedByEmail String?
+  approvedByName  String?
+  approvedAt      DateTime?
+  approvalNotes   String?
+
+  rejectedBy      String?
+  rejectedByEmail String?
+  rejectedByName  String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // Cancellation
+  cancelledBy        String?
+  cancelledByEmail   String?
+  cancelledByName    String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  // Metadata
+  metadata    Json? // Additional context (old values, new values, etc.)
+  attachments Json? // File attachments
+
+  pmcLandlord PMCLandlord @relation(fields: [pmcLandlordId], references: [id], onDelete: Cascade)
+
+  // Relations to entities (optional, for easier querying)
+  expense            Expense?            @relation("ExpenseApproval")
+  maintenanceRequest MaintenanceRequest? @relation("MaintenanceApproval")
+
+  @@index([pmcLandlordId])
+  @@index([status])
+  @@index([approvalType])
+  @@index([entityType, entityId])
+  @@index([requestedAt])
+  @@index([approvedBy])
+  @@index([rejectedBy])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTY OWNERSHIP VERIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+// Tracks documents uploaded by landlords to verify property ownership
+enum OwnershipDocumentType {
+  GOVERNMENT_ID // Driver's License, Passport, National ID
+  PROPERTY_TAX // Property Tax Assessment/Bill
+  DEED_TITLE // Property Deed/Title Document
+  MORTGAGE_STATEMENT // Mortgage Statement
+  BANK_STATEMENT // Bank Statement showing mortgage/tax payments
+  INSURANCE_POLICY // Property Insurance Policy
+  ASSESSMENT_RECORD // Government Assessment Record
+  PURCHASE_AGREEMENT // Purchase Agreement/Contract
+  OTHER // Other supporting documents
+}
+
+enum VerificationStatus {
+  PENDING // Document uploaded, awaiting review
+  VERIFIED // Document verified and approved
+  REJECTED // Document rejected (needs resubmission)
+  EXPIRED // Document expired (needs renewal)
+}
+
+model PropertyOwnershipVerification {
+  id            String  @id @default(cuid())
+  pmcLandlordId String // Which PMC-Landlord relationship
+  landlordId    String // Landlord who uploaded (for easier querying)
+  propertyId    String? // Optional: specific property if verification is property-specific
+
+  // Document Information
+  documentType OwnershipDocumentType
+  fileName     String // Stored filename
+  originalName String // Original filename from upload
+  fileUrl      String // Storage URL (S3, etc.)
+  fileSize     Int // File size in bytes
+  mimeType     String? // MIME type (e.g., 'application/pdf', 'image/jpeg')
+
+  // Upload Information
+  uploadedAt      DateTime @default(now())
+  uploadedBy      String // Landlord ID
+  uploadedByEmail String
+  uploadedByName  String
+
+  // Verification Information
+  status            VerificationStatus @default(PENDING)
+  verifiedAt        DateTime?
+  verifiedBy        String? // PMC user ID who verified
+  verifiedByEmail   String?
+  verifiedByName    String?
+  verificationNotes String? // Notes from PMC reviewer
+
+  // Rejection Information
+  rejectedAt      DateTime?
+  rejectedBy      String? // PMC user ID who rejected
+  rejectedByEmail String?
+  rejectedByName  String?
+  rejectionReason String? // Reason for rejection
+
+  // Document Metadata
+  expirationDate DateTime? // If document has expiration (e.g., ID expiry)
+  documentNumber String? // Document number (e.g., license number, passport number)
+  issuedBy       String? // Issuing authority (e.g., "Ontario Ministry of Transportation")
+  issuedDate     DateTime? // When document was issued
+
+  // Additional Metadata
+  metadata Json? // Additional structured data (e.g., extracted info from document)
+  notes    String? // Additional notes from landlord
+
+  // Relations
+  pmcLandlord PMCLandlord @relation(fields: [pmcLandlordId], references: [id], onDelete: Cascade)
+  landlord    Landlord    @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  property    Property?   @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  // Audit Trail
+  verificationHistory PropertyOwnershipVerificationHistory[]
+
+  @@index([pmcLandlordId])
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([status])
+  @@index([documentType])
+  @@index([uploadedAt])
+  @@index([verifiedAt])
+  @@index([landlordId, status])
+  @@index([pmcLandlordId, status])
+}
+
+// Audit trail for verification status changes
+model PropertyOwnershipVerificationHistory {
+  id               String              @id @default(cuid())
+  verificationId   String
+  action           String // 'uploaded', 'verified', 'rejected', 'expired', 'updated'
+  performedBy      String // User ID
+  performedByEmail String
+  performedByName  String
+  performedByRole  String // 'landlord', 'pmc'
+  previousStatus   VerificationStatus?
+  newStatus        VerificationStatus?
+  notes            String?
+  metadata         Json? // Additional context
+  createdAt        DateTime            @default(now())
+
+  verification PropertyOwnershipVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED VERIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+// Centralized verification model that handles all verification types:
+// - Property Ownership (PropertyOwnershipVerification)
+// - Tenant Documents (Document)
+// - Applications (Invitation)
+// - Entity Approvals (Landlord, Tenant, PMC)
+// - Financial Approvals (Expense, MaintenanceRequest)
+// - Inspection Checklists (InspectionChecklist)
+// - Future: Any other verification needs
+
+enum UnifiedVerificationType {
+  PROPERTY_OWNERSHIP // Property ownership documents (from PropertyOwnershipVerification)
+  TENANT_DOCUMENT // Tenant-uploaded documents (from Document)
+  APPLICATION // Application approvals (from Invitation)
+  ENTITY_APPROVAL // Entity approvals (Landlord, Tenant, PMC)
+  FINANCIAL_APPROVAL // Financial approvals (Expense, MaintenanceRequest)
+  INSPECTION // Inspection checklists
+  OTHER // Other verification types
+}
+
+enum UnifiedVerificationStatus {
+  PENDING // Awaiting review
+  VERIFIED // Verified and approved
+  REJECTED // Rejected (may need resubmission)
+  EXPIRED // Expired (needs renewal)
+  CANCELLED // Cancelled by requester
+}
+
+model UnifiedVerification {
+  id String @id @default(cuid())
+
+  // Verification Type and Entity Reference
+  verificationType UnifiedVerificationType // Type of verification
+  entityType       String // Model name: 'PropertyOwnershipVerification', 'Document', 'Invitation', 'Landlord', 'Tenant', 'Expense', etc.
+  entityId         String // ID of the entity being verified
+
+  // Requester/Uploader Information
+  requestedBy      String // User ID who requested verification
+  requestedByRole  String // Role: 'landlord', 'tenant', 'pmc', 'admin'
+  requestedByEmail String
+  requestedByName  String
+
+  // Verifier Information (who should verify)
+  assignedTo      String? // User ID who should verify (optional, for assignment)
+  assignedToRole  String? // Role of assigned verifier
+  assignedToEmail String?
+  assignedToName  String?
+
+  // Verification Result
+  verifiedBy      String? // User ID who verified
+  verifiedByRole  String? // Role of verifier
+  verifiedByEmail String?
+  verifiedByName  String?
+
+  // Status and Dates
+  status      UnifiedVerificationStatus @default(PENDING)
+  priority    String                    @default("normal") // 'low', 'normal', 'high', 'urgent'
+  requestedAt DateTime                  @default(now())
+  verifiedAt  DateTime?
+  rejectedAt  DateTime?
+  expiredAt   DateTime?
+  cancelledAt DateTime?
+  dueDate     DateTime? // Optional deadline for verification
+
+  // Content
+  title             String // Display title
+  description       String? // Description/details
+  notes             String? // Notes from requester
+  verificationNotes String? // Notes from verifier
+  rejectionReason   String? // Reason for rejection
+
+  // File/Document Information (if applicable)
+  fileName     String? // Stored filename
+  originalName String? // Original filename
+  fileUrl      String? // Storage URL
+  fileSize     Int? // File size in bytes
+  mimeType     String? // MIME type
+
+  // Metadata (type-specific data stored as JSON)
+  metadata Json? // Flexible storage for type-specific data
+  // Examples:
+  // - For PropertyOwnershipVerification: { documentType, propertyId, pmcLandlordId }
+  // - For Document: { category, tenantId, propertyId }
+  // - For Invitation: { invitationType, invitedBy }
+  // - For Expense: { amount, expenseType, propertyId }
+
+  // Note: requestedBy is a String field that can reference any user (landlord, tenant, pmc, admin)
+  // Use requestedByRole to determine which model to query
+  // Reverse relations are defined on Landlord, Tenant, and PropertyManagementCompany models
+  // We cannot use forward FKs because requestedBy can reference different models
+
+  // Audit Trail
+  history UnifiedVerificationHistory[]
+
+  // Notifications
+  notifications Notification[] @relation("VerificationNotifications")
+
+  @@unique([verificationType, entityType, entityId])
+  @@index([verificationType, status])
+  @@index([entityType, entityId])
+  @@index([requestedBy, status])
+  @@index([verifiedBy, status])
+  @@index([assignedTo, status])
+  @@index([status, priority])
+  @@index([requestedAt])
+  @@index([dueDate])
+  @@index([verificationType, entityType, entityId]) // Unique constraint to prevent duplicates
+}
+
+// Audit trail for unified verification
+model UnifiedVerificationHistory {
+  id               String                     @id @default(cuid())
+  verificationId   String
+  action           String // 'created', 'assigned', 'verified', 'rejected', 'expired', 'cancelled', 'updated'
+  performedBy      String // User ID
+  performedByRole  String // Role
+  performedByEmail String
+  performedByName  String
+  previousStatus   UnifiedVerificationStatus?
+  newStatus        UnifiedVerificationStatus?
+  notes            String? // Notes about this action
+  metadata         Json? // Additional context
+  createdAt        DateTime                   @default(now())
+
+  verification UnifiedVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([performedBy])
+}
+
+model RecurringMaintenance {
+  id                String    @id
+  propertyId        String
+  unitId            String?
+  title             String
+  description       String
+  frequency         String
+  lastCompletedDate DateTime?
+  nextDueDate       DateTime
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime
+
+  @@index([propertyId])
+  @@index([nextDueDate])
+  @@index([isActive])
+}
+
+model InspectionChecklist {
+  id              String                    @id
+  tenantId        String
+  leaseId         String?
+  propertyId      String?
+  unitId          String?
+  checklistType   String // 'move-in' or 'move-out'
+  inspectionDate  DateTime?
+  status          String                    @default("pending") // 'pending', 'submitted', 'approved', 'rejected'
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  approvedBy      String?
+  approvedByName  String?
+  rejectionReason String?
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectedByName  String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime
+  items           InspectionChecklistItem[]
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([checklistType])
+  @@index([submittedAt])
+}
+
+model InspectionChecklistItem {
+  id                 String              @id
+  checklistId        String
+  itemId             String // e.g., 'walls', 'floors', etc.
+  itemLabel          String
+  category           String
+  isChecked          Boolean             @default(false)
+  notes              String?
+  photos             Json? // Array of photo objects: [{url: string, comment: string?}]
+  landlordNotes      String?
+  landlordApproval   String? // 'approved', 'rejected', null
+  landlordApprovedAt DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime
+  checklist          InspectionChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@index([itemId])
+}
+
+model ActivityLog {
+  id        String  @id
+  userId    String // Can be Admin, Landlord, PMC, Tenant, Vendor, Contractor
+  userEmail String
+  userName  String
+  userRole  String // 'admin', 'landlord', 'pmc', 'tenant', 'vendor', 'contractor'
+  userType  String? // More specific: 'SUPER_ADMIN', 'PLATFORM_ADMIN', etc.
+
+  action     String // 'create', 'update', 'delete', 'view', 'approve', 'reject', 'invite', 'login', 'logout', etc.
+  entityType String // 'property', 'tenant', 'maintenance', 'lease', 'payment', 'expense', 'document', etc.
+  entityId   String
+  entityName String? // Human-readable name (e.g., property name, tenant name)
+
+  description String? // Detailed description of the action
+  metadata    Json? // Additional data (old values, new values, changed fields, etc.)
+
+  // Context FKs for better querying and filtering
+  propertyId   String? // If action relates to a property
+  landlordId   String? // If action relates to a landlord
+  tenantId     String? // If action relates to a tenant
+  pmcId        String? // If action relates to PMC
+  vendorId     String? // If action relates to a vendor
+  contractorId String? // If action relates to a contractor
+
+  // Request/Approval context
+  approvalRequestId String? // If this is an approval action (PMCLandlordApproval ID)
+
+  // Conversation context
+  conversationId String? // If action relates to a conversation
+
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // Optional FKs for better queries (if needed)
+  property     Property?                  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  landlord     Landlord?                  @relation(fields: [landlordId], references: [id], onDelete: SetNull)
+  tenant       Tenant?                    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  conversation Conversation?              @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  pmc          PropertyManagementCompany? @relation(fields: [pmcId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userRole])
+  @@index([userType])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([propertyId])
+  @@index([landlordId])
+  @@index([tenantId])
+  @@index([pmcId])
+  @@index([vendorId])
+  @@index([contractorId])
+  @@index([userRole, createdAt]) // For role-based queries
+  @@index([approvalRequestId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED INVITATION SYSTEM - EXTENSIBLE FOR ALL ROLES
+// ═══════════════════════════════════════════════════════════════
+// This model supports invitations for: landlord, tenant, vendor, contractor, etc.
+// To add a new role, simply update lib/config/invitation-roles.ts
+// No schema changes needed!
+// ═══════════════════════════════════════════════════════════════
+model Invitation {
+  id     String @id @default(cuid())
+  email  String
+  token  String @unique
+  type   String // 'landlord', 'tenant', 'vendor', 'contractor', 'pmc', etc.
+  status String @default("pending") // pending, sent, opened, completed, expired, cancelled
+
+  // Who sent the invitation - Converted to FKs for better tracking
+  invitedBy      String // ID of the inviter (kept for backward compat, but use FKs below)
+  invitedByRole  String // Role of the inviter: 'admin', 'landlord', 'pmc', etc.
+  invitedByName  String? // Name of inviter (for email display)
+  invitedByEmail String? // Email of inviter (for email display)
+
+  // FK relations for who sent the invitation
+  invitedByAdminId String? // Admin ID who invited
+  invitedByAdmin   Admin?  @relation("AdminInvitations", fields: [invitedByAdminId], references: [id], onDelete: SetNull)
+
+  invitedByLandlordId String? // Landlord ID who invited
+  invitedByLandlord   Landlord? @relation("LandlordInvitations", fields: [invitedByLandlordId], references: [id], onDelete: SetNull)
+
+  invitedByPMCId String? // PMC ID who invited
+  invitedByPMC   PropertyManagementCompany? @relation("PMCInvitations", fields: [invitedByPMCId], references: [id], onDelete: SetNull)
+
+  // Track invitation source
+  invitationSource String? // 'admin_dashboard', 'landlord_dashboard', 'pmc_dashboard', 'api', etc.
+
+  // Role-specific linking (only one will be set based on type)
+  landlordId        String? // Set when landlord accepts
+  tenantId          String? // Set when tenant accepts
+  vendorId          String? // Legacy - Set when vendor accepts
+  contractorId      String? // Legacy - Set when contractor accepts
+  serviceProviderId String? // Unified - Set when service provider accepts
+  pmcId             String? // Set when PMC accepts
+
+  // Optional property/unit linking (for tenant invitations)
+  propertyId String?
+  unitId     String?
+
+  // Expiration and tracking
+  expiresAt      DateTime
+  openedAt       DateTime?
+  completedAt    DateTime?
+  reminderSentAt DateTime?
+  reminderCount  Int       @default(0)
+
+  // PHASE 2: Approval tracking on invitation
+  approvedBy      String? // Admin ID who approved
+  approvedByAdmin Admin?    @relation("AdminApprovedInvitations", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?
+  rejectedBy      String? // Admin ID who rejected
+  rejectedByAdmin Admin?    @relation("AdminRejectedInvitations", fields: [rejectedBy], references: [id], onDelete: SetNull)
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // Flexible metadata for role-specific data
+  metadata Json? // Store form prefill data, role-specific fields, etc.
+
+  // Audit trail
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  landlord        Landlord?                  @relation(fields: [landlordId], references: [id], onDelete: SetNull)
+  tenant          Tenant?                    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  serviceProvider ServiceProvider?           @relation(fields: [serviceProviderId], references: [id], onDelete: SetNull) // Unified
+  pmc             PropertyManagementCompany? @relation(fields: [pmcId], references: [id], onDelete: SetNull)
+
+  @@index([token])
+  @@index([email])
+  @@index([type])
+  @@index([status])
+  @@index([invitedBy])
+  @@index([invitedByRole])
+  @@index([invitedByAdminId])
+  @@index([invitedByLandlordId])
+  @@index([invitedByPMCId])
+  @@index([expiresAt])
+  @@index([landlordId])
+  @@index([tenantId])
+  @@index([vendorId])
+  @@index([contractorId])
+  @@index([serviceProviderId])
+  @@index([pmcId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEGACY TENANT INVITATION MODEL (for backward compatibility)
+// ═══════════════════════════════════════════════════════════════
+// This model will be deprecated once all TenantInvitation records
+// are migrated to the unified Invitation model.
+// ═══════════════════════════════════════════════════════════════
+model TenantInvitation {
+  id             String    @id @default(cuid())
+  tenantId       String? // Null until tenant accepts
+  email          String
+  token          String    @unique
+  status         String    @default("pending") // pending, sent, opened, completed, expired, cancelled
+  invitedBy      String // Landlord ID
+  propertyId     String? // Optional: link to specific property
+  unitId         String? // Optional: link to specific unit
+  expiresAt      DateTime
+  openedAt       DateTime?
+  completedAt    DateTime?
+  reminderSentAt DateTime?
+  reminderCount  Int       @default(0)
+  metadata       Json? // Store form prefill data, preferences, etc.
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  landlord Landlord @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([invitedBy])
+  @@index([tenantId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════
+model Notification {
+  id        String @id @default(cuid())
+  userId    String // User ID (landlord, tenant, PMC, etc.)
+  userRole  String // 'landlord', 'tenant', 'pmc', 'admin'
+  userEmail String // User email for email notifications
+
+  // Notification details
+  type     String // 'rent_due', 'rent_overdue', 'maintenance_update', 'approval_request', 'document_expiring', 'lease_renewal', etc.
+  title    String
+  message  String
+  priority String @default("normal") // 'low', 'normal', 'high', 'urgent'
+
+  // Entity context (what this notification is about)
+  entityType String? // 'rent_payment', 'maintenance_request', 'approval_request', 'document', 'lease', 'unified_verification', etc.
+  entityId   String? // ID of the related entity
+
+  // Relation to unified verification (if applicable)
+  verificationId String? // UnifiedVerification ID
+  verification   UnifiedVerification? @relation("VerificationNotifications", fields: [verificationId], references: [id], onDelete: SetNull)
+
+  // Status tracking
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+
+  // Delivery tracking
+  emailSent   Boolean   @default(false)
+  emailSentAt DateTime?
+  smsSent     Boolean   @default(false) // For future SMS support
+  smsSentAt   DateTime?
+  pushSent    Boolean   @default(false) // For future push notifications
+  pushSentAt  DateTime?
+
+  // Action links
+  actionUrl   String? // URL to navigate when notification is clicked
+  actionLabel String? // Label for action button
+
+  // Metadata
+  metadata Json? // Additional context data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, isArchived])
+  @@index([userRole])
+  @@index([type])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([priority])
+  @@index([emailSent])
+  @@map("notification")
+}
+
+// Notification preferences per user
+model NotificationPreference {
+  id        String @id @default(cuid())
+  userId    String // User ID
+  userRole  String // 'landlord', 'tenant', 'pmc', 'admin'
+  userEmail String // User email
+
+  // Notification type preferences
+  notificationType String // 'rent_due', 'rent_overdue', 'maintenance_update', etc.
+
+  // Channel preferences
+  emailEnabled Boolean @default(true)
+  smsEnabled   Boolean @default(false) // For future SMS support
+  pushEnabled  Boolean @default(true) // In-app notifications
+
+  // Timing preferences (for email/SMS)
+  sendBeforeDays Int? // For rent_due: send X days before
+  sendOnDay      Boolean @default(true) // Send on the day
+  sendAfterDays  Int? // For overdue: send X days after
+
+  // Quiet hours (future feature)
+  quietHoursStart String? // e.g., "22:00"
+  quietHoursEnd   String? // e.g., "08:00"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, notificationType])
+  @@index([userId])
+  @@index([userRole])
+  @@index([notificationType])
+  @@map("notification_preference")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LATE FEE CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+model LateFeeRule {
+  id         String  @id @default(cuid())
+  landlordId String? // If null, it's a system-wide default
+  pmcId      String? // If PMC manages the landlord, use PMC's rules
+
+  // Rule configuration
+  name     String // e.g., "Standard Late Fee"
+  isActive Boolean @default(true)
+
+  // Fee calculation
+  feeType    String // 'fixed', 'percentage', 'daily'
+  feeAmount  Float? // For fixed amount
+  feePercent Float? // For percentage of rent
+  dailyRate  Float? // For daily fee
+
+  // Timing
+  gracePeriodDays Int    @default(0) // Days before late fee applies
+  maxFeeAmount    Float? // Maximum late fee cap
+
+  // Application rules
+  applyToPartialPayments Boolean @default(true)
+  compoundDaily          Boolean @default(false) // If true, daily fee compounds
+
+  // Auto-apply settings
+  autoApply      Boolean @default(true) // Automatically apply when overdue
+  autoApplyAfter Int     @default(1) // Days after due date to auto-apply
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  LateFee   LateFee[]
+
+  @@index([landlordId])
+  @@index([pmcId])
+  @@index([isActive])
+}
+
+// Late fee application record
+model LateFee {
+  id            String      @id @default(cuid())
+  rentPaymentId String
+  rentPayment   RentPayment @relation(fields: [rentPaymentId], references: [id], onDelete: Cascade)
+
+  ruleId String?
+  rule   LateFeeRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  // Fee details
+  feeAmount    Float
+  feeType      String // 'fixed', 'percentage', 'daily'
+  calculatedAt DateTime  @default(now())
+  appliedAt    DateTime?
+
+  // Status
+  isPaid     Boolean   @default(false)
+  paidAt     DateTime?
+  paidAmount Float?
+
+  // Notes
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rentPaymentId])
+  @@index([isPaid])
+  @@index([calculatedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STRIPE PAYMENT INTEGRATION (DEACTIVATED - Ready for activation)
+// ═══════════════════════════════════════════════════════════════
+model StripePayment {
+  id            String      @id @default(cuid())
+  rentPaymentId String
+  rentPayment   RentPayment @relation("StripePayments", fields: [rentPaymentId], references: [id], onDelete: Cascade)
+
+  // Stripe data
+  stripePaymentIntentId String  @unique // Stripe PaymentIntent ID
+  stripeCustomerId      String? // Stripe Customer ID
+  stripeChargeId        String? // Stripe Charge ID
+
+  // Payment details
+  amount   Float // Amount in cents (Stripe uses cents)
+  currency String @default("usd")
+  status   String // 'pending', 'succeeded', 'failed', 'canceled', 'refunded', 'disputed', 'chargeback_pending', 'chargeback_won', 'chargeback_lost', 'reversed'
+
+  // Payment method
+  paymentMethod String? // 'card', 'bank_account', etc.
+  last4         String? // Last 4 digits of card/account
+  brand         String? // Card brand (visa, mastercard, etc.)
+
+  // Metadata
+  metadata   Json? // Additional Stripe metadata
+  receiptUrl String? // Stripe receipt URL
+
+  // Webhook tracking
+  webhookReceived   Boolean   @default(false)
+  webhookReceivedAt DateTime?
+
+  // Payment Retry Logic (Business Rule 11.1)
+  retryCount             Int       @default(0) // Number of retry attempts (max 3)
+  retryScheduledAt       DateTime? // When next retry should occur
+  lastRetryAt            DateTime? // When last retry was attempted
+  requiresTenantApproval Boolean   @default(false) // True for 2nd and 3rd retries
+  tenantApprovedRetry    Boolean? // null = pending, true = approved, false = rejected
+  tenantApprovedAt       DateTime? // When tenant approved retry
+
+  // Payment Dispute/Chargeback Tracking (Business Rule 11.2)
+  disputeStatus      String? // 'disputed', 'chargeback_pending', 'chargeback_won', 'chargeback_lost'
+  disputeInitiatedAt DateTime? // When dispute/chargeback was initiated
+  disputeResolvedAt  DateTime? // When dispute was resolved
+  disputeReason      String? // Reason for dispute
+  lateFeesFrozen     Boolean   @default(false) // True when late fees are frozen during dispute
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rentPaymentId])
+  @@index([stripePaymentIntentId])
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@index([retryScheduledAt])
+  @@index([disputeStatus])
+}
+
+// Stripe customer mapping (link Stripe customers to tenants/landlords)
+model StripeCustomer {
+  id               String @id @default(cuid())
+  stripeCustomerId String @unique // Stripe Customer ID
+
+  // User mapping
+  userId    String // Tenant ID or Landlord ID
+  userRole  String // 'tenant' or 'landlord'
+  userEmail String
+
+  // Customer details from Stripe
+  name  String?
+  email String?
+  phone String?
+
+  // Payment methods
+  defaultPaymentMethodId String? // Default payment method ID
+
+  // Metadata
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, userRole])
+  @@index([stripeCustomerId])
+}
+
+// Add relation to RentPayment
+// (This will be added to RentPayment model)
+
+// ═══════════════════════════════════════════════════════════════
+// NEW FEATURES - Phase 4: Feature Implementation (RBAC-Enabled)
+// ═══════════════════════════════════════════════════════════════
+
+// Security Deposit Management
+model SecurityDeposit {
+  id         String  @id @default(cuid())
+  leaseId    String
+  tenantId   String
+  propertyId String
+  unitId     String?
+
+  amount      Float
+  depositType String // 'security', 'pet', 'last_month', 'other'
+  status      String @default("held") // 'held', 'refunded', 'forfeited', 'partial_refund'
+
+  // Escrow information
+  heldInEscrow  Boolean @default(false)
+  escrowAccount String?
+
+  // Refund information
+  refundedAmount  Float?
+  refundedAt      DateTime?
+  refundedBy      String?
+  refundedByType  String?
+  refundedByEmail String?
+  refundedByName  String?
+
+  // Approval workflow
+  approvalRequestId String?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lease    Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit     Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([leaseId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([status])
+  @@index([depositType])
+}
+
+// Add SecurityDeposit relation to Lease
+// (Update Lease model to include securityDeposits relation)
+
+// Tenant Application (Enhanced from Invitation)
+model Application {
+  id         String @id @default(cuid())
+  unitId     String
+  propertyId String
+
+  // Applicant information
+  applicantId    String? // Tenant ID (if existing tenant)
+  applicantEmail String
+  applicantName  String
+  applicantPhone String?
+
+  // Co-applicants
+  coApplicantIds String[] // Array of tenant IDs
+
+  // Application details
+  status   String   @default("draft") // 'draft', 'submitted', 'under_review', 'approved', 'rejected', 'withdrawn'
+  deadline DateTime // 1-week deadline from creation
+
+  // Screening
+  screeningRequested   Boolean   @default(false)
+  screeningRequestedAt DateTime?
+  screeningProvider    String? // Third-party screening provider
+  screeningStatus      String? // 'pending', 'completed', 'failed'
+  screeningData        Json? // Secure screening data
+
+  // Approval
+  approvedAt      DateTime?
+  approvedBy      String?
+  approvedByType  String?
+  approvedByEmail String?
+  approvedByName  String?
+
+  // Rejection
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectedByType  String?
+  rejectedByEmail String?
+  rejectedByName  String?
+  rejectionReason String?
+
+  // Lease creation
+  leaseId String? // Created lease ID (if approved)
+
+  // Application data
+  applicationData Json? // Full application form data
+
+  // Metadata
+  metadata   Json?
+  isArchived Boolean @default(false) // Archived for reporting
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  lease    Lease?   @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+
+  @@index([unitId])
+  @@index([propertyId])
+  @@index([applicantId])
+  @@index([status])
+  @@index([deadline])
+  @@index([isArchived])
+}
+
+// Add Application relation to Unit, Property, Lease
+// (Update Unit, Property, Lease models to include applications relation)
+
+// Bank Reconciliation
+model BankReconciliation {
+  id                 String   @id @default(cuid())
+  reconciliationDate DateTime
+
+  // Scope
+  pmcId      String?
+  landlordId String?
+  propertyId String?
+
+  // Reconciliation data
+  startingBalance Float
+  endingBalance   Float
+
+  // Matched items
+  matchedPayments Json // Array of matched payment IDs
+  matchedExpenses Json // Array of matched expense IDs
+
+  // Unmatched items
+  unmatchedPayments Json // Array of unmatched payment IDs
+  unmatchedExpenses Json // Array of unmatched expense IDs
+
+  // Reconciliation result
+  reconciledAmount Float
+  difference       Float // Difference between expected and actual
+
+  // Status
+  status String @default("draft") // 'draft', 'in_progress', 'completed', 'reconciled'
+
+  // Performed by
+  reconciledBy      String?
+  reconciledByType  String?
+  reconciledByEmail String?
+  reconciledByName  String?
+  reconciledAt      DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pmc      PropertyManagementCompany? @relation(fields: [pmcId], references: [id], onDelete: SetNull)
+  landlord Landlord?                  @relation(fields: [landlordId], references: [id], onDelete: SetNull)
+  property Property?                  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([pmcId])
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([reconciliationDate])
+  @@index([status])
+}
+
+// Add BankReconciliation relation to PMC, Landlord, Property
+
+// Owner Payout
+model OwnerPayout {
+  id String @id @default(cuid())
+
+  // Payout details
+  payoutDate        DateTime
+  payoutPeriodStart DateTime
+  payoutPeriodEnd   DateTime
+
+  // Scope
+  landlordId String
+  propertyId String?
+  pmcId      String?
+
+  // Financial calculation
+  totalRent     Float
+  totalExpenses Float
+  commission    Float
+  netAmount     Float // rent - expenses - commission
+
+  // Terms
+  paymentTerms String   @default("NET_30") // 'NET_15', 'NET_30'
+  dueDate      DateTime
+
+  // Status
+  status String @default("pending") // 'pending', 'approved', 'paid', 'cancelled'
+
+  // Approval
+  approvedAt      DateTime?
+  approvedBy      String?
+  approvedByType  String?
+  approvedByEmail String?
+  approvedByName  String?
+
+  // Payment
+  paidAt           DateTime?
+  paidBy           String?
+  paidByType       String?
+  paidByEmail      String?
+  paidByName       String?
+  paymentMethod    String?
+  paymentReference String?
+
+  // Approval workflow
+  approvalRequestId String?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  landlord Landlord                   @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  property Property?                  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  pmc      PropertyManagementCompany? @relation(fields: [pmcId], references: [id], onDelete: SetNull)
+
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([pmcId])
+  @@index([payoutDate])
+  @@index([status])
+}
+
+// Add OwnerPayout relation to Landlord, Property, PMC
+
+// Owner Statement
+model OwnerStatement {
+  id String @id @default(cuid())
+
+  // Statement details
+  statementDate        DateTime
+  statementPeriodStart DateTime
+  statementPeriodEnd   DateTime
+  statementType        String // 'monthly', 'quarterly', 'yearly'
+
+  // Scope
+  landlordId String
+  propertyId String?
+
+  // Financial summary
+  totalIncome   Float
+  totalExpenses Float
+  netProfit     Float
+  commission    Float
+
+  // Breakdown
+  incomeBreakdown  Json? // Detailed income breakdown
+  expenseBreakdown Json? // Detailed expense breakdown
+
+  // Customization
+  templateId   String? // Custom template ID
+  customFields Json? // Custom fields per owner
+
+  // Status
+  status String @default("draft") // 'draft', 'generated', 'sent', 'viewed'
+
+  // Generated by
+  generatedBy      String?
+  generatedByType  String?
+  generatedByEmail String?
+  generatedByName  String?
+  generatedAt      DateTime?
+
+  // Sent/Viewed
+  sentAt   DateTime?
+  viewedAt DateTime?
+
+  // File
+  pdfPath String? // Generated PDF path
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  landlord Landlord  @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([statementDate])
+  @@index([statementType])
+  @@index([status])
+}
+
+// Add OwnerStatement relation to Landlord, Property
+
+// Vendor Rating
+model VendorRating {
+  id String @id @default(cuid())
+
+  // Rating details
+  vendorId     String
+  ratedBy      String // User ID who gave the rating
+  ratedByType  String // 'tenant', 'landlord', 'pmc'
+  ratedByEmail String
+  ratedByName  String
+
+  // Rating context
+  workOrderId          String? // Related work order
+  maintenanceRequestId String? // Related maintenance request
+  propertyId           String?
+  unitId               String?
+
+  // Rating scores (1-5)
+  quality         Int // Quality of work
+  timeliness      Int // Timeliness
+  communication   Int // Communication
+  professionalism Int // Professionalism
+  overall         Float // Overall rating (average)
+
+  // Review
+  review String?
+
+  // Vendor response
+  vendorResponse    String?
+  vendorRespondedAt DateTime?
+
+  // Status
+  status String @default("active") // 'active', 'hidden', 'removed'
+
+  // Blocking
+  isBlocked Boolean @default(false) // PM blocked this vendor due to low rating
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor    ServiceProvider     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  workOrder MaintenanceRequest? @relation("VendorRatingWorkOrder", fields: [workOrderId], references: [id], onDelete: SetNull)
+  property  Property?           @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  unit      Unit?               @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId])
+  @@index([ratedBy])
+  @@index([workOrderId])
+  @@index([propertyId])
+  @@index([overall])
+  @@index([isBlocked])
+}
+
+// Tenant Rating (Vendors can rate tenants)
+model TenantRating {
+  id String @id @default(cuid())
+
+  // Rating details
+  tenantId     String
+  ratedBy      String // Vendor ID who gave the rating
+  ratedByType  String // 'vendor', 'service_provider'
+  ratedByEmail String
+  ratedByName  String
+
+  // Rating context
+  workOrderId String? // Related work order
+  propertyId  String?
+  unitId      String?
+
+  // Rating scores (1-5)
+  paymentBehavior Int // Payment behavior
+  propertyCare    Int // Property care
+  communication   Int // Communication
+  overall         Float // Overall rating (average)
+
+  // Review
+  review String?
+
+  // Tenant response
+  tenantResponse    String?
+  tenantRespondedAt DateTime?
+
+  status String @default("active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendor    ServiceProvider     @relation(fields: [ratedBy], references: [id], onDelete: Cascade)
+  workOrder MaintenanceRequest? @relation("TenantRatingWorkOrder", fields: [workOrderId], references: [id], onDelete: SetNull)
+  property  Property?           @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  unit      Unit?               @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([ratedBy])
+  @@index([workOrderId])
+  @@index([overall])
+}
+
+// Add VendorRating and TenantRating relations to ServiceProvider, Tenant, MaintenanceRequest, Property, Unit
+
+// Eviction Workflow
+model Eviction {
+  id String @id @default(cuid())
+
+  // Eviction details
+  tenantId   String
+  leaseId    String
+  propertyId String
+  unitId     String
+
+  // Initiation
+  initiatedBy      String // PMC PM/Leasing or Landlord
+  initiatedByType  String // 'pmc', 'landlord'
+  initiatedByEmail String
+  initiatedByName  String
+  initiatedAt      DateTime @default(now())
+
+  // Reason
+  reason        String
+  reasonDetails String?
+
+  // LTB compliance (Ontario-specific)
+  ltbFormType   String? // 'N4', 'N5', 'N7', 'N8', 'N12', etc.
+  ltbFormId     String? // Generated LTB form ID
+  ltbCaseNumber String? // LTB case number
+
+  // Status
+  status String @default("initiated") // 'initiated', 'pending_approval', 'approved', 'ltb_filed', 'hearing_scheduled', 'evicted', 'cancelled'
+
+  // Approval
+  approvedAt      DateTime?
+  approvedBy      String? // Landlord ID
+  approvedByEmail String?
+  approvedByName  String?
+
+  // LTB process
+  ltbFiledAt     DateTime?
+  hearingDate    DateTime?
+  hearingOutcome String?
+
+  // Completion
+  evictedAt       DateTime?
+  cancelledAt     DateTime?
+  cancelledBy     String?
+  cancelledReason String?
+
+  // Documents
+  documents Json? // Array of document IDs
+
+  // Tracking
+  trackingData Json? // Process tracking data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lease    Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([leaseId])
+  @@index([propertyId])
+  @@index([status])
+  @@index([initiatedAt])
+}
+
+// Add Eviction relation to Tenant, Lease, Property, Unit
+
+// Listing Management
+model Listing {
+  id String @id @default(cuid())
+
+  // Listing details
+  propertyId String
+  unitId     String?
+
+  // Listing information
+  title        String
+  description  String?
+  photos       String[] // Array of photo URLs
+  pricing      Json? // Pricing details (rent, deposit, etc.)
+  availability DateTime? // Available date
+
+  // Status
+  status String @default("draft") // 'draft', 'published', 'pending', 'rented', 'expired', 'cancelled'
+
+  // Created by
+  createdBy      String
+  createdByType  String // 'pmc', 'landlord'
+  createdByEmail String
+  createdByName  String
+
+  // Syndication
+  isSyndicated      Boolean  @default(false)
+  syndicatedTo      String[] // Array of syndication platform IDs
+  syndicationStatus Json? // Status per platform
+
+  // Editable after publish
+  lastEditedAt DateTime?
+  lastEditedBy String?
+
+  // Metadata
+  metadata Json?
+
+  publishedAt DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit     Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([expiresAt])
+}
+
+// Add Listing relation to Property, Unit

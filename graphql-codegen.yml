@@ -1,0 +1,26 @@
+# GraphQL Code Generator Configuration
+# 
+# Generates TypeScript types and React hooks from GraphQL schema
+# 
+# Install: npm install -D @graphql-codegen/cli @graphql-codegen/typescript @graphql-codegen/typescript-operations @graphql-codegen/typescript-react-apollo
+# Run: npx graphql-codegen
+
+overwrite: true
+schema: './schema/graphql/schema.graphql'
+documents: null
+generates:
+  packages/generated/types/graphql/types.ts:
+    plugins:
+      - 'typescript'
+  packages/generated/types/graphql/hooks.ts:
+    plugins:
+      - 'typescript'
+      - 'typescript-operations'
+      - 'typescript-react-apollo'
+    config:
+      withHooks: true
+      withComponent: false
+hooks:
+  afterAllFileWrite:
+    - prettier --write
+

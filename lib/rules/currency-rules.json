@@ -1,0 +1,110 @@
+{
+  "name": "Currency Formatting Rules",
+  "description": "Rules for currency display and input formatting",
+  "rules": [
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "enforcePositive": false,
+          "description": "Currency format with thousand separator (comma) and 2 decimal places",
+          "example": "$1,234.56"
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "CA"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "locale": "en-CA",
+          "enforcePositive": false
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "US"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "locale": "en-US",
+          "enforcePositive": false
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency-input"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency-input",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "allowNegative": false,
+          "maxValue": null,
+          "minValue": 0
+        }
+      },
+      "priority": 100
+    }
+  ]
+}
+

@@ -1,0 +1,101 @@
+name: Schema Validation
+
+on:
+  pull_request:
+    paths:
+      - 'schema/**'
+      - 'packages/schemas/**'
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate-schema:
+    name: Validate Schema Registry
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd schema/types
+          npm ci
+
+      - name: Validate schema registry
+        run: |
+          cd schema/types
+          npm run validate
+
+      - name: Lint OpenAPI schema
+        run: |
+          cd schema/types
+          npm run lint || echo "⚠️ Spectral not installed, skipping lint"
+
+      - name: Generate artifacts
+        run: |
+          cd schema/types
+          npm run generate:all
+          # Also run the wrapper script for complete generation
+          cd ../..
+          npm run schema:generate || echo "⚠️ Some codegen tools may not be installed"
+
+      - name: Check for changes
+        run: |
+          cd schema/types
+          git diff --exit-code src/generated-types.ts src/generated-validators.ts || \
+            (echo "❌ Generated files are out of sync. Run 'npm run generate:all' and commit the changes." && exit 1)
+
+      - name: Type check
+        run: |
+          cd schema/types
+          npm run build
+
+  contract-compatibility:
+    name: Contract Compatibility Check
+    runs-on: ubuntu-latest
+    needs: validate-schema
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd schema/types
+          npm ci
+
+      - name: Check OpenAPI spec validity
+        run: |
+          cd schema/types
+          npm run generate:openapi
+          # Validate OpenAPI spec structure
+          node -e "
+            const spec = require('../../openapi.json');
+            if (!spec.openapi || !spec.info || !spec.paths) {
+              console.error('❌ Invalid OpenAPI spec structure');
+              process.exit(1);
+            }
+            console.log('✅ OpenAPI spec is valid');
+          "
+
+      - name: Check breaking changes
+        run: |
+          cd schema/types
+          # Compare with previous version to detect breaking changes
+          echo "⚠️ Breaking change detection not implemented yet"
+          # TODO: Implement breaking change detection

@@ -1,0 +1,13 @@
+# OpenAPI 3.0 Specification
+# 
+# ⭐ CANONICAL API CONTRACT ⭐
+# 
+# This is the single source of truth for all API contracts.
+# Generated from schema registry.
+#
+# To regenerate: npm run schema:generate
+
+# The openapi.json file will be generated here
+# For now, we'll reference the generated JSON
+$ref: './openapi.json'
+

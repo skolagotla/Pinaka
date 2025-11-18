@@ -1,0 +1,46 @@
+# Spectral Linting Configuration for OpenAPI
+# 
+# Spectral is a flexible JSON/YAML linter for OpenAPI, AsyncAPI, and other API description formats
+# 
+# Install: npm install -D @stoplight/spectral-cli
+# Run: npx spectral lint schema/openapi.json
+
+extends: ["spectral:oas", "spectral:asyncapi"]
+
+rules:
+  # Turn off some default rules
+  info-contact: off
+  info-license: off
+  
+  # Make operation-operationId a warning instead of error
+  operation-operationId: warning
+  
+  # Enforce API versioning
+  operation-tags: error
+  
+  # Ensure all operations have descriptions
+  operation-description: warning
+  
+  # Enforce consistent naming
+  path-params-naming-convention:
+    description: Path parameters should use camelCase
+    severity: warning
+    given: "$.paths[*][*].parameters[?(@.in == 'path')]"
+    then:
+      field: name
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+  
+  # Ensure all responses have schemas
+  operation-response-schema: warning
+  
+  # Enforce consistent error response format
+  operation-error-response:
+    description: All error responses should follow consistent format
+    severity: warning
+    given: "$.paths[*][*].responses[4XX,5XX]"
+    then:
+      field: content.application/json.schema
+      function: truthy
+

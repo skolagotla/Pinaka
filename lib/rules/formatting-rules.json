@@ -1,0 +1,167 @@
+{
+  "name": "Formatting Rules",
+  "description": "Rules for formatting phone numbers, postal codes, zip codes, and currency values",
+  "rules": [
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "phone"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-phone",
+        "params": {
+          "format": "(XXX)XXX-XXXX",
+          "pattern": "^\\d{10}$",
+          "displayPattern": "(\\d{3})(\\d{3})(\\d{4})",
+          "placeholder": "(XXX)XXX-XXXX",
+          "maxLength": 14
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "postalCode"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "CA"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-postal-code",
+        "params": {
+          "format": "XXX XXX",
+          "pattern": "^[A-Z]\\d[A-Z]\\s?\\d[A-Z]\\d$",
+          "displayPattern": "([A-Z]\\d[A-Z])\\s?(\\d[A-Z]\\d)",
+          "placeholder": "XXX XXX",
+          "example": "M5H 2N2",
+          "maxLength": 7,
+          "uppercase": true
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "zipCode"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "US"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-zip-code",
+        "params": {
+          "format": "XXXXX",
+          "pattern": "^\\d{5}(-\\d{4})?$",
+          "displayPattern": "\\d{5}",
+          "placeholder": "XXXXX",
+          "example": "12345",
+          "maxLength": 5,
+          "allowExtended": true,
+          "extendedPattern": "\\d{5}-\\d{4}",
+          "extendedExample": "12345-6789"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "example": "$1,234.56"
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "CA"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "locale": "en-CA",
+          "example": "$1,234.56"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "currency"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "US"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "locale": "en-US",
+          "example": "$1,234.56"
+        }
+      },
+      "priority": 200
+    }
+  ]
+}
+

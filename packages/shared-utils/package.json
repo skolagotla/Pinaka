@@ -1,0 +1,33 @@
+{
+  "name": "@pinaka/shared-utils",
+  "version": "1.0.0",
+  "description": "Shared utilities and duplicated code consolidated into a single package",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pinaka",
+    "utils",
+    "shared"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pinaka/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+

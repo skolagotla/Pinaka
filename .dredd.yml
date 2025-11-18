@@ -1,0 +1,37 @@
+# Dredd Configuration
+# 
+# Run: dredd schema/openapi.yaml http://localhost:3000
+# Or: npm run contract-tests:provider
+
+dry-run: false
+hookfiles: []
+language: nodejs
+server: 'npm run dev:api'
+server-wait: 10
+init: false
+custom:
+  apiUrl: http://localhost:3000
+names: false
+only: []
+reporter: [cli]
+output: []
+header: []
+sorted: false
+user: null
+inline-errors: false
+details: false
+coverage: false
+bail: false
+noglob: false
+hooks-worker-timeout: 5000
+hooks-worker-connect-timeout: 15000
+hooks-worker-connect-retry: 500
+hooks-worker-after-connect-wait: 100
+hooks-worker-term-timeout: 5000
+hooks-worker-term-retry: 500
+hooks-worker-handler-host: 127.0.0.1
+hooks-worker-handler-port: 61321
+color: true
+level: info
+timestamp: false
+silent: false

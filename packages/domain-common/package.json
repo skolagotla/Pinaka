@@ -1,0 +1,34 @@
+{
+  "name": "@pinaka/domain-common",
+  "version": "1.0.0",
+  "description": "Shared domain utilities and common domain logic",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "pinaka",
+    "domain",
+    "common",
+    "utilities"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pinaka/schemas": "workspace:*",
+    "@pinaka/shared-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+

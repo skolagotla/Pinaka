@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["../../lib/*"],
+      "@/app/*": ["./app/*"],
+      "@/utils/*": ["../../lib/utils/*"],
+      "@/hooks/*": ["../../lib/hooks/*"],
+      "@/services/*": ["../../lib/services/*"],
+      "@/constants/*": ["../../lib/constants/*"],
+      "@/schema/*": ["../../schema/*"],
+      "@/packages/*": ["../../packages/*"],
+      "@/domains/*": ["../../domains/*"]
+    }
+  },
+  "exclude": ["node_modules", ".next"]
+}
+

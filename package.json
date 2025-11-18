@@ -1,0 +1,74 @@
+{
+  "name": "pinaka",
+  "version": "1.0.0",
+  "description": "Pinaka - Property Management Platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "domains/*",
+    "schema/types"
+  ],
+  "scripts": {
+    "bootstrap": "pnpm install",
+    "dev": "pnpm --filter @pinaka/web-app dev",
+    "dev:api": "pnpm --filter @pinaka/api-server dev",
+    "build": "pnpm run build:packages && pnpm run build:apps",
+    "build:packages": "pnpm --filter './packages/*' build",
+    "build:apps": "pnpm --filter './apps/*' build",
+    "build:schema": "cd schema/types && npm run build",
+    "generate:schema": "cd schema/types && npm run generate:all",
+    "schema:generate": "node ci/generate-schemas.js",
+    "validate:schema": "cd schema/types && npm run validate",
+    "schema:lint": "cd schema/types && npm run lint",
+    "lint:schema": "cd schema/types && npm run lint",
+    "generate:all": "pnpm run generate:schema && pnpm run generate:client && pnpm run generate:stubs",
+    "generate:api-handlers": "tsx scripts/generate-api-handlers.ts",
+    "generate:api-routes": "tsx scripts/generate-api-routes.ts",
+    "generate:client": "cd packages/generated && npm run generate:client",
+    "generate:stubs": "cd packages/generated && npm run generate:stubs",
+    "lint": "next lint",
+    "lint:boundaries": "depcruise --config .dependency-cruiser.js --output-type err-html domains lib apps",
+    "duplication:check": "jscpd --min-lines 8 --min-tokens 50 --reporters json,console --output ./jscpd-report.json --ignore '**/node_modules/**' --ignore '**/packages/generated/**' --ignore '**/.next/**' --ignore '**/dist/**' .",
+    "duplication:report": "cat jscpd-report.json | jq '.duplicates | length'",
+    "check:api-client": "node ci/check-api-client-usage.js",
+    "refactor:imports": "jscodeshift -t ci/codemods/replace-local-types.js . --extensions=ts,tsx,js,jsx --parser=tsx",
+    "contract-tests": "pnpm run contract-tests:provider && pnpm run contract-tests:consumer",
+    "contract-tests:provider": "dredd schema/openapi.yaml http://localhost:3001 --server 'pnpm run dev:api' --server-wait 10",
+    "contract-tests:consumer": "jest --testPathPattern=contract",
+    "check:duplicates": "npm run duplication:check",
+    "cleanup:temp": "./scripts/cleanup-temp-files.sh",
+    "cleanup:temp:dry-run": "./scripts/cleanup-temp-files.sh --dry-run",
+    "analyze:bundle": "ANALYZE=true pnpm --filter @pinaka/web-app build",
+    "analyze:bundle:run": "bash scripts/run-bundle-analysis.sh",
+    "optimize:analyze": "node scripts/optimize-bundle.js && node scripts/optimize-database-queries.js",
+    "test": "echo \"Tests coming soon\"",
+    "test:domain": "jest domains --testPathPattern=domain",
+    "clean": "rm -rf node_modules packages/*/node_modules apps/*/node_modules domains/*/node_modules packages/*/dist apps/*/dist domains/*/dist"
+  },
+  "keywords": [
+    "pinaka",
+    "property-management",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@pact-foundation/pact": "^13.0.0",
+    "@pact-foundation/pact-node": "^10.18.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^24.10.0",
+    "@types/react": "^18.3.3",
+    "dredd": "^14.0.0",
+    "jscodeshift": "^0.15.1",
+    "jscpd": "^4.0.5",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@prisma/client": "6.18.0"
+  }
+}

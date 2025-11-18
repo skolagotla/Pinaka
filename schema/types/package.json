@@ -1,0 +1,45 @@
+{
+  "name": "@pinaka/schema-types",
+  "version": "1.0.0",
+  "description": "Canonical schema types and validators - Single Source of Truth",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run generate:openapi && npm run generate:types && npm run generate:validators && tsc",
+    "generate:openapi": "tsx scripts/generate-openapi.ts",
+    "generate:types": "tsx scripts/generate-types.ts",
+    "generate:validators": "tsx scripts/generate-validators.ts",
+    "generate:all": "npm run generate:openapi && npm run generate:types && npm run generate:validators",
+    "validate": "tsx scripts/validate-schema.ts",
+    "lint": "spectral lint ../openapi.json",
+    "lint:schema": "spectral lint ../openapi.json",
+    "version": "tsx scripts/version.ts",
+    "prepublishOnly": "npm run build && npm run validate && npm run lint"
+  },
+  "keywords": [
+    "pinaka",
+    "schema",
+    "openapi",
+    "typescript",
+    "validation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "zod-to-openapi": "^0.2.1"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+

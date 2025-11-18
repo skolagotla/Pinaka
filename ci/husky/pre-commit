@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Validate schema registry before commit
+echo "🔍 Validating schema registry..."
+
+cd schema/types
+npm run validate || {
+  echo "❌ Schema validation failed. Please fix errors before committing."
+  exit 1
+}
+
+echo "✅ Schema validation passed"

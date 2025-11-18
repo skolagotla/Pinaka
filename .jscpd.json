@@ -1,0 +1,30 @@
+{
+  "threshold": 0,
+  "reporters": ["json", "console", "html"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.generated.ts",
+    "**/*.generated.js",
+    "**/generated/**",
+    "**/coverage/**",
+    "**/*.test.ts",
+    "**/*.test.js",
+    "**/*.spec.ts",
+    "**/*.spec.js",
+    "**/jscpd-report.json"
+  ],
+  "minLines": 6,
+  "minTokens": 50,
+  "format": [
+    "typescript",
+    "javascript",
+    "jsx",
+    "tsx"
+  ],
+  "absolute": true,
+  "output": "./jscpd-report.json"
+}
+

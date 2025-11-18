@@ -1,0 +1,19 @@
+# GraphQL Schema
+# 
+# ⭐ CANONICAL GRAPHQL CONTRACT ⭐
+# 
+# This is the single source of truth for GraphQL API contracts.
+# 
+# Note: GraphQL schema generation from Zod schemas can be added later
+# For now, this is a placeholder for future GraphQL support
+
+type Query {
+  # Placeholder - GraphQL queries will be generated from schema registry
+  _empty: String
+}
+
+type Mutation {
+  # Placeholder - GraphQL mutations will be generated from schema registry
+  _empty: String
+}
+

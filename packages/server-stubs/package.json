@@ -1,0 +1,36 @@
+{
+  "name": "@pinaka/server-stubs",
+  "version": "1.0.0",
+  "description": "Server stub handlers generated from @pinaka/schema",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsx scripts/generate-stubs.ts && tsc",
+    "generate:stubs": "tsx scripts/generate-stubs.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pinaka",
+    "server",
+    "stubs",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pinaka/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+

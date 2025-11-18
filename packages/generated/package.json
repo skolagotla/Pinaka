@@ -1,0 +1,20 @@
+{
+  "name": "@pinaka/generated",
+  "version": "1.0.0",
+  "description": "Codegen outputs (clients/types/stubs) - Auto-generated, do not edit",
+  "private": true,
+  "scripts": {
+    "generate:all": "npm run generate:client && npm run generate:stubs && npm run generate:types",
+    "generate:client": "tsx ../api-client/scripts/generate-client.ts",
+    "generate:stubs": "tsx ../server-stubs/scripts/generate-stubs.ts",
+    "generate:types": "cd ../../schema/types && npm run generate:types"
+  },
+  "keywords": [
+    "pinaka",
+    "generated",
+    "codegen"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+

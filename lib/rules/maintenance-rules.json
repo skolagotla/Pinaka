@@ -1,0 +1,498 @@
+{
+  "name": "Maintenance Ticket Business Rules",
+  "description": "Business rules for maintenance ticket workflow, status updates, vendor assignment, and expense recording",
+  "rules": [
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "ticket-created"
+          }
+        ]
+      },
+      "event": {
+        "type": "set-initial-status",
+        "params": {
+          "status": "Pending",
+          "message": "Ticket Acknowledged: Pending",
+          "isStatusUpdate": true
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "first-comment"
+          },
+          {
+            "fact": "currentStatus",
+            "operator": "in",
+            "value": ["Pending", "New"]
+          }
+        ]
+      },
+      "event": {
+        "type": "auto-update-status",
+        "params": {
+          "newStatus": "In Progress",
+          "message": "In Progress",
+          "delayMinutes": 1,
+          "isStatusUpdate": true
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "vendor-assigned"
+          },
+          {
+            "fact": "isFirstComment",
+            "operator": "equal",
+            "value": true
+          }
+        ]
+      },
+      "event": {
+        "type": "auto-update-status-after-vendor",
+        "params": {
+          "newStatus": "In Progress",
+          "message": "In Progress",
+          "delayMinutes": 1,
+          "isStatusUpdate": true,
+          "notificationMessage": "Your ticket has been assigned to {vendorName}, please get in touch with {contactPerson} at Phone: {phone} or Email: {email} to schedule an appointment."
+        }
+      },
+      "priority": 250
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "close-ticket"
+          },
+          {
+            "fact": "hasComment",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "require-comment-before-close",
+        "params": {
+          "message": "A comment is required before closing the ticket",
+          "blockAction": true
+        }
+      },
+      "priority": 300
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "close-ticket"
+          },
+          {
+            "fact": "hasComment",
+            "operator": "equal",
+            "value": true
+          },
+          {
+            "fact": "initiatorRole",
+            "operator": "equal",
+            "value": "landlord"
+          }
+        ]
+      },
+      "event": {
+        "type": "initiate-closure",
+        "params": {
+          "status": "Closed",
+          "requiresTenantApproval": true,
+          "message": "{initiatorName} asked to close the Case",
+          "displayStatus": "In Progress"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "close-ticket"
+          },
+          {
+            "fact": "hasComment",
+            "operator": "equal",
+            "value": true
+          },
+          {
+            "fact": "initiatorRole",
+            "operator": "equal",
+            "value": "tenant"
+          }
+        ]
+      },
+      "event": {
+        "type": "initiate-closure",
+        "params": {
+          "status": "Closed",
+          "requiresLandlordApproval": true,
+          "message": "{initiatorName} asked to close the Case",
+          "displayStatus": "In Progress"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "approve-closure"
+          },
+          {
+            "fact": "approverRole",
+            "operator": "equal",
+            "value": "tenant"
+          },
+          {
+            "fact": "landlordApproved",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "approve-closure",
+        "params": {
+          "tenantApproved": true,
+          "message": "Tenant has agreed to close the ticket",
+          "isFullyClosed": false,
+          "displayStatus": "In Progress"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "approve-closure"
+          },
+          {
+            "fact": "approverRole",
+            "operator": "equal",
+            "value": "landlord"
+          },
+          {
+            "fact": "tenantApproved",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "approve-closure",
+        "params": {
+          "landlordApproved": true,
+          "message": "Landlord has agreed to close the ticket",
+          "isFullyClosed": false,
+          "displayStatus": "In Progress"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "approve-closure"
+          },
+          {
+            "fact": "landlordApproved",
+            "operator": "equal",
+            "value": true
+          },
+          {
+            "fact": "tenantApproved",
+            "operator": "equal",
+            "value": true
+          }
+        ]
+      },
+      "event": {
+        "type": "finalize-closure",
+        "params": {
+          "status": "Closed",
+          "message": "Ticket has been approved to close.",
+          "isFullyClosed": true,
+          "displayStatus": "Closed",
+          "allowComments": false
+        }
+      },
+      "priority": 300
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "reject-closure"
+          }
+        ]
+      },
+      "event": {
+        "type": "reject-closure",
+        "params": {
+          "status": "In Progress",
+          "message": "Closure request rejected. Ticket remains In Progress.",
+          "resetApprovalFlags": true
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "auto-close-inactive"
+          },
+          {
+            "fact": "daysInactive",
+            "operator": "greaterThanInclusive",
+            "value": 7
+          }
+        ]
+      },
+      "event": {
+        "type": "auto-close-ticket",
+        "params": {
+          "status": "Closed",
+          "message": "No Activity for 7 Days, closing ticket",
+          "isStatusUpdate": true,
+          "isSystemGenerated": true
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "assign-vendor"
+          },
+          {
+            "fact": "vendorCategory",
+            "operator": "equal",
+            "value": "{ticketCategory}"
+          }
+        ]
+      },
+      "event": {
+        "type": "suggest-vendor",
+        "params": {
+          "matchByCategory": true,
+          "priority": "high"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "record-expense"
+          },
+          {
+            "fact": "hasVendor",
+            "operator": "equal",
+            "value": false
+          },
+          {
+            "fact": "hasPaidTo",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "require-payment-info",
+        "params": {
+          "message": "Either Vendor/Contractor or Paid To must be specified",
+          "blockAction": true
+        }
+      },
+      "priority": 300
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "record-expense"
+          },
+          {
+            "fact": "amount",
+            "operator": "lessThan",
+            "value": 0.01
+          }
+        ]
+      },
+      "event": {
+        "type": "validate-expense-amount",
+        "params": {
+          "message": "Amount must be greater than 0",
+          "blockAction": true,
+          "minAmount": 0.01
+        }
+      },
+      "priority": 300
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "format-currency-display"
+          },
+          {
+            "fact": "context",
+            "operator": "equal",
+            "value": "financial-dashboard"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-currency",
+        "params": {
+          "useThousandsSeparator": true,
+          "separator": ",",
+          "decimalPlaces": 2,
+          "prefix": "$",
+          "method": "toLocaleString"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "check-unread-updates"
+          },
+          {
+            "fact": "hasUnreadComments",
+            "operator": "equal",
+            "value": true
+          },
+          {
+            "fact": "lastCommentRole",
+            "operator": "notEqual",
+            "value": "{currentUserRole}"
+          }
+        ]
+      },
+      "event": {
+        "type": "show-unread-indicator",
+        "params": {
+          "showRedDot": true,
+          "indicatorType": "badge"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "display-status"
+          },
+          {
+            "fact": "status",
+            "operator": "equal",
+            "value": "Closed"
+          },
+          {
+            "fact": "landlordApproved",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "display-status-override",
+        "params": {
+          "displayStatus": "In Progress",
+          "reason": "Awaiting landlord approval"
+        }
+      },
+      "priority": 300
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "action",
+            "operator": "equal",
+            "value": "display-status"
+          },
+          {
+            "fact": "status",
+            "operator": "equal",
+            "value": "Closed"
+          },
+          {
+            "fact": "tenantApproved",
+            "operator": "equal",
+            "value": false
+          }
+        ]
+      },
+      "event": {
+        "type": "display-status-override",
+        "params": {
+          "displayStatus": "In Progress",
+          "reason": "Awaiting tenant approval"
+        }
+      },
+      "priority": 300
+    }
+  ]
+}
+

@@ -1,0 +1,124 @@
+{
+  "name": "Postal Code and Zip Code Formatting Rules",
+  "description": "Rules for formatting Canadian postal codes and US zip codes",
+  "rules": [
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "postal-code"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "CA"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-postal-code",
+        "params": {
+          "format": "XXX XXX",
+          "pattern": "^[A-Z]\\d[A-Z]\\s?\\d[A-Z]\\d$",
+          "example": "M5H 2N2",
+          "description": "Canadian postal code format: Letter-Number-Letter Space Number-Letter-Number",
+          "validationRegex": "^[A-Z]\\d[A-Z]\\s?\\d[A-Z]\\d$",
+          "formatFunction": "formatPostalCodeCA",
+          "uppercase": true,
+          "spacePosition": 3
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "postal-code"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "US"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-zip-code",
+        "params": {
+          "format": "XXXXX",
+          "pattern": "^\\d{5}(-\\d{4})?$",
+          "example": "12345",
+          "extendedExample": "12345-6789",
+          "description": "US zip code format: 5 digits, optionally followed by dash and 4 digits",
+          "validationRegex": "^\\d{5}(-\\d{4})?$",
+          "formatFunction": "formatZipCodeUS",
+          "uppercase": false,
+          "minLength": 5,
+          "maxLength": 10
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "postal-code-input"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "CA"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-postal-code-input",
+        "params": {
+          "format": "XXX XXX",
+          "autoFormat": true,
+          "uppercase": true,
+          "spacePosition": 3,
+          "maxLength": 7,
+          "pattern": "^[A-Za-z]\\d[A-Za-z]\\s?\\d[A-Za-z]\\d$"
+        }
+      },
+      "priority": 200
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "postal-code-input"
+          },
+          {
+            "fact": "country",
+            "operator": "equal",
+            "value": "US"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-zip-code-input",
+        "params": {
+          "format": "XXXXX",
+          "autoFormat": true,
+          "uppercase": false,
+          "maxLength": 10,
+          "pattern": "^\\d{5}(-\\d{4})?$",
+          "allowExtended": true
+        }
+      },
+      "priority": 200
+    }
+  ]
+}
