@@ -525,14 +525,14 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
     } else {
       // Get all: admins, landlords, PMCs, and tenants
       // Simple approach: Get all users, then filter by status and search in JavaScript
-      let admins: any[] = [];
       let landlords: any[] = [];
       let pmcs: any[] = [];
       let tenants: any[] = [];
+      let adminsWithRoles: any[] = [];
 
       try {
         // OPTIMIZATION: Fetch admins with RBAC roles in a single query
-        const [adminsWithRoles, landlords, pmcs, tenants] = await Promise.all([
+        const [adminsWithRolesResult, landlordsResult, pmcsResult, tenantsResult] = await Promise.all([
           // Get ALL admins with RBAC roles - no filtering at DB level
           prisma.admin.findMany({
             select: {
@@ -608,6 +608,12 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
             },
           }),
         ]);
+        
+        // Assign results to variables
+        adminsWithRoles = adminsWithRolesResult;
+        landlords = landlordsResult;
+        pmcs = pmcsResult;
+        tenants = tenantsResult;
       } catch (queryError: any) {
         console.error('[Admin Users] Error in Promise.all queries:', queryError);
         console.error('[Admin Users] Query error details:', {
@@ -617,37 +623,6 @@ async function listUsers(req: NextApiRequest, res: NextApiResponse, admin: any) 
         });
         throw queryError; // Re-throw to be caught by outer catch
       }
-
-      // OPTIMIZATION: Fetch admins with RBAC roles in a single query using include
-      // This reduces from 2 queries to 1 query (50% reduction)
-      const adminsWithRoles = await prisma.admin.findMany({
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          phone: true,
-          role: true,
-          isActive: true,
-          isLocked: true,
-          createdAt: true,
-          userRoles: {
-            where: {
-              userType: 'admin',
-              isActive: true,
-            },
-            select: {
-              role: {
-                select: {
-                  id: true,
-                  name: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-      });
       
       // Map to the expected format
       const admins = adminsWithRoles.map(a => ({
