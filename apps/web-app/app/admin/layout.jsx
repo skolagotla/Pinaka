@@ -125,6 +125,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/verifications', name: 'Verifications', icon: <SafetyCertificateOutlined /> },
     { path: '/admin/system', name: 'System Monitoring', icon: <DatabaseOutlined /> },
     { path: '/admin/audit-logs', name: 'Audit Logs', icon: <FileTextOutlined /> },
+    { path: '/admin/library', name: 'Library', icon: <FileTextOutlined /> },
     { path: '/admin/settings', name: 'Platform Settings', icon: <SettingOutlined /> },
     { path: '/admin/analytics', name: 'Analytics', icon: <BarChartOutlined /> },
     { path: '/admin/support-tickets', name: 'Support Tickets', icon: <CustomerServiceOutlined /> },

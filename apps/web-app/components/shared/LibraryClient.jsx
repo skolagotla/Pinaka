@@ -61,6 +61,15 @@ const {
 // Import legal forms (shared constant)
 import { getLegalFormsByRole } from '@/lib/constants/legal-forms';
 
+// Lazy load LTB Documents Grid
+const LTBDocumentsGrid = dynamic(
+  () => import('@/components/shared/LTBDocumentsGrid'),
+  {
+    loading: () => <div style={{ padding: '20px', textAlign: 'center' }}>Loading legal documents...</div>,
+    ssr: false,
+  }
+);
+
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Dragger } = Upload;
@@ -69,9 +78,9 @@ const { Dragger } = Upload;
  * Unified Library Client Component
  * 
  * @param {Object} props
- * @param {'landlord'|'tenant'} props.userRole - User role
- * @param {Object} props.user - Landlord or tenant object
- * @param {Array} props.tenants - Array of tenants (only for landlord)
+ * @param {'landlord'|'tenant'|'pmc'} props.userRole - User role
+ * @param {Object} props.user - Landlord, tenant, or PMC object
+ * @param {Array} props.tenants - Array of tenants (only for landlord/pmc)
  * @param {Array} props.initialDocuments - Initial documents (for tenant)
  * @param {Array} props.leaseDocuments - Lease documents (for tenant, optional)
  */
@@ -1085,100 +1094,12 @@ export default function LibraryClient({
               </span>
             ),
             children: (
-              <div>
-                <Row gutter={16} style={{ marginBottom: 24 }}>
-                  <Col xs={24} lg={12}>
-                    <Card
-                      style={{
-                        backgroundColor: '#fff7e6',
-                        borderColor: '#ffa940',
-                        borderRadius: '8px',
-                        height: '100%'
-                      }}
-                      bodyStyle={{ padding: '16px' }}
-                    >
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <WarningOutlined style={{ fontSize: 18, color: '#fa8c16' }} />
-                          <Text strong style={{ fontSize: 14 }}>If you are Not Sure? Get Help</Text>
-                        </div>
-                        <Text style={{ fontSize: 13, display: 'block' }}>
-                          These are{' '}
-                          <a
-                            href="https://tribunalsontario.ca/ltb/forms/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontWeight: 600, color: '#fa8c16', textDecoration: 'underline' }}
-                          >
-                            legal forms
-                          </a>
-                          - fill them carefully. When in doubt, talk to a paralegal or lawyer first.
-                        </Text>
-                      </Space>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={12}>
-                    <Card
-                      style={{
-                        backgroundColor: '#f0f5ff',
-                        borderColor: '#adc6ff',
-                        borderRadius: '8px',
-                        height: '100%'
-                      }}
-                      bodyStyle={{ padding: '16px' }}
-                    >
-                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 4 }}>
-                          <FileProtectOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-                          <Text strong style={{ fontSize: 14 }}>How It Works</Text>
-                        </div>
-                        <div style={{ display: 'flex', gap: '16px', fontSize: 12, flexWrap: 'wrap' }}>
-                          {userRole === 'landlord' ? (
-                            <>
-                              <Text>1. Give tenant the right form (N forms)</Text>
-                              <Text>2. Wait 14-60 days</Text>
-                              <Text>3. If problem continues, file with the Board (L forms)</Text>
-                              <Text>4. Board schedules a hearing</Text>
-                            </>
-                          ) : (
-                            <>
-                              <Text>1. Pick the form that matches your problem</Text>
-                              <Text>2. Fill it out carefully</Text>
-                              <Text>3. File it with the Landlord and Tenant Board</Text>
-                              <Text>4. Board will schedule a hearing</Text>
-                            </>
-                          )}
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card>
-                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                    <div>
-                      <Title level={4} style={{ marginBottom: 8 }}>
-                        <FormOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-                        Pick the Form You Need
-                      </Title>
-                      <Text type="secondary">
-                        {userRole === 'landlord' 
-                          ? 'Find the form that matches your problem with your tenant'
-                          : 'Find the form that matches your problem with your landlord'}
-                      </Text>
-                    </div>
-
-                    <Table
-                      {...legalFormsTableProps}
-                      dataSource={formsSearch.filteredData || legalFormsData}
-                      pagination={false}
-                      size="middle"
-                      scroll={{ x: 1200 }}
-                      rowKey="formCode"
-                      bordered
-                    />
-                  </Space>
-                </Card>
+              <div style={{ padding: '0' }}>
+                <LTBDocumentsGrid 
+                  userRole={userRole} 
+                  showFilters={true} 
+                  showTitle={false} 
+                />
               </div>
             ),
           },

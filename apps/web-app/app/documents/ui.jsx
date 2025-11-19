@@ -33,30 +33,32 @@ const { TabPane } = Tabs;
  * Consolidates Library (documents) and Forms (generated legal forms) into a single page
  */
 export default function DocumentsClient({ user, userRole, libraryData }) {
+  const [mounted, setMounted] = useState(false);
+  
   // Check URL for tab parameter (for redirects)
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tabFromUrl = urlParams.get('tab');
-      if (tabFromUrl === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) {
-        return 'forms';
-      }
-    }
-    return 'library';
-  });
+  const [activeTab, setActiveTab] = useState('library');
   const storageKey = `${userRole}-documents-active-tab`;
   
-  // Load tab from localStorage
+  // Set mounted flag and load tab from localStorage/URL
   useEffect(() => {
+    setMounted(true);
+    
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get('tab');
+    
     if (tabFromUrl === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) {
       setActiveTab('forms');
       localStorage.setItem(storageKey, 'forms');
     } else {
       const savedTab = localStorage.getItem(storageKey);
-      if (savedTab) {
-        setActiveTab(savedTab);
+      if (savedTab && ['library', 'forms'].includes(savedTab)) {
+        // Validate saved tab is available for this role
+        if (
+          (savedTab === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) ||
+          savedTab === 'library'
+        ) {
+          setActiveTab(savedTab);
+        }
       }
     }
   }, [storageKey, userRole]);
@@ -69,14 +71,29 @@ export default function DocumentsClient({ user, userRole, libraryData }) {
 
   // Track page view on mount
   useEffect(() => {
-    trackPageView('documents', activeTab, userRole);
-  }, [activeTab, userRole]);
+    if (mounted) {
+      trackPageView('documents', activeTab, userRole);
+    }
+  }, [activeTab, userRole, mounted]);
 
-  // Determine which tabs to show based on role
+  // Determine which tabs to show based on role - memoized with stable order
   const availableTabs = useMemo(() => {
+    if (!mounted) {
+      // Return minimal tabs during SSR to prevent hydration mismatch
+      return [{
+        key: 'library',
+        label: (
+          <span>
+            <BookOutlined /> Documents
+          </span>
+        ),
+        component: null,
+      }];
+    }
+    
     const tabs = [];
     
-    // Library tab - available for all roles
+    // Library tab - available for all roles (always first)
     tabs.push({
       key: 'library',
       label: (
@@ -95,7 +112,8 @@ export default function DocumentsClient({ user, userRole, libraryData }) {
       ),
     });
     
-    // Forms tab - only for landlord and PMC
+    
+    // Forms tab - only for landlord and PMC - last position
     if (userRole === 'landlord' || userRole === 'pmc') {
       tabs.push({
         key: 'forms',
@@ -109,7 +127,16 @@ export default function DocumentsClient({ user, userRole, libraryData }) {
     }
     
     return tabs;
-  }, [userRole, user, libraryData]);
+  }, [userRole, user, libraryData, mounted]);
+
+  // Don't render tabs until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>

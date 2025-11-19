@@ -30,7 +30,7 @@
     "generate:stubs": "cd packages/generated && npm run generate:stubs",
     "lint": "next lint",
     "lint:boundaries": "depcruise --config .dependency-cruiser.js --output-type err-html domains lib apps",
-    "duplication:check": "jscpd --min-lines 8 --min-tokens 50 --reporters json,console --output ./jscpd-report.json --ignore '**/node_modules/**' --ignore '**/packages/generated/**' --ignore '**/.next/**' --ignore '**/dist/**' .",
+    "duplication:check": "jscpd --config .jscpd.json .",
     "duplication:report": "cat jscpd-report.json | jq '.duplicates | length'",
     "check:api-client": "node ci/check-api-client-usage.js",
     "refactor:imports": "jscodeshift -t ci/codemods/replace-local-types.js . --extensions=ts,tsx,js,jsx --parser=tsx",

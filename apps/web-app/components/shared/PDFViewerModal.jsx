@@ -29,10 +29,10 @@ export default function PDFViewerModal({
   width = 1000,
   height = 700,
 }) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
+  const [error, setError] = useState(null);
+  const blobUrlRef = useRef(null);
 
   // Fetch PDF as blob for better compatibility with authenticated endpoints
   useEffect(() => {
@@ -72,7 +72,20 @@ export default function PDFViewerModal({
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+          // Try to extract error message from JSON response
+          let errorMessage = `Failed to fetch PDF: ${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+              if (errorData.details) {
+                errorMessage += ` - ${errorData.details}`;
+              }
+            }
+          } catch (e) {
+            // If JSON parsing fails, use default message
+          }
+          throw new Error(errorMessage);
         }
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -81,7 +94,7 @@ export default function PDFViewerModal({
       })
       .catch((err) => {
         console.error('[PDFViewerModal] Error fetching PDF:', err);
-        setError(err.message);
+        setError(err.message || 'Failed to load PDF');
       })
       .finally(() => {
         setLoading(false);
@@ -143,21 +156,7 @@ export default function PDFViewerModal({
       open={open}
       onCancel={onClose}
       width={width}
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Button onClick={handleOpenInNewTab}>
-            Open in New Tab
-          </Button>
-          <Space>
-            <Button onClick={handleDownload} icon={<DownloadOutlined />}>
-              Download
-            </Button>
-            <Button type="primary" onClick={onClose}>
-              Close
-            </Button>
-          </Space>
-        </div>
-      }
+      footer={null}
       centered
       destroyOnClose
       closeIcon={<CloseOutlined />}
@@ -236,16 +235,23 @@ export default function PDFViewerModal({
                 <Empty 
                   description={
                     <div>
-                      <p>Error loading PDF: {error}</p>
-                      <p style={{ marginTop: 16 }}>
+                      <p style={{ marginBottom: 8, fontWeight: 500 }}>Error loading PDF</p>
+                      <p style={{ marginBottom: 16, color: '#8c8c8c', fontSize: '12px' }}>{error}</p>
+                      <Space>
                         <Button 
                           type="primary" 
                           icon={<EyeOutlined />}
                           onClick={handleOpenInNewTab}
                         >
-                          Open in New Tab
+                          Open on LTB Website
                         </Button>
-                      </p>
+                        <Button 
+                          icon={<DownloadOutlined />}
+                          onClick={handleDownload}
+                        >
+                          Download PDF
+                        </Button>
+                      </Space>
                     </div>
                   }
                 />
