@@ -175,13 +175,16 @@ export class DocumentRepository {
     senderName: string;
     senderRole: string;
   }) {
+    const { generateCUID } = require('@/lib/utils/id-generator');
     return this.prisma.documentMessage.create({
       data: {
+        id: generateCUID(),
         documentId,
         message: messageData.message,
         senderEmail: messageData.senderEmail,
         senderName: messageData.senderName,
         senderRole: messageData.senderRole,
+        updatedAt: new Date(),
       },
     });
   }

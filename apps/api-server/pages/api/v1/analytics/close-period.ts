@@ -12,8 +12,8 @@ import { z } from 'zod';
 const { prisma } = require('@/lib/prisma');
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
-  // Only accountants and admins can close periods
-  if (user.role !== 'accountant' && user.role !== 'admin') {
+  // Only admins can close periods
+  if (user.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -160,5 +160,5 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-}, { requireRole: ['accountant', 'admin'], allowedMethods: ['GET', 'POST'] });
+}, { requireRole: ['admin'], allowedMethods: ['GET', 'POST'] });
 

@@ -88,14 +88,18 @@ export default function AdminLayout({ children }) {
       if (data.success) {
         setAdmin(data.user);
       } else {
-        console.error('[Admin Layout] Auth check failed:', data);
+        // Not authenticated - silently redirect to login (this is expected behavior)
         // Only redirect if we're not already on login page
         if (pathname !== '/admin/login') {
           router.push('/admin/login');
         }
       }
     } catch (err) {
-      console.error('[Admin Layout] Error fetching admin:', err);
+      // Only log unexpected errors (not authentication errors)
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (!errorMessage.includes('Not authenticated') && !errorMessage.includes('401')) {
+        console.error('[Admin Layout] Error fetching admin:', err);
+      }
       // Only redirect if we're not already on login page
       if (pathname !== '/admin/login') {
         router.push('/admin/login');

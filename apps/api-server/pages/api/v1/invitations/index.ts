@@ -23,10 +23,16 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
     const query = invitationQuerySchema.parse(req.query);
     const result = await invitationService.getInvitations(query, user);
     
+    const invitations = result.invitations || [];
+    const total = result.total || 0;
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const totalPages = Math.ceil(total / limit);
+    
     return res.status(200).json({
       success: true,
-      data: result.invitations || result,
-      pagination: result.pagination,
+      data: invitations,
+      pagination: { page, limit, total, totalPages },
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

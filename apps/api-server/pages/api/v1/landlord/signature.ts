@@ -3,15 +3,18 @@
  * GET /api/v1/landlord/signature - Get signature
  * POST /api/v1/landlord/signature - Upload signature
  * DELETE /api/v1/landlord/signature - Remove signature
+ * 
+ * Domain-Driven, API-First, Shared-Schema implementation
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
+import { landlordService } from '@/lib/domains/landlord';
+import { propertyService } from '@/lib/domains/property';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-const { prisma } = require('@/lib/prisma');
 
 export const config = {
   api: {
@@ -31,17 +34,19 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
           return res.status(400).json({ error: 'landlordId query parameter is required for PMC users' });
         }
 
-        // Verify PMC manages this landlord
-        const pmcRelationship = await prisma.pMCLandlord.findFirst({
-          where: {
-            pmcId: user.userId,
-            landlordId: queryLandlordId,
-            status: 'active',
-            OR: [{ endedAt: null }, { endedAt: { gt: new Date() } }],
-          },
+        // Verify PMC manages this landlord using domain service (Domain-Driven Design)
+        // Get a property for this landlord to verify access
+        const propertyResult = await propertyService.list({
+          landlordId: queryLandlordId,
+          page: 1,
+          limit: 1,
         });
-
-        if (!pmcRelationship) {
+        const properties = propertyResult.properties || propertyResult.data || [];
+        if (properties.length === 0) {
+          return res.status(404).json({ error: 'No properties found for this landlord' });
+        }
+        const hasAccess = await propertyService.verifyPMCAccess(user.userId, properties[0].id);
+        if (!hasAccess) {
           return res.status(403).json({ error: 'You do not manage this landlord' });
         }
 
@@ -50,18 +55,16 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
         return res.status(403).json({ error: 'Only landlords and PMC users can access signatures' });
       }
 
-      const landlord = await prisma.landlord.findUnique({
-        where: { id: landlordId },
-        select: { signatureFileName: true },
-      });
+      // Use domain service to get signature (Domain-Driven Design)
+      const signatureFileName = await landlordService.getSignature(landlordId);
 
-      if (!landlord || !landlord.signatureFileName) {
+      if (!signatureFileName) {
         return res.status(404).json({ error: 'No signature found' });
       }
 
       return res.status(200).json({
-        signatureFileName: landlord.signatureFileName,
-        signatureUrl: `/signatures/${landlord.signatureFileName}`,
+        signatureFileName,
+        signatureUrl: `/signatures/${signatureFileName}`,
       });
     } catch (error) {
       console.error('[Signature GET v1] Error:', error);
@@ -101,14 +104,10 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
         return res.status(400).json({ error: 'Only image files (PNG, JPG, GIF) are allowed' });
       }
 
-      // Delete old signature if exists
-      const landlord = await prisma.landlord.findUnique({
-        where: { id: user.userId },
-        select: { signatureFileName: true },
-      });
-
-      if (landlord?.signatureFileName) {
-        const oldPath = path.join(signaturesDir, landlord.signatureFileName);
+      // Delete old signature if exists using domain service
+      const oldSignatureFileName = await landlordService.getSignature(user.userId);
+      if (oldSignatureFileName) {
+        const oldPath = path.join(signaturesDir, oldSignatureFileName);
         if (fs.existsSync(oldPath)) {
           fs.unlinkSync(oldPath);
         }
@@ -126,13 +125,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       fs.renameSync(processedImagePath, uploadedFile.filepath);
 
       const signatureFileName = path.basename(uploadedFile.filepath);
-      await prisma.landlord.update({
-        where: { id: user.userId },
-        data: {
-          signatureFileName,
-          updatedAt: new Date(),
-        },
-      });
+      // Use domain service to update signature (Domain-Driven Design)
+      await landlordService.updateSignature(user.userId, signatureFileName);
 
       return res.status(200).json({
         success: true,
@@ -147,25 +141,18 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
 
   if (req.method === 'DELETE') {
     try {
-      const landlord = await prisma.landlord.findUnique({
-        where: { id: user.userId },
-        select: { signatureFileName: true },
-      });
+      // Use domain service to get and remove signature (Domain-Driven Design)
+      const signatureFileName = await landlordService.getSignature(user.userId);
 
-      if (landlord?.signatureFileName) {
+      if (signatureFileName) {
         const signaturesDir = path.join(process.cwd(), 'public', 'signatures');
-        const filePath = path.join(signaturesDir, landlord.signatureFileName);
+        const filePath = path.join(signaturesDir, signatureFileName);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
 
-        await prisma.landlord.update({
-          where: { id: user.userId },
-          data: {
-            signatureFileName: null,
-            updatedAt: new Date(),
-          },
-        });
+        // Use domain service to update signature to null
+        await landlordService.updateSignature(user.userId, null);
       }
 
       return res.status(200).json({

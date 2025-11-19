@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { withRequestId } from '@/lib/middleware/requestId';
 import { rateLimit } from '@/lib/middleware/rateLimit';
 import { formatApiResponse, formatApiError, ErrorCodes } from '@/lib/utils/api-response';
+import { invitationService } from '@/lib/domains/invitation';
 const { prisma } = require('@/lib/prisma');
 const config = require('@/lib/config/app-config').default || require('@/lib/config/app-config');
 
@@ -29,24 +30,8 @@ async function getInvitationByToken(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    // First try to find in generic Invitation table
-    let invitation = await prisma.invitation.findUnique({
-      where: { token },
-      include: {
-        landlord: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        tenant: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        invitedByPMC: {
-          select: { id: true, companyName: true, email: true },
-        },
-        invitedByLandlord: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-    });
+    // Use domain service to find invitation by token (Domain-Driven Design)
+    let invitation = await invitationService.getInvitationByToken(token);
 
     // If not found, check TenantInvitation table (for tenant-specific invitations)
     if (!invitation) {

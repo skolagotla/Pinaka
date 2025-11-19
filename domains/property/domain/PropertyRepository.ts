@@ -218,5 +218,20 @@ export class PropertyRepository {
   async count(where: any) {
     return this.prisma.property.count({ where });
   }
+
+  /**
+   * Verify PMC manages a landlord (for property access checks)
+   */
+  async verifyPMCAccess(pmcId: string, landlordId: string): Promise<boolean> {
+    const pmcRelationship = await this.prisma.pMCLandlord.findFirst({
+      where: {
+        pmcId,
+        landlordId,
+        status: 'active',
+        OR: [{ endedAt: null }, { endedAt: { gt: new Date() } }],
+      },
+    });
+    return !!pmcRelationship;
+  }
 }
 

@@ -104,15 +104,14 @@ export default function AdminLoginPage() {
         >
           <Form.Item
             name="email"
-            label="Email / User ID"
+            label="User ID / Email"
             rules={[
-              { required: true, message: 'Please enter your email' },
-              { type: 'email', message: 'Please enter a valid email' },
+              { required: true, message: 'Please enter your User ID or Email' },
             ]}
           >
             <Input
-              prefix={<MailOutlined />}
-              placeholder="Enter your email"
+              prefix={<UserOutlined />}
+              placeholder="Enter your User ID or Email"
               size="large"
             />
           </Form.Item>

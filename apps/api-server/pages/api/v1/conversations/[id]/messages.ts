@@ -63,7 +63,9 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
 
     // Create message via domain service
     const message = await conversationService.createMessage(id, {
+      conversationId: id,
       messageText: messageText,
+      attachments: [],
     }, {
       userId: user.userId,
       userRole: user.role,

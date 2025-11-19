@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { schemaRegistry } from '@/schema/types/registry';
+import { schemaRegistry } from '../../../schema/types/registry';
 
 const OUTPUT_DIR = path.join(__dirname, '../src/generated-stubs');
 
@@ -64,7 +64,7 @@ import {
   ${domainDef.schemas.create ? `${camelDomain}CreateSchema` : 'z'}, 
   ${domainDef.schemas.update ? `${camelDomain}UpdateSchema` : 'z'}, 
   ${domainDef.schemas.query ? `${camelDomain}QuerySchema` : 'z'} 
-} from '@pinaka/schema';
+} from '@pinaka/schemas';
 import { z } from 'zod';
 const { prisma } = require('@/lib/prisma');
 
@@ -150,7 +150,7 @@ export default withAuth(handler, {
     const stubFilePath = path.join(OUTPUT_DIR, stubFileName);
     fs.writeFileSync(stubFilePath, stubContent, 'utf-8');
 
-    stubImports.push(`import ${camelDomain}Stub from './generated-stubs/${camelDomain}.stub';`);
+    stubImports.push(`import ${camelDomain}Stub from './${camelDomain}.stub';`);
     stubExports.push(`  ${camelDomain}: ${camelDomain}Stub,`);
   }
 

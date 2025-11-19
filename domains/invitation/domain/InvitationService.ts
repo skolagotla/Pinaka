@@ -22,6 +22,14 @@ export class InvitationService {
     return this.repository.findUnique(id, user);
   }
 
+  /**
+   * Get invitation by token (for public endpoints)
+   * No authentication required
+   */
+  async getInvitationByToken(token: string) {
+    return this.repository.findByToken(token);
+  }
+
   async createInvitation(data: InvitationCreate, user: UserContext) {
     // Validate invitation type
     if (!isValidRole(data.type)) {

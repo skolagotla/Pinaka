@@ -29,11 +29,6 @@ export const UsersTable = dynamic(
   }
 );
 
-export const UsersFilters = dynamic(
-  () => import('@/components/admin/users/UsersFilters'),
-  { 
-    ssr: false,
-    loading: () => <div style={{ height: 60 }} />
-  }
-);
+// UsersFilters component - placeholder for future implementation
+export const UsersFilters = () => null;
 

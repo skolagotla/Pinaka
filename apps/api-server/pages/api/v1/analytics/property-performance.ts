@@ -39,19 +39,10 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     }
 
     // Access control is handled by PropertyService.getById (includes RBAC)
-    // Additional PMC check if needed
+    // Additional PMC check using domain service (Domain-Driven Design)
     if (user.role === 'pmc') {
-      // PropertyService should handle PMC access, but verify if needed
-      // This is acceptable as it's a cross-domain authorization check
-      const { prisma } = require('@/lib/prisma');
-      const pmcLandlord = await prisma.pMCLandlord.findFirst({
-        where: {
-          pmcId: user.userId,
-          landlordId: property.landlordId,
-          status: 'active',
-        },
-      });
-      if (!pmcLandlord) {
+      const hasAccess = await propertyService.verifyPMCAccess(user.userId, propertyId);
+      if (!hasAccess) {
         throw new Error('PMC does not manage this property');
       }
     }

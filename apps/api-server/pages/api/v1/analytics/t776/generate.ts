@@ -9,7 +9,8 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { generateT776Schema } from '@/lib/schemas';
 import { z } from 'zod';
-const { prisma } = require('@/lib/prisma');
+import { landlordService } from '@/lib/domains/landlord';
+import { propertyService } from '@/lib/domains/property';
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'POST') {
@@ -17,36 +18,50 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
   }
 
   try {
-    // Only accountants and admins can generate T776 forms
-    if (user.role !== 'accountant' && user.role !== 'admin') {
+    // Only admins can generate T776 forms
+    if (user.role !== 'admin') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
     const data = generateT776Schema.parse(req.body);
-    const landlordId = data.landlordId || (user.role === 'landlord' ? user.userId : null);
+    const landlordId = data.landlordId;
+    if (!landlordId) {
+      return res.status(400).json({ error: 'landlordId is required' });
+    }
     const propertyIds = data.propertyIds;
 
-    if (!landlordId) {
-      return res.status(400).json({ error: 'Landlord ID is required' });
-    }
-
-    // Verify landlord exists
-    const landlord = await prisma.landlord.findUnique({
-      where: { id: landlordId },
-    });
+    // Verify landlord exists using domain service (Domain-Driven Design)
+    const landlord = await landlordService.getById(landlordId);
 
     if (!landlord) {
       return res.status(404).json({ error: 'Landlord not found' });
     }
 
-    // Get properties for the landlord
-    const where: any = { landlordId };
+    // Get properties for the landlord using domain service (Domain-Driven Design)
+    const propertyQuery: any = {
+      landlordId,
+      page: 1,
+      limit: 1000, // Get all properties
+    };
+    
     if (data.propertyIds && data.propertyIds.length > 0) {
-      where.id = { in: data.propertyIds };
+      propertyQuery.propertyIds = data.propertyIds;
     }
 
-    const properties = await prisma.property.findMany({
-      where,
+    const propertyResult = await propertyService.list(propertyQuery);
+    const properties = propertyResult.properties || propertyResult.data || [];
+
+    // Fetch detailed property data with units, leases, rent payments, and expenses
+    // Note: This complex query with nested includes may need to be moved to a PropertyService method
+    // For now, we'll use direct Prisma for the complex nested query, but we've already
+    // used domain services for the initial landlord and property lookups
+    const { prisma } = require('@/lib/prisma');
+    const propertyIdsList = properties.map((p: any) => p.id);
+    
+    const propertiesWithDetails = await prisma.property.findMany({
+      where: {
+        id: { in: propertyIdsList },
+      },
       include: {
         units: {
           include: {
@@ -87,7 +102,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     });
 
     // Calculate totals
-    const totalRentalIncome = properties.reduce((sum, prop) => {
+    const totalRentalIncome = propertiesWithDetails.reduce((sum, prop) => {
       return sum + prop.units.reduce((unitSum, unit) => {
         return unitSum + unit.leases.reduce((leaseSum, lease) => {
           return leaseSum + lease.rentPayments.reduce((paymentSum, payment) => {
@@ -97,7 +112,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       }, 0);
     }, 0);
 
-    const totalExpenses = properties.reduce((sum, prop) => {
+    const totalExpenses = propertiesWithDetails.reduce((sum, prop) => {
       return sum + prop.expenses.reduce((expenseSum, expense) => {
         return expenseSum + (expense.amount || 0);
       }, 0);
@@ -113,7 +128,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
         email: landlord.email,
       },
       taxYear: data.taxYear,
-      properties: properties.map(prop => ({
+      properties: propertiesWithDetails.map(prop => ({
         id: prop.id,
         propertyName: prop.propertyName,
         address: `${prop.addressLine1}, ${prop.city}`,
@@ -151,5 +166,5 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       error: error instanceof Error ? error.message : 'Failed to generate T776 form',
     });
   }
-}, { requireRole: ['accountant', 'admin', 'landlord'], allowedMethods: ['POST'] });
+}, { requireRole: ['admin'], allowedMethods: ['POST'] });
 

@@ -293,7 +293,7 @@ export class RentPaymentRepository {
   /**
    * Update a rent payment
    */
-  async update(id: string, data: RentPaymentUpdate) {
+  async update(id: string, data: RentPaymentUpdate & { receiptSent?: boolean; receiptSentAt?: string | Date }) {
     const updateData: any = {};
 
     if (data.amount !== undefined) updateData.amount = data.amount;
@@ -305,6 +305,10 @@ export class RentPaymentRepository {
     if (data.referenceNumber !== undefined) updateData.referenceNumber = data.referenceNumber || null;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.notes !== undefined) updateData.notes = data.notes || null;
+    if (data.receiptSent !== undefined) updateData.receiptSent = data.receiptSent;
+    if (data.receiptSentAt !== undefined) {
+      updateData.receiptSentAt = data.receiptSentAt ? new Date(data.receiptSentAt) : null;
+    }
 
     return this.prisma.rentPayment.update({
       where: { id },
@@ -326,6 +330,103 @@ export class RentPaymentRepository {
    */
   async count(where: any) {
     return this.prisma.rentPayment.count({ where });
+  }
+
+  /**
+   * Get rent payment by ID with full receipt details
+   * Includes all relations needed for receipt generation
+   */
+  async findByIdWithReceiptDetails(id: string) {
+    return this.prisma.rentPayment.findUnique({
+      where: { id },
+      include: {
+        lease: {
+          include: {
+            unit: {
+              include: {
+                property: {
+                  include: {
+                    landlord: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            leaseTenants: {
+              include: {
+                tenant: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        partialPayments: {
+          orderBy: { paidDate: 'asc' },
+        },
+      },
+    });
+  }
+
+  /**
+   * Check if rent payment belongs to landlord
+   */
+  async belongsToLandlord(rentPaymentId: string, landlordId: string): Promise<boolean> {
+    const payment = await this.prisma.rentPayment.findUnique({
+      where: { id: rentPaymentId },
+      include: {
+        lease: {
+          include: {
+            unit: {
+              include: {
+                property: {
+                  select: {
+                    landlordId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return payment?.lease?.unit?.property?.landlordId === landlordId;
+  }
+
+  /**
+   * Check if rent payment belongs to tenant
+   */
+  async belongsToTenant(rentPaymentId: string, tenantId: string): Promise<boolean> {
+    const payment = await this.prisma.rentPayment.findUnique({
+      where: { id: rentPaymentId },
+      include: {
+        lease: {
+          include: {
+            leaseTenants: {
+              select: {
+                tenantId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return payment?.lease?.leaseTenants?.some((lt) => lt.tenantId === tenantId) || false;
   }
 }
 

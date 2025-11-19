@@ -6,7 +6,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { generatedFormService } from '@/lib/domains/generated-form';
-const { prisma } = require('@/lib/prisma');
+import { tenantService } from '@/lib/domains/tenant';
+import { propertyService } from '@/lib/domains/property';
+import { landlordService } from '@/lib/domains/landlord';
 const { fillN4PDF } = require('@/lib/pdf-filler/n4-service');
 const { addSignatureToPDF } = require('@/lib/pdf-filler/signature-service');
 const { sendN4FormToTenant } = require('@/lib/email-gmail');
@@ -33,40 +35,30 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(400).json({ error: 'Email sending is currently only supported for N4 forms' });
     }
 
-    // Fetch tenant and related data
+    // Fetch tenant and related data using domain services (Domain-Driven Design)
     if (!form.tenantId) {
       return res.status(400).json({ error: 'Form must have a tenant to send' });
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: form.tenantId },
-      include: {
-        leaseTenants: {
-          include: {
-            lease: {
-              include: {
-                unit: {
-                  include: {
-                    property: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+    // Get tenant with lease information using domain service
+    const tenant = await tenantService.getById(form.tenantId, {
+      leases: true,
     });
 
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const activeLease = tenant.leaseTenants.find(lt => lt.lease.status === 'Active')?.lease;
+    // Find active lease from tenant's leaseTenants
+    const activeLease = (tenant as any).leaseTenants?.find((lt: any) => lt.lease?.status === 'Active')?.lease;
     if (!activeLease) {
       return res.status(400).json({ error: 'Tenant must have an active lease' });
     }
 
-    const property = activeLease.unit?.property;
+    // Get property and unit using domain services
+    const property = activeLease.unit?.propertyId 
+      ? await propertyService.getById(activeLease.unit.propertyId)
+      : null;
     const unit = activeLease.unit;
 
     // Generate PDF
@@ -76,11 +68,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       unit,
     });
 
-    // Add signature
-    const landlord = await prisma.landlord.findUnique({
-      where: { id: user.userId },
-      select: { signatureFileName: true },
-    });
+    // Add signature using domain service
+    const landlord = await landlordService.getById(user.userId);
 
     let finalPdfBuffer = pdfBuffer;
     if (landlord?.signatureFileName) {

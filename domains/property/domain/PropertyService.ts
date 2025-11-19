@@ -112,5 +112,16 @@ export class PropertyService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Verify PMC has access to a property (via landlord relationship)
+   */
+  async verifyPMCAccess(pmcId: string, propertyId: string): Promise<boolean> {
+    const property = await this.repository.findById(propertyId);
+    if (!property || !property.landlordId) {
+      return false;
+    }
+    return this.repository.verifyPMCAccess(pmcId, property.landlordId);
+  }
 }
 

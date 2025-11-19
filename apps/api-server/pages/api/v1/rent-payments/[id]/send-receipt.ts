@@ -8,7 +8,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { rentPaymentService } from '@/lib/domains/rent-payment';
-const { prisma } = require('@/lib/prisma');
 // Use nodemailer directly for sending receipt emails
 const nodemailer = require('nodemailer');
 
@@ -62,93 +61,22 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Get rent payment via domain service
-    const rentPayment = await rentPaymentService.getById(id);
-    if (!rentPayment) {
-      return res.status(404).json({ error: 'Rent payment not found' });
-    }
-
-    // Check if rent payment belongs to landlord's property
-    const payment = await prisma.rentPayment.findUnique({
-      where: { id },
-      include: {
-        lease: {
-          include: {
-            unit: {
-              include: {
-                property: {
-                  include: {
-                    landlord: true,
-                  },
-                },
-              },
-            },
-            leaseTenants: {
-              include: {
-                tenant: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (payment?.lease?.unit?.property?.landlordId !== user.userId) {
+    // Check ownership using domain service (Domain-Driven Design)
+    const hasAccess = await rentPaymentService.belongsToLandlord(id, user.userId);
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Get tenant email
-    const tenant = payment.lease.leaseTenants[0]?.tenant;
-    if (!tenant || !tenant.email) {
-      return res.status(400).json({ error: 'Tenant email not found' });
-    }
-
-    // Get full payment details for receipt generation
-    const fullPayment = await prisma.rentPayment.findUnique({
-      where: { id },
-      include: {
-        lease: {
-          include: {
-            unit: {
-              include: {
-                property: {
-                  include: {
-                    landlord: {
-                      select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                        phone: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            leaseTenants: {
-              include: {
-                tenant: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                    phone: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        partialPayments: {
-          orderBy: { paidDate: 'asc' },
-        },
-      },
-    });
-
+    // Get full payment details for receipt generation using domain service
+    const fullPayment = await rentPaymentService.getByIdWithReceiptDetails(id);
     if (!fullPayment) {
       return res.status(404).json({ error: 'Rent payment not found' });
+    }
+
+    // Get tenant email from payment details
+    const tenant = (fullPayment as any).lease?.leaseTenants?.[0]?.tenant;
+    if (!tenant || !tenant.email) {
+      return res.status(400).json({ error: 'Tenant email not found' });
     }
 
     // Generate receipt PDF on-the-fly
@@ -166,16 +94,16 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     // Send email with receipt
     await sendEmail({
       to: tenant.email,
-      subject: `Rent Payment Receipt - ${payment.lease.unit?.property?.propertyName || 'Property'}`,
+      subject: `Rent Payment Receipt - ${(fullPayment as any).lease?.unit?.property?.propertyName || 'Property'}`,
       html: `
         <h2>Rent Payment Receipt</h2>
         <p>Dear ${tenant.firstName} ${tenant.lastName},</p>
         <p>Please find attached your rent payment receipt.</p>
         <p><strong>Payment Details:</strong></p>
         <ul>
-          <li>Amount: $${rentPayment.amount}</li>
-          <li>Payment Date: ${new Date(rentPayment.paidDate || rentPayment.dueDate).toLocaleDateString()}</li>
-          <li>Property: ${payment.lease.unit?.property?.propertyName || 'N/A'}</li>
+          <li>Amount: $${fullPayment.amount}</li>
+          <li>Payment Date: ${new Date(fullPayment.paidDate || fullPayment.dueDate).toLocaleDateString()}</li>
+          <li>Property: ${(fullPayment as any).lease?.unit?.property?.propertyName || 'N/A'}</li>
         </ul>
         <p>Thank you for your payment.</p>
       `,
@@ -187,14 +115,11 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       ],
     });
 
-    // Update receipt sent status
-    await prisma.rentPayment.update({
-      where: { id },
-      data: {
-        receiptSent: true,
-        receiptSentAt: new Date(),
-      },
-    });
+    // Update receipt sent status using domain service
+    await rentPaymentService.update(id, {
+      receiptSent: true,
+      receiptSentAt: new Date(),
+    } as any);
 
     return res.status(200).json({
       success: true,

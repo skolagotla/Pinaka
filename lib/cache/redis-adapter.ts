@@ -10,7 +10,16 @@
  *   const data = await cache.get('key');
  */
 
-import { createClient, RedisClientType } from 'redis';
+// Optional Redis import - fallback to in-memory if not available
+let redisModule: any = null;
+try {
+  redisModule = require('redis');
+} catch (error) {
+  // Redis not installed, will use in-memory cache only
+  console.log('[Cache] Redis module not available, using in-memory cache only');
+}
+
+type RedisClientType = any;
 
 // In-memory fallback cache
 const memoryCache = new Map<string, { data: any; expiresAt: number }>();
@@ -36,11 +45,16 @@ async function initRedis(): Promise<boolean> {
     return false;
   }
 
+  if (!redisModule) {
+    console.log('[Cache] Redis module not available, using in-memory cache');
+    return false;
+  }
+
   try {
-    redisClient = createClient({
+    redisClient = redisModule.createClient({
       url: redisUrl,
       socket: {
-        reconnectStrategy: (retries) => {
+        reconnectStrategy: (retries: number) => {
           if (retries > 10) {
             console.error('[Cache] Redis connection failed after 10 retries, using in-memory cache');
             return false; // Stop reconnecting

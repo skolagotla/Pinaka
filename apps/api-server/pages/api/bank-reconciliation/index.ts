@@ -7,7 +7,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { hasPermission, canAccessResource } from '@/lib/rbac';
-import { ResourceCategory, PermissionAction } from '@prisma/client';
+import { ResourceCategory, PermissionAction } from '@/lib/rbac';
 const { prisma } = require('@/lib/prisma');
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {

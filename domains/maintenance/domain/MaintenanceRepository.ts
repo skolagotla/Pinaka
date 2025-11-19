@@ -291,8 +291,10 @@ export class MaintenanceRepository {
     authorName: string;
     authorRole: string;
   }) {
+    const { generateCUID } = require('@/lib/utils/id-generator');
     return this.prisma.maintenanceComment.create({
       data: {
+        id: generateCUID(),
         maintenanceRequestId: maintenanceId,
         authorEmail: commentData.authorEmail,
         authorName: commentData.authorName,

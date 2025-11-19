@@ -51,7 +51,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = tenantCreateSchema.parse(req.body);
-    const created = await tenantService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await tenantService.create(data, { userId: user.userId, invitedBy: user.userId });
     
     return res.status(201).json({
       success: true,

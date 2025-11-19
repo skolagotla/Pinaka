@@ -51,7 +51,11 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = documentCreateSchema.parse(req.body);
-    const created = await documentService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await documentService.create(data, { 
+      userId: user.userId, 
+      userEmail: user.email, 
+      userName: user.userName,
+    });
     
     return res.status(201).json({
       success: true,

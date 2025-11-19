@@ -5,6 +5,11 @@
  * The API server should be accessed via the web app proxy at /api/*
  */
 
+// Disable static generation for this page
+export const getServerSideProps = () => {
+  return { props: {} };
+};
+
 export default function ApiServerIndex() {
   return (
     <div style={{ 

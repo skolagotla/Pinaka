@@ -5,28 +5,26 @@
  */
 
 import { z } from 'zod';
-import { maintenanceRequestCreateSchema, maintenanceRequestUpdateSchema, maintenanceRequestResponseSchema } from '@/schema/types/domains/maintenance.schema';
+import { maintenanceRequestCreateSchema, maintenanceRequestUpdateSchema, maintenanceRequestResponseSchema } from '../../../../schema/types/domains/maintenance.schema';
+import type { MaintenanceCreate, MaintenanceUpdate, MaintenanceResponse } from '../../../../schema/types/src/generated-types';
 
-// Re-export generated schemas as validators
-export const MaintenanceCreate = maintenanceRequestCreateSchema;
-export const MaintenanceUpdate = maintenanceRequestUpdateSchema;
-export const MaintenanceResponse = maintenanceRequestResponseSchema;
+// Re-export generated schemas as validators (with schema suffix to avoid conflicts)
+export const MaintenanceCreateSchema = maintenanceRequestCreateSchema;
+export const MaintenanceUpdateSchema = maintenanceRequestUpdateSchema;
+export const MaintenanceResponseSchema = maintenanceRequestResponseSchema;
 
-// Export types inferred from schemas
-export type MaintenanceCreate = z.infer<typeof MaintenanceCreate>;
-export type MaintenanceUpdate = z.infer<typeof MaintenanceUpdate>;
-export type MaintenanceResponse = z.infer<typeof MaintenanceResponse>;
+// Types are exported from generated-types.ts, no need to re-export here
 
 // Convenience validation functions
 export function validateMaintenanceCreate(data: unknown): MaintenanceCreate {
-  return MaintenanceCreate.parse(data);
+  return MaintenanceCreateSchema.parse(data);
 }
 
 export function validateMaintenanceUpdate(data: unknown): MaintenanceUpdate {
-  return MaintenanceUpdate.parse(data);
+  return MaintenanceUpdateSchema.parse(data);
 }
 
 export function validateMaintenanceResponse(data: unknown): MaintenanceResponse {
-  return MaintenanceResponse.parse(data);
+  return MaintenanceResponseSchema.parse(data);
 }
 

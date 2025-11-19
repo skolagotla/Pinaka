@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:stubs` to regenerate.
  * 
- * Generated: 2025-11-18T03:19:08.326Z
+ * Generated: 2025-11-18T23:18:22.773Z
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -15,7 +15,7 @@ import {
   invitationsCreateSchema, 
   invitationsUpdateSchema, 
   invitationsQuerySchema 
-} from '@pinaka/schema';
+} from '@pinaka/schemas';
 import { z } from 'zod';
 const { prisma } = require('@/lib/prisma');
 

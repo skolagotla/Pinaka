@@ -108,10 +108,11 @@ export class LandlordRepository {
   /**
    * Create a new landlord
    */
-  async create(data: LandlordCreate & { landlordId: string; countryCode?: string; regionCode?: string }) {
+  async create(data: LandlordCreate & { landlordId: string; countryCode?: string; regionCode?: string; id?: string }) {
+    const { generateCUID } = require('@/lib/utils/id-generator');
     return this.prisma.landlord.create({
       data: {
-        id: data.id || undefined,
+        id: data.id || generateCUID(),
         landlordId: data.landlordId,
         firstName: data.firstName,
         middleName: data.middleName || null,
@@ -130,6 +131,7 @@ export class LandlordRepository {
         theme: data.theme || 'default',
         organizationId: data.organizationId || null,
         approvalStatus: 'PENDING',
+        updatedAt: new Date(),
       },
     });
   }
@@ -180,10 +182,10 @@ export class LandlordRepository {
    */
   async addVendor(landlordId: string, vendorId: string) {
     // Check if relationship already exists
-    const existing = await this.prisma.landlordVendor.findFirst({
+    const existing = await this.prisma.landlordServiceProvider.findFirst({
       where: {
         landlordId,
-        vendorId,
+        providerId: vendorId,
       }
     });
 
@@ -192,13 +194,14 @@ export class LandlordRepository {
     }
 
     // Create relationship
-    return this.prisma.landlordVendor.create({
+    return this.prisma.landlordServiceProvider.create({
       data: {
         landlordId,
-        vendorId,
+        providerId: vendorId,
+        addedBy: landlordId,
       },
       include: {
-        vendor: {
+        provider: {
           select: {
             id: true,
             name: true,
@@ -216,10 +219,10 @@ export class LandlordRepository {
    * Remove vendor from landlord's vendor list
    */
   async removeVendor(landlordId: string, vendorId: string) {
-    const relationship = await this.prisma.landlordVendor.findFirst({
+    const relationship = await this.prisma.landlordServiceProvider.findFirst({
       where: {
         landlordId,
-        vendorId,
+        providerId: vendorId,
       }
     });
 
@@ -227,8 +230,32 @@ export class LandlordRepository {
       return null;
     }
 
-    return this.prisma.landlordVendor.delete({
+    return this.prisma.landlordServiceProvider.delete({
       where: { id: relationship.id },
+    });
+  }
+
+  /**
+   * Get landlord signature file name
+   */
+  async getSignature(landlordId: string) {
+    const landlord = await this.prisma.landlord.findUnique({
+      where: { id: landlordId },
+      select: { signatureFileName: true },
+    });
+    return landlord?.signatureFileName || null;
+  }
+
+  /**
+   * Update landlord signature file name
+   */
+  async updateSignature(landlordId: string, signatureFileName: string | null) {
+    return this.prisma.landlord.update({
+      where: { id: landlordId },
+      data: {
+        signatureFileName,
+        updatedAt: new Date(),
+      },
     });
   }
 }

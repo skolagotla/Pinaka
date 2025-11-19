@@ -1,5 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  // Ensure binary targets are specified for cross-platform support
+  // "native" automatically includes the current platform
+  binaryTargets = ["native"]
 }
 
 datasource db {

@@ -164,5 +164,27 @@ export class RentPaymentService {
   async delete(id: string) {
     return this.repository.delete(id);
   }
+
+  /**
+   * Get rent payment by ID with full receipt details
+   * Includes all relations needed for receipt generation
+   */
+  async getByIdWithReceiptDetails(id: string) {
+    return this.repository.findByIdWithReceiptDetails(id);
+  }
+
+  /**
+   * Check if rent payment belongs to landlord
+   */
+  async belongsToLandlord(rentPaymentId: string, landlordId: string): Promise<boolean> {
+    return this.repository.belongsToLandlord(rentPaymentId, landlordId);
+  }
+
+  /**
+   * Check if rent payment belongs to tenant
+   */
+  async belongsToTenant(rentPaymentId: string, tenantId: string): Promise<boolean> {
+    return this.repository.belongsToTenant(rentPaymentId, tenantId);
+  }
 }
 

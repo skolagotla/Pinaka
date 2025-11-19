@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { schemaRegistry } from '@/schema/types/registry';
 
-const OUTPUT_FILE = path.join(__dirname, '../schema/types/src/generated-types.ts');
+const OUTPUT_FILE = path.join(__dirname, '../src/generated-types.ts');
 
 /**
  * Generate TypeScript types from schemas
@@ -28,7 +28,7 @@ function generateTypes(): void {
 
     // Import schemas (handle hyphens in domain names)
     const importName = domainName.replace(/-/g, '');
-    imports.push(`import * as ${importName}Schemas from './domains/${domainName}.schema';`);
+    imports.push(`import * as ${importName}Schemas from '../domains/${domainName}.schema';`);
 
     // Generate type exports - infer from schemas directly
     // Use schemaNames if provided, otherwise infer from schema object

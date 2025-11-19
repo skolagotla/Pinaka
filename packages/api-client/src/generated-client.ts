@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:client` to regenerate.
  * 
- * Generated: 2025-11-18T17:00:28.485Z
+ * Generated: 2025-11-18T23:18:22.769Z
  */
 
 import type {
@@ -94,7 +94,7 @@ import type {
   LandlordQuery,
   LandlordResponse,
   LandlordListResponse,
-} from '@pinaka/schema';
+} from '@pinaka/schemas';
 
 
 /**

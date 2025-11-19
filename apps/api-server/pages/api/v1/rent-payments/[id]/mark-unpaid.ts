@@ -2,13 +2,12 @@
  * Mark Rent Payment as Unpaid API v1
  * POST /api/v1/rent-payments/:id/mark-unpaid
  * 
- * Domain-Driven, API-First implementation
+ * Domain-Driven, API-First, Shared-Schema implementation
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { rentPaymentService } from '@/lib/domains/rent-payment';
-const { prisma } = require('@/lib/prisma');
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'POST') {
@@ -26,36 +25,14 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Get rent payment and check ownership
-    const payment = await prisma.rentPayment.findUnique({
-      where: { id },
-      include: {
-        lease: {
-          include: {
-            unit: {
-              include: {
-                property: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!payment) {
-      return res.status(404).json({ error: 'Rent payment not found' });
-    }
-
-    if (payment.lease?.unit?.property?.landlordId !== user.userId) {
+    // Check ownership using domain service (Domain-Driven Design)
+    const hasAccess = await rentPaymentService.belongsToLandlord(id, user.userId);
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
     // Update payment status to unpaid via domain service
-    await rentPaymentService.update(id, {
-      status: 'Unpaid',
-      paidDate: undefined,
-      paymentMethod: undefined,
-    } as any);
+    await rentPaymentService.markUnpaid(id);
 
     return res.status(200).json({
       success: true,

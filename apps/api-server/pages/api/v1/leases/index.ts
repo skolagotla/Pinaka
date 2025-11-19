@@ -11,7 +11,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { leaseCreateSchema, leaseUpdateSchema, leaseQuerySchema } from '@/lib/schemas';
-import { leasesService } from '@/lib/domains/lease';
+import { leaseService } from '@/lib/domains/lease';
 import { z } from 'zod';
 
 /**
@@ -21,7 +21,7 @@ import { z } from 'zod';
 async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const query = leaseQuerySchema.parse(req.query);
-    const result = await leasesService.list(query);
+    const result = await leaseService.list(query);
     
     return res.status(200).json({
       success: true,
@@ -51,7 +51,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = leaseCreateSchema.parse(req.body);
-    const created = await leasesService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await leaseService.create(data, { userId: user.userId });
     
     return res.status(201).json({
       success: true,

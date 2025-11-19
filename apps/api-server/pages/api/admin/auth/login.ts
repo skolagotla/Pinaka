@@ -7,7 +7,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+const { prisma } = require('@/lib/prisma');
 const { createSession } = require('@/lib/admin/session');
 
 // Simple function to get client IP
@@ -47,6 +47,25 @@ async function jsonHandler(
 async function loginHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  // Validate dependencies are loaded
+  if (!prisma) {
+    console.error('[Admin Login] Prisma client not available');
+    return res.status(500).json({
+      success: false,
+      error: 'Server configuration error',
+      message: 'Database client not initialized',
+    });
+  }
+
+  if (!createSession) {
+    console.error('[Admin Login] createSession function not available');
+    return res.status(500).json({
+      success: false,
+      error: 'Server configuration error',
+      message: 'Session management not initialized',
+    });
   }
 
   try {
@@ -220,15 +239,23 @@ async function loginHandler(req: NextApiRequest, res: NextApiResponse) {
     });
 
     // Create session
-    const session = await createSession(
-      admin.id,
-      ipAddress,
-      userAgent,
-      null // No Google tokens for password login
-    );
+    let session;
+    try {
+      session = await createSession(
+        admin.id,
+        ipAddress,
+        userAgent,
+        null // No Google tokens for password login
+      );
+    } catch (sessionError: any) {
+      console.error('[Admin Login] Session creation error:', sessionError);
+      console.error('[Admin Login] Session error stack:', sessionError?.stack);
+      throw new Error(`Failed to create session: ${sessionError?.message || 'Unknown error'}`);
+    }
 
     // Log successful login
-    await prisma.adminAuditLog.create({
+    try {
+      await prisma.adminAuditLog.create({
       data: {
         id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         adminId: admin.id,
@@ -243,6 +270,10 @@ async function loginHandler(req: NextApiRequest, res: NextApiResponse) {
         success: true,
       },
     });
+    } catch (auditError: any) {
+      // Don't fail login if audit log fails, but log it
+      console.error('[Admin Login] Audit log creation error:', auditError);
+    }
 
     // Set session cookie
     const cookieOptions = {

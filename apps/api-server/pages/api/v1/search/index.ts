@@ -15,7 +15,6 @@ import { tenantService } from '@/lib/domains/tenant';
 import { maintenanceService } from '@/lib/domains/maintenance';
 import { documentService } from '@/lib/domains/document';
 import { LeaseService, LeaseRepository } from '@/lib/domains/lease';
-const { prisma } = require('@/lib/prisma');
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'GET') {
@@ -127,7 +126,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       }
 
       const maintenanceResult = await maintenanceService.list(maintenanceQuery);
-      results.maintenance = (maintenanceResult.maintenanceRequests || []).slice(0, query.limit).map((m: any) => ({
+      results.maintenance = (maintenanceResult.requests || []).slice(0, query.limit).map((m: any) => ({
         id: m.id,
         title: m.title,
         ticketNumber: m.ticketNumber,

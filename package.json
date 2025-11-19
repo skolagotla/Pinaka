@@ -10,6 +10,7 @@
     "schema/types"
   ],
   "scripts": {
+    "postinstall": "prisma generate",
     "bootstrap": "pnpm install",
     "dev": "pnpm --filter @pinaka/web-app dev",
     "dev:api": "pnpm --filter @pinaka/api-server dev",

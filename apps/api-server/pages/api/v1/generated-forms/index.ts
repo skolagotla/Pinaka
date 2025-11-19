@@ -23,10 +23,16 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
     const query = generatedFormQuerySchema.parse(req.query);
     const result = await generatedFormService.getGeneratedForms(query, user);
     
+    const forms = result.forms || [];
+    const total = result.total || 0;
+    const page = query.page || 1;
+    const limit = query.limit || 50;
+    const totalPages = Math.ceil(total / limit);
+    
     return res.status(200).json({
       success: true,
-      data: result.generatedForms || result,
-      pagination: result.pagination,
+      data: forms,
+      pagination: { page, limit, total, totalPages },
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

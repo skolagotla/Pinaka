@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '@/lib/middleware/apiMiddleware';
+import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { withRequestId } from '@/lib/middleware/requestId';
 import { rateLimit } from '@/lib/middleware/rateLimit';
 import { formatApiResponse, formatApiError, ErrorCodes } from '@/lib/utils/api-response';
-const { prisma } = require('@/lib/prisma');
+import { tenantInvitationService } from '@/lib/domains/tenant-invitation';
 const { sendTenantInvitation } = require('@/lib/email');
 const config = require('@/lib/config/app-config').default || require('@/lib/config/app-config');
 
@@ -11,62 +11,14 @@ const config = require('@/lib/config/app-config').default || require('@/lib/conf
  * POST /api/v1/tenants/invitations/:id/resend
  * Resend an invitation email
  */
-async function resendInvitation(req: NextApiRequest, res: NextApiResponse, user: any) {
+async function resendInvitation(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   const { id } = req.query;
 
-  const invitation = await prisma.tenantInvitation.findUnique({
-    where: { id: id as string },
-    include: {
-      landlord: {
-        select: { firstName: true, lastName: true },
-      },
-    },
-  });
-
-  if (!invitation) {
-    return res.status(404).json(formatApiError({
-      code: ErrorCodes.NOT_FOUND,
-      message: 'Invitation not found',
-      req,
-    }));
-  }
-
-  // Check authorization
-  if (invitation.invitedBy !== user.userId) {
-    return res.status(403).json(formatApiError({
-      code: ErrorCodes.FORBIDDEN,
-      message: 'You do not have permission to resend this invitation',
-      req,
-    }));
-  }
-
-  // Check if invitation is still valid
-  if (invitation.status === 'completed') {
-    return res.status(400).json(formatApiError({
-      code: ErrorCodes.BAD_REQUEST,
-      message: 'Cannot resend a completed invitation',
-      req,
-    }));
-  }
-
-  if (invitation.status === 'cancelled') {
-    return res.status(400).json(formatApiError({
-      code: ErrorCodes.BAD_REQUEST,
-      message: 'Cannot resend a cancelled invitation',
-      req,
-    }));
-  }
-
-  if (new Date(invitation.expiresAt) < new Date()) {
-    return res.status(400).json(formatApiError({
-      code: ErrorCodes.BAD_REQUEST,
-      message: 'Invitation has expired',
-      req,
-    }));
-  }
-
-  // Send email
   try {
+    // Use domain service to resend invitation (Domain-Driven Design)
+    const invitation = await tenantInvitationService.resendInvitation(id as string, user);
+
+    // Send email
     const prefillData = invitation.metadata as any || {};
     
     // Log resend attempt
@@ -119,30 +71,41 @@ async function resendInvitation(req: NextApiRequest, res: NextApiResponse, user:
       messageId: emailResult.data?.messageId,
     });
 
-    // Update invitation
-    await prisma.tenantInvitation.update({
-      where: { id: id as string },
-      data: {
-        status: 'sent',
-        reminderCount: { increment: 1 },
-        reminderSentAt: new Date(),
-      },
-    });
+    // Update reminder count
+    await tenantInvitationService.update(id as string, {
+      status: 'sent',
+      reminderCount: (invitation.reminderCount || 0) + 1,
+      reminderSentAt: new Date(),
+    } as any, user);
 
     return res.status(200).json(formatApiResponse({
       data: { message: 'Invitation resent successfully' },
       req,
     }));
   } catch (error: any) {
+    if (error.message === 'Invitation not found') {
+      return res.status(404).json(formatApiError({
+        code: ErrorCodes.NOT_FOUND,
+        message: error.message,
+        req,
+      }));
+    }
+    if (error.message === 'You do not have permission to resend this invitation') {
+      return res.status(403).json(formatApiError({
+        code: ErrorCodes.FORBIDDEN,
+        message: error.message,
+        req,
+      }));
+    }
+    if (error.message.includes('Cannot resend') || error.message.includes('expired')) {
+      return res.status(400).json(formatApiError({
+        code: ErrorCodes.BAD_REQUEST,
+        message: error.message,
+        req,
+      }));
+    }
     console.error('[Resend Invitation] Unexpected error:', error);
     console.error('[Resend Invitation] Error stack:', error.stack);
-    console.error('[Resend Invitation] Error details:', {
-      message: error.message,
-      name: error.name,
-      code: error.code,
-      responseCode: error.responseCode,
-      command: error.command,
-    });
     
     return res.status(500).json(formatApiError({
       code: ErrorCodes.INTERNAL_ERROR,
@@ -151,8 +114,6 @@ async function resendInvitation(req: NextApiRequest, res: NextApiResponse, user:
         ? {
             message: error.message,
             stack: error.stack,
-            code: error.code,
-            responseCode: error.responseCode,
             gmailConfigured: config.email.gmail.isConfigured,
           }
         : undefined,
@@ -162,7 +123,7 @@ async function resendInvitation(req: NextApiRequest, res: NextApiResponse, user:
 }
 
 // Main handler
-const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse, user: any) => {
+const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method === 'POST') {
     return resendInvitation(req, res, user);
   }

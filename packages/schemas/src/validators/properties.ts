@@ -6,28 +6,26 @@
  */
 
 import { z } from 'zod';
-import { propertyCreateSchema, propertyUpdateSchema, propertyResponseSchema } from '@/schema/types/domains/property.schema';
+import { propertyCreateSchema, propertyUpdateSchema, propertyResponseSchema } from '../../../../schema/types/domains/property.schema';
+import type { PropertyCreate, PropertyUpdate, PropertyResponse } from '../../../../schema/types/src/generated-types';
 
-// Re-export generated schemas as validators
-export const PropertyCreate = propertyCreateSchema;
-export const PropertyUpdate = propertyUpdateSchema;
-export const PropertyResponse = propertyResponseSchema;
+// Re-export generated schemas as validators (with schema suffix to avoid conflicts)
+export const PropertyCreateSchema = propertyCreateSchema;
+export const PropertyUpdateSchema = propertyUpdateSchema;
+export const PropertyResponseSchema = propertyResponseSchema;
 
-// Export types inferred from schemas
-export type PropertyCreate = z.infer<typeof PropertyCreate>;
-export type PropertyUpdate = z.infer<typeof PropertyUpdate>;
-export type PropertyResponse = z.infer<typeof PropertyResponse>;
+// Types are exported from generated-types.ts, no need to re-export here
 
 // Convenience validation functions
 export function validatePropertyCreate(data: unknown): PropertyCreate {
-  return PropertyCreate.parse(data);
+  return PropertyCreateSchema.parse(data);
 }
 
 export function validatePropertyUpdate(data: unknown): PropertyUpdate {
-  return PropertyUpdate.parse(data);
+  return PropertyUpdateSchema.parse(data);
 }
 
 export function validatePropertyResponse(data: unknown): PropertyResponse {
-  return PropertyResponse.parse(data);
+  return PropertyResponseSchema.parse(data);
 }
 

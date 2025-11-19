@@ -32,12 +32,27 @@ async function parseResponse(response: Response | undefined, defaultError: strin
 export const adminApi = {
   /**
    * Get current admin user
+   * Returns null if not authenticated (401) instead of throwing
    */
   async getCurrentUser() {
-    const response = await apiClient('/api/admin/auth/me', {
-      method: 'GET',
-    });
-    return parseResponse(response, 'Failed to get admin user');
+    try {
+      const response = await apiClient('/api/admin/auth/me', {
+        method: 'GET',
+      });
+      
+      // Handle 401 (not authenticated) gracefully
+      if (response && response.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      
+      return parseResponse(response, 'Failed to get admin user');
+    } catch (error: any) {
+      // If error message is "Not authenticated", return gracefully
+      if (error.message === 'Not authenticated' || error.message?.includes('Not authenticated')) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      throw error;
+    }
   },
 
   /**
@@ -440,7 +455,11 @@ export const adminApi = {
   async getLandlords(query?: { search?: string; limit?: number; page?: number }) {
     console.warn('[adminApi.getLandlords] Deprecated: Use v1Api.landlords.list() instead');
     const { v1Api } = await import('@/lib/api/v1-client');
-    return v1Api.landlords.list(query || {});
+    return v1Api.landlords.list({
+      page: query?.page || 1,
+      limit: query?.limit || 50,
+      search: query?.search,
+    });
   },
 
   /**
@@ -460,7 +479,9 @@ export const adminApi = {
   async getLandlord(id: string) {
     console.warn('[adminApi.getLandlord] Deprecated: Use v1Api.landlords.getById() instead');
     const { v1Api } = await import('@/lib/api/v1-client');
-    return v1Api.landlords.getById(id);
+    // Use the landlords API resource
+    const response = await (v1Api as any).landlords.getById(id);
+    return response;
   },
 
   /**
@@ -544,7 +565,12 @@ export const adminApi = {
   async getContractors(query?: { search?: string; category?: string; isActive?: boolean }) {
     console.warn('[adminApi.getContractors] Deprecated: Use v1Api.vendors.list({ type: "contractor" }) instead');
     const { v1Api } = await import('@/lib/api/v1-client');
-    return v1Api.vendors.list({ type: 'contractor', ...query });
+    return v1Api.vendors.list({
+      page: 1,
+      limit: 50,
+      type: 'contractor',
+      ...query,
+    });
   },
 
   /**
@@ -554,7 +580,12 @@ export const adminApi = {
   async searchContractorsGlobal(searchTerm: string) {
     console.warn('[adminApi.searchContractorsGlobal] Deprecated: Use v1Api.vendors.list({ type: "contractor", search }) instead');
     const { v1Api } = await import('@/lib/api/v1-client');
-    return v1Api.vendors.list({ type: 'contractor', search: searchTerm });
+    return v1Api.vendors.list({
+      page: 1,
+      limit: 50,
+      type: 'contractor',
+      search: searchTerm,
+    });
   },
 
   /**

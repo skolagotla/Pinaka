@@ -1,94 +1,57 @@
 /**
- * ═══════════════════════════════════════════════════════════════
- * USER STATUS API
- * ═══════════════════════════════════════════════════════════════
+ * User Status API v1
  * GET /api/v1/user/status - Get current user's approval status
- * ═══════════════════════════════════════════════════════════════
+ * 
+ * Domain-Driven, API-First, Shared-Schema implementation
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '@/lib/middleware/apiMiddleware';
-const { prisma } = require('@/lib/prisma');
+import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
+import { userService } from '@/lib/domains/users';
+import { userStatusResponseSchema } from '@/lib/schemas';
+import { z } from 'zod';
 
-async function getUserStatus(req: NextApiRequest, res: NextApiResponse, user: any) {
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    let userRecord: any = null;
-    let role = 'unknown';
+    // Use domain service to get user status (Domain-Driven Design)
+    const userStatus = await userService.getUserStatusByEmail(user.email);
 
-    // Find user in all roles
-    const [landlord, tenant, pmc] = await Promise.all([
-      prisma.landlord.findUnique({
-        where: { email: user.email },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          approvalStatus: true,
-          rejectedAt: true,
-          rejectionReason: true,
-        },
-      }),
-      prisma.tenant.findUnique({
-        where: { email: user.email },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          approvalStatus: true,
-          rejectedAt: true,
-          rejectionReason: true,
-        },
-      }),
-      prisma.propertyManagementCompany.findUnique({
-        where: { email: user.email },
-        select: {
-          id: true,
-          email: true,
-          companyName: true,
-          approvalStatus: true,
-          rejectedAt: true,
-          rejectionReason: true,
-        },
-      }),
-    ]);
-
-    if (landlord) {
-      userRecord = landlord;
-      role = 'landlord';
-    } else if (tenant) {
-      userRecord = tenant;
-      role = 'tenant';
-    } else if (pmc) {
-      userRecord = pmc;
-      role = 'pmc';
-    }
-
-    if (!userRecord) {
+    if (!userStatus) {
       return res.status(404).json({
         success: false,
         error: 'User not found',
       });
     }
 
-    return res.status(200).json({
+    // Validate response with shared schema (SSOT)
+    const response = userStatusResponseSchema.parse({
       success: true,
-      role,
-      approvalStatus: userRecord.approvalStatus || 'PENDING',
-      rejectionReason: userRecord.rejectionReason || null,
-      rejectedAt: userRecord.rejectedAt || null,
+      role: userStatus.role,
+      approvalStatus: userStatus.approvalStatus,
+      rejectionReason: userStatus.rejectionReason || null,
+      rejectedAt: userStatus.rejectedAt ? userStatus.rejectedAt.toISOString() : null,
     });
-  } catch (error: any) {
-    console.error('[User Status] Error:', error);
+
+    return res.status(200).json(response);
+  } catch (error) {
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      return res.status(500).json({
+        success: false,
+        error: 'Response validation error',
+        details: error.issues,
+      });
+    }
+
+    console.error('[User Status v1] Error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to fetch user status',
-      message: error.message,
+      error: error instanceof Error ? error.message : 'Failed to fetch user status',
     });
   }
-}
-
-// This endpoint should be accessible to any authenticated user, even if they don't have a role yet (pending approval)
-export default withAuth(getUserStatus, { skipAuth: false });
+}, { skipAuth: false });
 

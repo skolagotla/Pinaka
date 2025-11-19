@@ -8,8 +8,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
-import { VendorService, VendorRepository } from '@/lib/domains/vendor';
-const { prisma } = require('@/lib/prisma');
+import { vendorService } from '@/lib/domains/vendor';
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'GET') {
@@ -22,10 +21,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(400).json({ error: 'Invalid vendor ID' });
     }
 
-    // Use domain service for usage statistics
-    const repository = new VendorRepository(prisma);
-    const service = new VendorService(repository);
-    const result = await service.getUsageStats(id);
+    // Use domain service singleton for usage statistics (Domain-Driven Design)
+    const result = await vendorService.getUsageStats(id);
 
     return res.status(200).json({
       success: true,

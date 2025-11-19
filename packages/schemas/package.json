@@ -9,7 +9,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "node prepare-build.js && tsc && node fix-dist.js && rm -f src/generated-types.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

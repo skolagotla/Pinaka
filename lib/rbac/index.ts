@@ -149,12 +149,14 @@ export {
   generateTestReport,
 } from './testing';
 
-// Types
-export type {
+// Types - Export as both type and value for compatibility
+export {
   ResourceCategory,
   PermissionAction,
   RBACRole,
   ScopeType,
+} from '@prisma/client';
+export type {
   ApprovalWorkflowType,
   ApprovalRequestStatus,
 } from '@prisma/client';

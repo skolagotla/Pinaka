@@ -21,12 +21,24 @@ import { z } from 'zod';
 async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const query = unitQuerySchema.parse(req.query);
-    const result = await unitService.list(query);
+    // Convert query to where clause for repository
+    const where: any = {};
+    if (query.propertyId) where.propertyId = query.propertyId;
+    if (query.status) where.status = query.status;
+    
+    const result = await unitService.list(where, { property: true });
+    
+    // UnitService.list returns an array directly
+    const units = Array.isArray(result) ? result : [];
+    const total = units.length;
+    const page = query.page || 1;
+    const limit = query.limit || 50;
+    const totalPages = Math.ceil(total / limit);
     
     return res.status(200).json({
       success: true,
-      data: result.units || result,
-      pagination: result.pagination,
+      data: units,
+      pagination: { page, limit, total, totalPages },
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -51,7 +63,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = unitCreateSchema.parse(req.body);
-    const created = await unitService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await unitService.create(data, { property: true });
     
     return res.status(201).json({
       success: true,

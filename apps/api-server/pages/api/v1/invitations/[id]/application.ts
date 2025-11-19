@@ -8,7 +8,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { invitationService } from '@/lib/domains/invitation';
-const { prisma } = require('@/lib/prisma');
+import { tenantService } from '@/lib/domains/tenant';
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: UserContext) => {
   if (req.method !== 'GET') {
@@ -36,15 +36,23 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     // Application data is stored in invitation.metadata or in a separate Application model
     const applicationData = (invitation as any).metadata || (invitation as any).applicationData;
 
-    // If invitation type is 'tenant', get tenant data
+    // If invitation type is 'tenant', get tenant data using domain service (Domain-Driven Design)
     if (invitation.type === 'tenant' && invitation.email) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { email: invitation.email },
-        include: {
+      // Use repository through service pattern - get tenant by email
+      const { TenantRepository } = require('@/domains/tenant/domain/TenantRepository');
+      const { prisma } = require('@/lib/prisma');
+      const tenantRepo = new TenantRepository(prisma);
+      const tenantByEmail = await tenantRepo.findByEmail(invitation.email);
+      
+      let tenant: any = null;
+      if (tenantByEmail) {
+        // Get full tenant details with related data using service
+        const tenantData = await tenantService.getById(tenantByEmail.id, {
           emergencyContacts: true,
           employers: true,
-        },
-      });
+        });
+        tenant = tenantData;
+      }
 
       if (tenant) {
         return res.status(200).json({

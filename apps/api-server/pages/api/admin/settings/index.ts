@@ -28,12 +28,6 @@ const defaultSettings = {
     enabled: true,
     channels: ['email'],
   },
-  stripe: {
-    enabled: false,
-    secretKey: '',
-    publishableKey: '',
-    webhookSecret: '',
-  },
 };
 
 async function getSettings(req: NextApiRequest, res: NextApiResponse, admin: any) {
@@ -51,7 +45,6 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, admin: any
           featureFlags: defaultSettings.featureFlags,
           email: defaultSettings.email,
           notifications: defaultSettings.notifications,
-          stripe: defaultSettings.stripe,
         },
       });
     }
@@ -62,7 +55,6 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, admin: any
       featureFlags: { ...defaultSettings.featureFlags, ...(settings.featureFlags as any) },
       email: { ...defaultSettings.email, ...(settings.email as any) },
       notifications: { ...defaultSettings.notifications, ...(settings.notifications as any) },
-      stripe: { ...defaultSettings.stripe, ...(settings.stripe as any) },
     };
 
     return res.status(200).json({
@@ -81,7 +73,7 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, admin: any
 
 async function updateSettings(req: NextApiRequest, res: NextApiResponse, admin: any) {
   try {
-    const { maintenanceMode, featureFlags, email, notifications, stripe } = req.body;
+    const { maintenanceMode, featureFlags, email, notifications } = req.body;
 
     // Get current settings
     let currentSettings = await prisma.platformSettings.findUnique({
@@ -115,28 +107,6 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse, admin: 
       };
     }
 
-    if (stripe) {
-      // Validate Stripe keys if enabling
-      if (stripe.enabled) {
-        if (!stripe.secretKey || !stripe.secretKey.startsWith('sk_')) {
-          return res.status(400).json({
-            success: false,
-            error: 'Invalid Stripe Secret Key. Must start with "sk_"',
-          });
-        }
-        if (!stripe.publishableKey || !stripe.publishableKey.startsWith('pk_')) {
-          return res.status(400).json({
-            success: false,
-            error: 'Invalid Stripe Publishable Key. Must start with "pk_"',
-          });
-        }
-      }
-
-      updateData.stripe = {
-        ...(currentSettings?.stripe as any || defaultSettings.stripe),
-        ...stripe,
-      };
-    }
 
     // Upsert settings
     const updatedSettings = await prisma.platformSettings.upsert({
@@ -148,7 +118,6 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse, admin: 
         featureFlags: updateData.featureFlags || defaultSettings.featureFlags,
         email: updateData.email || defaultSettings.email,
         notifications: updateData.notifications || defaultSettings.notifications,
-        stripe: updateData.stripe || defaultSettings.stripe,
       },
     });
 
@@ -172,20 +141,8 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse, admin: 
       featureFlags: { ...defaultSettings.featureFlags, ...(updatedSettings.featureFlags as any) },
       email: { ...defaultSettings.email, ...(updatedSettings.email as any) },
       notifications: { ...defaultSettings.notifications, ...(updatedSettings.notifications as any) },
-      stripe: { ...defaultSettings.stripe, ...(updatedSettings.stripe as any) },
     };
 
-    // Re-initialize Stripe if config was updated (force re-initialization)
-    if (stripe !== undefined) {
-      try {
-        const { initializeStripe } = require('@/lib/services/stripe-service');
-        await initializeStripe(true); // Force re-initialization
-        console.log('[Admin Settings] Stripe re-initialized after config update');
-      } catch (error) {
-        console.error('[Admin Settings] Error re-initializing Stripe:', error);
-        // Don't fail the request, just log the error
-      }
-    }
 
     return res.status(200).json({
       success: true,

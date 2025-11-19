@@ -4,9 +4,9 @@
  * Consolidated UI components and React hooks used across the application
  */
 
-// Export shared components
-export * from './components';
+// Export shared components (placeholder - to be implemented)
+// export * from './components';
 
-// Export shared hooks
-export * from './hooks';
+// Export shared hooks (placeholder - to be implemented)
+// export * from './hooks';
 

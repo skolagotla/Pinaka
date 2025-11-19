@@ -19,9 +19,14 @@ type ReferenceData = {
   paymentStatuses: any[];
 };
 
+type ErrorResponse = {
+  error: string;
+  message?: string;
+};
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ReferenceData | { error: string }>
+  res: NextApiResponse<ReferenceData | ErrorResponse>
 ) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -103,7 +108,6 @@ export default async function handler(
     console.error('[Reference Data API] Error:', error);
     return res.status(500).json({ 
       error: 'Failed to fetch reference data',
-      message: error?.message || 'Unknown error',
     });
   }
 }

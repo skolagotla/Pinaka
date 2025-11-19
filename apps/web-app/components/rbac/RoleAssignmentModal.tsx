@@ -99,22 +99,24 @@ export default function RoleAssignmentModal({
       // Assign each role with scope via API
       const assignmentPromises = (values.roles || []).map(async (roleName: string) => {
         const roleId = roleMap.get(roleName);
-        if (!roleId) {
+        if (!roleId || typeof roleId !== 'string') {
           console.warn(`Role ${roleName} not found`);
           return;
         }
 
+        const scope: any = {};
+        if (pmcId) scope.pmcId = pmcId;
+        if (landlordId) scope.landlordId = landlordId;
+        if (values.propertyId) scope.propertyId = values.propertyId;
+        if (values.unitId) scope.unitId = values.unitId;
+        if (values.portfolioId) scope.portfolioId = values.portfolioId;
+        
+        const scopeValue = Object.keys(scope).length > 0 ? scope : undefined;
         const data = await adminApi.assignUserRole(
           userId,
           userType,
           roleId,
-          {
-            pmcId,
-            landlordId,
-            propertyId: values.propertyId,
-            unitId: values.unitId,
-            portfolioId: values.portfolioId,
-          }
+          scopeValue
         );
         if (!data.success) {
           throw new Error(data.error || `Failed to assign role ${roleName}`);

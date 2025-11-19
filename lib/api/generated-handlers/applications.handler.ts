@@ -20,7 +20,9 @@ const { prisma } = require('@/lib/prisma');
  */
 async function handler(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   const repository = new ApplicationRepository(prisma);
-  const service = new ApplicationService(repository);
+  const { UnitRepository } = require('@/domains/unit/domain/UnitRepository');
+  const unitRepository = new UnitRepository(prisma);
+  const service = new ApplicationService(repository, unitRepository);
 
   try {
     switch (req.method) {
@@ -28,17 +30,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse, user: UserCont
         // List Applications
         if (!req.query.id) {
           const query = applicationQuerySchema.parse(req.query);
-          const result = await service.list(query);
+          const result = await service.list(query, { unit: true, property: true, lease: true });
           return res.status(200).json({
             success: true,
-            data: result.applications,
-            pagination: result.pagination,
+            data: result.applications || [],
+            pagination: result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 },
           });
         }
 
         // Get Application by ID
         const id = req.query.id as string;
-        const item = await service.getById(id);
+        const item = await service.getById(id, { unit: true, property: true, lease: true });
         if (!item) {
           return res.status(404).json({ error: 'Application not found' });
         }

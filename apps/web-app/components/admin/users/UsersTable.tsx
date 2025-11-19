@@ -20,6 +20,7 @@ interface User {
   role: string;
   status: string;
   createdAt: string;
+  companyName?: string; // For PMC users
   rbacRoles?: Array<{ role: { name: string; displayName: string } }>;
 }
 

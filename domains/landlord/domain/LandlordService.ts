@@ -88,8 +88,8 @@ export class LandlordService {
         data.countryCode,
         data.regionCode
       );
-      countryCode = mapped.countryCode;
-      regionCode = mapped.regionCode;
+      countryCode = mapped.countryCode || undefined;
+      regionCode = mapped.regionCode || undefined;
     }
 
     // Update landlord
@@ -156,6 +156,26 @@ export class LandlordService {
     }
 
     return result;
+  }
+
+  /**
+   * Get landlord signature file name
+   */
+  async getSignature(landlordId: string) {
+    return this.repository.getSignature(landlordId);
+  }
+
+  /**
+   * Update landlord signature file name
+   */
+  async updateSignature(landlordId: string, signatureFileName: string | null) {
+    // Verify landlord exists
+    const landlord = await this.repository.findById(landlordId);
+    if (!landlord) {
+      throw new Error('Landlord not found');
+    }
+
+    return this.repository.updateSignature(landlordId, signatureFileName);
   }
 }
 

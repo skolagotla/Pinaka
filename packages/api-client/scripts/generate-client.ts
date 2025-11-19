@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { schemaRegistry } from '@/schema/types/registry';
+import { schemaRegistry } from '../../../schema/types/registry';
 
 const OUTPUT_FILE = path.join(__dirname, '../src/generated-client.ts');
 
@@ -49,7 +49,7 @@ function generateClient(): void {
     typeImports.push(`  ${pascalDomain}ListResponse,`);
   }
   imports.push(Array.from(new Set(typeImports)).join('\n'));
-  imports.push(`} from '@pinaka/schema';`);
+  imports.push(`} from '@pinaka/schemas';`);
 
   // Generate ApiResource class
   resourceClasses.push(`

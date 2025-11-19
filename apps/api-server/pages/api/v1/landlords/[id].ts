@@ -11,7 +11,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { landlordUpdateSchema } from '@/lib/schemas';
-import { landlordsService } from '@/lib/domains/landlords';
+import { landlordService } from '@/lib/domains/landlord';
 import { z } from 'zod';
 
 /**
@@ -28,7 +28,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
       });
     }
 
-    const result = await landlordsService.getById(id);
+    const result = await landlordService.getById(id);
     
     if (!result) {
       return res.status(404).json({
@@ -65,7 +65,7 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse, user: User
     }
 
     const data = landlordUpdateSchema.parse(req.body);
-    const updated = await landlordsService.update(id, data);
+    const updated = await landlordService.update(id, data);
     
     return res.status(200).json({
       success: true,
@@ -101,7 +101,7 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, user: Use
       });
     }
 
-    await landlordsService.delete(id);
+    await landlordService.delete(id);
     
     return res.status(204).end();
   } catch (error: any) {

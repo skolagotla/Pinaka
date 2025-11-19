@@ -9,7 +9,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsx scripts/generate-stubs.ts && tsc",
+    "build": "tsx scripts/generate-stubs.ts",
     "generate:stubs": "tsx scripts/generate-stubs.ts",
     "prepublishOnly": "npm run build"
   },

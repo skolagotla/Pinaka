@@ -11,7 +11,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { landlordCreateSchema, landlordUpdateSchema, landlordQuerySchema } from '@/lib/schemas';
-import { landlordsService } from '@/lib/domains/landlords';
+import { landlordService } from '@/lib/domains/landlord';
 import { z } from 'zod';
 
 /**
@@ -21,12 +21,17 @@ import { z } from 'zod';
 async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const query = landlordQuerySchema.parse(req.query);
-    const result = await landlordsService.list(query);
+    const result = await landlordService.list(query);
     
     return res.status(200).json({
       success: true,
-      data: result.landlords || result,
-      pagination: result.pagination,
+      data: result.landlords || [],
+      pagination: {
+        page: result.page || 1,
+        limit: result.limit || 50,
+        total: result.total || 0,
+        totalPages: result.totalPages || 0,
+      },
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -51,7 +56,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
 async function handlePost(req: NextApiRequest, res: NextApiResponse, user: UserContext) {
   try {
     const data = landlordCreateSchema.parse(req.body);
-    const created = await landlordsService.create(data, { userId: user.userId, userRole: user.role });
+    const created = await landlordService.create(data, { userId: user.userId, organizationId: user.organizationId });
     
     return res.status(201).json({
       success: true,

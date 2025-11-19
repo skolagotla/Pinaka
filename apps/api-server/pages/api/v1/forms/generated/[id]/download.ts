@@ -6,7 +6,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, UserContext } from '@/lib/middleware/apiMiddleware';
 import { generatedFormService } from '@/lib/domains/generated-form';
-const { prisma } = require('@/lib/prisma');
+import { tenantService } from '@/lib/domains/tenant';
+import { propertyService } from '@/lib/domains/property';
+import { unitService } from '@/lib/domains/unit';
+import { landlordService } from '@/lib/domains/landlord';
 const { fillN4PDF } = require('@/lib/pdf-filler/n4-service');
 const { addSignatureToPDF } = require('@/lib/pdf-filler/signature-service');
 
@@ -32,22 +35,22 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(404).json({ error: 'Form not found' });
     }
 
-    // Fetch related data for PDF generation
+    // Fetch related data using domain services (Domain-Driven Design)
     let tenant = null;
     let property = null;
     let unit = null;
 
     if (form.tenantId) {
-      tenant = await prisma.tenant.findUnique({ where: { id: form.tenantId } });
+      const tenantData = await tenantService.getById(form.tenantId);
+      tenant = tenantData as any;
     }
     if (form.propertyId) {
-      property = await prisma.property.findUnique({ where: { id: form.propertyId } });
+      const propertyData = await propertyService.getById(form.propertyId);
+      property = propertyData as any;
     }
     if (form.unitId) {
-      unit = await prisma.unit.findUnique({
-        where: { id: form.unitId },
-        include: { property: true },
-      });
+      const unitData = await unitService.getById(form.unitId, { property: true });
+      unit = unitData as any;
     }
 
     // Generate PDF (only N4 supported for now)
@@ -61,11 +64,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       unit,
     });
 
-    // Add signature if available
-    const landlord = await prisma.landlord.findUnique({
-      where: { id: user.userId },
-      select: { signatureFileName: true },
-    });
+    // Add signature if available using domain service
+    const landlord = await landlordService.getById(user.userId);
 
     let finalPdfBuffer = pdfBuffer;
     if (landlord?.signatureFileName) {

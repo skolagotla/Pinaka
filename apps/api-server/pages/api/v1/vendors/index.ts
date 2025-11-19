@@ -25,8 +25,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, user: UserCo
     
     return res.status(200).json({
       success: true,
-      data: result.vendors || result,
-      pagination: result.pagination,
+      data: result.providers || [],
+      pagination: result.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 },
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

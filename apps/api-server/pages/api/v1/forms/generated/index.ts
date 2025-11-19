@@ -36,7 +36,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       },
     });
   } else if (req.method === 'POST') {
-    const bodyResult = generatedFormCreateSchema.partial().safeParse(req.body);
+    const bodyResult = generatedFormCreateSchema.safeParse(req.body);
     if (!bodyResult.success) {
       return res.status(400).json({
         success: false,

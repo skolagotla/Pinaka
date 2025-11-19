@@ -126,6 +126,29 @@ export class InvitationRepository {
     });
   }
 
+  /**
+   * Find invitation by token (for public endpoints)
+   */
+  async findByToken(token: string) {
+    return this.prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        landlord: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        tenant: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        invitedByPMC: {
+          select: { id: true, companyName: true, email: true },
+        },
+        invitedByLandlord: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+  }
+
   async create(data: InvitationCreateInput, user: any) {
     const { generateSecureToken } = require('@/lib/utils/token-generator');
     const token = generateSecureToken(32);

@@ -5,25 +5,26 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:stubs` to regenerate.
  * 
- * Generated: 2025-11-18T03:19:08.327Z
+ * Generated: 2025-11-18T23:18:22.775Z
  */
 
-import propertiesStub from './generated-stubs/properties.stub';
-import tenantsStub from './generated-stubs/tenants.stub';
-import leasesStub from './generated-stubs/leases.stub';
-import rentPaymentsStub from './generated-stubs/rentPayments.stub';
-import maintenanceStub from './generated-stubs/maintenance.stub';
-import documentsStub from './generated-stubs/documents.stub';
-import expensesStub from './generated-stubs/expenses.stub';
-import inspectionsStub from './generated-stubs/inspections.stub';
-import vendorsStub from './generated-stubs/vendors.stub';
-import conversationsStub from './generated-stubs/conversations.stub';
-import applicationsStub from './generated-stubs/applications.stub';
-import notificationsStub from './generated-stubs/notifications.stub';
-import tasksStub from './generated-stubs/tasks.stub';
-import invitationsStub from './generated-stubs/invitations.stub';
-import generatedFormsStub from './generated-stubs/generatedForms.stub';
-import unitsStub from './generated-stubs/units.stub';
+import propertiesStub from './properties.stub';
+import tenantsStub from './tenants.stub';
+import leasesStub from './leases.stub';
+import rentPaymentsStub from './rentPayments.stub';
+import maintenanceStub from './maintenance.stub';
+import documentsStub from './documents.stub';
+import expensesStub from './expenses.stub';
+import inspectionsStub from './inspections.stub';
+import vendorsStub from './vendors.stub';
+import conversationsStub from './conversations.stub';
+import applicationsStub from './applications.stub';
+import notificationsStub from './notifications.stub';
+import tasksStub from './tasks.stub';
+import invitationsStub from './invitations.stub';
+import generatedFormsStub from './generatedForms.stub';
+import unitsStub from './units.stub';
+import landlordsStub from './landlords.stub';
 
 export const serverStubs = {
   properties: propertiesStub,
@@ -42,6 +43,7 @@ export const serverStubs = {
   invitations: invitationsStub,
   generatedForms: generatedFormsStub,
   units: unitsStub,
+  landlords: landlordsStub,
 };
 
 export default serverStubs;

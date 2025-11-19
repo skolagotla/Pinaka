@@ -1,5 +1,16 @@
 const path = require('path');
 
+// Find and set Prisma query engine path using shared utility
+const rootDir = path.resolve(__dirname, '..', '..');
+const { setPrismaEnginePath } = require('../../lib/utils/prisma-engine-finder');
+
+const enginePath = setPrismaEnginePath(rootDir);
+if (enginePath) {
+  console.log('[Next.js Config] Set PRISMA_QUERY_ENGINE_LIBRARY to:', enginePath);
+} else {
+  console.warn('[Next.js Config] Could not find Prisma query engine. Prisma may fail at runtime.');
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false, // API server doesn't need React
@@ -10,6 +21,21 @@ const nextConfig = {
   
   compress: true,
   output: 'standalone',
+  
+  // Disable static page generation (API server doesn't need static pages)
+  generateBuildId: async () => {
+    return 'api-server-build'
+  },
+  
+  // Skip static optimization to avoid React context issues
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+  
+  // Disable static page generation for all pages
+  outputFileTracingIncludes: {
+    '/**': [],
+  },
   
   serverExternalPackages: [
     '@prisma/client',

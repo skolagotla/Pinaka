@@ -48,6 +48,7 @@ export const documentUpdateSchema = z.object({
   verificationComment: z.string().max(1000).optional(),
   isRejected: z.boolean().optional(),
   rejectionReason: z.string().max(1000).optional(),
+  metadata: z.string().nullable().optional(), // JSON string for document metadata
 });
 
 /**
