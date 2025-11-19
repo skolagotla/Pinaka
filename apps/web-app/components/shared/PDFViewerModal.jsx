@@ -67,10 +67,16 @@ export default function PDFViewerModal({
     setLoading(true);
     setError(null);
     
+    // Create AbortController for cleanup
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     fetch(pdfUrl, {
       credentials: 'include', // Include cookies for authentication
+      signal: controller.signal,
     })
       .then(async (response) => {
+        clearTimeout(timeoutId);
         if (!response.ok) {
           // Try to extract error message from JSON response
           let errorMessage = `Failed to fetch PDF: ${response.status} ${response.statusText}`;
@@ -93,15 +99,21 @@ export default function PDFViewerModal({
         setBlobUrl(url);
       })
       .catch((err) => {
-        console.error('[PDFViewerModal] Error fetching PDF:', err);
-        setError(err.message || 'Failed to load PDF');
+        clearTimeout(timeoutId);
+        // Don't set error if fetch was aborted (component unmounted or timeout)
+        if (err.name !== 'AbortError') {
+          console.error('[PDFViewerModal] Error fetching PDF:', err);
+          setError(err.message || 'Failed to load PDF');
+        }
       })
       .finally(() => {
         setLoading(false);
       });
 
-    // Cleanup blob URL on unmount or URL change
+    // Cleanup function: revoke blob URL and abort fetch if component unmounts
     return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;

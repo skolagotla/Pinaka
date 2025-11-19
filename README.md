@@ -535,6 +535,118 @@ grep -r "prisma\." apps/api-server/pages/api/v1 --exclude-dir=analytics
 
 ---
 
+## 🐛 Bug Fixes & Performance
+
+### Recent Optimizations (2025-01-18)
+
+**Performance Improvements:**
+- ✅ LTBDocumentsGrid optimized with React.memo, useMemo, and useCallback
+- ✅ PDFViewerModal lazy loaded to reduce initial bundle size (~50KB savings)
+- ✅ Memory leaks fixed with proper AbortController cleanup
+- ✅ Input sanitization added for search queries
+
+**Critical Bug Fixes:**
+- ✅ Fixed variable shadowing bug in LTBDocumentsGrid (document parameter)
+- ✅ Fixed memory leak in PDFViewerModal (proper blob URL cleanup)
+- ✅ Added localStorage error handling for private browsing mode
+- ✅ Added timeout and better error handling to fetch calls
+
+**Performance Metrics:**
+- Initial bundle size: ~1-1.3MB (gzipped)
+- Code splitting: Heavy components lazy loaded
+- Bundle optimization: Vendor chunks split by library (max 200KB per chunk)
+
+---
+
+## 🗄️ Database Setup
+
+### Prisma Setup
+
+**Generate Prisma Client:**
+```bash
+# Prisma client is auto-generated on install via postinstall script
+pnpm install
+
+# Or manually
+npx prisma generate
+```
+
+**Database Migrations:**
+```bash
+# Create a new migration
+npx prisma migrate dev --name migration_name
+
+# Apply migrations
+npx prisma migrate deploy
+
+# Reset database (dev only)
+npx prisma migrate reset
+```
+
+**Prisma Studio (Database GUI):**
+```bash
+npx prisma studio
+```
+
+**Environment Variables:**
+```bash
+# Database connection
+DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
+
+# Prisma query engine (auto-detected)
+PRISMA_QUERY_ENGINE_LIBRARY="/path/to/libquery_engine-darwin-arm64.dylib.node"
+```
+
+**Prisma Query Engine Setup:**
+The application automatically detects and configures the Prisma query engine for pnpm monorepo setups. The engine finder utility (`lib/utils/prisma-engine-finder.js`) handles:
+- Platform detection (macOS, Linux, Windows)
+- Version-agnostic engine location
+- Automatic environment variable configuration
+
+If you encounter "Query Engine not found" errors:
+1. Run `npx prisma generate`
+2. Check logs for `[Prisma] Found query engine at:` messages
+3. Verify `@prisma/client` is installed: `pnpm install`
+
+---
+
+## 🛠️ Scripts & Utilities
+
+### Essential Scripts
+
+**Setup & Initialization:**
+- `scripts/setup-first-admin.js` - Setup first admin user
+- `scripts/initialize-rbac.ts` - Initialize RBAC system
+- `scripts/create-superadmin-pt.js` - Create super admin for test database
+- `scripts/create-pmc-admins-pt.js` - Create PMC admins
+
+**Data Management:**
+- `scripts/delete-user-by-email.js` - Delete user by email
+- `scripts/delete-tenant-by-email.js` - Delete tenant by email
+- `scripts/find-pmc-by-email.js` - Find PMC by email
+- `scripts/list-pmcs.js` - List all PMCs
+
+**Health Checks:**
+- `scripts/check-document-expiration.js` - Check document expiration
+- `scripts/check-admin-env.js` - Check admin environment
+- `scripts/rbac-health-check.ts` - RBAC system health check
+- `scripts/test-rbac-system.ts` - Test RBAC system
+
+**Production:**
+- `scripts/backup.sh` - Full backup script
+- `scripts/deploy.sh` - Deployment script
+- `scripts/clear-cache.sh` - Clear all caches
+- `scripts/stop.sh` - Stop all services
+
+**Code Generation:**
+- `scripts/generate-api-handlers.ts` - Generate API handlers
+- `scripts/generate-api-routes.ts` - Generate API routes
+- `scripts/generate-openapi.ts` - Generate OpenAPI spec
+
+**Note:** One-time migration scripts are archived in `scripts/archive/one-time-use/` for reference only.
+
+---
+
 ## 📄 License
 
 ISC

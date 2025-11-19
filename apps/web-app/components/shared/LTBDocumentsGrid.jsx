@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { 
   Table, Tag, Input, Select, Space, Button, Tooltip, Tabs, Badge,
   Empty, Spin, Alert
@@ -10,10 +10,18 @@ import {
   DownloadOutlined,
   GlobalOutlined,
   FileTextOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
-import PDFViewerModal from '@/components/shared/PDFViewerModal';
-import { CANADIAN_PROVINCES, US_STATES, getRegionOptions, getRegionLabel } from '@/lib/constants/regions';
+import dynamic from 'next/dynamic';
+import { getRegionOptions, getRegionLabel } from '@/lib/constants/regions';
+
+// Lazy load PDFViewerModal to reduce initial bundle size
+const PDFViewerModal = dynamic(
+  () => import('@/components/shared/PDFViewerModal'),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
 
 const { Search } = Input;
 
@@ -41,7 +49,7 @@ const CATEGORIES = [
  * @param {boolean} showFilters - Whether to show filter bar (default: true)
  * @param {boolean} showTitle - Whether to show title (default: false)
  */
-export default function LTBDocumentsGrid({ 
+function LTBDocumentsGrid({ 
   userRole = 'admin',
   showFilters = true,
   showTitle = false 
@@ -120,7 +128,13 @@ export default function LTBDocumentsGrid({
         params.append('audience', activeTab);
       }
       
-      if (searchQuery) params.append('search', searchQuery);
+      // Sanitize search query to prevent injection
+      if (searchQuery) {
+        const sanitized = searchQuery.trim().slice(0, 100); // Limit length and trim
+        if (sanitized) {
+          params.append('search', sanitized);
+        }
+      }
 
       const { apiClient } = await import('@/lib/utils/api-client');
       const response = await apiClient(`/api/v1/ltb-documents?${params.toString()}`, {
@@ -173,48 +187,64 @@ export default function LTBDocumentsGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCountry, selectedProvince, selectedCategory, activeTab, searchQuery, isOntarioSelected, mounted]);
 
-  // Handle view document
-  const handleViewDocument = (document) => {
-    const proxyUrl = `/api/v1/ltb-documents/${document.formNumber}/view`;
-    setSelectedDocument({ ...document, pdfUrl: proxyUrl });
+  // Handle view document - memoized with useCallback
+  const handleViewDocument = useCallback((doc) => {
+    const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
+    setSelectedDocument({ ...doc, pdfUrl: proxyUrl });
     setPdfViewerOpen(true);
-  };
+  }, []);
 
-  // Handle download document
-  const handleDownloadDocument = async (document) => {
+  // Handle download document - memoized with useCallback
+  const handleDownloadDocument = useCallback(async (doc) => {
     try {
-      const proxyUrl = `/api/v1/ltb-documents/${document.formNumber}/view`;
+      const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
+      
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(proxyUrl, {
         credentials: 'include',
+        signal: controller.signal,
       });
-      if (!response.ok) throw new Error('Failed to download');
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.status} ${response.statusText}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${document.formNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      
+      // Use global document object (not parameter) to avoid shadowing bug
+      const anchor = globalThis.document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${doc.formNumber}.pdf`;
+      globalThis.document.body.appendChild(anchor);
+      anchor.click();
+      globalThis.document.body.removeChild(anchor);
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[LTBDocumentsGrid] Error downloading document:', err);
-      window.open(document.pdfUrl, '_blank');
+      // Fallback to opening in new tab if download fails
+      if (err.name !== 'AbortError') {
+        window.open(doc.pdfUrl, '_blank', 'noopener,noreferrer');
+      }
     }
-  };
+  }, []);
 
-  // Handle open LTB portal
-  const handleOpenLTBPortal = (document) => {
-    window.open(document.pdfUrl, '_blank', 'noopener,noreferrer');
-  };
+  // Handle open LTB portal - memoized with useCallback
+  const handleOpenLTBPortal = useCallback((doc) => {
+    window.open(doc.pdfUrl, '_blank', 'noopener,noreferrer');
+  }, []);
 
-  // Handle view instructions
-  const handleViewInstructions = (document) => {
-    if (document.instructionUrl) {
-      window.open(document.instructionUrl, '_blank', 'noopener,noreferrer');
+  // Handle view instructions - memoized with useCallback
+  const handleViewInstructions = useCallback((doc) => {
+    if (doc.instructionUrl) {
+      window.open(doc.instructionUrl, '_blank', 'noopener,noreferrer');
     }
-  };
+  }, []);
 
   // Get tab counts
   const tabCounts = useMemo(() => {
@@ -225,8 +255,8 @@ export default function LTBDocumentsGrid({
     return { all, landlord, tenant, both };
   }, [documents]);
 
-  // Determine which tabs to show based on role
-  const getTabItems = () => {
+  // Determine which tabs to show based on role - memoized
+  const tabItems = useMemo(() => {
     if (userRole === 'admin' || userRole === 'pmc') {
       // Admin and PMC see all tabs
       return [
@@ -267,10 +297,10 @@ export default function LTBDocumentsGrid({
       // Landlord and Tenant don't see tabs (they're auto-filtered)
       return [];
     }
-  };
+  }, [userRole, tabCounts]);
 
-  // Table columns
-  const columns = [
+  // Table columns - memoized to prevent recreation on every render
+  const columns = useMemo(() => [
     {
       title: 'Form',
       dataIndex: 'formNumber',
@@ -371,9 +401,7 @@ export default function LTBDocumentsGrid({
         </Space>
       ),
     },
-  ];
-
-  const tabItems = getTabItems();
+  ], [handleViewDocument, handleOpenLTBPortal, handleDownloadDocument, handleViewInstructions]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -530,4 +558,14 @@ export default function LTBDocumentsGrid({
     </div>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+export default memo(LTBDocumentsGrid, (prevProps, nextProps) => {
+  // Only re-render if these props change
+  return (
+    prevProps.userRole === nextProps.userRole &&
+    prevProps.showFilters === nextProps.showFilters &&
+    prevProps.showTitle === nextProps.showTitle
+  );
+});
 

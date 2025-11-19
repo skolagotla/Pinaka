@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:client` to regenerate.
  * 
- * Generated: 2025-11-18T23:18:22.769Z
+ * Generated: 2025-11-19T04:12:12.142Z
  */
 
 import type {

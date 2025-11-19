@@ -46,27 +46,37 @@ export default function DocumentsClient({ user, userRole, libraryData }) {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get('tab');
     
-    if (tabFromUrl === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) {
-      setActiveTab('forms');
-      localStorage.setItem(storageKey, 'forms');
-    } else {
-      const savedTab = localStorage.getItem(storageKey);
-      if (savedTab && ['library', 'forms'].includes(savedTab)) {
-        // Validate saved tab is available for this role
-        if (
-          (savedTab === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) ||
-          savedTab === 'library'
-        ) {
-          setActiveTab(savedTab);
+    try {
+      if (tabFromUrl === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) {
+        setActiveTab('forms');
+        localStorage.setItem(storageKey, 'forms');
+      } else {
+        const savedTab = localStorage.getItem(storageKey);
+        if (savedTab && ['library', 'forms'].includes(savedTab)) {
+          // Validate saved tab is available for this role
+          if (
+            (savedTab === 'forms' && (userRole === 'landlord' || userRole === 'pmc')) ||
+            savedTab === 'library'
+          ) {
+            setActiveTab(savedTab);
+          }
         }
       }
+    } catch (err) {
+      // localStorage may be disabled or unavailable (e.g., private browsing)
+      console.warn('[DocumentsClient] localStorage access failed:', err);
     }
   }, [storageKey, userRole]);
 
   const handleTabChange = (key) => {
     trackTabSwitch('documents', activeTab, key, userRole);
     setActiveTab(key);
-    localStorage.setItem(storageKey, key);
+    try {
+      localStorage.setItem(storageKey, key);
+    } catch (err) {
+      // localStorage may be disabled or unavailable (e.g., private browsing)
+      console.warn('[DocumentsClient] localStorage access failed:', err);
+    }
   };
 
   // Track page view on mount

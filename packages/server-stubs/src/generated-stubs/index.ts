@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:stubs` to regenerate.
  * 
- * Generated: 2025-11-18T23:18:22.775Z
+ * Generated: 2025-11-19T04:12:12.137Z
  */
 
 import propertiesStub from './properties.stub';
