@@ -29,7 +29,7 @@ const nextConfig = {
   
   // Skip static optimization to avoid React context issues
   experimental: {
-    missingSuspenseWithCSRBailout: false,
+    // Note: missingSuspenseWithCSRBailout was removed in Next.js 16
   },
   
   // Disable static page generation for all pages

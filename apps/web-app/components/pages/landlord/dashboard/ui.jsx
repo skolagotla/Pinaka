@@ -680,7 +680,7 @@ export default function LandlordDashboardClient({
                     {stats.expiringDocuments.length > 3 && (
                       <ActionButton
                         action="view"
-                        onClick={() => router.push('/documents?tab=library')}
+                        onClick={() => router.push('/library')}
                         showText={true}
                         text={`View all ${stats.expiringDocuments.length} documents`}
                         style={{ padding: 0, height: 'auto' }}

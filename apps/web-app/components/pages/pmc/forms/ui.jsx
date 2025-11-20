@@ -31,7 +31,7 @@ const PDFViewerModal = dynamic(
   { ssr: false, loading: () => null }
 );
 
-const { Text, Paragraph } = Typography;
+const { Text, Paragraph, Title } = Typography;
 const { TextArea } = Input;
 const { Step } = Steps;
 

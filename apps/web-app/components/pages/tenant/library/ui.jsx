@@ -1,29 +1,14 @@
 "use client";
-import dynamic from 'next/dynamic';
-import { Spin } from 'antd';
 
-// Lazy load LibraryClient for better performance and code splitting
-const LibraryClient = dynamic(
-  () => import('@/components/shared/LibraryClient'),
-  {
-    loading: () => (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16, color: '#666' }}>Loading document library...</div>
-      </div>
-    ),
-    ssr: false, // Not needed for SEO, improves initial load
-  }
-);
+import UnifiedLibraryComponent from '@/components/shared/UnifiedLibraryComponent';
 
 /**
  * Tenant Library Client
- * Wrapper component that uses the unified LibraryClient
- * Now with lazy loading for better performance
+ * Uses the unified library component with Personal and Legal tabs
  */
 export default function TenantLibraryClient({ tenant, initialDocuments, leaseDocuments }) {
   return (
-    <LibraryClient 
+    <UnifiedLibraryComponent
       userRole="tenant"
       user={tenant}
       initialDocuments={initialDocuments}

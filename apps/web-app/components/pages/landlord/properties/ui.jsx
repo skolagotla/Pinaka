@@ -973,7 +973,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
               virtual={false}
               onChange={(value) => {
                 pinaka.setCountry(value);
-                const defaultRegion = value === 'CA' ? 'ON' : value === 'US' ? 'NY' : undefined;
+                const defaultRegion = value === 'CA' ? 'ON' : value === 'US' ? 'NJ' : undefined;
                 propertyForm.setFieldsValue({ provinceState: defaultRegion });
               }}
             >
