@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Typography, Button, Row, Col, Card, Tag, Select, Modal, Space, Empty,
   Table, Popconfirm, Tooltip, Progress, Alert, Badge, DatePicker, Divider,
-  Descriptions, Statistic, List, Avatar, Upload, Input, App, Tabs
+  Descriptions, Statistic, List, Avatar, Upload, Input, App
 } from 'antd';
 import {
   PlusOutlined, EyeOutlined, DownloadOutlined, DeleteOutlined, CloudUploadOutlined,
@@ -28,7 +28,6 @@ import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-
 dayjs.extend(utc);
 
 // Reusable Components
-import PageBanner from '@/components/shared/PageBanner';
 import dynamic from 'next/dynamic';
 
 // Dynamically import PDFViewerModal to avoid SSR issues with DOMMatrix
@@ -40,7 +39,6 @@ const PDFViewerModal = dynamic(() => import('@/components/PDFViewerModal'), {
 
 // Custom Hooks
 import { useDocumentVaultFeature, useDocumentUpload, useResizableTable, withSorter, sortFunctions, useSearch, useMutualApproval, configureTableColumns } from '@/lib/hooks';
-import { useModalState } from '@/lib/hooks/useModalState';
 
 // Utilities
 import { getFileIcon, formatFileSize } from '@/lib/utils/document-vault-helpers';
@@ -58,17 +56,7 @@ const {
   getCategoryById,
 } = require('@/lib/constants/document-categories');
 
-// Import legal forms (shared constant)
-import { getLegalFormsByRole } from '@/lib/constants/legal-forms';
-
-// Lazy load LTB Documents Grid
-const LTBDocumentsGrid = dynamic(
-  () => import('@/components/shared/LTBDocumentsGrid'),
-  {
-    loading: () => <div style={{ padding: '20px', textAlign: 'center' }}>Loading legal documents...</div>,
-    ssr: false,
-  }
-);
+// Note: Legal forms and LTBDocumentsGrid are handled by parent components (admin/library or documents page)
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -83,13 +71,15 @@ const { Dragger } = Upload;
  * @param {Array} props.tenants - Array of tenants (only for landlord/pmc)
  * @param {Array} props.initialDocuments - Initial documents (for tenant)
  * @param {Array} props.leaseDocuments - Lease documents (for tenant, optional)
+ * @param {string} props.externalSearchTerm - External search term from parent component
  */
 export default function LibraryClient({ 
   userRole, 
   user, 
   tenants = [], 
   initialDocuments = [],
-  leaseDocuments = []
+  leaseDocuments = [],
+  externalSearchTerm = ''
 }) {
   const router = useRouter();
   const { message } = App.useApp();
@@ -105,36 +95,8 @@ export default function LibraryClient({
   // Tenant selection (only for landlord)
   const [selectedTenant, setSelectedTenant] = useState(null);
   
-  // State for legal form PDF viewer modal (view-only modal - using useModalState for consistency)
-  const { isOpen: pdfViewerOpen, open: openPdfViewer, close: closePdfViewer, editingItem: selectedForm, openForEdit: openPdfViewerForForm } = useModalState();
-  
   // State for drag and drop visual feedback (only for tenant)
   const [dragOverCategory, setDragOverCategory] = useState(null);
-  
-  // State for active tab with localStorage persistence
-  const [activeTab, setActiveTab] = useState('personal-records');
-  const storageKey = `${userRole}-library-active-tab`;
-  
-  // Load tab from localStorage or URL query parameter after mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab');
-    
-    if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
-      localStorage.setItem(storageKey, tabFromUrl);
-    } else {
-      const savedTab = localStorage.getItem(storageKey);
-      if (savedTab) {
-        setActiveTab(savedTab);
-      }
-    }
-  }, [storageKey]);
-  
-  const handleTabChange = (key) => {
-    setActiveTab(key);
-    localStorage.setItem(storageKey, key);
-  };
   
   // Property-centric: Get propertyId from selected tenant's active lease (for landlords)
   const selectedPropertyId = useMemo(() => {
@@ -183,9 +145,6 @@ export default function LibraryClient({
     }
   }, [userRole, selectedTenant, tenants, library.documents]);
 
-  // Get legal forms by role
-  const legalFormsData = getLegalFormsByRole(userRole);
-
   // Calculate document status for checklist (only for tenant or when tenant selected for landlord)
   const documentStatus = useMemo(() => {
     if (userRole === 'tenant' || (userRole === 'landlord' && selectedTenant)) {
@@ -227,18 +186,21 @@ export default function LibraryClient({
     userRole === 'landlord' 
       ? ['fileName', 'category', 'status', 'tenantName', 'tenantEmail', 'uploadedBy']
       : ['fileName', 'category', 'status', 'uploadedBy'],
-    { debounceMs: 300 }
+    { debounceMs: 150 } // Reduced debounce for more responsive search
   );
 
-  // 🔍 Search functionality for legal forms
-  const formsSearch = useSearch(
-    legalFormsData,
-    ['formCode', 'formName', 'description', 'category'],
-    { debounceMs: 300 }
-  );
+  // Use external search term if provided, otherwise use internal search
+  // Update immediately when external search term changes (including empty string)
+  useEffect(() => {
+    if (externalSearchTerm !== undefined) {
+      // Always update, even if empty string, to clear the search
+      // Use setSearchTerm which handles debouncing internally
+      documentsSearch.setSearchTerm(externalSearchTerm);
+    }
+  }, [externalSearchTerm, documentsSearch]);
 
-  // Use the appropriate search based on active tab
-  const search = activeTab === 'legal-notices' ? formsSearch : documentsSearch;
+  // Use documents search (no tabs, so no need for forms search)
+  const search = documentsSearch;
 
   const displayDocuments = getAllDocuments;
 
@@ -540,21 +502,22 @@ export default function LibraryClient({
       }),
       customizeColumn(STANDARD_COLUMNS.ACTIONS, {
         render: (_, doc) => {
+          const TableActionButton = require('./TableActionButton').default;
           const actions = [
-            <Tooltip key="view" title="View">
-              <Button 
-                type="text" 
-                icon={<EyeOutlined />}
-                onClick={() => library.handleView(doc)}
-              />
-            </Tooltip>,
-            <Tooltip key="download" title="Download">
-              <Button 
-                type="text" 
-                icon={<DownloadOutlined />}
-                onClick={() => library.handleDownload(doc)}
-              />
-            </Tooltip>
+            <TableActionButton
+              key="view"
+              icon={<EyeOutlined />}
+              onClick={() => library.handleView(doc)}
+              tooltip="View"
+              actionType="view"
+            />,
+            <TableActionButton
+              key="download"
+              icon={<DownloadOutlined />}
+              onClick={() => library.handleDownload(doc)}
+              tooltip="Download"
+              actionType="download"
+            />
           ];
 
           // Landlord-specific actions
@@ -589,36 +552,34 @@ export default function LibraryClient({
             // Delete button
             if (doc.canLandlordDelete) {
               actions.push(
-                <Tooltip key="delete" title={doc.uploadedBy === 'tenant' ? "Cannot delete tenant's document" : "Delete"}>
-                  <Button 
-                    type="text" 
-                    danger 
-                    icon={<DeleteOutlined />}
-                    disabled={doc.uploadedBy === 'tenant'}
-                    onClick={() => library.openDeleteModal(doc)}
-                  />
-                </Tooltip>
+                <TableActionButton
+                  key="delete"
+                  icon={<DeleteOutlined />}
+                  onClick={() => library.openDeleteModal(doc)}
+                  tooltip={doc.uploadedBy === 'tenant' ? "Cannot delete tenant's document" : "Delete"}
+                  actionType="delete"
+                  disabled={doc.uploadedBy === 'tenant'}
+                />
               );
             }
           } else {
             // Tenant-specific actions
             if (doc.uploadedBy === 'tenant') {
               actions.push(
-                <Tooltip key="delete" title="Delete">
-                  <Popconfirm
-                    title="Delete Document"
-                    description="Are you sure you want to delete this document?"
-                    onConfirm={() => library.openDeleteModal(doc)}
-                    okText="Yes"
-                    cancelText="No"
-                  >
-                    <Button 
-                      type="text"
-                      danger 
-                      icon={<DeleteOutlined />}
-                    />
-                  </Popconfirm>
-                </Tooltip>
+                <Popconfirm
+                  key="delete"
+                  title="Delete Document"
+                  description="Are you sure you want to delete this document?"
+                  onConfirm={() => library.openDeleteModal(doc)}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <TableActionButton
+                    icon={<DeleteOutlined />}
+                    tooltip="Delete"
+                    actionType="delete"
+                  />
+                </Popconfirm>
               );
             }
           }
@@ -694,23 +655,19 @@ export default function LibraryClient({
       width: 80,
       align: 'center',
       fixed: 'right',
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip key="view" title="View">
-            <Button 
-              type="primary" 
-              shape="circle"
-              size="small"
+      render: (_, record) => {
+        const TableActionButton = require('./TableActionButton').default;
+        return (
+          <Space size="small">
+            <TableActionButton
               icon={<EyeOutlined />}
               onClick={() => {
                 openPdfViewerForForm(record);
               }}
+              tooltip="View"
+              actionType="view"
             />
-          </Tooltip>
-          <Tooltip key="download" title="Download">
-            <Button 
-              shape="circle"
-              size="small"
+            <TableActionButton
               icon={<DownloadOutlined />}
               onClick={() => {
                 const a = document.createElement('a');
@@ -720,10 +677,12 @@ export default function LibraryClient({
                 a.click();
                 document.body.removeChild(a);
               }}
+              tooltip="Download"
+              actionType="download"
             />
-          </Tooltip>
-        </Space>
-      ),
+          </Space>
+        );
+      },
     },
   ];
 
@@ -960,152 +919,60 @@ export default function LibraryClient({
     );
   };
 
-  return (
-    <div style={{ padding: '24px' }}>
-      <PageBanner
-        title="Library"
-        stats={[
-          { label: 'Documents', value: stats.totalDocuments, color: '#1890ff' },
-          { label: 'Verified', value: stats.verifiedDocuments, color: '#52c41a' },
-          { label: 'Expiring', value: stats.expiringDocuments + stats.expiredDocuments, color: '#ff4d4f' }
-        ]}
-        searchValue={search.searchTerm}
-        onSearchChange={search.setSearchTerm}
-        onSearchClear={search.clearSearch}
-        searchPlaceholder={
-          activeTab === 'legal-notices' 
-            ? "Search forms by number, name, description, or type..." 
-            : userRole === 'landlord'
-              ? "Search documents by name, category, status, or tenant..."
-              : "Search documents by name, category, or status..."
+  // If hideTabs is true, only show personal documents content (no PageBanner, no Tabs)
+  // But still include all modals for functionality
+  const personalDocumentsContent = (
+    <div style={{ padding: '20px' }}>
+      {/* Search Bar removed for Personal tab - not needed for landlord/tenant */}
+      
+      {renderDocumentChecklist()}
+
+      <Card
+        title={
+          <Space>
+            <FileProtectOutlined style={{ fontSize: 16, color: '#595959' }} />
+            <Text strong style={{ fontSize: '15px', color: '#262626' }}>
+              Documents: {displayDocuments.length}
+            </Text>
+          </Space>
         }
-        dropdown={
-          userRole === 'landlord' ? (
-            <Select
-              style={{ minWidth: 200 }}
-              placeholder="All Tenants"
-              value={selectedTenant?.id || 'all'}
-              onChange={(value) => {
-                if (value === 'all') {
-                  setSelectedTenant(null);
-                } else {
-                  const tenant = tenants.find(t => t.id === value);
-                  handleTenantSelect(tenant);
-                }
-              }}
-              options={[
-                { label: 'All Tenants', value: 'all' },
-                ...tenants.map(t => ({
-                  label: `${t.firstName} ${t.lastName}`,
-                  value: t.id,
-                }))
-              ]}
-            />
-          ) : null
-        }
-        actions={[
-          ...(activeTab === 'personal-records' ? [{
-            icon: userRole === 'tenant' ? <PlusOutlined /> : <ReloadOutlined />,
-            tooltip: userRole === 'tenant' 
-              ? 'Upload Document'
-              : 'Refresh',
-            onClick: userRole === 'tenant' ? library.openUploadModal : library.refresh,
-            type: userRole === 'tenant' ? 'primary' : undefined
-          }] : []),
-          ...(userRole === 'landlord' && activeTab === 'personal-records' ? [{
-            icon: <PlusOutlined />,
-            tooltip: selectedTenant ? "Upload Document" : "Select a tenant to upload",
-            onClick: handleUploadClick,
-            type: 'primary',
-            disabled: !selectedTenant
-          }] : []),
-          {
-            icon: <ReloadOutlined />,
-            tooltip: 'Refresh',
-            onClick: library.refresh,
-          }
-        ]}
-        showStats={displayDocuments.length > 0 || (userRole === 'tenant' && library.documents.length > 0)}
-      />
+        style={{ borderRadius: '6px', border: '1px solid #f0f0f0' }}
+        bodyStyle={{ padding: '16px' }}
+      >
+        {library.loading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Empty description="Loading documents..." />
+          </div>
+        ) : displayDocuments.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              userRole === 'landlord'
+                ? (selectedTenant 
+                    ? "No documents uploaded yet for this tenant." 
+                    : "No documents found. Upload documents using the + button above.")
+                : "No documents uploaded yet. Upload documents using the + button above."
+            }
+          />
+        ) : (
+          <Table
+            {...tableProps}
+            dataSource={documentsSearch.filteredData}
+            rowKey="id"
+            pagination={userRole === 'tenant' ? {
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} documents`,
+            } : { pageSize: 25 }}
+          />
+        )}
+      </Card>
+    </div>
+  );
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={[
-          {
-            key: 'personal-records',
-            label: (
-              <span>
-                <FileTextOutlined />
-                Personal
-              </span>
-            ),
-            children: (
-              <div>
-                {renderDocumentChecklist()}
-
-                <Card
-                  title={
-                    <Space>
-                      <FileProtectOutlined style={{ fontSize: 18 }} />
-                      <Text strong style={{ fontSize: 16 }}>
-                        Documents: {displayDocuments.length}
-                      </Text>
-                    </Space>
-                  }
-                >
-                  {library.loading ? (
-                    <div style={{ textAlign: 'center', padding: '50px' }}>
-                      <Empty description="Loading documents..." />
-                    </div>
-                  ) : displayDocuments.length === 0 ? (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description={
-                        userRole === 'landlord'
-                          ? (selectedTenant 
-                              ? "No documents uploaded yet for this tenant." 
-                              : "No documents found. Upload documents using the + button above.")
-                          : "No documents uploaded yet. Upload documents using the + button above."
-                      }
-                    />
-                  ) : (
-                    <Table
-                      {...tableProps}
-                      dataSource={documentsSearch.filteredData}
-                      rowKey="id"
-                      pagination={userRole === 'tenant' ? {
-                        pageSize: 10,
-                        showSizeChanger: true,
-                        showTotal: (total) => `Total ${total} documents`,
-                      } : { pageSize: 25 }}
-                    />
-                  )}
-                </Card>
-              </div>
-            ),
-          },
-          {
-            key: 'legal-notices',
-            label: (
-              <span>
-                <FormOutlined />
-                Legal
-              </span>
-            ),
-            children: (
-              <div style={{ padding: '0' }}>
-                <LTBDocumentsGrid 
-                  userRole={userRole} 
-                  showFilters={true} 
-                  showTitle={false} 
-                />
-              </div>
-            ),
-          },
-        ]}
-      />
-
+  // All modals (shared between hideTabs and normal mode)
+  const allModals = (
+    <>
       {/* Upload Modal */}
       <Modal
         title={userRole === 'tenant' ? (
@@ -1486,19 +1353,16 @@ export default function LibraryClient({
         </Space>
       </Modal>
 
-      {/* PDF Viewer Modal for Legal Forms */}
-      <PDFViewerModal
-        open={pdfViewerOpen}
-        title={selectedForm ? `${selectedForm.formCode} - ${selectedForm.formName}` : 'Legal Form'}
-        pdfUrl={selectedForm?.link}
-        onClose={() => {
-          closePdfViewer();
-        }}
-        downloadFileName={selectedForm ? `${selectedForm.formCode}.pdf` : 'form.pdf'}
-        width={1100}
-        height={750}
-      />
-    </div>
+    </>
+  );
+
+  // LibraryClient now only renders personal documents content (no tabs, no PageBanner)
+  // Tabs are handled by the parent component (admin/library or documents page)
+  return (
+    <>
+      {personalDocumentsContent}
+      {allModals}
+    </>
   );
 }
 

@@ -200,7 +200,7 @@ export default function GlobalSearch({ open, onClose }) {
                 id: d.id,
                 title: d.originalName || d.fileName,
                 subtitle: d.category,
-                url: `/documents/${d.id}`,
+                url: `/library/${d.id}`,
               });
             });
           }

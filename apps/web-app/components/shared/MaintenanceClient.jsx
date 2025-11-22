@@ -316,7 +316,11 @@ export default function MaintenanceClient({
                          (Array.isArray(data.data?.tenants) ? data.data.tenants : []));
       setTenants(tenantsList);
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching tenants:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching tenants:', error);
+      }
       setTenants([]); // Ensure tenants is always an array even on error
     }
   }
@@ -338,7 +342,11 @@ export default function MaintenanceClient({
       }
       setAllProperties(propertiesData);
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching properties:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching properties:', error);
+      }
       setAllProperties([]); // Set empty array on error to prevent filter errors
     }
   }
@@ -422,7 +430,12 @@ export default function MaintenanceClient({
       const expenses = response.data?.data || response.data || [];
       setExpenses(expenses);
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching expenses:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching expenses:', error);
+      }
+      setExpenses([]);
     } finally {
       setExpenseLoading(false);
     }
@@ -438,7 +451,12 @@ export default function MaintenanceClient({
       setVendors(Array.isArray(data.vendors) ? data.vendors : 
                  (Array.isArray(data) ? data : []));
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching vendors:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching vendors:', error);
+      }
+      setVendors([]); // Set empty array on error
     }
   }
 
@@ -454,7 +472,12 @@ export default function MaintenanceClient({
       setSuggestedVendors(Array.isArray(data.vendors) ? data.vendors : 
                          (Array.isArray(data) ? data : []));
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching suggested vendors:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching suggested vendors:', error);
+      }
+      setSuggestedVendors([]);
     } finally {
       setLoadingVendors(false);
     }
@@ -472,7 +495,12 @@ export default function MaintenanceClient({
       setAllVendors(Array.isArray(data.vendors) ? data.vendors : 
                    (Array.isArray(data) ? data : []));
     } catch (error) {
-      console.error('[MaintenanceClient] Error fetching all vendors:', error);
+      // Silently handle errors - don't log to console to avoid noise
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[MaintenanceClient] Error fetching all vendors:', error);
+      }
+      setAllVendors([]);
     } finally {
       setLoadingAllVendors(false);
     }

@@ -52,15 +52,20 @@ export default function MessagesClient({ userRole = 'landlord' }) {
 
   const loadCurrentUser = useCallback(async () => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.user.getCurrent();
-      const data = response.data || response;
+      // Use apiClient to call /api/user/current endpoint
+      const { apiClient } = await import('@/lib/utils/api-client');
+      const response = await apiClient('/api/user/current', {
+        method: 'GET',
+      });
+      const data = await response.json().catch(() => ({}));
       if (data.user || data.id) {
         setCurrentUserId(data.user?.id || data.id);
       }
     } catch (error) {
-      console.error('[Messages] Error loading current user:', error);
+      // Silently handle errors - only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Messages] Error loading current user:', error);
+      }
     }
   }, []);
 

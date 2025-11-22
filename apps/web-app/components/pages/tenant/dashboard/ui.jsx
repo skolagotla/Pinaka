@@ -74,7 +74,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
           description: 'Your application has been approved! Please upload required documents such as credit report, identification, and employment letters.',
           action: {
             label: 'Upload Documents',
-            onClick: () => router.push('/documents?tab=library'),
+            onClick: () => router.push('/library'),
           },
         });
       }
@@ -148,7 +148,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
     {
       label: "My Documents",
       icon: <LockOutlined />,
-      onClick: () => router.push("/documents?tab=library"),
+      onClick: () => router.push("/library"),
     },
   ];
 
@@ -497,7 +497,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
         <Col xs={24} sm={12} md={8}>
           <ProCard 
             hoverable
-            onClick={() => router.push('/documents?tab=library')}
+            onClick={() => router.push('/library')}
             style={{ cursor: 'pointer' }}
           >
             <Statistic
@@ -510,7 +510,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
               size="small" 
               onClick={(e) => {
                 e.stopPropagation();
-                router.push('/documents?tab=library');
+                router.push('/library');
               }}
               style={{ padding: 0, marginTop: 8 }}
             >

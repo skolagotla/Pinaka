@@ -5,7 +5,7 @@
  * This file is auto-generated from @pinaka/schema.
  * Run `npm run generate:stubs` to regenerate.
  * 
- * Generated: 2025-11-19T04:12:12.134Z
+ * Generated: 2025-11-19T22:33:49.602Z
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';

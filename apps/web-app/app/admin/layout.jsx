@@ -270,6 +270,9 @@ export default function AdminLayout({ children }) {
               title: false,
               breadcrumb: {},
             }}
+            contentStyle={{
+              padding: 0,
+            }}
           >
             {children}
           </PageContainer>
