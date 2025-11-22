@@ -1,0 +1,57 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Analytics - Admin{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900">Analytics & Reports</h1>
+            <p class="mt-2 text-sm text-gray-600">Platform statistics and insights</p>
+        </div>
+    </div>
+
+    <!-- User Growth -->
+    <div class="bg-white shadow rounded-lg mb-8 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">User Growth (This Month)</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-600">{{ user_growth.landlords }}</div>
+                <div class="text-sm text-gray-500">New Landlords</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-green-600">{{ user_growth.tenants }}</div>
+                <div class="text-sm text-gray-500">New Tenants</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-purple-600">{{ user_growth.pmcs }}</div>
+                <div class="text-sm text-gray-500">New PMCs</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Stats -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Activity (This Month)</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ activity_stats.new_properties }}</div>
+                <div class="text-sm text-gray-500">New Properties</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ activity_stats.new_leases }}</div>
+                <div class="text-sm text-gray-500">New Leases</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ activity_stats.new_payments }}</div>
+                <div class="text-sm text-gray-500">New Payments</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ activity_stats.new_tickets }}</div>
+                <div class="text-sm text-gray-500">New Tickets</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

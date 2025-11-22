@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pinaka Property Management{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Flowbite CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@2.2.1/dist/flowbite.min.css" rel="stylesheet" />
+    {% block extra_head %}{% endblock %}
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar-transition {
+            transition: width 0.3s ease;
+        }
+        .sidebar-collapsed {
+            width: 64px;
+        }
+        .sidebar-expanded {
+            width: 256px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Left Sidebar Navigation -->
+        <aside id="sidebar" class="sidebar-expanded sidebar-transition bg-blue-900 shadow-lg flex flex-col">
+            <!-- Logo -->
+            <div class="flex items-center justify-between h-16 px-4 border-b border-blue-800">
+                <div class="flex items-center">
+                    <i class="fas fa-building text-2xl text-white"></i>
+                    <span id="logo-text" class="ml-2 text-xl font-bold text-white">Pinaka</span>
+                </div>
+                <button id="sidebar-toggle" class="text-blue-200 hover:text-white focus:outline-none">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <!-- Navigation Menu -->
+            <nav class="flex-1 overflow-y-auto py-4">
+                <ul class="space-y-1 px-2">
+                    <li>
+                        <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                            <i class="fas fa-home"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'properties_list' %}" class="nav-item {% if request.resolver_match.url_name == 'properties_list' or request.resolver_match.url_name == 'property_detail' %}active{% endif %}">
+                            <i class="fas fa-building"></i>
+                            <span class="nav-text">Properties</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'tenants_list' %}" class="nav-item {% if request.resolver_match.url_name == 'tenants_list' or request.resolver_match.url_name == 'tenant_detail' %}active{% endif %}">
+                            <i class="fas fa-users"></i>
+                            <span class="nav-text">Tenants</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'leases_list' %}" class="nav-item {% if request.resolver_match.url_name == 'leases_list' or request.resolver_match.url_name == 'lease_detail' %}active{% endif %}">
+                            <i class="fas fa-file-contract"></i>
+                            <span class="nav-text">Leases</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'payments_list' %}" class="nav-item {% if request.resolver_match.url_name == 'payments_list' %}active{% endif %}">
+                            <i class="fas fa-dollar-sign"></i>
+                            <span class="nav-text">Payments</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'maintenance_list' %}" class="nav-item {% if request.resolver_match.url_name == 'maintenance_list' %}active{% endif %}">
+                            <i class="fas fa-tools"></i>
+                            <span class="nav-text">Maintenance</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'landlords_list' %}" class="nav-item {% if request.resolver_match.url_name == 'landlords_list' or request.resolver_match.url_name == 'landlord_detail' %}active{% endif %}">
+                            <i class="fas fa-user-tie"></i>
+                            <span class="nav-text">Landlords</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'pmcs_list' %}" class="nav-item {% if request.resolver_match.url_name == 'pmcs_list' or request.resolver_match.url_name == 'pmc_detail' %}active{% endif %}">
+                            <i class="fas fa-building"></i>
+                            <span class="nav-text">PMCs</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'users_list' %}" class="nav-item {% if request.resolver_match.url_name == 'users_list' %}active{% endif %}">
+                            <i class="fas fa-users-cog"></i>
+                            <span class="nav-text">Users</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'financials' %}" class="nav-item {% if request.resolver_match.url_name == 'financials' %}active{% endif %}">
+                            <i class="fas fa-wallet"></i>
+                            <span class="nav-text">Financials</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'calendar' %}" class="nav-item {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">
+                            <i class="fas fa-calendar"></i>
+                            <span class="nav-text">Calendar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'library' %}" class="nav-item {% if request.resolver_match.url_name == 'library' %}active{% endif %}">
+                            <i class="fas fa-book"></i>
+                            <span class="nav-text">Library</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'messages' %}" class="nav-item {% if request.resolver_match.url_name == 'messages' %}active{% endif %}">
+                            <i class="fas fa-envelope"></i>
+                            <span class="nav-text">Messages</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'verifications' %}" class="nav-item {% if request.resolver_match.url_name == 'verifications' %}active{% endif %}">
+                            <i class="fas fa-shield-alt"></i>
+                            <span class="nav-text">Verifications</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'partners' %}" class="nav-item {% if request.resolver_match.url_name == 'partners' %}active{% endif %}">
+                            <i class="fas fa-handshake"></i>
+                            <span class="nav-text">Partners</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- Bottom Section -->
+            <div class="border-t border-blue-800 p-4">
+                {% if user.is_authenticated %}
+                <a href="/admin/" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span class="nav-text">Admin</span>
+                </a>
+                <a href="{% url 'logout' %}" class="nav-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="nav-text">Logout</span>
+                </a>
+                {% else %}
+                <a href="{% url 'login' %}" class="nav-item">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span class="nav-text">Login</span>
+                </a>
+                {% endif %}
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+            <!-- Top Bar -->
+            <header class="bg-blue-900 shadow-sm border-b border-blue-800 h-16 flex items-center justify-between px-6">
+                <div class="flex items-center space-x-4">
+                    <!-- Global Search -->
+                    <div class="relative">
+                        <input type="text" id="global-search" placeholder="Search..." 
+                               class="pl-10 pr-4 py-2 bg-blue-800 border border-blue-700 text-white placeholder-blue-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               style="width: 300px;">
+                        <i class="fas fa-search absolute left-3 top-3 text-blue-300"></i>
+                        <div id="search-results" class="hidden absolute right-0 mt-2 w-96 bg-white rounded-md shadow-lg z-50 border border-gray-200" style="max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Notification Center -->
+                    {% include 'frontend/widgets/notification_center.html' %}
+                    
+                    <!-- User Menu -->
+                    <div class="flex items-center space-x-2">
+                        {% if user.is_authenticated %}
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="flex items-center space-x-2 text-blue-100 hover:text-white focus:outline-none">
+                                <div class="h-8 w-8 rounded-full bg-blue-800 flex items-center justify-center border border-blue-700">
+                                    <i class="fas fa-user text-blue-200"></i>
+                                </div>
+                                <span class="text-sm font-medium">{{ user.get_full_name|default:user.email }}</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            
+                            <!-- Dropdown Menu -->
+                            <div x-show="open" 
+                                 @click.away="open = false"
+                                 x-cloak
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                <!-- User Info -->
+                                <div class="px-4 py-2 border-b border-gray-200">
+                                    <p class="text-sm font-semibold text-gray-900">{{ user.get_full_name|default:user.email }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        {% if user.is_superuser %}Admin{% else %}User{% endif %}
+                                    </p>
+                                </div>
+                                
+                                <!-- Settings (User Profile Settings) -->
+                                <a href="{% url 'settings' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-user-cog w-5 text-gray-400"></i>
+                                    <span>Settings</span>
+                                </a>
+                                
+                                <!-- Logout -->
+                                <a href="{% url 'logout' %}" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    <i class="fas fa-sign-out-alt w-5"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="text-sm text-blue-200 hover:text-white">
+                            <i class="fas fa-sign-in-alt mr-1"></i>Login
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-y-auto bg-gray-50 p-6">
+                <div id="content-area">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Toast Container (included in base for all pages) -->
+    {% include 'frontend/components/toast.html' %}
+
+    <style>
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #e0e7ff;
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background-color: #1e3a8a;
+            color: #ffffff;
+        }
+        .nav-item.active {
+            background-color: #1e40af;
+            color: #ffffff;
+        }
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            margin-right: 0.75rem;
+        }
+        .nav-text {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-collapsed .nav-text {
+            display: none;
+        }
+        .sidebar-collapsed .nav-item {
+            justify-content: center;
+            padding: 0.75rem;
+        }
+        .sidebar-collapsed .nav-item i {
+            margin-right: 0;
+        }
+        .sidebar-collapsed #logo-text {
+            display: none;
+        }
+    </style>
+
+    <script>
+        // Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const logoText = document.getElementById('logo-text');
+        
+        // Load saved state
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
+            sidebar.classList.remove('sidebar-expanded');
+            sidebar.classList.add('sidebar-collapsed');
+        }
+        
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('sidebar-expanded');
+            sidebar.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('sidebar-collapsed'));
+        });
+        
+        // Global Search
+        let searchTimeout;
+        const globalSearch = document.getElementById('global-search');
+        if (globalSearch) {
+            globalSearch.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+                const resultsDiv = document.getElementById('search-results');
+                
+                if (query.length < 2) {
+                    resultsDiv.classList.add('hidden');
+                    return;
+                }
+                
+                searchTimeout = setTimeout(() => {
+                    fetch(`/search/?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.results && data.results.length > 0) {
+                                resultsDiv.innerHTML = data.results.map(item => `
+                                    <a href="${item.url}" class="block p-3 hover:bg-gray-50 border-b border-gray-100">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-2xl">${item.icon}</span>
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium text-gray-900">${item.title}</p>
+                                                <p class="text-xs text-gray-500">${item.subtitle}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                `).join('');
+                                resultsDiv.classList.remove('hidden');
+                            } else {
+                                resultsDiv.innerHTML = '<div class="p-3 text-center text-gray-500">No results found</div>';
+                                resultsDiv.classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Search error:', error);
+                            resultsDiv.classList.add('hidden');
+                        });
+                }, 300);
+            });
+        }
+        
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#global-search') && !e.target.closest('#search-results')) {
+                document.getElementById('search-results')?.classList.add('hidden');
+            }
+        });
+    </script>
+    <!-- Flowbite JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.2.1/dist/flowbite.min.js"></script>
+    
+    <!-- HTMX Event Handlers -->
+    <script>
+        // Handle HTMX form submissions
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            // Check if response is a redirect
+            const redirect = event.detail.xhr.getResponseHeader('HX-Redirect');
+            if (redirect) {
+                window.location.href = redirect;
+                return;
+            }
+            
+            // Check for success/error messages
+            if (event.detail.xhr.status === 200 || event.detail.xhr.status === 201) {
+                // Show success toast if available
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Operation completed successfully!', 'success');
+                }
+            } else if (event.detail.xhr.status >= 400) {
+                // Show error toast
+                if (typeof window.showToast === 'function') {
+                    window.showToast('An error occurred. Please try again.', 'error');
+                }
+            }
+        });
+        
+        // Handle Django messages
+        {% if messages %}
+            {% for message in messages %}
+                {% if message.tags == 'success' %}
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('{{ message }}', 'success');
+                    }
+                {% elif message.tags == 'error' %}
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('{{ message }}', 'error');
+                    }
+                {% elif message.tags == 'warning' %}
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('{{ message }}', 'warning');
+                    }
+                {% else %}
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('{{ message }}', 'info');
+                    }
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

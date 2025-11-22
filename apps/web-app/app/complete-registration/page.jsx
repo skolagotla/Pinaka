@@ -1,4 +1,5 @@
-import { auth0 } from '@/lib/auth0';
+// Auth0 disabled - using password-based authentication
+// import { auth0 } from '@/lib/auth0';
 import { redirect } from "next/navigation";
 import CompleteRegistrationForm from "./ui";
 const { prisma } = require('@/lib/prisma');

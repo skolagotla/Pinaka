@@ -1,0 +1,76 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Properties - Pinaka{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900">Properties</h1>
+            <p class="mt-2 text-sm text-gray-600">Manage your property portfolio</p>
+        </div>
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <a href="/admin/property/property/add/" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                <i class="fas fa-plus mr-2"></i>Add Property
+            </a>
+        </div>
+    </div>
+
+    <!-- Properties Grid -->
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {% for property in properties %}
+        <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-xl transition-shadow duration-200">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ property.property_name }}</h3>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        {% if property.status == 'ACTIVE' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ property.get_status_display }}
+                    </span>
+                </div>
+                
+                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                    <p class="flex items-center">
+                        <i class="fas fa-map-marker-alt mr-2 text-gray-400"></i>
+                        {{ property.address_line1 }}
+                    </p>
+                    <p class="flex items-center">
+                        <i class="fas fa-city mr-2 text-gray-400"></i>
+                        {{ property.city }}, {{ property.province_state }} {{ property.postal_zip }}
+                    </p>
+                    <p class="flex items-center">
+                        <i class="fas fa-home mr-2 text-gray-400"></i>
+                        {{ property.property_type }}
+                    </p>
+                    <p class="flex items-center">
+                        <i class="fas fa-door-open mr-2 text-gray-400"></i>
+                        {{ property.units.count }} unit{{ property.units.count|pluralize }}
+                    </p>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center">
+                    <a href="{% url 'property_detail' property.pk %}" class="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                        View Details <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                    <a href="/admin/property/property/{{ property.pk }}/change/" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-building text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
+            <p class="text-gray-500 mb-4">Get started by adding your first property.</p>
+            <a href="/admin/property/property/add/" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                <i class="fas fa-plus mr-2"></i>Add Property
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

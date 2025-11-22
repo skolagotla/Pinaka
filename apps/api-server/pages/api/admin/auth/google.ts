@@ -9,28 +9,18 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getAuthUrl } from '@/lib/admin/google-oauth';
+// Google OAuth disabled - google-auth-library removed
+// import { getAuthUrl } from '@/lib/admin/google-oauth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    // Generate state for CSRF protection (optional)
-    const state = (req.query.state as string) || (null as any);
-
-    // Get Google OAuth authorization URL
-    const authUrl = getAuthUrl(state);
-
-    // Redirect to Google OAuth
-    res.redirect(authUrl);
-  } catch (error: any) {
-    console.error('[Admin Auth] Error initiating Google OAuth:', error);
-    return res.status(500).json({
-      error: 'Failed to initiate authentication',
-      message: error.message,
-    });
-  }
+  // Google OAuth disabled
+  return res.status(503).json({
+    error: 'Google OAuth is disabled',
+    message: 'Google authentication has been disabled. Please use password-based authentication.',
+  });
 }
 

@@ -1,0 +1,40 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Available Rentals - Pinaka{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Available Rentals</h1>
+        <p class="text-lg text-gray-600">Find your perfect home</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {% for unit in available_units %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="p-6">
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ unit.property.property_name }}</h3>
+                <p class="text-gray-600 mb-4">{{ unit.property.address_line1 }}, {{ unit.property.city }}</p>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-bed mr-1"></i>{{ unit.bedrooms|default:"—" }} Bed
+                        <i class="fas fa-bath ml-4 mr-1"></i>{{ unit.bathrooms|default:"—" }} Bath
+                    </div>
+                    <div class="text-lg font-bold text-indigo-600">
+                        ${{ unit.rent_price|floatformat:2|default:"—" }}/mo
+                    </div>
+                </div>
+                <a href="/properties/{{ unit.property.id }}/" class="block w-full text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    View Details
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <p class="text-gray-500">No available rentals at this time</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

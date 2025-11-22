@@ -17,12 +17,10 @@ export default function AdminRootPage() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        const { apiClient } = await import('@/lib/utils/api-client');
-        
-        // Check auth by making the API call directly to check status code
-        // This avoids throwing errors for expected 401 responses
-        const response = await apiClient('/api/admin/auth/me', {
+        // Use fetch directly instead of apiClient to avoid import issues
+        const response = await fetch('/api/admin/auth/me', {
           method: 'GET',
+          credentials: 'include',
         });
 
         // Check if response is ok (200-299)
@@ -44,7 +42,6 @@ export default function AdminRootPage() {
         router.replace('/admin/login');
       } catch (err) {
         // Only log unexpected errors (not 401 Unauthorized)
-        // The interceptors now suppress 401 errors for auth endpoints
         const errorMessage = err?.message || String(err || '');
         if (!errorMessage.includes('Not authenticated') && !errorMessage.includes('401')) {
           console.error('[Admin Root] Unexpected error checking authentication:', err);

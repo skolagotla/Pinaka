@@ -1,0 +1,189 @@
+{% extends 'frontend/admin/base.html' %}
+
+{% block title %}Analytics & Reporting - Pinaka Admin{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Page Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                <i class="fas fa-chart-bar mr-2"></i>Analytics & Reporting
+            </h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Platform analytics and activity reports</p>
+        </div>
+        <div class="flex gap-4">
+            <select id="periodSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="7d" {% if period == '7d' %}selected{% endif %}>Last 7 Days</option>
+                <option value="30d" {% if period == '30d' %}selected{% endif %}>Last 30 Days</option>
+                <option value="90d" {% if period == '90d' %}selected{% endif %}>Last 90 Days</option>
+                <option value="1y" {% if period == '1y' %}selected{% endif %}>Last Year</option>
+            </select>
+            <button onclick="location.reload()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Statistics -->
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <i class="fas fa-user-tie text-2xl text-blue-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Landlords</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.users.landlords }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i class="fas fa-users text-2xl text-green-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Tenants</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.users.tenants }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <i class="fas fa-home text-2xl text-purple-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Properties</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.properties.total }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-orange-100 rounded-lg">
+                    <i class="fas fa-file-contract text-2xl text-orange-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Active Leases</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.leases.active }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Statistics -->
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <i class="fas fa-tools text-2xl text-red-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Maintenance</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.maintenance.total }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-lg">
+                    <i class="fas fa-wrench text-2xl text-yellow-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Open Maintenance</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.maintenance.open }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="p-3 bg-indigo-100 rounded-lg">
+                    <i class="fas fa-file-alt text-2xl text-indigo-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Documents</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overview.documents.total }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Actions -->
+    {% if top_actions %}
+    <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <h2 class="text-xl font-semibold mb-4">Top Actions</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3">Action</th>
+                        <th class="px-6 py-3">Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for action in top_actions %}
+                    <tr class="bg-white border-b">
+                        <td class="px-6 py-4">{{ action.action }}</td>
+                        <td class="px-6 py-4">{{ action.count }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="px-6 py-4 text-center text-gray-500">No data available</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    {% if recent_activity %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">Recent Activity</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3">Timestamp</th>
+                        <th class="px-6 py-3">Admin</th>
+                        <th class="px-6 py-3">Action</th>
+                        <th class="px-6 py-3">Resource</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activity|slice:":20" %}
+                    <tr class="bg-white border-b">
+                        <td class="px-6 py-4">{{ activity.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="px-6 py-4">
+                            {% if activity.admin %}
+                                {{ activity.admin.full_name }}
+                            {% else %}
+                                System
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">{{ activity.action }}</span>
+                        </td>
+                        <td class="px-6 py-4">{{ activity.resource|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">No activity found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('periodSelect').addEventListener('change', function() {
+    window.location.href = '?period=' + this.value;
+});
+</script>
+{% endblock %}

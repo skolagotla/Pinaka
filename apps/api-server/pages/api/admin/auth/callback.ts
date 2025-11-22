@@ -9,7 +9,8 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getTokensFromCode, verifyIdToken } from '@/lib/admin/google-oauth';
+// Google OAuth disabled - google-auth-library removed
+// import { getTokensFromCode, verifyIdToken } from '@/lib/admin/google-oauth';
 import { createSession } from '@/lib/admin/session';
 import { prisma } from '@/lib/prisma';
 const config = require('@/lib/config/app-config').default || require('@/lib/config/app-config');
@@ -183,15 +184,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     const userAgent = getUserAgent(req);
 
-    // Exchange authorization code for tokens
-    const tokens = await getTokensFromCode(code as string);
-
-    if (!tokens.id_token) {
-      throw new Error('No ID token received from Google');
-    }
-
-    // Verify ID token and get user info
-    const googleUser = await verifyIdToken(tokens.id_token);
+    // Google OAuth disabled
+    logger.error('Google OAuth callback attempted but disabled', null, { correlationId });
+    return res.redirect('/admin/login?error=google_oauth_disabled');
 
     // Validate admin login
     const admin = await validateAdminLogin(googleUser, ipAddress);

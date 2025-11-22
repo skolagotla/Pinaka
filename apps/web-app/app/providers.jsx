@@ -1,9 +1,8 @@
 "use client";
-// Auth0 Provider (conditional)
-import { Auth0Provider } from '@auth0/nextjs-auth0/client';
+// Auth0 Provider (conditional - only imported when needed)
 import { ConfigProvider, App, theme as antdTheme } from 'antd';
 import enUS from 'antd/locale/en_US';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { getThemeById } from '@/lib/themes/theme-config';
 import { TimezoneProvider } from '@/lib/context/TimezoneContext';
 import { PropertyProvider } from '@/lib/contexts/PropertyContext';
@@ -83,6 +82,20 @@ if (typeof window !== 'undefined') {
 }
 
 export default function Providers({ children, userTheme = 'default', userTimezone = null, userRole = null, initialProperties = [], useAuth0 = false }) {
+  // AUTH0 DISABLED: Commented out to use password-based authentication only
+  // const [Auth0ProviderComponent, setAuth0ProviderComponent] = useState(null);
+
+  // // Dynamically load Auth0Provider only when useAuth0 is true
+  // useEffect(() => {
+  //   if (useAuth0) {
+  //     import('@auth0/nextjs-auth0/client').then((module) => {
+  //       setAuth0ProviderComponent(() => module.Auth0Provider);
+  //     }).catch((error) => {
+  //       console.error('Failed to load Auth0Provider:', error);
+  //     });
+  //   }
+  // }, [useAuth0]);
+
   // Initialize API interceptors once on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -162,10 +175,10 @@ export default function Providers({ children, userTheme = 'default', userTimezon
     </TimezoneProvider>
   );
 
-  // Only wrap with Auth0Provider if useAuth0 prop is true
-  if (useAuth0) {
-    return <Auth0Provider>{content}</Auth0Provider>;
-  }
+  // AUTH0 DISABLED: Using password-based authentication only
+  // if (useAuth0 && Auth0ProviderComponent) {
+  //   return <Auth0ProviderComponent>{content}</Auth0ProviderComponent>;
+  // }
 
   return content;
 }

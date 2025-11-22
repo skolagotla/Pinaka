@@ -1,0 +1,80 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}{{ landlord.full_name }} - Pinaka{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <a href="{% url 'landlords_list' %}" class="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Landlords
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">{{ landlord.full_name }}</h1>
+        <p class="mt-2 text-sm text-gray-600">{{ landlord.email }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Landlord Details -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Contact Information</h2>
+            <dl class="grid grid-cols-1 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Email</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ landlord.email }}</dd>
+                </div>
+                {% if landlord.phone %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ landlord.phone }}</dd>
+                </div>
+                {% endif %}
+                {% if landlord.address_line1 %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Address</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {{ landlord.address_line1 }}<br>
+                        {% if landlord.address_line2 %}{{ landlord.address_line2 }}<br>{% endif %}
+                        {{ landlord.city }}, {{ landlord.province_state }} {{ landlord.postal_zip }}
+                    </dd>
+                </div>
+                {% endif %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            {% if landlord.approval_status == 'APPROVED' %}bg-green-100 text-green-800
+                            {% elif landlord.approval_status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ landlord.get_approval_status_display }}
+                        </span>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Properties -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Properties</h2>
+            {% if properties %}
+            <ul class="divide-y divide-gray-200">
+                {% for property in properties %}
+                <li class="py-3">
+                    <a href="{% url 'property_detail' property.pk %}" class="block hover:bg-gray-50 -mx-2 px-2 py-2 rounded">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">{{ property.property_name }}</div>
+                                <div class="text-sm text-gray-500">{{ property.address_line1 }}, {{ property.city }}</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500">No properties assigned</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

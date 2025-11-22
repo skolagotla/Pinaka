@@ -1,4 +1,5 @@
-import { auth0 } from '@/lib/auth0';
+// Auth0 disabled - using password-based authentication
+// import { auth0 } from '@/lib/auth0';
 import Link from "next/link";
 
 // Mark as dynamic since we use getSession which requires headers

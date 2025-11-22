@@ -7,9 +7,7 @@ import VerificationsClient from './ui';
  * Works for all roles: Admin, PMC, Landlord, Tenant
  */
 export default withAuth(async ({ user, userRole, prisma, email }) => {
-  // Get verification stats for the user
-  const { getVerificationStats } = require('@/lib/services/unified-verification-service');
-  
+  // Get verification stats from API route (avoids bundling server-only packages)
   let stats = {
     pending: 0,
     verified: 0,
@@ -19,10 +17,21 @@ export default withAuth(async ({ user, userRole, prisma, email }) => {
   };
 
   try {
-    stats = await getVerificationStats(prisma, {
-      userId: user.id,
-      userRole: userRole || 'landlord',
+    // Fetch stats from API route instead of requiring service directly
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const response = await fetch(`${baseUrl}/api/v1/verifications/stats`, {
+      credentials: 'include',
+      headers: {
+        'Cookie': typeof document !== 'undefined' ? document.cookie : '',
+      },
     });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        stats = data.data || stats;
+      }
+    }
   } catch (error) {
     console.error('[Verifications Page] Error loading stats:', error);
     // Continue with default stats

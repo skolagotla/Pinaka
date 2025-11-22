@@ -1,0 +1,32 @@
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">PMC Management</h3>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-indigo-600" id="pmc-landlords-count">0</div>
+            <div class="text-sm text-gray-500">Managed Landlords</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-green-600" id="pmc-properties-count">0</div>
+            <div class="text-sm text-gray-500">Managed Properties</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600" id="pmc-commission-rate">0%</div>
+            <div class="text-sm text-gray-500">Avg Commission</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load PMC stats if user is PMC
+fetch('/api/v1/pmcs/me/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            document.getElementById('pmc-landlords-count').textContent = data.data.managed_landlords || 0;
+            document.getElementById('pmc-properties-count').textContent = data.data.managed_properties || 0;
+            document.getElementById('pmc-commission-rate').textContent = (data.data.avg_commission || 0) + '%';
+        }
+    })
+    .catch(error => console.error('Error loading PMC stats:', error));
+</script>
+

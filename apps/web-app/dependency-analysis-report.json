@@ -1,0 +1,478 @@
+{
+  "timestamp": "2025-11-22T15:36:17.057Z",
+  "versions": {
+    "react": "^18.3.1",
+    "reactDom": "^18.3.1",
+    "next": "14.2.25",
+    "antd": "^5.29.1"
+  },
+  "stats": {
+    "totalFiles": 578,
+    "antdImports": 227,
+    "dynamicImports": 401,
+    "circularCandidates": 152,
+    "webpackIssues": 71
+  },
+  "issues": {
+    "compatibility": [],
+    "circular": [
+      {
+        "file": "components/admin/users/UsersTable.tsx",
+        "import": "@/components/shared",
+        "line": 10
+      },
+      {
+        "file": "components/pages/accountant/tax-reporting/ui.jsx",
+        "import": "@/components/shared",
+        "line": 15
+      },
+      {
+        "file": "components/pages/accountant/year-end-closing/ui.jsx",
+        "import": "@/components/shared/TableRenderers",
+        "line": 15
+      },
+      {
+        "file": "components/pages/accountant/year-end-closing/ui.jsx",
+        "import": "@/components/shared",
+        "line": 17
+      },
+      {
+        "file": "components/pages/landlord/activity-logs/ui.jsx",
+        "import": "@/components/shared",
+        "line": 6
+      },
+      {
+        "file": "components/pages/landlord/analytics/ui.jsx",
+        "import": "@/components/shared/LazyProComponents",
+        "line": 33
+      },
+      {
+        "file": "components/pages/landlord/analytics/ui.jsx",
+        "import": "@/components/shared",
+        "line": 34
+      },
+      {
+        "file": "components/pages/landlord/calendar/ui.jsx",
+        "import": "@/components/shared/buttons",
+        "line": 5
+      },
+      {
+        "file": "components/pages/landlord/calendar/ui.jsx",
+        "import": "@/components/shared",
+        "line": 6
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/PMCDashboardWidget",
+        "line": 3
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/SafeStatistic",
+        "line": 7
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/ActivityLogWidget",
+        "line": 8
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/QuickStatsWidget",
+        "line": 9
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/buttons",
+        "line": 29
+      },
+      {
+        "file": "components/pages/landlord/dashboard/ui.jsx",
+        "import": "@/components/shared/LazyProComponents",
+        "line": 31
+      },
+      {
+        "file": "components/pages/landlord/financials/ui.jsx",
+        "import": "@/components/shared",
+        "line": 6
+      },
+      {
+        "file": "components/pages/landlord/financials/ui.jsx",
+        "import": "@/components/shared/TableRenderers",
+        "line": 7
+      },
+      {
+        "file": "components/pages/landlord/financials/ui.jsx",
+        "import": "@/components/rules/CurrencyDisplay",
+        "line": 20
+      },
+      {
+        "file": "components/pages/landlord/forms/ui.jsx",
+        "import": "@/components/shared",
+        "line": 18
+      },
+      {
+        "file": "components/pages/landlord/forms/ui.jsx",
+        "import": "@/components/shared/TableRenderers",
+        "line": 19
+      }
+    ],
+    "webpack": [
+      {
+        "file": "components/ErrorBoundary.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/LogViewer.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/ProLayoutWrapper.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/pages/landlord/tenants/ui.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/rules/CurrencyDisplay.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/rules/CurrencyInput.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/shared/LibraryClient.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "components/shared/PersonalDocumentsContent.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "app/LayoutClient.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "app/providers.jsx",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "../../lib/admin/google-oauth.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/admin/session.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/auth0-config.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/config/app-config.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/dayjs-locale-stub.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email/document-notifications.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email/notification-emails.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email-gmail.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email-templates/document-expiration.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email-templates/lease-renewal.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email-templates/rent-reminder.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/email.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/hooks/useDocumentVaultFeature.js",
+        "issue": "require() in client component (should use import)",
+        "severity": "warning"
+      },
+      {
+        "file": "../../lib/hooks/useHashGenerator.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/logger.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/pdf-filler/n4-coordinates.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/pdf-filler/n4-field-mapping.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/pdf-filler/n4-filler.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/pdf-filler/n4-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/pdf-filler/signature-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/prisma-middleware.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/prisma-production.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/prisma.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/rent-payment-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/rules/rules-engine.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/analytics-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/approval-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/bulk-operations-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/document-expiration-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/late-fee-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/lease-expiration-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/lease-termination-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/notification-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/payment-dispute-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/payment-gateway-failure-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/payment-retry-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/tax-reporting-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/unified-verification-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/services/year-end-closing-service.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/storage-utils.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/activity-logger.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/country-region-cache.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/country-region-mapper.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/date-utils.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/db-config.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/db-connection-manager.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/document-audit.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/duplicate-code-scanner.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/env-updater.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/password.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/prisma-default-stub.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/prisma-engine-finder.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/prisma-error-handler.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/property-management-routing.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/query-optimizer.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/safe-date-formatter.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/support-ticket-batch.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/support-ticket-helper.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/ticket-generator.js",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/unified-date-formatter.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      },
+      {
+        "file": "../../lib/utils/unified-validation.ts",
+        "issue": "module.exports in ES module (should use export)",
+        "severity": "error"
+      }
+    ]
+  }
+}

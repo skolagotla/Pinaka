@@ -15,6 +15,15 @@ if (enginePath) {
 const nextConfig = {
   reactStrictMode: false, // API server doesn't need React
   
+  // Transpile packages from monorepo workspace (for lib/ directory imports)
+  transpilePackages: [
+    'zod',
+    '@pinaka/domain-common',
+    '@pinaka/generated',
+    '@pinaka/schemas',
+    '@pinaka/shared-utils',
+  ],
+  
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -27,6 +36,23 @@ const nextConfig = {
     return 'api-server-build'
   },
   
+  webpack: (config, { isServer, dev }) => {
+    const path = require('path');
+    
+    // Add workspace root node_modules to module resolution
+    // This allows lib/ directory (at root) to import packages from workspace root
+    config.resolve = config.resolve || {};
+    config.resolve.modules = [
+      ...(config.resolve.modules || ['node_modules']),
+      path.resolve(__dirname, '../../node_modules'), // Workspace root node_modules
+    ];
+    
+    // Enable symlink resolution for pnpm workspaces
+    config.resolve.symlinks = true;
+    
+    return config;
+  },
+  
   // Skip static optimization to avoid React context issues
   experimental: {
     missingSuspenseWithCSRBailout: false,
@@ -37,21 +63,19 @@ const nextConfig = {
     '/**': [],
   },
   
-  serverExternalPackages: [
-    '@prisma/client',
-    '.prisma/client',
-    'bcryptjs',
-    'better-sqlite3',
-    'pg',
-    'cookie',
-    'sharp',
-    'formidable',
-    'node-pdftk',
-    'pdfkit',
-    'pdf-lib',
-    'nodemailer',
-    'google-auth-library',
-  ],
+      serverExternalPackages: [
+        '@prisma/client',
+        '.prisma/client',
+        'bcryptjs',
+        'better-sqlite3',
+        'pg',
+        'cookie',
+        'sharp',
+        'formidable',
+        'node-pdftk',
+        'pdfkit',
+        'pdf-lib',
+      ],
   
   // Configure Turbopack for Prisma resolution (Next.js 16+)
   // Note: Turbopack doesn't support absolute paths in resolveAlias

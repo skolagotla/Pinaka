@@ -1,0 +1,674 @@
+{
+  "missing_pages": [
+    {
+      "route": "/admin/applications",
+      "django_view": "admin_applications",
+      "react_file": "app/admin/applications/page.jsx"
+    },
+    {
+      "route": "/invitations",
+      "django_view": "invitations",
+      "react_file": "app/invitations/page.jsx"
+    }
+  ],
+  "missing_apis": [
+    {
+      "route": "/api/admin",
+      "file": "api/admin/check-expiration.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/analytics",
+      "file": "api/admin/analytics/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/admin/api-keys",
+      "file": "api/admin/api-keys/index.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/admin/applications",
+      "file": "api/admin/applications/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/admin/applications/[id]",
+      "file": "api/admin/applications/[id]/approve.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/approvals",
+      "file": "api/admin/approvals/landlords.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/approvals/landlords/[id]",
+      "file": "api/admin/approvals/landlords/[id]/approve.ts",
+      "methods": []
+    },
+    {
+      "route": "/api/admin/audit-logs",
+      "file": "api/admin/audit-logs/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/admin/auth",
+      "file": "api/admin/auth/callback.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/admin/content",
+      "file": "api/admin/content/index.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/admin/data-export",
+      "file": "api/admin/data-export/index.ts",
+      "methods": []
+    },
+    {
+      "route": "/api/admin/invitations",
+      "file": "api/admin/invitations/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/invitations/[id]",
+      "file": "api/admin/invitations/[id]/index.ts",
+      "methods": [
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/admin/notifications",
+      "file": "api/admin/notifications/announcements.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/admin/organizations",
+      "file": "api/admin/organizations/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/organizations/[id]",
+      "file": "api/admin/organizations/[id]/settings.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ]
+    },
+    {
+      "route": "/api/admin/security",
+      "file": "api/admin/security/sessions.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/settings",
+      "file": "api/admin/settings/index.ts",
+      "methods": [
+        "GET",
+        "PUT",
+        "PATCH"
+      ]
+    },
+    {
+      "route": "/api/admin/support-tickets",
+      "file": "api/admin/support-tickets/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/admin/system",
+      "file": "api/admin/system/health.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/admin/user-activity",
+      "file": "api/admin/user-activity/index.ts",
+      "methods": []
+    },
+    {
+      "route": "/api/admin/users",
+      "file": "api/admin/users/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/approvals",
+      "file": "api/approvals/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/approvals/[id]",
+      "file": "api/approvals/[id]/approve.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/auth",
+      "file": "api/auth/logout.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/bank-reconciliation",
+      "file": "api/bank-reconciliation/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/cache",
+      "file": "api/cache/stats.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/cron",
+      "file": "api/cron/auto-close-maintenance.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/db-switcher",
+      "file": "api/db-switcher/list.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/files/expense-invoices",
+      "file": "api/files/expense-invoices/[filename].ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/health",
+      "file": "api/health/db.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/late-fees",
+      "file": "api/late-fees/rules.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/organizations",
+      "file": "api/organizations/me.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/rbac",
+      "file": "api/rbac/initialize.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/rbac/roles",
+      "file": "api/rbac/roles/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/rbac/roles/[id]",
+      "file": "api/rbac/roles/[id]/permissions.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ]
+    },
+    {
+      "route": "/api/rbac/roles/by-name/[name]",
+      "file": "api/rbac/roles/by-name/[name]/permissions.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/rbac/users/[userId]",
+      "file": "api/rbac/users/[userId]/roles.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/reference-data",
+      "file": "api/reference-data/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/user",
+      "file": "api/user/theme.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/activity-logs",
+      "file": "api/v1/activity-logs/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/analytics",
+      "file": "api/v1/analytics/close-period.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/analytics/t776",
+      "file": "api/v1/analytics/t776/generate.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/applications",
+      "file": "api/v1/applications/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/applications/[id]",
+      "file": "api/v1/applications/[id]/approve.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/conversations",
+      "file": "api/v1/conversations/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/conversations/[id]",
+      "file": "api/v1/conversations/[id]/messages.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/documents",
+      "file": "api/v1/documents/upload.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/documents/[id]",
+      "file": "api/v1/documents/[id]/view.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/expenses",
+      "file": "api/v1/expenses/upload-invoice.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/forms",
+      "file": "api/v1/forms/generate.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/forms/generated",
+      "file": "api/v1/forms/generated/index.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/v1/forms/generated/[id]",
+      "file": "api/v1/forms/generated/[id]/preview.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/generated-forms",
+      "file": "api/v1/generated-forms/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/inspections",
+      "file": "api/v1/inspections/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/invitations",
+      "file": "api/v1/invitations/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/invitations/[id]",
+      "file": "api/v1/invitations/[id]/application.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/landlord",
+      "file": "api/v1/landlord/signature.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/v1/landlords",
+      "file": "api/v1/landlords/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/leases",
+      "file": "api/v1/leases/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/leases/[id]",
+      "file": "api/v1/leases/[id]/renew.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/ltb-documents/[formNumber]",
+      "file": "api/v1/ltb-documents/[formNumber]/view.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/maintenance",
+      "file": "api/v1/maintenance/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/maintenance/[id]",
+      "file": "api/v1/maintenance/[id]/approve.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/notifications",
+      "file": "api/v1/notifications/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/properties",
+      "file": "api/v1/properties/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/properties/[id]/units",
+      "file": "api/v1/properties/[id]/units/index.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/v1/public/invitations",
+      "file": "api/v1/public/invitations/[token].ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/public/tenants",
+      "file": "api/v1/public/tenants/accept-invitation.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/public/tenants/invitations",
+      "file": "api/v1/public/tenants/invitations/[token].ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/rent-payments",
+      "file": "api/v1/rent-payments/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/rent-payments/[id]",
+      "file": "api/v1/rent-payments/[id]/send-receipt.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/search",
+      "file": "api/v1/search/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/tasks",
+      "file": "api/v1/tasks/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/tenants",
+      "file": "api/v1/tenants/payments.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/tenants/[id]",
+      "file": "api/v1/tenants/[id]/approve.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/tenants/invitations",
+      "file": "api/v1/tenants/invitations/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/tenants/invitations/[id]",
+      "file": "api/v1/tenants/invitations/[id]/resend.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/units",
+      "file": "api/v1/units/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/user",
+      "file": "api/v1/user/status.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/v1/vendors",
+      "file": "api/v1/vendors/index.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/v1/vendors/[id]",
+      "file": "api/v1/vendors/[id]/remove-from-landlord.ts",
+      "methods": [
+        "DELETE"
+      ]
+    },
+    {
+      "route": "/api/verifications",
+      "file": "api/verifications/index.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/verifications/[id]",
+      "file": "api/verifications/[id]/verify.ts",
+      "methods": [
+        "POST"
+      ]
+    }
+  ],
+  "unmapped_pages": [
+    "/.",
+    "/rbac",
+    "/financials/tax-reporting",
+    "/financials/year-end",
+    "/contractor/dashboard",
+    "/success",
+    "/homepage",
+    "/homepage/rent",
+    "/landlords/[id]",
+    "/pending-approval",
+    "/complete-registration",
+    "/admin",
+    "/admin/login",
+    "/admin/invitations",
+    "/accept-invitation",
+    "/properties/[id]",
+    "/documents",
+    "/account-suspended",
+    "/db-switcher",
+    "/vendor/dashboard"
+  ],
+  "total_react_pages": 56,
+  "total_react_apis": 86,
+  "total_django_views": 46,
+  "total_django_urls": 81
+}

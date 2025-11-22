@@ -18,9 +18,48 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from 'next/server';
-import { auth0 } from "./lib/auth0";
+
+// Conditionally import Auth0 only if configured (lazy load to avoid module resolution errors)
+async function getAuth0() {
+  try {
+    // Check if Auth0 is configured
+    const isAuth0Configured = !!(
+      process.env.AUTH0_SECRET &&
+      process.env.AUTH0_BASE_URL &&
+      (process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_DOMAIN) &&
+      process.env.AUTH0_CLIENT_ID &&
+      process.env.AUTH0_CLIENT_SECRET
+    );
+    
+    if (!isAuth0Configured) {
+      return null;
+    }
+    
+    // Dynamic import to avoid module resolution errors if Auth0 is not installed
+    const auth0Module = await import('./lib/auth0');
+    return auth0Module.auth0;
+  } catch (error) {
+    // Auth0 not available - continue without it
+    return null;
+  }
+}
 
 export async function proxy(request: NextRequest) {
+  // Check if Auth0 is configured - if not, skip middleware and let Next.js rewrites handle it
+  const isAuth0Configured = !!(
+    process.env.AUTH0_SECRET &&
+    process.env.AUTH0_BASE_URL &&
+    (process.env.AUTH0_ISSUER_BASE_URL || process.env.AUTH0_DOMAIN) &&
+    process.env.AUTH0_CLIENT_ID &&
+    process.env.AUTH0_CLIENT_SECRET
+  );
+
+  // If Auth0 is not configured, skip middleware processing
+  // Next.js rewrites will handle API proxying
+  if (!isAuth0Configured) {
+    return NextResponse.next();
+  }
+
   const url = request.nextUrl.clone();
   const hostname = request.headers.get('host') || '';
 
@@ -49,21 +88,24 @@ export async function proxy(request: NextRequest) {
         }
 
         // Continue with request, adding organization context
-        // Then handle Auth0
-        const auth0Response = await auth0.middleware(request);
-        
-        // If Auth0 returned a response (redirect, etc.), return it with merged headers
-        if (auth0Response && auth0Response.status !== 200) {
-          const mergedHeaders = new Headers(auth0Response.headers);
-          requestHeaders.forEach((value, key) => {
-            mergedHeaders.set(key, value);
-          });
+        // Then handle Auth0 if available
+        const auth0 = await getAuth0();
+        if (auth0) {
+          const auth0Response = await auth0.middleware(request);
           
-          return new NextResponse(auth0Response.body, {
-            status: auth0Response.status,
-            statusText: auth0Response.statusText,
-            headers: mergedHeaders,
-          });
+          // If Auth0 returned a response (redirect, etc.), return it with merged headers
+          if (auth0Response && auth0Response.status !== 200) {
+            const mergedHeaders = new Headers(auth0Response.headers);
+            requestHeaders.forEach((value, key) => {
+              mergedHeaders.set(key, value);
+            });
+            
+            return new NextResponse(auth0Response.body, {
+              status: auth0Response.status,
+              statusText: auth0Response.statusText,
+              headers: mergedHeaders,
+            });
+          }
         }
         
         // Continue with request, adding organization headers
@@ -89,12 +131,18 @@ export async function proxy(request: NextRequest) {
       }
     } catch (error) {
       console.error('[Proxy] Error processing subdomain:', error);
-      // Continue with Auth0 if error (backward compatibility)
+      // Continue without Auth0 if error (backward compatibility)
     }
   }
 
-  // No subdomain or subdomain is 'www'/'app' - handle Auth0 normally
-  return await auth0.middleware(request);
+  // No subdomain or subdomain is 'www'/'app' - handle Auth0 if available
+  const auth0 = await getAuth0();
+  if (auth0) {
+    return await auth0.middleware(request);
+  }
+  
+  // No Auth0 - just continue with request
+  return NextResponse.next();
 }
 
 /**
@@ -125,6 +173,8 @@ function extractSubdomain(hostname: string): string | null {
   return null;
 }
 
+// Static config object (required by Next.js)
+// Middleware will check Auth0 configuration at runtime
 export const config = {
   matcher: [
     /*
@@ -132,9 +182,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     * - api/auth (Auth0 routes - handled by Auth0 SDK)
+     * - api/* (API routes - handled by Next.js rewrites)
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/).*)',
   ],
 };
 

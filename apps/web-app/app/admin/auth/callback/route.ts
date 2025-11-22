@@ -9,9 +9,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getTokensFromCode, verifyIdToken } from '@/lib/admin/google-oauth';
-import { createSession } from '@/lib/admin/session';
-const { prisma } = require('@/lib/prisma');
+// Google OAuth moved to API route to avoid bundling server-only packages
+// import { getTokensFromCode, verifyIdToken } from '@/lib/admin/google-oauth';
+// import { createSession } from '@/lib/admin/session';
+// const { prisma } = require('@/lib/prisma');
 
 function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -155,94 +156,48 @@ async function validateAdminLogin(googleUser: any, ipAddress: string) {
 }
 
 export async function GET(request: NextRequest) {
+  // Redirect to API route for Google OAuth callback handling
+  // This avoids bundling server-only packages (google-auth-library) in the web app
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const error = searchParams.get('error');
+  const origin = request.nextUrl.origin || new URL(request.url).origin;
+  
+  // Build API route URL
+  const apiUrl = new URL('/api/admin/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+  if (code) apiUrl.searchParams.set('code', code);
+  if (error) apiUrl.searchParams.set('error', error);
+  
+  // Forward the request to the API server
   try {
-    const { searchParams } = new URL(request.url);
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-
-    // Get origin for consistent redirect URLs
-    const origin = request.nextUrl.origin || new URL(request.url).origin;
-    
-    // Handle OAuth errors
-    if (error) {
-      console.error('[Admin Auth] OAuth error:', error);
-      return NextResponse.redirect(
-        new URL(`/admin/login?error=${encodeURIComponent(error)}`, origin)
-      );
-    }
-
-    if (!code) {
-      return NextResponse.redirect(
-        new URL('/admin/login?error=missing_code', origin)
-      );
-    }
-
-    const ipAddress = getClientIp(request);
-    const userAgent = getUserAgent(request);
-
-    // Exchange authorization code for tokens
-    const tokens = await getTokensFromCode(code);
-
-    if (!tokens.id_token) {
-      throw new Error('No ID token received from Google');
-    }
-
-    // Verify ID token and get user info
-    const googleUser = await verifyIdToken(tokens.id_token);
-
-    // Validate admin login
-    const admin = await validateAdminLogin(googleUser, ipAddress);
-
-    // Create session
-    const session = await createSession(
-      admin.id,
-      ipAddress,
-      userAgent,
-      tokens
-    );
-
-    // Log successful login
-    await prisma.adminAuditLog.create({
-      data: {
-        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        adminId: admin.id,
-        action: 'login_success',
-        resource: 'admin',
-        resourceId: admin.id,
-        details: {
-          googleId: googleUser.googleId,
-        },
-        ipAddress,
-        userAgent,
-        success: true,
-        googleEmail: googleUser.email,
+    const response = await fetch(apiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Cookie': request.headers.get('cookie') || '',
       },
+      redirect: 'manual', // Don't follow redirects, we'll handle them
     });
-
-    // Create response with redirect
-    // Use the origin from request to ensure correct protocol (http vs https)
-    const redirectUrl = new URL('/admin/dashboard', origin);
     
-    const response = NextResponse.redirect(redirectUrl);
-
-    // Set session cookie
-    response.cookies.set('admin_session', session.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 60, // 30 minutes
-      path: '/',
+    // If API returns a redirect, extract the location and redirect
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (location) {
+        return NextResponse.redirect(new URL(location, origin));
+      }
+    }
+    
+    // If API sets cookies, forward them
+    const setCookieHeaders = response.headers.getSetCookie();
+    const redirectResponse = NextResponse.redirect(new URL('/admin/dashboard', origin));
+    setCookieHeaders.forEach(cookie => {
+      redirectResponse.headers.append('Set-Cookie', cookie);
     });
-
-    return response;
+    
+    return redirectResponse;
   } catch (error: any) {
-    console.error('[Admin Auth] Error in callback:', error);
-    const origin = request.nextUrl.origin || new URL(request.url).origin;
+    console.error('[Admin Auth] Error forwarding to API:', error);
     return NextResponse.redirect(
-      new URL(
-        `/admin/login?error=${encodeURIComponent(error.message || 'Authentication failed')}`,
-        origin
-      )
+      new URL(`/admin/login?error=${encodeURIComponent('Authentication failed')}`, origin)
     );
   }
 }

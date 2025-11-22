@@ -1,0 +1,120 @@
+{% extends 'frontend/admin/base.html' %}
+
+{% block title %}System Monitoring - Pinaka Admin{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Page Header -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                <i class="fas fa-server mr-2"></i>System Monitoring
+            </h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Monitor system health and performance</p>
+        </div>
+        <button onclick="location.reload()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+            <i class="fas fa-sync-alt mr-2"></i>Refresh
+        </button>
+    </div>
+
+    {% if health %}
+    <!-- Database Status -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Database Status</h3>
+                    {% if health.database.healthy %}
+                    <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+                    {% else %}
+                    <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                    {% endif %}
+                </div>
+                <p class="text-3xl font-bold mt-2">{{ health.database.status }}</p>
+                <p class="text-sm text-gray-500 mt-1">Response Time: {{ health.database.responseTime }}ms</p>
+            </div>
+            <div>
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Active Sessions</h3>
+                    <i class="fas fa-users text-blue-500 text-2xl"></i>
+                </div>
+                <p class="text-3xl font-bold mt-2">{{ health.metrics.system.activeSessions }}</p>
+                <p class="text-sm text-gray-500 mt-1">Currently active</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Total Landlords</h3>
+                <i class="fas fa-user-tie text-blue-500 text-2xl"></i>
+            </div>
+            <p class="text-3xl font-bold mt-2">{{ health.metrics.users.landlords }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Total Tenants</h3>
+                <i class="fas fa-users text-orange-500 text-2xl"></i>
+            </div>
+            <p class="text-3xl font-bold mt-2">{{ health.metrics.users.tenants }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Total Users</h3>
+                <i class="fas fa-user text-green-500 text-2xl"></i>
+            </div>
+            <p class="text-3xl font-bold mt-2">{{ health.metrics.users.total }}</p>
+        </div>
+    </div>
+
+    <!-- Property Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Total Properties</h3>
+                <i class="fas fa-home text-indigo-500 text-2xl"></i>
+            </div>
+            <p class="text-3xl font-bold mt-2">{{ health.metrics.properties.total }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Properties with Active Leases</h3>
+                <i class="fas fa-file-contract text-purple-500 text-2xl"></i>
+            </div>
+            <p class="text-3xl font-bold mt-2">{{ health.metrics.properties.withActiveLeases }}</p>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Activity (Last 24 Hours)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-500">Logins</p>
+                <p class="text-2xl font-bold mt-1">{{ health.activity.last24Hours.logins }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">New Users</p>
+                <p class="text-2xl font-bold mt-1">{{ health.activity.last24Hours.newUsers }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">New Properties</p>
+                <p class="text-2xl font-bold mt-1">{{ health.activity.last24Hours.newProperties }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <p class="text-sm text-gray-500">
+            Last updated: {{ health.timestamp|date:"M d, Y H:i:s" }}
+        </p>
+        <p class="text-sm text-gray-500 mt-1">
+            Database Tables: {{ health.metrics.system.tableCount }}
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

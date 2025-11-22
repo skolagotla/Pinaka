@@ -5,7 +5,8 @@
  */
 
 import { AuthProvider } from './providers/base';
-import { Auth0Provider } from './providers/auth0-provider';
+// Auth0 disabled - using password-based authentication
+// import { Auth0Provider } from './providers/auth0-provider';
 import { PasswordProvider } from './providers/password-provider';
 
 export type AuthMode = 'auth0' | 'password' | 'auto';

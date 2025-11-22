@@ -6,6 +6,30 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 const nextConfig = {
   reactStrictMode: true,
   
+  // Transpile packages from monorepo workspace
+  // Note: pdf-lib and pdfkit are in serverExternalPackages (server-only)
+  transpilePackages: [
+    'antd',
+    'dayjs',
+    'lodash',
+    'react-pdf',
+    'react-resizable',
+    'react-signature-canvas',
+    'web-vitals',
+    'json-rules-engine',
+    'dotenv',
+    '@ant-design/charts',
+    '@ant-design/icons',
+    '@ant-design/pro-card',
+    '@ant-design/pro-components',
+    '@ant-design/pro-layout',
+    '@pinaka/domain-common',
+    '@pinaka/generated',
+    '@pinaka/schemas',
+    '@pinaka/shared-utils',
+    '@pinaka/ui',
+  ],
+  
   // Path aliases - relative to app root
   typescript: {
     ignoreBuildErrors: true,
@@ -61,14 +85,13 @@ const nextConfig = {
     'sharp',
     'formidable',
     'node-pdftk',
-    'pdfkit',
-    'pdf-lib',
-    'nodemailer',
-    'google-auth-library',
-  ],
+        'pdfkit',
+        'pdf-lib',
+      ],
   
   webpack: (config, { isServer, dev }) => {
     const webpack = require('webpack');
+    const path = require('path');
     config.plugins = config.plugins || [];
     config.plugins.push(
       new webpack.IgnorePlugin({
@@ -99,6 +122,16 @@ const nextConfig = {
       'dayjs/locale/zh-cn': require.resolve('../../lib/dayjs-locale-stub.js'),
       'dayjs/locale/zh': require.resolve('../../lib/dayjs-locale-stub.js'),
     };
+    
+    // Add workspace root node_modules to module resolution
+    // This allows lib/ directory (at root) to import packages from workspace root
+    config.resolve.modules = [
+      ...(config.resolve.modules || ['node_modules']),
+      path.resolve(__dirname, '../../node_modules'), // Workspace root node_modules
+    ];
+    
+    // Enable symlink resolution for pnpm workspaces
+    config.resolve.symlinks = true;
     
     if (!isServer && !dev) {
       config.optimization = {

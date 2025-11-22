@@ -1,0 +1,83 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Database Management - Admin{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900">Database Management</h1>
+            <p class="mt-2 text-sm text-gray-600">Database statistics and operations</p>
+        </div>
+    </div>
+
+    <!-- Database Stats Grid -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.properties }}</div>
+            <div class="text-sm text-gray-500">Properties</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.units }}</div>
+            <div class="text-sm text-gray-500">Units</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.tenants }}</div>
+            <div class="text-sm text-gray-500">Tenants</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.leases }}</div>
+            <div class="text-sm text-gray-500">Leases</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.payments }}</div>
+            <div class="text-sm text-gray-500">Payments</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.landlords }}</div>
+            <div class="text-sm text-gray-500">Landlords</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.pmcs }}</div>
+            <div class="text-sm text-gray-500">PMCs</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.admins }}</div>
+            <div class="text-sm text-gray-500">Admins</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.documents }}</div>
+            <div class="text-sm text-gray-500">Documents</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.conversations }}</div>
+            <div class="text-sm text-gray-500">Conversations</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.messages }}</div>
+            <div class="text-sm text-gray-500">Messages</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.tickets }}</div>
+            <div class="text-sm text-gray-500">Support Tickets</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.notifications }}</div>
+            <div class="text-sm text-gray-500">Notifications</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.verifications }}</div>
+            <div class="text-sm text-gray-500">Verifications</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.invitations }}</div>
+            <div class="text-sm text-gray-500">Invitations</div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg p-5">
+            <div class="text-2xl font-bold text-gray-900">{{ db_stats.service_providers }}</div>
+            <div class="text-sm text-gray-500">Service Providers</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

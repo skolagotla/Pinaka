@@ -1,0 +1,48 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Security Center - Admin{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900">Security Center</h1>
+            <p class="mt-2 text-sm text-gray-600">Monitor security events and access logs</p>
+        </div>
+    </div>
+
+    <!-- Security Events -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Security Events</h3>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            {% for log in recent_audit_logs %}
+            <li class="px-4 py-4 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">{{ log.action }}</div>
+                        <div class="text-sm text-gray-500">
+                            {% if log.admin %}{{ log.admin.full_name }} ({{ log.admin.email }}){% else %}System{% endif %}
+                        </div>
+                        {% if log.ip_address %}
+                        <div class="text-xs text-gray-400 mt-1">IP: {{ log.ip_address }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            {% if log.success %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {% if log.success %}Success{% else %}Failed{% endif %}
+                        </span>
+                        <div class="text-xs text-gray-400 mt-1">{{ log.created_at|date:"M d, Y H:i" }}</div>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li class="px-4 py-12 text-center text-gray-500">No security events found</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,372 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Legal Documents - Pinaka{% endblock %}
+
+{% block content %}
+<div class="p-6" x-data="ltbDocuments()" x-init="init()">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Legal Documents</h1>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Access Ontario Landlord and Tenant Board forms and legal documents</p>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <div class="flex flex-wrap gap-4 items-center">
+            <!-- Country Select -->
+            <div class="flex-1 min-w-[130px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country</label>
+                <select x-model="filters.country" @change="handleCountryChange($event.target.value)" 
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="CA">Canada</option>
+                    <option value="US">United States</option>
+                </select>
+            </div>
+
+            <!-- Province Select -->
+            <div class="flex-1 min-w-[170px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Province/State</label>
+                <select x-model="filters.province" @change="fetchDocuments()"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <template x-for="region in getRegions(filters.country)" :key="region.value">
+                        <option :value="region.value" x-text="region.label"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Category Select -->
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                <select x-model="filters.category" @change="fetchDocuments()"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="">All Categories</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Eviction">Eviction</option>
+                    <option value="Application">Application</option>
+                    <option value="Agreement">Agreement</option>
+                    <option value="Notice Response">Notice Response</option>
+                    <option value="Tenant Rights">Tenant Rights</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <!-- Search -->
+            <div class="flex-1 min-w-[300px]">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                <div class="relative">
+                    <input type="text" x-model="filters.search" @input.debounce.300ms="fetchDocuments()"
+                           placeholder="Search forms..."
+                           class="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Clear Filters -->
+            <div class="flex items-end">
+                <button @click="clearFilters()" 
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">
+                    <i class="fas fa-times mr-2"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+        <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex -mb-px" aria-label="Tabs">
+                <button @click="activeTab = 'all'; fetchDocuments()" 
+                        :class="activeTab === 'all' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+                        class="flex items-center px-6 py-4 text-sm font-medium border-b-2">
+                    All
+                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400" x-text="tabCounts.all"></span>
+                </button>
+                <button @click="activeTab = 'landlord'; fetchDocuments()" 
+                        :class="activeTab === 'landlord' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+                        class="flex items-center px-6 py-4 text-sm font-medium border-b-2">
+                    Landlord
+                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300" x-text="tabCounts.landlord"></span>
+                </button>
+                <button @click="activeTab = 'tenant'; fetchDocuments()" 
+                        :class="activeTab === 'tenant' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+                        class="flex items-center px-6 py-4 text-sm font-medium border-b-2">
+                    Tenant
+                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300" x-text="tabCounts.tenant"></span>
+                </button>
+                <button @click="activeTab = 'both'; fetchDocuments()" 
+                        :class="activeTab === 'both' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
+                        class="flex items-center px-6 py-4 text-sm font-medium border-b-2">
+                    Both
+                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300" x-text="tabCounts.both"></span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="text-center py-12">
+        <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-4"></i>
+        <p class="text-gray-600 dark:text-gray-400">Loading documents...</p>
+    </div>
+
+    <!-- Error State -->
+    <div x-show="error" class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-circle text-red-600 dark:text-red-400 mr-3"></i>
+            <p class="text-red-800 dark:text-red-200" x-text="error"></p>
+        </div>
+    </div>
+
+    <!-- Empty State (Non-Ontario) -->
+    <div x-show="!loading && !error && !isOntarioSelected" class="text-center py-12">
+        <i class="fas fa-map-marker-alt text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Coming Soon: Documents for other regions</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Please select Canada and Ontario to view available documents.</p>
+    </div>
+
+    <!-- Documents Grid -->
+    <div x-show="!loading && !error && isOntarioSelected" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <template x-for="doc in documents" :key="doc.id">
+            <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow hover:shadow-lg transition-shadow duration-200">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex-shrink-0">
+                            <span class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 font-bold text-lg" x-text="doc.form_number"></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span x-show="doc.audience === 'landlord'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">Landlord</span>
+                            <span x-show="doc.audience === 'tenant'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-blue-200">Tenant</span>
+                            <span x-show="doc.audience === 'both'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">Both</span>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2" x-text="doc.name"></h3>
+                    
+                    <p x-show="doc.description" class="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2" x-text="doc.description"></p>
+                    
+                    <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
+                        <p class="flex items-center">
+                            <i class="fas fa-tag mr-2 text-gray-400"></i>
+                            <span x-text="doc.category"></span>
+                        </p>
+                        <p class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-2 text-gray-400"></i>
+                            <span x-text="doc.country + ' - ' + doc.province"></span>
+                        </p>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between items-center space-x-2">
+                        <button @click="viewPDF(doc)" class="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                            <i class="fas fa-eye mr-2"></i>View PDF
+                        </button>
+                        <button x-show="doc.instruction_url" @click="window.open(doc.instruction_url, '_blank')" 
+                                class="inline-flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i class="fas fa-file-alt"></i>
+                        </button>
+                        <button @click="downloadPDF(doc)" 
+                                class="inline-flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty State (No Documents) -->
+    <div x-show="!loading && !error && isOntarioSelected && documents.length === 0" class="text-center py-12">
+        <i class="fas fa-gavel text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No forms found</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400" x-text="filters.search ? 'Try adjusting your search or filters' : 'No documents match your current filters'"></p>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <div x-show="showPDFModal" @click.away="closePDFModal()" 
+         class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.75);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="selectedDocument ? selectedDocument.form_number + ' - ' + selectedDocument.name : ''"></h3>
+                    <button @click="closePDFModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-auto p-4">
+                    <iframe :src="pdfViewerUrl" class="w-full h-full min-h-[600px] border-0"></iframe>
+                </div>
+                <div class="flex items-center justify-end p-4 border-t border-gray-200 dark:border-gray-700 space-x-2">
+                    <button @click="downloadPDF(selectedDocument)" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">
+                        <i class="fas fa-download mr-2"></i>Download
+                    </button>
+                    <button @click="closePDFModal()" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function ltbDocuments() {
+    return {
+        loading: false,
+        error: null,
+        documents: [],
+        filters: {
+            country: 'CA',
+            province: 'ON',
+            category: '',
+            search: '',
+        },
+        activeTab: 'all',
+        tabCounts: {
+            all: 0,
+            landlord: 0,
+            tenant: 0,
+            both: 0,
+        },
+        showPDFModal: false,
+        selectedDocument: null,
+        pdfViewerUrl: '',
+
+        get isOntarioSelected() {
+            return this.filters.country === 'CA' && this.filters.province === 'ON';
+        },
+
+        getRegions(country) {
+            if (country === 'CA') {
+                return [
+                    { value: 'ON', label: 'Ontario' },
+                    { value: 'BC', label: 'British Columbia' },
+                    { value: 'AB', label: 'Alberta' },
+                    { value: 'QC', label: 'Quebec' },
+                    { value: 'MB', label: 'Manitoba' },
+                    { value: 'SK', label: 'Saskatchewan' },
+                    { value: 'NS', label: 'Nova Scotia' },
+                    { value: 'NB', label: 'New Brunswick' },
+                    { value: 'NL', label: 'Newfoundland and Labrador' },
+                    { value: 'PE', label: 'Prince Edward Island' },
+                    { value: 'NT', label: 'Northwest Territories' },
+                    { value: 'YT', label: 'Yukon' },
+                    { value: 'NU', label: 'Nunavut' },
+                ];
+            } else if (country === 'US') {
+                return [
+                    { value: 'NJ', label: 'New Jersey' },
+                    { value: 'NY', label: 'New York' },
+                    { value: 'CA', label: 'California' },
+                    { value: 'TX', label: 'Texas' },
+                    { value: 'FL', label: 'Florida' },
+                ];
+            }
+            return [];
+        },
+
+        handleCountryChange(country) {
+            this.filters.country = country;
+            // Auto-set default province
+            if (country === 'CA') {
+                this.filters.province = 'ON';
+            } else if (country === 'US') {
+                this.filters.province = 'NJ';
+            }
+            this.fetchDocuments();
+        },
+
+        clearFilters() {
+            this.filters.category = '';
+            this.filters.search = '';
+            this.fetchDocuments();
+        },
+
+        async fetchDocuments() {
+            if (!this.isOntarioSelected) {
+                this.documents = [];
+                this.updateTabCounts();
+                return;
+            }
+
+            this.loading = true;
+            this.error = null;
+
+            try {
+                const params = new URLSearchParams({
+                    country: this.filters.country,
+                    province: this.filters.province,
+                });
+                
+                if (this.filters.category) {
+                    params.append('category', this.filters.category);
+                }
+                
+                if (this.activeTab !== 'all') {
+                    params.append('audience', this.activeTab);
+                }
+                
+                if (this.filters.search) {
+                    params.append('search', this.filters.search);
+                }
+
+                const response = await fetch(`/api/v1/ltb-documents/?${params.toString()}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    this.documents = data.data || [];
+                    this.updateTabCounts();
+                } else {
+                    this.error = data.error || 'Failed to fetch documents';
+                }
+            } catch (err) {
+                this.error = err.message || 'Failed to fetch documents';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        updateTabCounts() {
+            this.tabCounts.all = this.documents.length;
+            this.tabCounts.landlord = this.documents.filter(d => d.audience === 'landlord').length;
+            this.tabCounts.tenant = this.documents.filter(d => d.audience === 'tenant').length;
+            this.tabCounts.both = this.documents.filter(d => d.audience === 'both').length;
+        },
+
+        viewPDF(doc) {
+            this.selectedDocument = doc;
+            this.pdfViewerUrl = `/api/v1/ltb-documents/${doc.form_number}/view/`;
+            this.showPDFModal = true;
+        },
+
+        closePDFModal() {
+            this.showPDFModal = false;
+            this.selectedDocument = null;
+            this.pdfViewerUrl = '';
+        },
+
+        async downloadPDF(doc) {
+            try {
+                const response = await fetch(`/api/v1/ltb-documents/${doc.form_number}/view/`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${doc.form_number}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Failed to download PDF: ' + err.message);
+            }
+        },
+
+        init() {
+            this.fetchDocuments();
+        },
+    };
+}
+</script>
+{% endblock %}

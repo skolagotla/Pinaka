@@ -20,7 +20,8 @@
  * ```
  */
 
-import { auth0 } from '../auth0';
+// Auth0 disabled - using password-based authentication
+// import { auth0 } from '../auth0';
 import { redirect } from "next/navigation";
 import { cookies } from 'next/headers';
 const { prisma } = require("../prisma");

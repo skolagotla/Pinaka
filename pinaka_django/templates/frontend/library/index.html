@@ -1,0 +1,352 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Library - Pinaka{% endblock %}
+
+{% block content %}
+<div class="p-6" x-data="documentLibrary()" x-init="init()">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Document Library</h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Manage all documents and files</p>
+        </div>
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <button @click="showUploadModal = true" 
+                    class="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+                <i class="fas fa-upload mr-2"></i>Upload Document
+            </button>
+        </div>
+    </div>
+
+    <!-- Documents Grid -->
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <template x-for="document in documents" :key="document.id">
+            <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow hover:shadow-lg transition-shadow duration-200">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-file text-3xl text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span x-show="document.is_verified" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                <i class="fas fa-check-circle mr-1"></i>Verified
+                            </span>
+                            <span x-show="document.is_required" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                Required
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2" x-text="document.original_name"></h3>
+                    
+                    <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
+                        <p class="flex items-center">
+                            <i class="fas fa-tag mr-2 text-gray-400"></i>
+                            <span x-text="document.category"></span>
+                        </p>
+                        <p class="flex items-center">
+                            <i class="fas fa-user mr-2 text-gray-400"></i>
+                            <span x-text="document.tenant_name"></span>
+                        </p>
+                        <p x-show="document.property_name" class="flex items-center">
+                            <i class="fas fa-home mr-2 text-gray-400"></i>
+                            <span x-text="document.property_name"></span>
+                        </p>
+                        <p class="flex items-center">
+                            <i class="fas fa-calendar mr-2 text-gray-400"></i>
+                            <span x-text="formatDate(document.uploaded_at)"></span>
+                        </p>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between items-center space-x-2">
+                        <span class="text-xs text-gray-500 dark:text-gray-400" x-text="formatFileSize(document.file_size)"></span>
+                        <div class="flex space-x-2">
+                            <button @click="viewPDF(document)" 
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 text-sm font-medium">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </button>
+                            <button @click="downloadDocument(document)" 
+                                    class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 text-sm font-medium">
+                                <i class="fas fa-download mr-1"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="documents.length === 0" class="col-span-full text-center py-12">
+        <i class="fas fa-file text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No documents found</h3>
+        <button @click="showUploadModal = true" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300">
+            Upload your first document
+        </button>
+    </div>
+
+    <!-- Upload Modal -->
+    <div x-show="showUploadModal" @click.away="closeUploadModal()" 
+         class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.75);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Upload Document</h3>
+                    <button @click="closeUploadModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Drag and Drop Zone -->
+                    <div @dragover.prevent="dragOver = true" 
+                         @dragleave.prevent="dragOver = false"
+                         @drop.prevent="handleDrop($event)"
+                         :class="dragOver ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-300 dark:border-gray-600'"
+                         class="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors"
+                         @click="document.getElementById('file-input').click()">
+                        <input type="file" id="file-input" class="hidden" @change="handleFileSelect($event)" multiple>
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-4"></i>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            <span class="text-blue-600 dark:text-blue-400">Click to upload</span> or drag and drop
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            PDF, JPG, PNG, DOC, DOCX (MAX. 10MB)
+                        </p>
+                    </div>
+
+                    <!-- Selected Files -->
+                    <div x-show="selectedFiles.length > 0" class="mt-4 space-y-2">
+                        <template x-for="(file, index) in selectedFiles" :key="index">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-file text-gray-400"></i>
+                                    <span class="text-sm text-gray-900 dark:text-white" x-text="file.name"></span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="formatFileSize(file.size)"></span>
+                                </div>
+                                <button @click="removeFile(index)" class="text-red-600 dark:text-red-400 hover:text-red-800">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Category Select -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+                        <select x-model="uploadCategory" 
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option value="">Select Category</option>
+                            <option value="BUSINESS">Business</option>
+                            <option value="LEGAL">Legal</option>
+                            <option value="PERSONAL">Personal</option>
+                        </select>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description (Optional)</label>
+                        <textarea x-model="uploadDescription" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
+                    </div>
+
+                    <!-- Upload Progress -->
+                    <div x-show="uploading" class="mt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Uploading...</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300" x-text="uploadProgress + '%'"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="'width: ' + uploadProgress + '%'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end p-6 border-t border-gray-200 dark:border-gray-700 space-x-2">
+                    <button @click="closeUploadModal()" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">
+                        Cancel
+                    </button>
+                    <button @click="uploadDocuments()" 
+                            :disabled="selectedFiles.length === 0 || !uploadCategory || uploading"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <div x-show="showPDFModal" @click.away="closePDFModal()" 
+         class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.75);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="selectedDocument ? selectedDocument.original_name : ''"></h3>
+                    <button @click="closePDFModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-auto p-4">
+                    <iframe :src="pdfViewerUrl" class="w-full h-full min-h-[600px] border-0"></iframe>
+                </div>
+                <div class="flex items-center justify-end p-4 border-t border-gray-200 dark:border-gray-700 space-x-2">
+                    <button @click="downloadDocument(selectedDocument)" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">
+                        <i class="fas fa-download mr-2"></i>Download
+                    </button>
+                    <button @click="closePDFModal()" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function documentLibrary() {
+    return {
+        documents: [],
+        showUploadModal: false,
+        showPDFModal: false,
+        selectedDocument: null,
+        pdfViewerUrl: '',
+        dragOver: false,
+        selectedFiles: [],
+        uploadCategory: '',
+        uploadDescription: '',
+        uploading: false,
+        uploadProgress: 0,
+
+        async init() {
+            await this.fetchDocuments();
+        },
+
+        async fetchDocuments() {
+            try {
+                const response = await fetch('/api/v1/documents/');
+                const data = await response.json();
+                if (data.success) {
+                    this.documents = data.data || [];
+                }
+            } catch (err) {
+                console.error('Failed to fetch documents:', err);
+            }
+        },
+
+        handleFileSelect(event) {
+            this.selectedFiles = Array.from(event.target.files);
+        },
+
+        handleDrop(event) {
+            this.dragOver = false;
+            this.selectedFiles = Array.from(event.dataTransfer.files);
+        },
+
+        removeFile(index) {
+            this.selectedFiles.splice(index, 1);
+        },
+
+        async uploadDocuments() {
+            if (this.selectedFiles.length === 0 || !this.uploadCategory) return;
+
+            this.uploading = true;
+            this.uploadProgress = 0;
+
+            try {
+                for (let i = 0; i < this.selectedFiles.length; i++) {
+                    const file = this.selectedFiles[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('category', this.uploadCategory);
+                    if (this.uploadDescription) {
+                        formData.append('description', this.uploadDescription);
+                    }
+
+                    const response = await fetch('/api/v1/documents/upload/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': this.getCSRFToken(),
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Upload failed');
+                    }
+
+                    this.uploadProgress = ((i + 1) / this.selectedFiles.length) * 100;
+                }
+
+                this.closeUploadModal();
+                await this.fetchDocuments();
+                alert('Documents uploaded successfully!');
+            } catch (err) {
+                alert('Failed to upload documents: ' + err.message);
+            } finally {
+                this.uploading = false;
+                this.uploadProgress = 0;
+            }
+        },
+
+        closeUploadModal() {
+            this.showUploadModal = false;
+            this.selectedFiles = [];
+            this.uploadCategory = '';
+            this.uploadDescription = '';
+        },
+
+        viewPDF(document) {
+            this.selectedDocument = document;
+            this.pdfViewerUrl = `/api/v1/documents/${document.id}/view/`;
+            this.showPDFModal = true;
+        },
+
+        closePDFModal() {
+            this.showPDFModal = false;
+            this.selectedDocument = null;
+            this.pdfViewerUrl = '';
+        },
+
+        async downloadDocument(document) {
+            try {
+                const response = await fetch(`/api/v1/documents/${document.id}/view/`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = document.original_name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Failed to download document: ' + err.message);
+            }
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        },
+
+        formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        },
+
+        getCSRFToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        },
+    };
+}
+</script>
+{% endblock %}

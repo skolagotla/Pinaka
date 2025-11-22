@@ -1,0 +1,122 @@
+{% extends 'frontend/base.html' %}
+{% load dict_filters %}
+
+{% block title %}Checklist - Pinaka{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="sm:flex sm:items-center mb-8">
+        <div class="sm:flex-auto">
+            <h1 class="text-3xl font-bold text-gray-900">Move-in/Move-out Checklist</h1>
+            <p class="mt-2 text-sm text-gray-600">Complete your inspection checklist</p>
+        </div>
+    </div>
+
+    <!-- Checklist Type Selector -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <span class="text-sm font-medium text-gray-700">Checklist Type:</span>
+                <div class="inline-flex rounded-md shadow-sm" role="group">
+                    <a href="?type=move-in" 
+                       class="px-4 py-2 text-sm font-medium {% if checklist_type == 'move-in' %}text-white bg-indigo-600{% else %}text-gray-700 bg-white border border-gray-200 hover:bg-gray-50{% endif %} rounded-l-lg">
+                        Move-in
+                    </a>
+                    <a href="?type=move-out" 
+                       class="px-4 py-2 text-sm font-medium {% if checklist_type == 'move-out' %}text-white bg-indigo-600{% else %}text-gray-700 bg-white border border-gray-200 hover:bg-gray-50{% endif %} rounded-r-lg">
+                        Move-out
+                    </a>
+                </div>
+            </div>
+            <div class="text-sm text-gray-600">
+                <span class="font-semibold">{{ completed_items }}/{{ total_items }}</span> items completed
+                <div class="w-32 bg-gray-200 rounded-full h-2 mt-1">
+                    <div class="bg-indigo-600 h-2 rounded-full" style="width: {{ completion_percentage }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checklist Items by Category -->
+    <form id="checklist-form" method="post" action="{% url 'submit_checklist' %}">
+        {% csrf_token %}
+        <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+        
+        {% for category, items in grouped_checklist.items %}
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">{{ category }}</h2>
+            <div class="space-y-4">
+                {% for item in items %}
+                {% with existing_item=existing_items|get_item:item.id %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <input type="checkbox" 
+                               id="item_{{ item.id }}" 
+                               name="item_{{ item.id }}"
+                               {% if existing_item and existing_item.is_checked %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                               onchange="saveItem('{{ item.id }}', '{{ item.label }}', '{{ item.category }}', this.checked)">
+                        <div class="ml-3 flex-1">
+                            <label for="item_{{ item.id }}" class="text-sm font-medium text-gray-900">
+                                {{ item.label }}
+                            </label>
+                            <textarea 
+                                id="notes_{{ item.id }}"
+                                name="notes_{{ item.id }}"
+                                rows="2"
+                                placeholder="Add notes..."
+                                class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                onblur="saveNotes('{{ item.id }}', this.value)">{% if existing_item and existing_item.notes %}{{ existing_item.notes }}{% endif %}</textarea>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="bg-white shadow rounded-lg p-6">
+            <button type="submit" 
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Submit Checklist for Review
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function saveItem(itemId, itemLabel, category, isChecked) {
+    fetch('{% url "save_checklist_item" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'checklist_id': '{{ checklist.id }}',
+            'item_id': itemId,
+            'item_label': itemLabel,
+            'category': category,
+            'is_checked': isChecked,
+        })
+    });
+}
+
+function saveNotes(itemId, notes) {
+    fetch('{% url "save_checklist_item" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'checklist_id': '{{ checklist.id }}',
+            'item_id': itemId,
+            'notes': notes,
+        })
+    });
+}
+</script>
+{% endblock %}
+

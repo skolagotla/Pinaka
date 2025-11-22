@@ -1,0 +1,142 @@
+<div class="relative">
+    <button id="notification-bell" class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none">
+        <i class="fas fa-bell text-xl"></i>
+        <span id="notification-badge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full hidden">0</span>
+    </button>
+    
+    <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-50 border border-gray-200" style="max-height: 400px; overflow-y: auto;">
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Notifications</h3>
+                <button id="mark-all-read" class="text-sm text-indigo-600 hover:text-indigo-800">Mark all read</button>
+            </div>
+        </div>
+        <div id="notification-list" class="divide-y divide-gray-200">
+            <div class="p-4 text-center text-gray-500">Loading notifications...</div>
+        </div>
+        <div class="p-4 border-t border-gray-200 text-center">
+            <a href="/messages/" class="text-sm text-indigo-600 hover:text-indigo-800">View All Notifications →</a>
+        </div>
+    </div>
+</div>
+
+<script>
+let notificationDropdownVisible = false;
+
+document.getElementById('notification-bell').addEventListener('click', function(e) {
+    e.stopPropagation();
+    const dropdown = document.getElementById('notification-dropdown');
+    notificationDropdownVisible = !notificationDropdownVisible;
+    dropdown.classList.toggle('hidden', !notificationDropdownVisible);
+    if (notificationDropdownVisible) {
+        loadNotifications();
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#notification-bell') && !e.target.closest('#notification-dropdown')) {
+        document.getElementById('notification-dropdown').classList.add('hidden');
+        notificationDropdownVisible = false;
+    }
+});
+
+function loadNotifications() {
+    fetch('/widgets/notifications/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('notification-list');
+            const badge = document.getElementById('notification-badge');
+            
+            if (data.success && data.notifications && data.notifications.length > 0) {
+                container.innerHTML = data.notifications.map(notif => `
+                    <div class="p-4 hover:bg-gray-50 cursor-pointer ${notif.is_read ? '' : 'bg-blue-50'}" onclick="handleNotificationClick('${notif.id}', '${notif.action_url || ''}')">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-2 h-2 rounded-full ${notif.is_read ? 'bg-gray-300' : 'bg-blue-600'}"></div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900">${notif.title}</p>
+                                <p class="text-sm text-gray-600 mt-1">${notif.message}</p>
+                                <p class="text-xs text-gray-400 mt-1">${formatDate(notif.created_at)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500">No notifications</div>';
+            }
+            
+            if (data.unreadCount > 0) {
+                badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading notifications:', error);
+            document.getElementById('notification-list').innerHTML = '<div class="p-4 text-center text-gray-500">Error loading notifications</div>';
+        });
+}
+
+function handleNotificationClick(notificationId, actionUrl) {
+    if (actionUrl && actionUrl.startsWith('/')) {
+        window.location.href = actionUrl;
+    }
+    // Mark as read
+    fetch(`/api/v1/notifications/${notificationId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({ is_read: true }),
+    }).then(() => loadNotifications());
+}
+
+document.getElementById('mark-all-read').addEventListener('click', function(e) {
+    e.stopPropagation();
+    fetch('/api/v1/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    }).then(() => loadNotifications());
+});
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Load notifications on page load
+loadNotifications();
+setInterval(loadNotifications, 30000); // Refresh every 30 seconds
+</script>
+

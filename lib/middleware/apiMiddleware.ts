@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { auth0 } from '../auth0';
+// Auth0 disabled - using password-based authentication
+// import { auth0 } from '../auth0';
 const config = require('../config/app-config').default || require('../config/app-config');
 
 // Auto-initialize RBAC on application startup (when middleware is first loaded)

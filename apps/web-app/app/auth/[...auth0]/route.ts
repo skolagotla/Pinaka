@@ -66,8 +66,9 @@ async function getAuthClient() {
   }
 
   try {
-    // Import Auth0 server module - use Auth0Client as per SDK v4 docs
-    const auth0Server = await import('@auth0/nextjs-auth0/server');
+    // Auth0 disabled - using password-based authentication
+    // const auth0Server = await import('@auth0/nextjs-auth0/server');
+    const auth0Server = null;
     const { Auth0Client } = auth0Server;
     
     if (process.env.NODE_ENV === 'development') {
@@ -196,8 +197,8 @@ export async function GET(request: NextRequest) {
         console.log('[Auth0 Route] Calling AuthClient.handler()');
       }
       
-      // Auth0Client uses middleware() method for route handling
-      const response = await client.middleware(request);
+      // Auth0 disabled - redirect to home
+      return NextResponse.redirect(new URL('/', request.url));
       
       if (process.env.NODE_ENV === 'development') {
         console.log('[Auth0 Route] Response status:', response.status);

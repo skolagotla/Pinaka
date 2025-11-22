@@ -267,9 +267,10 @@ export default async function RootLayout({ children }) {
       }
     }
     
-    // Determine if Auth0 should be used based on AUTH_MODE
-    const authMode = process.env.AUTH_MODE || 'auto';
-    const useAuth0 = authMode === 'auth0';
+    // AUTH0 DISABLED: Using password-based authentication only
+    // const authMode = process.env.AUTH_MODE || 'auto';
+    // const useAuth0 = authMode === 'auth0';
+    const useAuth0 = false; // Force password-based auth
     
     return (
       <html lang="en">

@@ -1,5 +1,6 @@
 "use client";
-import { useUser } from '@auth0/nextjs-auth0/client';
+// Auth0 disabled - using password-based authentication
+// import { useUser } from '@auth0/nextjs-auth0/client';
 import Link from "next/link";
 
 export default function SuccessPage() {

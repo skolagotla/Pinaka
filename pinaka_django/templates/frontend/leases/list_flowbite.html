@@ -1,0 +1,153 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Leases - Pinaka{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Page Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div class="mb-4 sm:mb-0">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Leases</h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Manage lease agreements</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button type="button" data-modal-target="add-lease-modal" data-modal-toggle="add-lease-modal" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700">
+                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Lease
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-4">
+        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center">
+                <div class="p-2 bg-green-100 rounded-lg dark:bg-green-900">
+                    <svg class="w-5 h-5 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ leases|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center">
+                <div class="p-2 bg-yellow-100 rounded-lg dark:bg-yellow-900">
+                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Expiring Soon</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center">
+                <div class="p-2 bg-gray-100 rounded-lg dark:bg-gray-700">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Expired</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">0</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center">
+                <div class="p-2 bg-blue-100 rounded-lg dark:bg-blue-900">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ leases|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    {% include 'frontend/components/search_filter.html' with search_id='leases' %}
+
+    <!-- Leases Table -->
+    <div class="bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Lease Agreements</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">Property/Unit</th>
+                        <th scope="col" class="px-6 py-3">Tenant</th>
+                        <th scope="col" class="px-6 py-3">Start Date</th>
+                        <th scope="col" class="px-6 py-3">End Date</th>
+                        <th scope="col" class="px-6 py-3">Rent</th>
+                        <th scope="col" class="px-6 py-3">Status</th>
+                        <th scope="col" class="px-6 py-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lease in leases %}
+                    <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <td class="px-6 py-4">
+                            <div class="text-sm">
+                                <div class="font-medium text-gray-900 dark:text-white">{{ lease.unit.property.property_name }}</div>
+                                <div class="text-gray-500 dark:text-gray-400">{{ lease.unit.unit_name }}</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% for lease_tenant in lease.lease_tenants.all %}
+                                <div class="text-sm">{{ lease_tenant.tenant.full_name }}</div>
+                            {% empty %}
+                                <span class="text-gray-400">—</span>
+                            {% endfor %}
+                        </td>
+                        <td class="px-6 py-4">{{ lease.lease_start|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4">{{ lease.lease_end|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${{ lease.rent_amount }}</td>
+                        <td class="px-6 py-4">
+                            {% if lease.status == 'ACTIVE' %}
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
+                                Active
+                            </span>
+                            {% else %}
+                            <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
+                                {{ lease.get_status_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="{% url 'lease_detail' lease.pk %}" class="font-medium text-blue-600 hover:underline dark:text-blue-500">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No leases</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new lease.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

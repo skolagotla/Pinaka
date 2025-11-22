@@ -1,0 +1,80 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}{{ tenant.full_name }} - Pinaka{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <a href="{% url 'tenants_list' %}" class="text-indigo-600 hover:text-indigo-900 mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Tenants
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">{{ tenant.full_name }}</h1>
+        <p class="mt-2 text-sm text-gray-600">{{ tenant.email }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Tenant Details -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Contact Information</h2>
+            <dl class="grid grid-cols-1 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Email</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ tenant.email }}</dd>
+                </div>
+                {% if tenant.phone %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ tenant.phone }}</dd>
+                </div>
+                {% endif %}
+                {% if tenant.address_line1 %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Address</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {{ tenant.address_line1 }}<br>
+                        {% if tenant.address_line2 %}{{ tenant.address_line2 }}<br>{% endif %}
+                        {{ tenant.city }}, {{ tenant.province_state }} {{ tenant.postal_zip }}
+                    </dd>
+                </div>
+                {% endif %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            {% if tenant.status == 'ACTIVE' %}bg-green-100 text-green-800
+                            {% elif tenant.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ tenant.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Leases -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Leases</h2>
+            {% if tenant.tenant_leases.all %}
+            <ul class="divide-y divide-gray-200">
+                {% for tenant_lease in tenant.tenant_leases.all %}
+                <li class="py-3">
+                    <a href="{% url 'lease_detail' tenant_lease.lease.pk %}" class="block hover:bg-gray-50 -mx-2 px-2 py-2 rounded">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">{{ tenant_lease.lease.unit.property.property_name }}</div>
+                                <div class="text-sm text-gray-500">Unit: {{ tenant_lease.lease.unit.unit_name }}</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500">No leases assigned</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

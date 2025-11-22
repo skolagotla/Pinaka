@@ -1,0 +1,38 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Account Suspended - Pinaka{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+    <div class="max-w-2xl w-full">
+        <div class="bg-white shadow rounded-lg p-8 text-center">
+            <div class="mb-6">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100">
+                    <i class="fas fa-ban text-3xl text-red-600"></i>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">Account Suspended</h1>
+            <p class="text-lg text-gray-600 mb-6">
+                Your account has been suspended. Please contact support for assistance.
+            </p>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6 text-left">
+                <h2 class="text-lg font-semibold text-red-900 mb-2">What does this mean?</h2>
+                <ul class="list-disc list-inside space-y-2 text-sm text-red-800">
+                    <li>Your account access has been temporarily restricted</li>
+                    <li>You will not be able to access your account until the suspension is lifted</li>
+                    <li>Please contact support to resolve this issue</li>
+                </ul>
+            </div>
+            <div class="flex justify-center space-x-4">
+                <a href="mailto:support@pinaka.com" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    <i class="fas fa-envelope mr-2"></i>Contact Support
+                </a>
+                <a href="/" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Go to Homepage
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
