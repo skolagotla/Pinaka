@@ -171,5 +171,5 @@ function convertToCSV(data: any, type: string): string {
   ].join('\n');
 }
 
-export default withAdminAuth(exportData, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(exportData, { requireRole: 'super_admin' });
 

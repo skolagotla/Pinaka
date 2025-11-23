@@ -165,5 +165,5 @@ async function getAnalytics(req: NextApiRequest, res: NextApiResponse, admin: an
   }
 }
 
-export default withAdminAuth(getAnalytics, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(getAnalytics, { requireRole: 'super_admin' });
 

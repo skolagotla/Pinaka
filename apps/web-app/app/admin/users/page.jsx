@@ -18,6 +18,7 @@ import {
   HiMail,
   HiPhone,
   HiUserGroup,
+  HiCog,
 } from 'react-icons/hi';
 import { PhoneDisplay, PageLayout, StandardModal, FormTextInput, FormSelect } from '@/components/shared';
 import { FormPhoneInput } from '@/components/shared/FormFields';
@@ -26,6 +27,7 @@ import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { useGridActions } from '@/lib/hooks/useGridActions';
 import RoleAssignmentModal from '@/components/rbac/RoleAssignmentModal';
+import ImpersonationSelector from '@/components/admin/ImpersonationSelector';
 import { getRoleLabel } from '@/lib/rbac/resourceLabels';
 
 export default function AdminUsersPage() {
@@ -79,14 +81,22 @@ export default function AdminUsersPage() {
   const [loadingPmcs, setLoadingPmcs] = useState(false);
   const [selectedPMCId, setSelectedPMCId] = useState(null);
 
-  // Load current admin user ID
+  // Role change modal state
+  const [roleChangeModalVisible, setRoleChangeModalVisible] = useState(false);
+  const [roleChangeUser, setRoleChangeUser] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
+  const [changingRole, setChangingRole] = useState(false);
+  const [currentAdminRole, setCurrentAdminRole] = useState<string | null>(null);
+
+  // Load current admin user ID and role
   useEffect(() => {
     const loadCurrentAdmin = async () => {
       try {
         const { adminApi } = await import('@/lib/api/admin-api');
-        const data = await adminApi.getAdminUser();
-        if (data.success) {
-          setCurrentAdminId(data.data.id);
+        const data = await adminApi.getCurrentUser();
+        if (data.success && data.user) {
+          setCurrentAdminId(data.user.id);
+          setCurrentAdminRole(data.user.role || null);
         }
       } catch (error) {
         console.error('Error loading current admin:', error);
@@ -1224,6 +1234,50 @@ export default function AdminUsersPage() {
     setViewModalVisible(true);
   }, []);
 
+  // Handle role change
+  const handleChangeRole = useCallback((user: any) => {
+    setRoleChangeUser(user);
+    setSelectedRole(user.role || '');
+    setRoleChangeModalVisible(true);
+  }, []);
+
+  const handleSaveRoleChange = useCallback(async () => {
+    if (!roleChangeUser || !selectedRole) return;
+
+    setChangingRole(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${roleChangeUser.id}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role: selectedRole }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage('User role changed successfully');
+        setErrorMessage(null);
+        setRoleChangeModalVisible(false);
+        setRoleChangeUser(null);
+        // Refresh users list
+        await fetchUsers();
+        setTimeout(() => setSuccessMessage(null), 5000);
+      } else {
+        setErrorMessage(data.error || 'Failed to change role');
+        setSuccessMessage(null);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to change role');
+      setSuccessMessage(null);
+    } finally {
+      setChangingRole(false);
+    }
+  }, [roleChangeUser, selectedRole, fetchUsers]);
+
   // Grid Actions for Active Users tab - Icon-only with tooltips
   const { renderActions: renderUserActions } = useGridActions({
     actions: [
@@ -1240,6 +1294,13 @@ export default function AdminUsersPage() {
         },
         tooltip: 'Edit User',
       },
+      // Only show "Change Role" for super_admin
+      ...(currentAdminRole === 'super_admin' || currentAdminRole === 'SUPER_ADMIN' ? [{
+        type: 'edit' as any, // Use edit type as base, but with custom icon
+        onClick: (record: any) => handleChangeRole(record),
+        tooltip: 'Change Role',
+        customIcon: <HiCog className="h-4 w-4" />,
+      }] : []),
     ],
     size: 'small',
     buttonType: 'text', // Icon-only button with tooltip
@@ -1425,7 +1486,25 @@ export default function AdminUsersPage() {
       {
         title: 'Actions',
         key: 'actions',
-        render: (_, record) => renderUserActions(record),
+        render: (_, record) => (
+          <div className="flex items-center gap-2">
+            {renderUserActions(record)}
+            {/* Role change button - only for super_admin */}
+            {(currentAdminRole === 'super_admin' || currentAdminRole === 'SUPER_ADMIN') && (
+              <Button
+                size="sm"
+                color="light"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleChangeRole(record);
+                }}
+                title="Change Role"
+              >
+                <HiCog className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ),
       },
     ];
 
@@ -1561,7 +1640,7 @@ export default function AdminUsersPage() {
       <Card className="m-6">
         <Tabs
           aria-label="User tabs"
-          style="underline"
+          variant="underline"
           onActiveTabChange={(tabIndex) => {
             const tabKeys = ['active', 'pending', 'rejected', 'archive'];
             const selectedKey = tabKeys[tabIndex];
@@ -2144,6 +2223,55 @@ export default function AdminUsersPage() {
           landlordId={editingUser.landlordId}
         />
       )}
+
+      {/* Role Change Modal */}
+      <Modal show={roleChangeModalVisible} onClose={() => setRoleChangeModalVisible(false)}>
+        <Modal.Header>Change User Role</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            <div>
+              <Label>User</Label>
+              <p className="text-sm text-gray-600">
+                {roleChangeUser?.firstName && roleChangeUser?.lastName
+                  ? `${roleChangeUser.firstName} ${roleChangeUser.lastName}`
+                  : roleChangeUser?.companyName || roleChangeUser?.email}
+                {roleChangeUser?.email && ` (${roleChangeUser.email})`}
+              </p>
+            </div>
+            <div>
+              <Label>Current Role</Label>
+              <Badge color="blue">{roleChangeUser?.role || 'N/A'}</Badge>
+            </div>
+            <div>
+              <Label htmlFor="role-select">New Role</Label>
+              <Select
+                id="role-select"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value="super_admin">Super Admin</option>
+                <option value="pmc_admin">PMC Admin</option>
+                <option value="pm">Property Manager</option>
+                <option value="landlord">Landlord</option>
+                <option value="tenant">Tenant</option>
+                <option value="vendor">Vendor</option>
+              </Select>
+            </div>
+            {errorMessage && (
+              <Alert color="failure">{errorMessage}</Alert>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={() => setRoleChangeModalVisible(false)} disabled={changingRole}>
+            Cancel
+          </Button>
+          <Button color="blue" onClick={handleSaveRoleChange} disabled={changingRole || !selectedRole}>
+            {changingRole ? <Spinner size="sm" className="mr-2" /> : null}
+            Change Role
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </PageLayout>
   );
 }

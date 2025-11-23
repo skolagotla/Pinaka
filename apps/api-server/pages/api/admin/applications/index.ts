@@ -78,5 +78,5 @@ async function listApplications(req: NextApiRequest, res: NextApiResponse, admin
   }
 }
 
-export default withAdminAuth(listApplications, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(listApplications, { requireRole: 'super_admin' });
 

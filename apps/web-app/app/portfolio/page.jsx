@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Spinner } from 'flowbite-react';
 import PortfolioClient from '@/components/pages/shared/Portfolio/ui';
 
 export default function PortfolioPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,7 +17,23 @@ export default function PortfolioPage() {
 
   const fetchUser = async () => {
     try {
-      // Try to get user from session
+      // Try admin session first
+      const adminResponse = await fetch('/api/admin/auth/me', {
+        credentials: 'include',
+      });
+
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        if (adminData.success && adminData.user) {
+          setUser(adminData.user);
+          // Map admin role to super_admin
+          setUserRole(adminData.user.role === 'SUPER_ADMIN' || adminData.user.role === 'super_admin' ? 'super_admin' : 'admin');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Try regular user session
       const response = await fetch('/api/user/current', {
         credentials: 'include',
       });
@@ -25,11 +42,12 @@ export default function PortfolioPage() {
         const data = await response.json();
         if (data.success && data.user) {
           setUser(data.user);
-          // Determine role from user data
+          // Map roles to new role system
           const role = data.user.role || 
-                      (data.user.userType === 'admin' ? 'admin' : 
-                       data.user.userType === 'pmc' ? 'pmc' :
-                       data.user.userType === 'tenant' ? 'tenant' : 'landlord');
+                      (data.user.userType === 'admin' ? 'super_admin' : 
+                       data.user.userType === 'pmc' ? 'pmc_admin' :
+                       data.user.userType === 'tenant' ? 'tenant' : 
+                       data.user.userType === 'landlord' ? 'landlord' : 'landlord');
           setUserRole(role);
         } else {
           router.push('/login');
@@ -48,15 +66,12 @@ export default function PortfolioPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
+        <Spinner size="xl" />
       </div>
     );
   }
 
-  if (!user) {
+  if (!user || !userRole) {
     return null; // Will redirect
   }
 

@@ -1,0 +1,36 @@
+{
+  "name": "@pinaka/backend-api",
+  "version": "1.0.0",
+  "description": "Pinaka FastAPI Backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "start": "uvicorn main:app --host 0.0.0.0 --port 8000",
+    "test": "pytest",
+    "test:watch": "pytest-watch",
+    "migrate": "alembic upgrade head",
+    "migrate:create": "alembic revision --autogenerate -m",
+    "generate:client": "node ../scripts/generate-fastapi-client.js"
+  },
+  "dependencies": {
+    "fastapi": "^0.115.0",
+    "uvicorn[standard]": "^0.32.0",
+    "sqlalchemy": "^2.0.36",
+    "alembic": "^1.14.0",
+    "psycopg2-binary": "^2.9.10",
+    "pydantic": "^2.9.2",
+    "pydantic-settings": "^2.6.1",
+    "python-jose[cryptography]": "^3.3.0",
+    "passlib[bcrypt]": "^1.7.4",
+    "python-multipart": "^0.0.12",
+    "httpx": "^0.27.2"
+  },
+  "devDependencies": {
+    "pytest": "^8.3.4",
+    "pytest-asyncio": "^0.24.0",
+    "pytest-cov": "^6.0.0",
+    "httpx": "^0.27.2"
+  }
+}
+

@@ -89,11 +89,66 @@ export default function GlobalSearch({ open, onClose }) {
       setLoading(true);
       try {
         // Search API endpoint
-        const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const response = await fetch(`/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=all&limit=10`);
         const data = await response.json();
 
-        if (data.success) {
-          setResults(data.results || []);
+        if (data.success || data.properties || data.tenants || data.leases || data.maintenance) {
+          // Transform API response to search results format
+          const results = [];
+          
+          // Properties
+          if (data.properties) {
+            data.properties.forEach((item) => {
+              results.push({
+                id: item.id,
+                title: item.propertyName || item.addressLine1,
+                subtitle: `${item.addressLine1 || ''} ${item.city || ''}`.trim(),
+                category: 'properties',
+                path: `/properties/${item.id}`,
+              });
+            });
+          }
+          
+          // Tenants
+          if (data.tenants) {
+            data.tenants.forEach((item) => {
+              results.push({
+                id: item.id,
+                title: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email,
+                subtitle: item.email,
+                category: 'tenants',
+                path: `/tenants/${item.id}`,
+              });
+            });
+          }
+          
+          // Leases
+          if (data.leases) {
+            data.leases.forEach((item) => {
+              results.push({
+                id: item.id,
+                title: `Lease #${item.leaseNumber || item.id}`,
+                subtitle: item.propertyName || item.property?.propertyName,
+                category: 'leases',
+                path: `/leases/${item.id}`,
+              });
+            });
+          }
+          
+          // Work Orders (Maintenance)
+          if (data.maintenance) {
+            data.maintenance.forEach((item) => {
+              results.push({
+                id: item.id,
+                title: item.title || item.description?.substring(0, 50) || 'Work Order',
+                subtitle: item.propertyName || item.property?.propertyName,
+                category: 'maintenance',
+                path: `/operations/${item.id}`,
+              });
+            });
+          }
+          
+          setResults(results);
         } else {
           setResults([]);
         }

@@ -123,5 +123,5 @@ async function getSystemHealth(req: NextApiRequest, res: NextApiResponse, admin:
   }
 }
 
-export default withAdminAuth(getSystemHealth, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(getSystemHealth, { requireRole: 'super_admin' });
 

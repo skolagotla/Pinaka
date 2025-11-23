@@ -141,7 +141,7 @@ export default function AdminDashboardPage() {
               Dashboard Overview
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Welcome back, <span className="font-semibold text-gray-900 dark:text-white">{admin.firstName} {admin.lastName}</span>
+              Welcome back, <span className="font-semibold text-gray-900 dark:text-white">{admin.firstName} {admin.lastName}</span> — Platform Administrator
             </p>
           </div>
           <Button color="blue" size="sm" className="hidden md:flex items-center gap-2">

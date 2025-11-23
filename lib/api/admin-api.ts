@@ -607,6 +607,40 @@ export const adminApi = {
     const { v1Api } = await import('@/lib/api/v1-client');
     return v1Api.vendors.delete(contractorId);
   },
+
+  /**
+   * Update user role
+   */
+  async updateUserRole(userId: string, role: string) {
+    const response = await apiClient(`/api/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
+    return parseResponse(response, 'Failed to update user role');
+  },
+
+  /**
+   * Start impersonation
+   */
+  async startImpersonation(userId: string, userType: string) {
+    const response = await apiClient('/api/admin/impersonate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, userType }),
+    });
+    return parseResponse(response, 'Failed to start impersonation');
+  },
+
+  /**
+   * Stop impersonation
+   */
+  async stopImpersonation() {
+    const response = await apiClient('/api/admin/impersonate', {
+      method: 'DELETE',
+    });
+    return parseResponse(response, 'Failed to stop impersonation');
+  },
 };
 
 export default adminApi;

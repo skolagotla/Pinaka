@@ -116,5 +116,5 @@ async function getFailedLogins(req: NextApiRequest, res: NextApiResponse, admin:
   }
 }
 
-export default withAdminAuth(getFailedLogins, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(getFailedLogins, { requireRole: 'super_admin' });
 

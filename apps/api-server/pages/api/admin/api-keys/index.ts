@@ -197,5 +197,5 @@ export default withAdminAuth(async (req: NextApiRequest, res: NextApiResponse, a
   } else {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
-}, { requireRole: 'SUPER_ADMIN' });
+}, { requireRole: 'super_admin' });
 

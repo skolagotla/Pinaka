@@ -1,0 +1,129 @@
+# Cursor AI Configuration for Pinaka Property Management Platform
+
+## Project Overview
+This is a Next.js monorepo property management platform with:
+- Frontend: Next.js 16 (apps/web-app) with Flowbite Pro UI components
+- Backend: Next.js API routes (apps/api-server) with Prisma ORM
+- Architecture: Domain-Driven Design (DDD), API-First, Shared-Schema (Single Source of Truth)
+- Database: SQLite (Prisma) with PostgreSQL support
+- UI Library: Flowbite React (migrated from Ant Design)
+
+## Code Style & Conventions
+
+### React/Next.js
+- Use functional components with hooks
+- Prefer "use client" directive for client components
+- Use TypeScript for type safety where applicable
+- Follow Next.js 13+ App Router conventions
+- Use dynamic imports for code splitting: `const Component = dynamic(() => import('./Component'))`
+
+### Component Patterns
+- Flowbite React components (NOT Ant Design - migration complete)
+- Use separate imports for Flowbite components (NOT compound components):
+  - ✅ `import { SidebarItems, SidebarItemGroup, SidebarItem } from 'flowbite-react'`
+  - ❌ `import { Sidebar } from 'flowbite-react'` then `Sidebar.Items`
+- Use `Link` from `next/link` for navigation
+- Prefer Tailwind CSS classes over inline styles
+- Use Flowbite Pro components when available
+
+### File Organization
+- Components: `apps/web-app/components/`
+- Pages: `apps/web-app/app/` (App Router)
+- API Routes: `apps/api-server/pages/api/`
+- Shared utilities: `lib/`
+- Domain logic: `domains/` and `packages/domains/`
+- Schemas: `schema/types/` (Single Source of Truth)
+
+### Naming Conventions
+- Components: PascalCase (e.g., `UserDashboard.jsx`)
+- Hooks: camelCase with "use" prefix (e.g., `useFormState.js`)
+- Utilities: camelCase (e.g., `formatCurrency.js`)
+- API routes: kebab-case (e.g., `admin/users/index.ts`)
+
+## Architecture Principles
+
+### Domain-Driven Design (DDD)
+- Domain services in `domains/{domain}/domain/`
+- Domain types in `packages/domains/`
+- Keep business logic in domain services, not in API routes
+
+### API-First
+- All APIs follow RESTful conventions
+- Use shared schemas from `schema/types/` for validation
+- API routes in `apps/api-server/pages/api/v1/` or `apps/api-server/pages/api/admin/`
+
+### Shared Schema (Single Source of Truth)
+- Zod schemas in `schema/types/domains/`
+- Import from schema registry, don't duplicate
+- Validate requests/responses with shared schemas
+
+### RBAC (Role-Based Access Control)
+- Roles: SUPER_ADMIN, ADMIN, PMC_ADMIN, PMC, LANDLORD, TENANT, VENDOR, CONTRACTOR
+- Use `withAuth` or `withAdminAuth` middleware
+- Check permissions in domain services
+
+## Common Patterns
+
+### Error Handling
+- Use try-catch in async functions
+- Return proper HTTP status codes
+- Log errors with context: `console.error('[Context] Error:', error)`
+- Use ErrorBoundary for React errors
+
+### State Management
+- Use React hooks (useState, useEffect, useCallback, useMemo)
+- Custom hooks in `lib/hooks/`
+- Avoid global state unless necessary
+
+### API Client
+- Use `v1Api` from `@/lib/api/v1-client` for authenticated requests
+- Use `adminApi` from `@/lib/api/admin-api` for admin routes
+- Handle loading and error states
+
+### Forms
+- Use `useFormState` hook (NOT Ant Design Form)
+- Flowbite form components: `TextInput`, `Select`, `Textarea`, `ToggleSwitch`
+- Validate with Zod schemas
+
+### Tables
+- Use `FlowbiteTable` component (NOT Ant Design Table)
+- Use `FlowbiteTableRenderers` for consistent column rendering
+- Pagination handled by component
+
+## Migration Notes
+- ✅ Ant Design → Flowbite React migration complete
+- ✅ All admin pages converted to Flowbite Pro
+- ✅ Using Flowbite Pro components and styling
+- ❌ Do NOT use Ant Design components anymore
+
+## Testing & Quality
+- TypeScript for type safety
+- Zod for runtime validation
+- Error boundaries for error handling
+- Console logging for debugging (use structured logging)
+
+## Performance
+- Use dynamic imports for large components
+- Lazy load routes when possible
+- Optimize images with Next.js Image component
+- Use React.memo for expensive components
+
+## When Writing Code
+1. Check existing patterns in similar files
+2. Use shared utilities from `lib/utils/`
+3. Follow the domain structure
+4. Validate with shared schemas
+5. Use Flowbite components (not Ant Design)
+6. Add proper error handling
+7. Include loading states
+8. Follow the established file structure
+
+## Common Issues to Avoid
+- ❌ Don't use Ant Design components
+- ❌ Don't use compound components (Table.Head, Sidebar.Items, etc.)
+- ❌ Don't duplicate schemas - use shared ones
+- ❌ Don't put business logic in API routes
+- ❌ Don't use inline styles - use Tailwind
+- ❌ Don't forget error handling
+- ❌ Don't skip loading states
+

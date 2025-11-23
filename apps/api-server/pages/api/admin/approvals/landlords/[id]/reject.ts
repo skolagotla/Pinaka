@@ -42,5 +42,5 @@ async function rejectLandlord(req: NextApiRequest, res: NextApiResponse, admin: 
   }
 }
 
-export default withAdminAuth(rejectLandlord, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(rejectLandlord, { requireRole: 'super_admin' });
 

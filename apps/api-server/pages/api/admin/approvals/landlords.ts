@@ -42,4 +42,4 @@ async function listPendingLandlords(req: NextApiRequest, res: NextApiResponse, a
   }
 }
 
-export default withAdminAuth(listPendingLandlords, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(listPendingLandlords, { requireRole: 'super_admin' });

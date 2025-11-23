@@ -182,5 +182,5 @@ async function listAuditLogs(req: NextApiRequest, res: NextApiResponse, admin: a
   }
 }
 
-export default withAdminAuth(listAuditLogs, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(listAuditLogs, { requireRole: 'super_admin' });
 

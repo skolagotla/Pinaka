@@ -227,7 +227,7 @@ export default function AdminSecurityPage() {
       <Card className="p-6">
         <Tabs
           aria-label="Security tabs"
-          style="underline"
+          variant="underline"
           onActiveTabChange={(tabIndex) => {
             const tabKeys = ['failed-logins', 'sessions', 'top-ips'];
             const selectedKey = tabKeys[tabIndex];

@@ -59,5 +59,5 @@ async function approveApplication(req: NextApiRequest, res: NextApiResponse, adm
   }
 }
 
-export default withAdminAuth(approveApplication, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(approveApplication, { requireRole: 'super_admin' });
 

@@ -357,7 +357,7 @@ export default function AdminInvitationsPage() {
           <div className="flex items-center justify-between">
             <Tabs
               aria-label="Invitation tabs"
-              style="underline"
+              variant="underline"
               onActiveTabChange={(tabIndex) => {
                 const tabKeys = ['pending', 'approved', 'rejected'];
                 const selectedKey = tabKeys[tabIndex];

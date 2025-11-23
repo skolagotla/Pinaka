@@ -3,12 +3,25 @@
 import { ConfigProvider, App, theme as antdTheme } from 'antd';
 import enUS from 'antd/locale/en_US';
 import { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { getThemeById } from '@/lib/themes/theme-config';
 import { TimezoneProvider } from '@/lib/context/TimezoneContext';
 import { PropertyProvider } from '@/lib/contexts/PropertyContext';
 import { initializeApiInterceptors } from '@/lib/utils/api-interceptors';
 import { suppressBrowserExtensionErrors } from '@/lib/utils/error-suppression';
 import { reportWebVital } from './web-vitals';
+
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 // Configure dayjs locale to English (must be done before any dayjs imports)
 if (typeof window !== 'undefined') {
@@ -154,25 +167,30 @@ export default function Providers({ children, userTheme = 'default', userTimezon
 
   // Conditionally wrap with Auth0Provider only when using Auth0
   const content = (
-    <TimezoneProvider initialTimezone={userTimezone}>
-      <PropertyProvider userRole={userRole} initialProperties={initialProperties}>
-        <ConfigProvider 
-          locale={enUS}
-          theme={{
-            ...themeConfig.config,
-            algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-          }}
-          warning={{
-            // Disable React version compatibility warning
-            strict: false
-          }}
-        >
-          <App>
-            {children}
-          </App>
-        </ConfigProvider>
-      </PropertyProvider>
-    </TimezoneProvider>
+    <QueryClientProvider client={queryClient}>
+      <TimezoneProvider initialTimezone={userTimezone}>
+        <PropertyProvider userRole={userRole} initialProperties={initialProperties}>
+          <ConfigProvider 
+            locale={enUS}
+            theme={{
+              ...themeConfig.config,
+              algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+            }}
+            warning={{
+              // Disable React version compatibility warning
+              strict: false
+            }}
+          >
+            <App>
+              {children}
+              {process.env.NODE_ENV === 'development' && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
+            </App>
+          </ConfigProvider>
+        </PropertyProvider>
+      </TimezoneProvider>
+    </QueryClientProvider>
   );
 
   // AUTH0 DISABLED: Using password-based authentication only

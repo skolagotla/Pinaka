@@ -173,5 +173,5 @@ async function getApplicationByInvitation(req: NextApiRequest, res: NextApiRespo
   }
 }
 
-export default withAdminAuth(getApplicationByInvitation, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(getApplicationByInvitation, { requireRole: 'super_admin' });
 

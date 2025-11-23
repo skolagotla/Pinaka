@@ -7,12 +7,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { validateSession } from '../admin/session';
 
+import { Role } from '@/lib/types/roles';
+
 export type AdminContext = {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
+  role: Role | string; // Unified role type
   isActive: boolean;
 };
 
@@ -30,8 +32,9 @@ export type AdminMiddlewareOptions = {
   
   /**
    * Require specific admin role
+   * Use 'super_admin' for platform-wide super admin access
    */
-  requireRole?: 'SUPER_ADMIN' | 'PLATFORM_ADMIN' | 'SUPPORT_ADMIN' | 'BILLING_ADMIN' | 'AUDIT_ADMIN';
+  requireRole?: 'super_admin' | 'SUPER_ADMIN' | 'PLATFORM_ADMIN' | 'SUPPORT_ADMIN' | 'BILLING_ADMIN' | 'AUDIT_ADMIN';
   
   /**
    * Skip authentication check (for public endpoints)
@@ -126,8 +129,15 @@ export function withAdminAuth(
       if (options.requireRole) {
         let hasRequiredRole = false;
         
+        // Normalize role names: 'super_admin' -> 'SUPER_ADMIN' for comparison
+        const normalizedRequireRole = options.requireRole === 'super_admin' ? 'SUPER_ADMIN' : options.requireRole;
+        const normalizedAdminRole = admin.role === 'super_admin' ? 'SUPER_ADMIN' : admin.role;
+        
         // First check base Admin.role
-        if (admin.role === options.requireRole) {
+        if (normalizedAdminRole === normalizedRequireRole) {
+          hasRequiredRole = true;
+        } else if (normalizedRequireRole === 'SUPER_ADMIN' && normalizedAdminRole === 'SUPER_ADMIN') {
+          // Explicit super_admin check
           hasRequiredRole = true;
         } else {
           // Check RBAC roles
@@ -139,7 +149,7 @@ export function withAdminAuth(
                 userType: 'admin',
                 isActive: true,
                 role: {
-                  name: options.requireRole,
+                  name: normalizedRequireRole,
                 },
               },
             }).catch(() => null);
@@ -164,13 +174,20 @@ export function withAdminAuth(
         }
       }
 
+      // Map AdminRole enum to unified Role type
+      // SUPER_ADMIN -> 'super_admin', PLATFORM_ADMIN -> 'super_admin' (for backward compat)
+      let unifiedRole: Role | string = admin.role;
+      if (admin.role === 'SUPER_ADMIN' || admin.role === 'PLATFORM_ADMIN') {
+        unifiedRole = 'super_admin';
+      }
+      
       // Execute handler with admin context
       await handler(req, res, {
         id: admin.id,
         email: admin.email,
         firstName: admin.firstName,
         lastName: admin.lastName,
-        role: admin.role,
+        role: unifiedRole,
         isActive: admin.isActive,
       });
     } catch (error: any) {

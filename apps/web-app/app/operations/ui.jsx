@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs } from 'antd';
+import { Button } from 'flowbite-react';
+import { useRouter } from 'next/navigation';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
   ToolOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
+import { HiViewGrid } from 'react-icons/hi';
 import dynamic from 'next/dynamic';
 
 // Lazy load components for better performance
@@ -39,6 +42,7 @@ const PMCInspectionsClient = dynamic(
  * Consolidates Maintenance and Inspections into a single page
  */
 export default function OperationsClient({ user, userRole, maintenanceData, inspectionsData }) {
+  const router = useRouter();
   // Check URL for tab parameter (for redirects)
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -119,6 +123,21 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
 
   return (
     <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header with Kanban view button */}
+      {activeTab === 'maintenance' && (
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            color="blue"
+            size="sm"
+            onClick={() => router.push('/operations/kanban')}
+            className="flex items-center gap-2"
+          >
+            <HiViewGrid className="h-4 w-4" />
+            Kanban View
+          </Button>
+        </div>
+      )}
+      
       <Tabs
         activeKey={activeTab}
         onChange={handleTabChange}

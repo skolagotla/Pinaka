@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Card, Button, Table } from 'flowbite-react';
+import { Card, Button, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from 'flowbite-react';
 import {
   HiHome,
   HiUser,
@@ -183,22 +183,24 @@ export default function PMCDashboardClient({
           <TableWrapper>
             <div className="overflow-x-auto">
               <Table>
-                <Table.Head>
-                  {propertyColumns.map((col) => (
-                    <Table.HeadCell key={col.header}>{col.header}</Table.HeadCell>
-                  ))}
-                </Table.Head>
-                <Table.Body className="divide-y">
+                <TableHead>
+                  <TableRow>
+                    {propertyColumns.map((col) => (
+                      <TableHeadCell key={col.header}>{col.header}</TableHeadCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody className="divide-y">
                   {managedProperties.map((property) => (
-                    <Table.Row key={property.id}>
+                    <TableRow key={property.id}>
                       {propertyColumns.map((col) => (
-                        <Table.Cell key={col.header}>
+                        <TableCell key={col.header}>
                           {col.cell ? col.cell({ row: { original: property } }) : property[col.accessorKey]}
-                        </Table.Cell>
+                        </TableCell>
                       ))}
-                    </Table.Row>
+                    </TableRow>
                   ))}
-                </Table.Body>
+                </TableBody>
               </Table>
             </div>
           </TableWrapper>

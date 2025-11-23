@@ -55,3 +55,4 @@ uploads/
 # Prisma
 prisma/migrations/
 
+.env.bak

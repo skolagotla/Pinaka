@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar, Button, Tooltip, Spinner } from 'flowbite-react';
+import Link from 'next/link';
 import {
   HiSearch,
   HiMenu,
@@ -14,6 +15,7 @@ import ErrorBoundary from './ErrorBoundary';
 import NotificationCenter from './shared/NotificationCenter';
 import TestDatabaseBanner from './TestDatabaseBanner';
 import Navigation from './Navigation';
+import QuickActionsFAB from './shared/QuickActionsFAB';
 
 // Lazy load logger to avoid server-side execution
 let logger;
@@ -89,14 +91,21 @@ export default function ProLayoutWrapper({ firstName, lastName, userRole, showNa
         >
           <div className="flex h-full flex-col">
             {/* Logo */}
-            <Sidebar.Logo
+            <Link
               href="/dashboard"
-              img="/favicon.ico"
-              imgAlt="Pinaka Logo"
-              className="mb-4"
+              className="mb-4 flex items-center pl-2"
             >
-              <span className="ml-2 text-xl font-bold text-gray-800">Pinaka</span>
-            </Sidebar.Logo>
+              <img
+                src="/favicon.ico"
+                alt="Pinaka Logo"
+                className="mr-3 h-6 sm:h-8"
+              />
+              {!sidebarCollapsed && (
+                <span className="self-center whitespace-nowrap text-xl font-bold text-gray-800 dark:text-white">
+                  Pinaka
+                </span>
+              )}
+            </Link>
 
             {/* Navigation */}
             <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
@@ -152,6 +161,11 @@ export default function ProLayoutWrapper({ firstName, lastName, userRole, showNa
         {/* Global Search Modal */}
         {showNav && (
           <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+        )}
+
+        {/* Quick Actions FAB */}
+        {showNav && (
+          <QuickActionsFAB userRole={userRole} />
         )}
       </div>
     </ErrorBoundary>

@@ -43,6 +43,9 @@ import GlobalSearch from '@/components/GlobalSearch';
 import UserMenu from '@/components/UserMenu';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import TestDatabaseBanner from '@/components/TestDatabaseBanner';
+import AdminRouteGuard from '@/components/admin/AdminRouteGuard';
+import ImpersonationBanner from '@/components/admin/ImpersonationBanner';
+import { Role } from '@/lib/types/roles';
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
@@ -107,7 +110,8 @@ export default function AdminLayout({ children }) {
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.getCurrentUser();
 
-      if (data.success) {
+      if (data.success && data.user) {
+        // Role checking is now handled by AdminRouteGuard
         setAdmin(data.user);
       } else {
         if (pathname !== '/admin/login') {
@@ -172,8 +176,13 @@ export default function AdminLayout({ children }) {
     navigator?.platform?.toUpperCase().indexOf('MAC') >= 0 ? '⌘K' : 'Ctrl+K';
 
   return (
-    <ErrorBoundary>
-      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen" suppressHydrationWarning>
+    <AdminRouteGuard 
+      allowedRoles={['super_admin'] as Role[]}
+      redirectMessage="Access denied: Platform Administrator access required"
+    >
+      <ErrorBoundary>
+        <ImpersonationBanner />
+        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen" suppressHydrationWarning>
         {/* Professional Navbar */}
         <Navbar
           fluid
@@ -327,7 +336,7 @@ export default function AdminLayout({ children }) {
                     <Avatar
                       alt="User"
                       img={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        `${admin?.firstName || ''} ${admin?.lastName || ''}`.trim() || 'Admin'
+                        `${admin?.firstName || ''} ${admin?.lastName || ''}`.trim() || 'Platform Admin'
                       )}&background=6366f1&color=fff`}
                       rounded
                       size="sm"
@@ -340,7 +349,7 @@ export default function AdminLayout({ children }) {
                   <span className="block text-sm font-semibold text-gray-900 dark:text-white">
                     {admin?.firstName && admin?.lastName
                       ? `${admin.firstName} ${admin.lastName}`
-                      : 'Admin User'}
+                      : 'Platform Admin'}
                   </span>
                   <span className="block truncate text-sm text-gray-500 dark:text-gray-400">
                     {admin?.email || 'admin@pinaka.com'}
@@ -377,7 +386,7 @@ export default function AdminLayout({ children }) {
         {/* Sidebar - Desktop */}
         {!isMobile && (
           <Sidebar
-            aria-label="Admin sidebar"
+            aria-label="Platform Admin sidebar"
             collapsed={sidebarCollapsed}
             className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] transition-transform"
           >
@@ -418,7 +427,7 @@ export default function AdminLayout({ children }) {
           >
             <Drawer.Items className="h-full">
               <Sidebar
-                aria-label="Admin sidebar"
+                aria-label="Platform Admin sidebar"
                 className="w-full [&>div]:bg-transparent [&>div]:p-0"
               >
                 <SidebarItems>
@@ -470,6 +479,7 @@ export default function AdminLayout({ children }) {
         {/* Global Search Modal */}
         <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       </div>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </AdminRouteGuard>
   );
 }

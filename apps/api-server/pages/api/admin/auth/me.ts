@@ -31,6 +31,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
+    // Map AdminRole enum to unified Role type
+    // SUPER_ADMIN or PLATFORM_ADMIN -> 'super_admin'
+    let unifiedRole = sessionData.admin.role;
+    if (sessionData.admin.role === 'SUPER_ADMIN' || sessionData.admin.role === 'PLATFORM_ADMIN') {
+      unifiedRole = 'super_admin';
+    }
+
     // Return admin info (without sensitive data)
     return res.status(200).json({
       success: true,
@@ -39,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: sessionData.admin.email,
         firstName: sessionData.admin.firstName,
         lastName: sessionData.admin.lastName,
-        role: sessionData.admin.role,
+        role: unifiedRole,
         isActive: sessionData.admin.isActive,
       },
     });

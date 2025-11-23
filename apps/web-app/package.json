@@ -23,6 +23,8 @@
     "@pinaka/schemas": "workspace:*",
     "@pinaka/shared-utils": "workspace:*",
     "@pinaka/ui": "workspace:*",
+    "@tanstack/react-query": "^5.90.10",
+    "@tanstack/react-query-devtools": "^5.91.0",
     "antd": "^5.0.0",
     "dayjs": "^1.11.0",
     "flowbite-react": "^0.12.10",

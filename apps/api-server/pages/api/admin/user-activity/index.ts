@@ -105,5 +105,5 @@ async function getUserActivity(req: NextApiRequest, res: NextApiResponse, admin:
   }
 }
 
-export default withAdminAuth(getUserActivity, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(getUserActivity, { requireRole: 'super_admin' });
 

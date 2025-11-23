@@ -40,5 +40,5 @@ async function approveLandlord(req: NextApiRequest, res: NextApiResponse, admin:
   }
 }
 
-export default withAdminAuth(approveLandlord, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(approveLandlord, { requireRole: 'super_admin' });
 

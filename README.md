@@ -59,6 +59,8 @@
 /apps
   ├── /api-server           # @pinaka/api-server (Next.js API server)
   │   └── pages/api/v1/    # v1 API endpoints (100% compliant)
+  ├── /backend-api          # @pinaka/backend-api (FastAPI backend - migration in progress)
+  │   └── routers/vendors/ # FastAPI endpoints (vendors domain migrated)
   └── /web-app              # @pinaka/web-app (Next.js web application)
 
 /domains                     # Domain-Driven Design structure
@@ -105,10 +107,12 @@ pnpm run validate:schema
 # Start development
 pnpm run dev              # Web app (port 3000) - runs from apps/web-app
 pnpm run dev:api         # API server (port 3001) - runs from apps/api-server
+pnpm run dev:backend     # FastAPI backend (port 8000) - runs from apps/backend-api
 
 # Or run individually
 pnpm --filter @pinaka/web-app dev
 pnpm --filter @pinaka/api-server dev
+cd apps/backend-api && uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ---
@@ -149,6 +153,13 @@ pnpm --filter @pinaka/api-server dev
 **Web Application**
 - Location: `apps/web-app/`
 - Next.js web application
+
+### @pinaka/backend-api
+**FastAPI Backend** (Migration in Progress)
+- Location: `apps/backend-api/`
+- FastAPI backend with async SQLAlchemy
+- Migrated domains: Vendors
+- See `apps/backend-api/README.md` for setup instructions
 
 ---
 

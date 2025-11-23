@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, TableBody, TableRow, TableCell, Button, TextInput, Select, Card, Badge, Spinner, Alert } from 'flowbite-react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Button, TextInput, Select, Card, Badge, Spinner, Alert } from 'flowbite-react';
 import {
   HiDocumentText,
   HiRefresh,
@@ -122,6 +122,9 @@ export default function AdminAuditLogsPage() {
             <option value="DELETE">Delete</option>
             <option value="LOGIN">Login</option>
             <option value="LOGOUT">Logout</option>
+            <option value="user_role_changed">Role Changed</option>
+            <option value="impersonation_started">Impersonation Started</option>
+            <option value="impersonation_ended">Impersonation Ended</option>
           </Select>
           <Select
             value={filters.resource}
@@ -158,15 +161,17 @@ export default function AdminAuditLogsPage() {
         ) : (
           <div className="overflow-x-auto">
             <Table>
-              <Table.Head className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
-                <Table.HeadCell scope="col">Timestamp</Table.HeadCell>
-                <Table.HeadCell scope="col">Admin</Table.HeadCell>
-                <Table.HeadCell scope="col">Action</Table.HeadCell>
-                <Table.HeadCell scope="col">Resource</Table.HeadCell>
-                <Table.HeadCell scope="col">Status</Table.HeadCell>
-                <Table.HeadCell scope="col">IP Address</Table.HeadCell>
-                <Table.HeadCell scope="col">Details</Table.HeadCell>
-              </Table.Head>
+              <TableHead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+                <TableRow>
+                  <TableHeadCell scope="col">Timestamp</TableHeadCell>
+                  <TableHeadCell scope="col">Admin</TableHeadCell>
+                  <TableHeadCell scope="col">Action</TableHeadCell>
+                  <TableHeadCell scope="col">Resource</TableHeadCell>
+                  <TableHeadCell scope="col">Status</TableHeadCell>
+                  <TableHeadCell scope="col">IP Address</TableHeadCell>
+                  <TableHeadCell scope="col">Details</TableHeadCell>
+                </TableRow>
+              </TableHead>
               <TableBody className="divide-y">
                 {logs.map((log) => (
                   <TableRow key={log.id}>

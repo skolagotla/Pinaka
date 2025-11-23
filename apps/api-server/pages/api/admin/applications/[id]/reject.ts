@@ -67,5 +67,5 @@ async function rejectApplication(req: NextApiRequest, res: NextApiResponse, admi
   }
 }
 
-export default withAdminAuth(rejectApplication, { requireRole: 'SUPER_ADMIN' });
+export default withAdminAuth(rejectApplication, { requireRole: 'super_admin' });
 

@@ -76,14 +76,14 @@ export default function AdminLoginPage() {
                   <HiLockClosed className="h-6 w-6 text-white" />
                 </div>
                 <span className="ml-3 text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Pinaka Admin
+                  Pinaka Platform Admin
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white mb-3">
                 Welcome back
               </h1>
               <p className="text-base text-gray-600 dark:text-gray-300">
-                Sign in to access your property management dashboard
+                Sign in to access the Platform Administrator dashboard
               </p>
             </div>
 
