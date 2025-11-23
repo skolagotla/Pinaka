@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Spin } from 'antd';
+import { Spinner } from 'flowbite-react';
 
 /**
  * Admin Root Page
@@ -56,13 +56,8 @@ export default function AdminRootPage() {
 
   // Show loading spinner while checking auth
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh' 
-    }}>
-      <Spin size="large" />
+    <div className="flex justify-center items-center min-h-screen">
+      <Spinner size="xl" />
     </div>
   );
 }

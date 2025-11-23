@@ -1,68 +1,43 @@
 "use client";
 
-/**
- * FormDatePicker Component
- * 
- * Standardized date picker for forms with consistent formatting and validation.
- * 
- * @param {Object} props
- * @param {string} props.name - Form field name
- * @param {string} props.label - Field label
- * @param {Array} props.rules - Validation rules
- * @param {boolean} props.showTime - Show time picker (default: false)
- * @param {string} props.format - Date format (default: 'YYYY-MM-DD')
- * @param {string} props.placeholder - Placeholder text
- * @param {boolean} props.required - Required field (default: false)
- * @param {object} props.style - Custom styles
- * @param {function} props.onChange - Custom onChange handler
- * @param {any} props.initialValue - Initial value
- * 
- * @example
- * <FormDatePicker
- *   name="dueDate"
- *   label="Due Date"
- *   required
- *   showTime
- * />
- */
-
 import React from 'react';
-import { Form, DatePicker } from 'antd';
-import dayjs from 'dayjs';
+import { TextInput, Label } from 'flowbite-react';
 
+/**
+ * FormDatePicker Component (Flowbite Version)
+ * 
+ * A standardized date picker component for forms
+ * Note: Flowbite doesn't have a native date picker, using TextInput with type="date"
+ */
 export default function FormDatePicker({
   name,
   label,
-  rules = [],
-  showTime = false,
-  format = 'YYYY-MM-DD',
-  placeholder,
   required = false,
-  style = { width: '100%' },
+  error,
+  value,
   onChange,
-  initialValue,
+  disabled = false,
   ...props
 }) {
-  const finalRules = required
-    ? [{ required: true, message: `Please select ${label || name}` }, ...rules]
-    : rules;
-
   return (
-    <Form.Item
-      name={name}
-      label={label}
-      rules={finalRules}
-      initialValue={initialValue ? dayjs(initialValue) : undefined}
-    >
-      <DatePicker
-        showTime={showTime}
-        format={format}
-        placeholder={placeholder || `Select ${label || name}`}
-        style={style}
+    <div>
+      {label && (
+        <Label htmlFor={name} className="mb-2 block">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+      )}
+      <TextInput
+        id={name}
+        name={name}
+        type="date"
+        value={value}
         onChange={onChange}
+        disabled={disabled}
+        color={error ? "failure" : "gray"}
+        helperText={error}
         {...props}
       />
-    </Form.Item>
+    </div>
   );
 }
-

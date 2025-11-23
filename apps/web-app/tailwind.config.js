@@ -3,7 +3,8 @@ module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+    './node_modules/flowbite-react/**/*.{js,ts,jsx,tsx}',
+    './components/flowbite-pro/**/*.{js,ts,jsx,tsx}', // Flowbite Pro components
   ],
   theme: {
     extend: {
@@ -24,7 +25,6 @@ module.exports = {
     },
   },
   plugins: [
-    // require('flowbite/plugin') // Temporarily disabled - will add back during Flowbite migration
+    require('flowbite/plugin'),
   ],
 }
-

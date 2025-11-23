@@ -1,62 +1,44 @@
 "use client";
 
-/**
- * FormPhoneInput Component
- * 
- * Standardized phone number input for forms with auto-formatting.
- * 
- * @param {Object} props
- * @param {string} props.name - Form field name
- * @param {string} props.label - Field label
- * @param {Array} props.rules - Validation rules
- * @param {boolean} props.required - Required field (default: false)
- * @param {string} props.placeholder - Placeholder text
- * @param {object} props.style - Custom styles
- * @param {function} props.onChange - Custom onChange handler
- * @param {any} props.initialValue - Initial value
- * 
- * @example
- * <FormPhoneInput
- *   name="phone"
- *   label="Phone Number"
- *   required
- * />
- */
-
 import React from 'react';
-import { Form } from 'antd';
-import PhoneNumberInput from '@/components/forms/PhoneNumberInput';
+import { TextInput, Label } from 'flowbite-react';
 
+/**
+ * FormPhoneInput Component (Flowbite Version)
+ * 
+ * A standardized phone input component for forms
+ */
 export default function FormPhoneInput({
   name,
   label,
-  rules = [],
+  placeholder = "(555) 123-4567",
   required = false,
-  placeholder = 'Enter phone number',
-  style = { width: '100%' },
+  error,
+  value,
   onChange,
-  initialValue,
+  disabled = false,
   ...props
 }) {
-  const finalRules = required
-    ? [{ required: true, message: `Please enter ${label || name}` }, ...rules]
-    : rules;
-
   return (
-    <Form.Item
-      name={name}
-      label={label}
-      rules={finalRules}
-      initialValue={initialValue}
-      getValueFromEvent={(e) => e?.target?.value || e}
-    >
-      <PhoneNumberInput
+    <div>
+      {label && (
+        <Label htmlFor={name} className="mb-2 block">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </Label>
+      )}
+      <TextInput
+        id={name}
+        name={name}
+        type="tel"
         placeholder={placeholder}
-        style={style}
+        value={value}
         onChange={onChange}
+        disabled={disabled}
+        color={error ? "failure" : "gray"}
+        helperText={error}
         {...props}
       />
-    </Form.Item>
+    </div>
   );
 }
-

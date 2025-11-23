@@ -3,56 +3,48 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
-  Row,
-  Col,
-  Statistic,
-  Select,
   Button,
-  Space,
-  Typography,
-  Spin,
-  Empty,
+  Select,
+  Badge,
+  Tooltip,
+  Spinner,
   Alert,
   Tabs,
   Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+} from 'flowbite-react';
 import {
-  DollarOutlined,
-  HomeOutlined,
-  UserOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  DownloadOutlined,
-  BarChartOutlined,
-  LineChartOutlined,
-  PieChartOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import { ProCard } from '@/components/shared/LazyProComponents';
+  HiCurrencyDollar,
+  HiHome,
+  HiUser,
+  HiArrowUp,
+  HiArrowDown,
+  HiDownload,
+  HiChartBar,
+  HiChartLine,
+  HiExclamation,
+} from 'react-icons/hi';
 import { PageLayout, FilterBar, LoadingWrapper } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
 
-const { Text } = Typography;
-
 // Dynamically import charts
 const CashFlowChart = dynamic(
   () => import('@/components/charts/CashFlowChart'),
-  { ssr: false, loading: () => <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading chart...</div> }
+  { ssr: false, loading: () => <div className="h-[400px] flex items-center justify-center">Loading chart...</div> }
 );
 
 const PortfolioPerformanceChart = dynamic(
   () => import('@/components/charts/PortfolioPerformanceChart'),
-  { ssr: false, loading: () => <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading chart...</div> }
+  { ssr: false, loading: () => <div className="h-[400px] flex items-center justify-center">Loading chart...</div> }
 );
 
 const DelinquencyRiskChart = dynamic(
   () => import('@/components/charts/DelinquencyRiskChart'),
-  { ssr: false, loading: () => <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading chart...</div> }
+  { ssr: false, loading: () => <div className="h-[300px] flex items-center justify-center">Loading chart...</div> }
 );
 
 export default function AnalyticsDashboardClient({ user, userRole }) {
@@ -61,6 +53,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
   const [dateRange, setDateRange] = useState([dayjs().subtract(12, 'month'), dayjs()]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [properties, setProperties] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Analytics data
   const [portfolioData, setPortfolioData] = useState(null);
@@ -186,20 +179,19 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       dataIndex: 'riskScore',
       key: 'riskScore',
       render: (score) => {
-        let color = 'green';
-        if (score >= 70) color = 'red';
-        else if (score >= 40) color = 'orange';
-        return <Tag color={color}>{score}/100</Tag>;
+        let color = 'success';
+        if (score >= 70) color = 'failure';
+        else if (score >= 40) color = 'warning';
+        return <Badge color={color}>{score}/100</Badge>;
       },
-      sorter: (a, b) => a.riskScore - b.riskScore,
     },
     {
       title: 'Risk Level',
       dataIndex: 'riskLevel',
       key: 'riskLevel',
       render: (level) => {
-        const colors = { high: 'red', medium: 'orange', low: 'green' };
-        return <Tag color={colors[level]}>{level.toUpperCase()}</Tag>;
+        const colors = { high: 'failure', medium: 'warning', low: 'success' };
+        return <Badge color={colors[level]}>{level.toUpperCase()}</Badge>;
       },
     },
     {
@@ -238,21 +230,30 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
 
   return (
     <PageLayout
-      headerTitle={<><BarChartOutlined /> Analytics Dashboard</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiChartBar className="h-5 w-5" />
+          <span>Analytics Dashboard</span>
+        </div>
+      }
       headerDescription="Advanced insights and performance metrics"
       headerActions={[
         <Button
           key="export-json"
-          icon={<DownloadOutlined />}
+          color="blue"
           onClick={() => handleExport('json', 'portfolio')}
+          className="flex items-center gap-2"
         >
+          <HiDownload className="h-4 w-4" />
           Export JSON
         </Button>,
         <Button
           key="export-csv"
-          icon={<DownloadOutlined />}
+          color="blue"
           onClick={() => handleExport('csv', 'portfolio')}
+          className="flex items-center gap-2"
         >
+          <HiDownload className="h-4 w-4" />
           Export CSV
         </Button>,
       ]}
@@ -281,220 +282,190 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       {loading ? (
         <LoadingWrapper loading={loading} />
       ) : (
-        <Tabs
-          defaultActiveKey="overview"
-          items={[
-            {
-              key: 'overview',
-              label: (
-                <span>
-                  <BarChartOutlined /> Overview
-                </span>
-              ),
-              children: (
-                <div>
-                  {/* Portfolio Metrics */}
-                  {portfolioData && (
-                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Total Properties"
-                            value={portfolioData.totalProperties}
-                            prefix={<HomeOutlined />}
-                            valueStyle={{ color: '#1890ff' }}
-                          />
-                        </ProCard>
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Total Rent"
-                            value={portfolioData.totalRent}
-                            prefix={<DollarOutlined />}
-                            precision={2}
-                            valueStyle={{ color: '#3f8600' }}
-                          />
-                        </ProCard>
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Total Expenses"
-                            value={portfolioData.totalExpenses}
-                            prefix={<DollarOutlined />}
-                            precision={2}
-                            valueStyle={{ color: '#cf1322' }}
-                          />
-                        </ProCard>
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Net Income"
-                            value={portfolioData.netIncome}
-                            prefix={<DollarOutlined />}
-                            precision={2}
-                            valueStyle={{ color: portfolioData.netIncome >= 0 ? '#3f8600' : '#cf1322' }}
-                          />
-                        </ProCard>
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Occupancy Rate"
-                            value={portfolioData.occupancyRate}
-                            suffix="%"
-                            prefix={<UserOutlined />}
-                            valueStyle={{ color: '#1890ff' }}
-                          />
-                        </ProCard>
-                      </Col>
-                      <Col xs={24} sm={12} md={6}>
-                        <ProCard>
-                          <Statistic
-                            title="Occupied Units"
-                            value={portfolioData.occupiedUnits}
-                            suffix={`/ ${portfolioData.totalUnits}`}
-                            prefix={<HomeOutlined />}
-                          />
-                        </ProCard>
-                      </Col>
-                    </Row>
-                  )}
-
-                  {/* Property Performance Chart */}
-                  {portfolioData && (
-                    <Card title="Portfolio Performance" style={{ marginBottom: 24 }}>
-                      <PortfolioPerformanceChart data={portfolioData} />
-                    </Card>
-                  )}
-
-                  {/* Property-specific metrics */}
-                  {propertyData && (
-                    <Card title={`Property: ${propertyData.propertyName}`} style={{ marginBottom: 24 }}>
-                      <Row gutter={16}>
-                        <Col xs={24} sm={12} md={6}>
-                          <Statistic
-                            title="ROI"
-                            value={propertyData.roi}
-                            suffix="%"
-                            prefix={<ArrowUpOutlined />}
-                            valueStyle={{ color: propertyData.roi >= 0 ? '#3f8600' : '#cf1322' }}
-                          />
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                          <Statistic
-                            title="Net Income"
-                            value={propertyData.netIncome}
-                            prefix={<DollarOutlined />}
-                            precision={2}
-                          />
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                          <Statistic
-                            title="Occupancy"
-                            value={propertyData.occupancyRate}
-                            suffix="%"
-                          />
-                        </Col>
-                      </Row>
-                    </Card>
-                  )}
-                </div>
-              ),
-            },
-            {
-              key: 'cashflow',
-              label: (
-                <span>
-                  <LineChartOutlined /> Cash Flow Forecast
-                </span>
-              ),
-              children: (
-                <div>
-                  {cashFlowData ? (
-                    <>
-                      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                        <Col xs={24} sm={8}>
-                          <ProCard>
-                            <Statistic
-                              title="Total Projected Income"
-                              value={cashFlowData.totalProjectedIncome}
-                              prefix={<DollarOutlined />}
-                              precision={2}
-                              valueStyle={{ color: '#3f8600' }}
-                            />
-                          </ProCard>
-                        </Col>
-                        <Col xs={24} sm={8}>
-                          <ProCard>
-                            <Statistic
-                              title="Total Projected Expenses"
-                              value={cashFlowData.totalProjectedExpenses}
-                              prefix={<DollarOutlined />}
-                              precision={2}
-                              valueStyle={{ color: '#cf1322' }}
-                            />
-                          </ProCard>
-                        </Col>
-                        <Col xs={24} sm={8}>
-                          <ProCard>
-                            <Statistic
-                              title="Total Net Cash Flow"
-                              value={cashFlowData.totalNetCashFlow}
-                              prefix={<DollarOutlined />}
-                              precision={2}
-                              valueStyle={{ color: cashFlowData.totalNetCashFlow >= 0 ? '#3f8600' : '#cf1322' }}
-                            />
-                          </ProCard>
-                        </Col>
-                      </Row>
-                      <Card title="12-Month Cash Flow Forecast">
-                        <CashFlowChart data={cashFlowData.forecast} />
-                      </Card>
-                    </>
-                  ) : (
-                    <Empty description="No cash flow data available" />
-                  )}
-                </div>
-              ),
-            },
-            {
-              key: 'risks',
-              label: (
-                <span>
-                  <WarningOutlined /> Risk Analysis
-                </span>
-              ),
-              children: (
-                <div>
-                  <Card title="Tenant Delinquency Risk Analysis" style={{ marginBottom: 24 }}>
-                    <Alert
-                      message="Risk Scoring"
-                      description="Tenants are scored 0-100 based on payment history. Higher scores indicate higher risk of payment delinquency."
-                      type="info"
-                      showIcon
-                      style={{ marginBottom: 16 }}
+        <Tabs activeTab={activeTab} onActiveTabChange={setActiveTab}>
+          <Tabs.Item active={activeTab === 'overview'} title={
+            <div className="flex items-center gap-2">
+              <HiChartBar className="h-4 w-4" />
+              <span>Overview</span>
+            </div>
+          }>
+            <div>
+              {/* Portfolio Metrics */}
+              {portfolioData && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Total Properties"
+                      value={portfolioData.totalProperties}
+                      prefix={<HiHome className="h-5 w-5" />}
+                      valueStyle={{ color: '#1890ff' }}
                     />
-                    {tenantRisks.length > 0 ? (
-                      <Table
-                        columns={tenantRiskColumns}
-                        dataSource={tenantRisks}
-                        rowKey="tenantId"
-                        pagination={{ pageSize: 10 }}
-                      />
-                    ) : (
-                      <Empty description="No tenant risk data available. Risk analysis requires payment history." />
-                    )}
+                  </Card>
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Total Rent"
+                      value={portfolioData.totalRent}
+                      prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                      precision={2}
+                      valueStyle={{ color: '#3f8600' }}
+                    />
+                  </Card>
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Total Expenses"
+                      value={portfolioData.totalExpenses}
+                      prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                      precision={2}
+                      valueStyle={{ color: '#cf1322' }}
+                    />
+                  </Card>
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Net Income"
+                      value={portfolioData.netIncome}
+                      prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                      precision={2}
+                      valueStyle={{ color: portfolioData.netIncome >= 0 ? '#3f8600' : '#cf1322' }}
+                    />
+                  </Card>
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Occupancy Rate"
+                      value={portfolioData.occupancyRate}
+                      suffix="%"
+                      prefix={<HiUser className="h-5 w-5" />}
+                      valueStyle={{ color: '#1890ff' }}
+                    />
+                  </Card>
+                  <Card>
+                    <FlowbiteStatistic
+                      title="Occupied Units"
+                      value={portfolioData.occupiedUnits}
+                      suffix={`/ ${portfolioData.totalUnits}`}
+                      prefix={<HiHome className="h-5 w-5" />}
+                    />
                   </Card>
                 </div>
-              ),
-            },
-          ]}
-        />
+              )}
+
+              {/* Property Performance Chart */}
+              {portfolioData && (
+                <Card className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Portfolio Performance</h3>
+                  <PortfolioPerformanceChart data={portfolioData} />
+                </Card>
+              )}
+
+              {/* Property-specific metrics */}
+              {propertyData && (
+                <Card className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Property: {propertyData.propertyName}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <FlowbiteStatistic
+                      title="ROI"
+                      value={propertyData.roi}
+                      suffix="%"
+                      prefix={<HiArrowUp className="h-5 w-5" />}
+                      valueStyle={{ color: propertyData.roi >= 0 ? '#3f8600' : '#cf1322' }}
+                    />
+                    <FlowbiteStatistic
+                      title="Net Income"
+                      value={propertyData.netIncome}
+                      prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                      precision={2}
+                    />
+                    <FlowbiteStatistic
+                      title="Occupancy"
+                      value={propertyData.occupancyRate}
+                      suffix="%"
+                    />
+                  </div>
+                </Card>
+              )}
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'cashflow'} title={
+            <div className="flex items-center gap-2">
+              <HiChartLine className="h-4 w-4" />
+              <span>Cash Flow Forecast</span>
+            </div>
+          }>
+            <div>
+              {cashFlowData ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <Card>
+                      <FlowbiteStatistic
+                        title="Total Projected Income"
+                        value={cashFlowData.totalProjectedIncome}
+                        prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                        precision={2}
+                        valueStyle={{ color: '#3f8600' }}
+                      />
+                    </Card>
+                    <Card>
+                      <FlowbiteStatistic
+                        title="Total Projected Expenses"
+                        value={cashFlowData.totalProjectedExpenses}
+                        prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                        precision={2}
+                        valueStyle={{ color: '#cf1322' }}
+                      />
+                    </Card>
+                    <Card>
+                      <FlowbiteStatistic
+                        title="Total Net Cash Flow"
+                        value={cashFlowData.totalNetCashFlow}
+                        prefix={<HiCurrencyDollar className="h-5 w-5" />}
+                        precision={2}
+                        valueStyle={{ color: cashFlowData.totalNetCashFlow >= 0 ? '#3f8600' : '#cf1322' }}
+                      />
+                    </Card>
+                  </div>
+                  <Card>
+                    <h3 className="text-lg font-semibold mb-4">12-Month Cash Flow Forecast</h3>
+                    <CashFlowChart data={cashFlowData.forecast} />
+                  </Card>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No cash flow data available</p>
+                </div>
+              )}
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'risks'} title={
+            <div className="flex items-center gap-2">
+              <HiExclamation className="h-4 w-4" />
+              <span>Risk Analysis</span>
+            </div>
+          }>
+            <div>
+              <Card className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Tenant Delinquency Risk Analysis</h3>
+                <Alert color="info" className="mb-4">
+                  <div>
+                    <p className="font-semibold">Risk Scoring</p>
+                    <p className="text-sm">Tenants are scored 0-100 based on payment history. Higher scores indicate higher risk of payment delinquency.</p>
+                  </div>
+                </Alert>
+                {tenantRisks.length > 0 ? (
+                  <FlowbiteTable
+                    columns={tenantRiskColumns}
+                    dataSource={tenantRisks}
+                    rowKey="tenantId"
+                    pagination={{ pageSize: 10 }}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">No tenant risk data available. Risk analysis requires payment history.</p>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </Tabs.Item>
+        </Tabs>
       )}
     </PageLayout>
   );
 }
-

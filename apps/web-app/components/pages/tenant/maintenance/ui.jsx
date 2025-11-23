@@ -1,15 +1,15 @@
 "use client";
 import dynamic from 'next/dynamic';
-import { Spin } from 'antd';
+import { Spinner } from 'flowbite-react';
 
 // Lazy load MaintenanceClient for better performance and code splitting
 const MaintenanceClient = dynamic(
   () => import('@/components/shared/MaintenanceClient'),
   {
     loading: () => (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16, color: '#666' }}>Loading maintenance requests...</div>
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <Spinner size="xl" />
+        <div className="mt-4 text-gray-500">Loading maintenance requests...</div>
       </div>
     ),
     ssr: false, // Not needed for SEO, improves initial load

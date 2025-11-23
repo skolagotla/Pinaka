@@ -1,18 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  Typography, Table, Tag, Space, Button, Input
-} from 'antd';
+import { Button, TextInput, Badge } from 'flowbite-react';
 import { 
-  TeamOutlined, HomeOutlined, FileTextOutlined,
-  EyeOutlined
-} from '@ant-design/icons';
+  HiUserGroup, 
+  HiHome, 
+  HiDocumentText,
+  HiEye
+} from 'react-icons/hi';
 import { useState, useMemo } from 'react';
 import { PageLayout, TableWrapper } from '@/components/shared';
-
-const { Text } = Typography;
-const { Search } = Input;
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
 
 export default function PMCTenantsClient({ pmc, tenants }) {
   const router = useRouter();
@@ -34,14 +32,14 @@ export default function PMCTenantsClient({ pmc, tenants }) {
       key: 'tenant',
       render: (_, record) => (
         <div>
-          <Text strong>
+          <span className="font-semibold">
             {record.firstName} {record.lastName}
-          </Text>
-          <div style={{ fontSize: '12px', color: '#999' }}>
+          </span>
+          <div className="text-xs text-gray-500">
             {record.email}
           </div>
           {record.phone && (
-            <div style={{ fontSize: '12px', color: '#999' }}>
+            <div className="text-xs text-gray-500">
               {record.phone}
             </div>
           )}
@@ -56,12 +54,12 @@ export default function PMCTenantsClient({ pmc, tenants }) {
           (record.leases || []).map(l => l.property?.id).filter(Boolean)
         );
         return (
-          <Space>
-            <Tag icon={<HomeOutlined />}>{uniqueProperties.size}</Tag>
-            <Text type="secondary">
+          <div className="flex items-center gap-2">
+            <Badge color="blue" icon={HiHome}>{uniqueProperties.size}</Badge>
+            <span className="text-gray-500 text-sm">
               {uniqueProperties.size} propert{uniqueProperties.size !== 1 ? 'ies' : 'y'}
-            </Text>
-          </Space>
+            </span>
+          </div>
         );
       },
     },
@@ -69,9 +67,9 @@ export default function PMCTenantsClient({ pmc, tenants }) {
       title: 'Active Leases',
       key: 'leases',
       render: (_, record) => (
-        <Tag icon={<FileTextOutlined />} color="green">
+        <Badge color="success" icon={HiDocumentText}>
           {record.leases?.length || 0}
-        </Tag>
+        </Badge>
       ),
     },
     {
@@ -79,10 +77,12 @@ export default function PMCTenantsClient({ pmc, tenants }) {
       key: 'action',
       render: (_, record) => (
         <Button
-          type="link"
-          icon={<EyeOutlined />}
+          color="blue"
+          size="sm"
           onClick={() => router.push(`/tenants/${record.id}`)}
+          className="flex items-center gap-2"
         >
+          <HiEye className="h-4 w-4" />
           View Details
         </Button>
       ),
@@ -97,47 +97,50 @@ export default function PMCTenantsClient({ pmc, tenants }) {
     {
       title: 'Total Tenants',
       value: filteredTenants.length,
-      prefix: <TeamOutlined />,
+      prefix: <HiUserGroup className="h-5 w-5" />,
     },
     {
       title: 'Total Leases',
       value: totalLeases,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
     },
     {
       title: 'Properties',
       value: totalProperties,
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><TeamOutlined /> Tenants</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiUserGroup className="h-5 w-5" />
+          <span>Tenants</span>
+        </div>
+      }
       headerActions={[
-        <Search
+        <TextInput
           key="search"
+          type="text"
           placeholder="Search tenants..."
-          allowClear
-          style={{ width: 300 }}
-          size="small"
-          onSearch={setSearchText}
+          value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          className="w-72"
+          icon={HiEye}
         />
       ]}
       stats={stats}
       statsCols={3}
     >
       <TableWrapper>
-        <Table
+        <FlowbiteTable
           dataSource={filteredTenants}
           columns={columns}
           rowKey="id"
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} tenants` }}
-          size="middle"
+          pagination={{ pageSize: 20, showSizeChanger: true }}
         />
       </TableWrapper>
     </PageLayout>
   );
 }
-

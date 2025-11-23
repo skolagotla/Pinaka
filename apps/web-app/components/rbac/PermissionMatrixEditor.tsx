@@ -2,6 +2,7 @@
  * Permission Matrix Editor
  * 
  * Allows Super Admins and PMC Admins to edit permissions for roles
+ * Converted to Flowbite
  */
 
 "use client";
@@ -10,34 +11,36 @@ import { useState, useEffect } from 'react';
 import {
   Card,
   Table,
-  Tag,
+  TableHead,
+  TableHeadCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  Badge,
   Select,
-  Space,
-  Typography,
-  Spin,
-  Alert,
   Button,
-  Checkbox,
-  Switch,
-  message,
+  Spinner,
+  Alert,
   Modal,
-  Input,
-  Divider,
-} from 'antd';
+  TextInput,
+  Label,
+  ToggleSwitch,
+  Textarea,
+} from 'flowbite-react';
 import {
-  LockOutlined,
-  SaveOutlined,
-  ReloadOutlined,
-  EditOutlined,
-  CheckOutlined,
-  CloseOutlined,
-} from '@ant-design/icons';
+  HiLockClosed,
+  HiSave,
+  HiRefresh,
+  HiPencil,
+  HiCheck,
+  HiX,
+  HiPlus,
+  HiSearch,
+} from 'react-icons/hi';
 import { RBACRole, ResourceCategory, PermissionAction } from '@prisma/client';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { Search } = Input;
+import { notify } from '@/lib/utils/notification-helper';
+import { ModalHelper } from '@/lib/utils/flowbite-modal-helper';
 
 interface PermissionMatrixEditorProps {
   roleId?: string;
@@ -186,7 +189,7 @@ export default function PermissionMatrixEditor({
       }
     } catch (error) {
       console.error('Error loading permissions:', error);
-      message.error('Failed to load permissions');
+      notify.error('Failed to load permissions');
     } finally {
       setLoading(false);
     }
@@ -225,7 +228,7 @@ export default function PermissionMatrixEditor({
 
   const handleSaveNewPermission = () => {
     if (!newPermissionCategory || !newPermissionResource.trim()) {
-      message.error('Please select a category and enter a resource name');
+      notify.error('Please select a category and enter a resource name');
       return;
     }
 
@@ -235,7 +238,7 @@ export default function PermissionMatrixEditor({
     );
 
     if (exists) {
-      message.warning('This permission already exists');
+      notify.warning('This permission already exists');
       return;
     }
 
@@ -252,7 +255,7 @@ export default function PermissionMatrixEditor({
 
   const handleSave = async () => {
     if (!selectedRoleId) {
-      message.error('No role selected');
+      notify.error('No role selected');
       return;
     }
 
@@ -279,26 +282,26 @@ export default function PermissionMatrixEditor({
       const data = await response.json();
       
       if (data.success) {
-        message.success('Permissions saved successfully');
+        notify.success('Permissions saved successfully');
         setOriginalPermissions(JSON.parse(JSON.stringify(permissions)));
         setHasChanges(false);
         onSave?.();
       } else {
-        message.error(data.error || 'Failed to save permissions');
+        notify.error(data.error || 'Failed to save permissions');
       }
     } catch (error: any) {
       console.error('Error saving permissions:', error);
-      message.error('Failed to save permissions');
+      notify.error('Failed to save permissions');
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
-    Modal.confirm({
+    ModalHelper.confirm({
       title: 'Reset Changes?',
-      content: 'Are you sure you want to discard all unsaved changes?',
-      onOk: () => {
+      message: 'Are you sure you want to discard all unsaved changes?',
+      onConfirm: () => {
         setPermissions(JSON.parse(JSON.stringify(originalPermissions)));
         setHasChanges(false);
       },
@@ -324,215 +327,259 @@ export default function PermissionMatrixEditor({
     return { category: category as ResourceCategory, resource };
   });
 
-  const columns = [
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      width: 200,
-      render: (category: ResourceCategory) => (
-        <Tag color="blue">{getCategoryLabel(category)}</Tag>
-      ),
-    },
-    {
-      title: 'Resource',
-      dataIndex: 'resource',
-      key: 'resource',
-      width: 200,
-      render: (resource: string) => getResourceLabel(resource),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: { category: ResourceCategory; resource: string }) => {
-        const perm = permissions.find(
-          p => p.category === record.category && p.resource === record.resource
-        );
-        const currentActions = perm?.actions || [];
-
-        return (
-          <Space wrap>
-            {ALL_ACTIONS.map(action => {
-              const hasAction = currentActions.includes(action);
-              return (
-                <Checkbox
-                  key={action}
-                  checked={hasAction}
-                  onChange={() => handleToggleAction(record.category, record.resource, action)}
-                  disabled={!editingMode}
-                >
-                  <Tag color={hasAction ? 'green' : 'default'}>{action}</Tag>
-                </Checkbox>
-              );
-            })}
-          </Space>
-        );
-      },
-    },
-  ];
-
   return (
-    <Card
-      title={
-        <Space>
-          <LockOutlined />
-          <span>Permission Matrix Editor</span>
-        </Space>
-      }
-      extra={
-        <Space>
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HiLockClosed className="h-5 w-5" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Permission Matrix Editor</h3>
+        </div>
+        <div className="flex items-center gap-2">
           {editingMode && (
             <>
               <Button
-                icon={<ReloadOutlined />}
+                color="gray"
                 onClick={handleReset}
                 disabled={!hasChanges}
               >
+                <HiRefresh className="h-4 w-4 mr-2" />
                 Reset
               </Button>
               <Button
-                type="primary"
-                icon={<SaveOutlined />}
+                color="blue"
                 onClick={handleSave}
-                loading={saving}
-                disabled={!hasChanges || !selectedRoleId}
+                disabled={!hasChanges || !selectedRoleId || saving}
               >
-                Save Changes
+                {saving ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <HiSave className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </>
           )}
           <Button
-            icon={editingMode ? <CloseOutlined /> : <EditOutlined />}
+            color={editingMode ? 'gray' : 'blue'}
             onClick={() => setEditingMode(!editingMode)}
             disabled={readOnly}
           >
-            {editingMode ? 'Cancel Edit' : 'Edit Mode'}
+            {editingMode ? (
+              <>
+                <HiX className="h-4 w-4 mr-2" />
+                Cancel Edit
+              </>
+            ) : (
+              <>
+                <HiPencil className="h-4 w-4 mr-2" />
+                Edit Mode
+              </>
+            )}
           </Button>
-        </Space>
-      }
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        </div>
+      </div>
+
+      <div className="space-y-4">
         {/* Role Selection */}
         {!roleId && (
-          <Space>
-            <span>Select Role:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Select Role:</span>
             <Select
               value={selectedRole}
-              onChange={(value) => {
-                setSelectedRole(value);
+              onChange={(e) => {
+                setSelectedRole(e.target.value as RBACRole);
                 setSelectedRoleId(undefined);
               }}
-              style={{ width: 200 }}
-              placeholder="Select a role"
+              className="w-48"
             >
-            {Object.values(RBACRole).map((role) => (
-              <Option key={role} value={role}>
-                {getRoleLabel(role)}
-              </Option>
-            ))}
+              <option value="">Select a role</option>
+              {Object.values(RBACRole).map((role) => (
+                <option key={role} value={role}>
+                  {getRoleLabel(role)}
+                </option>
+              ))}
             </Select>
-          </Space>
+          </div>
         )}
 
         {/* Search */}
-        <Search
-          placeholder="Search by category, resource, or action..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ width: 400 }}
-          allowClear
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <HiSearch className="h-5 w-5 text-gray-500" />
+          </div>
+          <TextInput
+            type="text"
+            placeholder="Search by category, resource, or action..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-10"
+          />
+        </div>
 
         {/* Info Alert */}
         {editingMode ? (
-          <Alert
-            message="Edit Mode Active"
-            description="You can now modify permissions by checking/unchecking actions. Click 'Save Changes' to apply your modifications."
-            type="warning"
-            showIcon
-          />
+          <Alert color="warning">
+            <div>
+              <p className="font-medium">Edit Mode Active</p>
+              <p className="text-sm mt-1">
+                You can now modify permissions by checking/unchecking actions. Click 'Save Changes' to apply your modifications.
+              </p>
+            </div>
+          </Alert>
         ) : (
-          <Alert
-            message="View Mode"
-            description="Click 'Edit Mode' to enable permission editing."
-            type="info"
-            showIcon
-          />
+          <Alert color="info">
+            <div>
+              <p className="font-medium">View Mode</p>
+              <p className="text-sm mt-1">
+                Click 'Edit Mode' to enable permission editing.
+              </p>
+            </div>
+          </Alert>
         )}
 
         {/* Permissions Table */}
         {loading ? (
-          <Spin />
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
         ) : (
           <>
-            <Table
-              columns={columns}
-              dataSource={allResources}
-              rowKey={(record) => `${record.category}-${record.resource}`}
-              pagination={{ pageSize: 20 }}
-              size="small"
-            />
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHead>
+                  <TableHeadCell>Category</TableHeadCell>
+                  <TableHeadCell>Resource</TableHeadCell>
+                  <TableHeadCell>Actions</TableHeadCell>
+                </TableHead>
+                <TableBody className="divide-y">
+                  {allResources.map((record) => {
+                    const perm = permissions.find(
+                      p => p.category === record.category && p.resource === record.resource
+                    );
+                    const currentActions = perm?.actions || [];
+
+                    return (
+                      <TableRow key={`${record.category}-${record.resource}`}>
+                        <TableCell>
+                          <Badge color="info">{getCategoryLabel(record.category)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-gray-900 dark:text-white">
+                            {getResourceLabel(record.resource)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-3">
+                            {ALL_ACTIONS.map(action => {
+                              const hasAction = currentActions.includes(action);
+                              return (
+                                <label
+                                  key={action}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={hasAction}
+                                    onChange={() => handleToggleAction(record.category, record.resource, action)}
+                                    disabled={!editingMode}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                  />
+                                  <Badge color={hasAction ? 'success' : 'gray'}>
+                                    {action}
+                                  </Badge>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
             
             {editingMode && (
               <Button
-                type="dashed"
+                color="gray"
+                outline
                 onClick={handleAddPermission}
-                block
-                style={{ marginTop: 16 }}
+                className="w-full"
               >
-                + Add New Permission
+                <HiPlus className="h-4 w-4 mr-2" />
+                Add New Permission
               </Button>
             )}
           </>
         )}
-      </Space>
+      </div>
 
       {/* Add Permission Modal */}
-      <Modal
-        title="Add New Permission"
-        open={addPermissionModalVisible}
-        onOk={handleSaveNewPermission}
-        onCancel={() => {
-          setAddPermissionModalVisible(false);
-          setNewPermissionCategory(undefined);
-          setNewPermissionResource('');
-        }}
-        okText="Add Permission"
-        cancelText="Cancel"
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <div>
-            <Text strong>Category:</Text>
-            <Select
-              placeholder="Select Category"
-              style={{ width: '100%', marginTop: 8 }}
-              value={newPermissionCategory}
-              onChange={setNewPermissionCategory}
-            >
-              {ALL_CATEGORIES.map(cat => (
-                <Option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</Option>
-              ))}
-            </Select>
+      <Modal show={addPermissionModalVisible} onClose={() => {
+        setAddPermissionModalVisible(false);
+        setNewPermissionCategory(undefined);
+        setNewPermissionResource('');
+      }}>
+        <Modal.Header>Add New Permission</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="category" value="Category" />
+              <Select
+                id="category"
+                value={newPermissionCategory || ''}
+                onChange={(e) => setNewPermissionCategory(e.target.value as ResourceCategory)}
+                className="mt-1"
+              >
+                <option value="">Select Category</option>
+                {ALL_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="resource" value="Resource" />
+              <TextInput
+                id="resource"
+                type="text"
+                placeholder="Resource name (e.g., 'property', 'tenant', 'lease')"
+                value={newPermissionResource}
+                onChange={(e) => setNewPermissionResource(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveNewPermission();
+                  }
+                }}
+                className="mt-1"
+              />
+            </div>
+            <Alert color="info">
+              <div>
+                <p className="text-sm">
+                  The permission will be created with READ action by default. You can add more actions after creation.
+                </p>
+              </div>
+            </Alert>
           </div>
-          <div>
-            <Text strong>Resource:</Text>
-            <Input
-              placeholder="Resource name (e.g., 'property', 'tenant', 'lease')"
-              style={{ marginTop: 8 }}
-              value={newPermissionResource}
-              onChange={(e) => setNewPermissionResource(e.target.value)}
-              onPressEnter={handleSaveNewPermission}
-            />
-          </div>
-          <Alert
-            message="Note"
-            description="The permission will be created with READ action by default. You can add more actions after creation."
-            type="info"
-            showIcon
-          />
-        </Space>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={() => {
+            setAddPermissionModalVisible(false);
+            setNewPermissionCategory(undefined);
+            setNewPermissionResource('');
+          }}>
+            Cancel
+          </Button>
+          <Button color="blue" onClick={handleSaveNewPermission}>
+            Add Permission
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Card>
   );
 }
-

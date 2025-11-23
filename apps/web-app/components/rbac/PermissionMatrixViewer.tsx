@@ -1,21 +1,17 @@
 /**
- * Permission Matrix Viewer - Phase 7
+ * Permission Matrix Viewer
  * 
  * Displays the permission matrix for a role
- * Read-only viewer (editor can be added later)
+ * Read-only viewer (converted to Flowbite)
  */
 
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Select, Space, Typography, Spin, Alert } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
-// Removed direct import of getRolePermissions - using API instead
+import { Card, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Select, Badge, Spinner, Alert } from 'flowbite-react';
+import { HiLockClosed } from 'react-icons/hi';
 import { RBACRole, ResourceCategory, PermissionAction } from '@prisma/client';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
-
-const { Title } = Typography;
-const { Option } = Select;
 
 interface PermissionMatrixViewerProps {
   roleId?: string;
@@ -87,39 +83,6 @@ export default function PermissionMatrixViewer({
     }
   };
 
-  const columns = [
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      width: 200,
-      render: (category: ResourceCategory) => (
-        <Tag color="blue">{getCategoryLabel(category)}</Tag>
-      ),
-    },
-    {
-      title: 'Resource',
-      dataIndex: 'resource',
-      key: 'resource',
-      width: 200,
-      render: (resource: string) => getResourceLabel(resource),
-    },
-    {
-      title: 'Actions',
-      dataIndex: 'action',
-      key: 'action',
-      render: (action: string) => (
-        <Space wrap>
-          {action.split(', ').map((act) => (
-            <Tag key={act} color="green">
-              {act}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-  ];
-
   // Group permissions by category and resource (combine multiple actions)
   const groupedPermissions = permissions.reduce((acc, perm) => {
     const key = `${perm.category}-${perm.resource}`;
@@ -142,54 +105,83 @@ export default function PermissionMatrixViewer({
   }));
 
   return (
-    <Card
-      title={
-        <Space>
-          <LockOutlined />
-          <span>Permission Matrix</span>
-        </Space>
-      }
-    >
+    <Card>
+      <div className="flex items-center gap-2 mb-4">
+        <HiLockClosed className="h-5 w-5" />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Permission Matrix</h3>
+      </div>
+
       {!roleId && (
-        <Space style={{ marginBottom: 16 }}>
-          <span>Select Role:</span>
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-gray-700 dark:text-gray-300">Select Role:</span>
           <Select
             value={selectedRole}
-            onChange={setSelectedRole}
-            style={{ width: 200 }}
-            placeholder="Select a role"
+            onChange={(e) => setSelectedRole(e.target.value as RBACRole)}
+            className="w-48"
           >
+            <option value="">Select a role</option>
             {Object.values(RBACRole).map((role) => (
-              <Option key={role} value={role}>
+              <option key={role} value={role}>
                 {getRoleLabel(role)}
-              </Option>
+              </option>
             ))}
           </Select>
-        </Space>
+        </div>
       )}
 
       {readOnly && (
-        <Alert
-          message="Read-Only View"
-          description="This is a read-only view of the permission matrix. To edit permissions, use the permission matrix editor."
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
+        <Alert color="info" className="mb-4">
+          <div>
+            <p className="font-medium">Read-Only View</p>
+            <p className="text-sm mt-1">
+              This is a read-only view of the permission matrix. To edit permissions, use the permission matrix editor.
+            </p>
+          </div>
+        </Alert>
       )}
 
       {loading ? (
-        <Spin />
+        <div className="flex justify-center items-center py-12">
+          <Spinner size="xl" />
+        </div>
+      ) : tableData.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p>No permissions found for this role.</p>
+        </div>
       ) : (
-        <Table
-          columns={columns}
-          dataSource={tableData}
-          rowKey={(record) => `${record.category}-${record.resource}`}
-          pagination={false}
-          size="small"
-        />
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHead>
+              <TableHeadCell>Category</TableHeadCell>
+              <TableHeadCell>Resource</TableHeadCell>
+              <TableHeadCell>Actions</TableHeadCell>
+            </TableHead>
+            <TableBody className="divide-y">
+              {tableData.map((record: any) => (
+                <TableRow key={`${record.category}-${record.resource}`}>
+                  <TableCell>
+                    <Badge color="info">{getCategoryLabel(record.category)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-gray-900 dark:text-white">
+                      {getResourceLabel(record.resource)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-2">
+                      {record.action.split(', ').map((act: string) => (
+                        <Badge key={act} color="success">
+                          {act}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </Card>
   );
 }
-

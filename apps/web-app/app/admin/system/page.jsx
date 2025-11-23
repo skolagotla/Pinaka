@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Typography, Tag, Spin, Alert, Button } from 'antd';
+import { Card, Button, Alert, Spinner } from 'flowbite-react';
 import {
-  DatabaseOutlined,
-  UserOutlined,
-  HomeOutlined,
-  FileTextOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
-
-const { Title } = Typography;
+  HiDatabase,
+  HiUser,
+  HiHome,
+  HiDocumentText,
+  HiRefresh,
+  HiCheckCircle,
+  HiXCircle,
+} from 'react-icons/hi';
 
 export default function AdminSystemPage() {
   const [loading, setLoading] = useState(true);
@@ -21,7 +19,7 @@ export default function AdminSystemPage() {
 
   useEffect(() => {
     fetchHealth();
-    const interval = setInterval(fetchHealth, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchHealth, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,165 +44,176 @@ export default function AdminSystemPage() {
 
   if (loading && !health) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Spin size="large" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }
 
   if (error && !health) {
     return (
-      <div style={{ padding: '24px' }}>
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={fetchHealth}>
-              Retry
-            </Button>
-          }
-        />
+      <div className="p-6">
+        <Alert color="failure">
+          <div>
+            <div className="font-medium">Error</div>
+            <div className="text-sm mt-1">{error}</div>
+          </div>
+          <Button size="sm" color="gray" onClick={fetchHealth} className="mt-2">
+            Retry
+          </Button>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <DatabaseOutlined /> System Monitoring
-        </Title>
-        <Button icon={<ReloadOutlined />} onClick={fetchHealth} loading={loading}>
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <HiDatabase className="h-6 w-6" />
+          System Monitoring
+        </h1>
+        <Button color="gray" onClick={fetchHealth} disabled={loading}>
+          <HiRefresh className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
       {health && (
-        <>
-          <Card style={{ marginBottom: 24 }}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic
-                  title="Database Status"
-                  value={health.database.status}
-                  prefix={
-                    health.database.healthy ? (
-                      <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                    ) : (
-                      <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-                    )
-                  }
-                  suffix={
-                    <Tag color={health.database.healthy ? 'success' : 'error'}>
-                      {health.database.responseTime}ms
-                    </Tag>
-                  }
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic
-                  title="Active Sessions"
-                  value={health.metrics.system.activeSessions}
-                  prefix={<UserOutlined />}
-                />
-              </Col>
-            </Row>
+        <div className="space-y-6">
+          {/* Database Status */}
+          <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  {health.database.healthy ? (
+                    <HiCheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <HiXCircle className="h-5 w-5 text-red-600" />
+                  )}
+                  <span className="text-sm text-gray-600">Database Status</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold text-gray-900">{health.database.status}</span>
+                  <span className={`px-2 py-1 rounded text-sm ${health.database.healthy ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {health.database.responseTime}ms
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <HiUser className="h-5 w-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">Active Sessions</span>
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{health.metrics.system.activeSessions}</span>
+              </div>
+            </div>
           </Card>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Landlords"
-                  value={health.metrics.users.landlords}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Tenants"
-                  value={health.metrics.users.tenants}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Users"
-                  value={health.metrics.users.total}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
+          {/* User Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <HiUser className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Landlords</p>
+                  <p className="text-2xl font-bold text-gray-900">{health.metrics.users.landlords}</p>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <HiUser className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Tenants</p>
+                  <p className="text-2xl font-bold text-gray-900">{health.metrics.users.tenants}</p>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <HiUser className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Users</p>
+                  <p className="text-2xl font-bold text-gray-900">{health.metrics.users.total}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={12}>
-              <Card>
-                <Statistic
-                  title="Total Properties"
-                  value={health.metrics.properties.total}
-                  prefix={<HomeOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card>
-                <Statistic
-                  title="Properties with Active Leases"
-                  value={health.metrics.properties.withActiveLeases}
-                  prefix={<FileTextOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
+          {/* Property Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-100 rounded-lg">
+                  <HiHome className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Properties</p>
+                  <p className="text-2xl font-bold text-gray-900">{health.metrics.properties.total}</p>
+                </div>
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-yellow-100 rounded-lg">
+                  <HiDocumentText className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Active Leases</p>
+                  <p className="text-2xl font-bold text-gray-900">{health.metrics.properties.activeLeases}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
 
-          <Card title="Recent Activity (Last 24 Hours)">
-            <Row gutter={16}>
-              <Col span={8}>
-                <Statistic
-                  title="Logins"
-                  value={health.activity.last24Hours.logins}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="New Users"
-                  value={health.activity.last24Hours.newUsers}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="New Properties"
-                  value={health.activity.last24Hours.newProperties}
-                />
-              </Col>
-            </Row>
-          </Card>
-
-          {health.metrics.system.recentErrors > 0 && (
-            <Alert
-              message="System Alerts"
-              description={`${health.metrics.system.recentErrors} errors in the last 24 hours`}
-              type="warning"
-              showIcon
-              style={{ marginTop: 24 }}
-            />
+          {/* Recent Activity */}
+          {health.metrics.recentActivity && (
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Recent Activity (Last 24 Hours)</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Logins:</span>
+                  <span className="font-medium">{health.metrics.recentActivity.logins || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">New Users:</span>
+                  <span className="font-medium">{health.metrics.recentActivity.newUsers || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">New Properties:</span>
+                  <span className="font-medium">{health.metrics.recentActivity.newProperties || 0}</span>
+                </div>
+              </div>
+            </Card>
           )}
 
-          <Card style={{ marginTop: 24 }}>
-            <Typography.Text type="secondary">
-              Last updated: {new Date(health.timestamp).toLocaleString()}
-            </Typography.Text>
-          </Card>
-        </>
+          {/* System Info */}
+          {health.system && (
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">System Information</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Tables:</span>
+                  <span className="font-medium">{health.system.tableCount || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Last Updated:</span>
+                  <span className="font-medium">
+                    {health.system.lastUpdated ? new Date(health.system.lastUpdated).toLocaleString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );
 }
-

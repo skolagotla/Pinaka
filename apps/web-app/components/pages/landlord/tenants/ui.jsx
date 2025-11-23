@@ -2,53 +2,43 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
-  Typography,
   Button,
   Table,
-  Tag,
-  Space,
+  Badge,
   Modal,
-  Form,
-  Input,
-  Select,
-  DatePicker,
-  InputNumber,
-  Tabs,
-  Popconfirm,
   Card,
-  Row,
-  Col,
   Avatar,
-  App,
-  Divider,
-} from 'antd';
+  Alert,
+  Tabs,
+  Spinner,
+  Tooltip,
+} from 'flowbite-react';
 import { PageLayout, EmptyState, TableWrapper } from '@/components/shared';
 import { notify } from '@/lib/utils/notification-helper';
 import { rules, ruleCombos } from '@/lib/utils/validation-rules';
 import { ActionButton, IconButton } from '@/components/shared/buttons';
-// Lazy load Pro components to reduce initial bundle size (~200KB savings)
-import { ProTable, ProForm } from '@/components/shared/LazyProComponents';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
+import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
+import { useFormState } from '@/lib/hooks/useFormState';
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SendOutlined,
-  UserOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  SaveOutlined,
-  CloseOutlined,
-  UploadOutlined,
-  FileOutlined,
-  DeleteFilled,
-  SearchOutlined,
-  UserAddOutlined,
-  ReloadOutlined,
-  CloseCircleOutlined,
-  CheckCircleOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
-import { Tooltip } from 'antd';
+  HiPlus,
+  HiPencil,
+  HiTrash,
+  HiPaperAirplane,
+  HiUser,
+  HiMail,
+  HiPhone,
+  HiSave,
+  HiX,
+  HiCloudUpload,
+  HiDocumentText,
+  HiRefresh,
+  HiUserAdd,
+  HiXCircle,
+  HiCheckCircle,
+  HiUserGroup,
+} from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 import { formatPhoneNumber } from '@/lib/utils/formatters';
@@ -71,15 +61,14 @@ import { usePolling } from '@/lib/hooks/usePolling';
 import { usePermissions } from '@/lib/hooks/usePermissions';
 import { ValidationHelpers } from '@/lib/utils/unified-validation';
 import { useLoading } from '@/lib/hooks/useLoading';
+import { ModalHelper } from '@/lib/utils/flowbite-modal-helper';
+
 // Lazy load logger to avoid server-side execution issues
-// Use relative path since require doesn't always work with path aliases
 let logger;
 try {
   if (typeof window !== 'undefined') {
-    // Client-side: use relative path from components/pages/landlord/tenants to lib
     logger = require('@/lib/logger');
   } else {
-    // Server-side mock
     logger = {
       form: () => {},
       error: () => {},
@@ -88,7 +77,6 @@ try {
     };
   }
 } catch (error) {
-  // Fallback if logger can't be loaded
   logger = {
     form: () => {},
     error: () => {},
@@ -104,14 +92,12 @@ import { useProperty } from '@/lib/contexts/PropertyContext';
 
 // Rules Engine Components
 import CurrencyInput from '@/components/rules/CurrencyInput';
-
-const { Title, Text } = Typography;
+import { TextInput, Label, Select, Textarea } from 'flowbite-react';
 
 function TenantsClient({ initialTenants, user }) {
   const searchParams = useSearchParams();
-  const [form] = Form.useForm();
-  const [rejectForm] = Form.useForm();
-  const { message } = App.useApp(); // Use App's message API instead of static
+  const form = useFormState({ country: "CA", provinceState: "ON" });
+  const rejectForm = useFormState();
   const { selectedProperty } = useProperty();
   
   // Check permissions (PMC-managed landlords cannot create tenants)
@@ -120,6 +106,7 @@ function TenantsClient({ initialTenants, user }) {
   // Approval workflow state
   const { isOpen: approvalModalVisible, open: openApprovalModal, close: closeApprovalModal, editingItem: selectedTenant, openForEdit: openApprovalModalForEdit } = useModalState();
   const { isOpen: rejectModalVisible, open: openRejectModal, close: closeRejectModal, openForEdit: openRejectModalForEdit } = useModalState();
+  const [selectedTenantForApproval, setSelectedTenantForApproval] = useState(null);
   const { loading: approving, withLoading: withApproving } = useLoading();
   const { loading: rejecting, withLoading: withRejecting } = useLoading();
   
@@ -160,10 +147,7 @@ function TenantsClient({ initialTenants, user }) {
         if (typeof phoneString === 'object') {
           phoneString = phoneString.value || phoneString.phone || phoneString.formatted || null;
         }
-        // Convert to string and trim, but keep the formatted version
-        // The sanitizer will unformat it for storage (digits only)
         phoneString = String(phoneString).trim();
-        // If empty after trimming, set to null
         if (phoneString === '') {
           phoneString = null;
         }
@@ -175,7 +159,6 @@ function TenantsClient({ initialTenants, user }) {
       let addressString = '';
       if (payload.currentAddress) {
         if (typeof payload.currentAddress === 'object' && payload.currentAddress !== null) {
-          // Extract string from address object
           addressString = payload.currentAddress.formattedAddress 
             || payload.currentAddress.addressLine1 
             || payload.currentAddress.address
@@ -188,7 +171,6 @@ function TenantsClient({ initialTenants, user }) {
           addressString = String(payload.currentAddress).trim();
         }
       }
-      // If empty after processing, set to null
       if (addressString === '') {
         addressString = null;
       }
@@ -214,10 +196,7 @@ function TenantsClient({ initialTenants, user }) {
         if (typeof phoneString === 'object') {
           phoneString = phoneString.value || phoneString.phone || phoneString.formatted || null;
         }
-        // Convert to string and trim, but keep the formatted version
-        // The sanitizer will unformat it for storage (digits only)
         phoneString = String(phoneString).trim();
-        // If empty after trimming, set to null
         if (phoneString === '') {
           phoneString = null;
         }
@@ -229,7 +208,6 @@ function TenantsClient({ initialTenants, user }) {
       let addressString = '';
       if (payload.currentAddress) {
         if (typeof payload.currentAddress === 'object' && payload.currentAddress !== null) {
-          // Extract string from address object
           addressString = payload.currentAddress.formattedAddress 
             || payload.currentAddress.addressLine1 
             || payload.currentAddress.address
@@ -242,18 +220,16 @@ function TenantsClient({ initialTenants, user }) {
           addressString = String(payload.currentAddress).trim();
         }
       }
-      // If empty after processing, set to null
       if (addressString === '') {
         addressString = null;
       }
       
       // Prepare tenant data using the hook
-      // Ensure moveInDate and leaseTerm are properly included
       const tenantData = tenantFormData.prepareTenantData({
         ...payload,
         phone: phoneString,
         currentAddress: addressString,
-        leaseTerm: payload.leaseTerm || null, // Explicitly include leaseTerm
+        leaseTerm: payload.leaseTerm || null,
       }, {
         dateOfBirth: payload.dateOfBirth ? formatDateForAPI(payload.dateOfBirth) : null,
         moveInDate: payload.moveInDate ? formatDateForAPI(payload.moveInDate) : null,
@@ -294,12 +270,12 @@ function TenantsClient({ initialTenants, user }) {
     {
       title: 'Tenants',
       value: tenantsData.length,
-      prefix: <TeamOutlined />,
+      prefix: <HiUserGroup className="h-5 w-5" />,
     },
     {
       title: 'Active Leases',
       value: tenantsData.filter(t => t.leaseTenants?.some(lt => lt.lease?.status === 'Active')).length,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
   ];
@@ -308,7 +284,7 @@ function TenantsClient({ initialTenants, user }) {
   const handleAddClick = useCallback(() => {
     logger.action('Tenant: Add button clicked');
     logger.modal('Tenant modal opened', { mode: 'add' });
-    pinaka.setCountry("CA");  // Use composite hook shortcut
+    pinaka.setCountry("CA");
     form.resetFields();
     form.setFieldsValue({ country: "CA", provinceState: "ON" });
     // Reset emergency contacts and employers to defaults
@@ -329,33 +305,30 @@ function TenantsClient({ initialTenants, user }) {
   }, [searchParams, handleAddClick]);
 
   // Auto-refresh tenants list every 30 seconds to show newly accepted invitations
-  // Using longer interval to reduce compiler load and API calls
   const { startPolling, stopPolling } = usePolling({
     callback: async () => {
       try {
         await pinaka.refresh();
       } catch (error) {
-        // Silently fail to prevent error loops
         console.warn('Polling refresh failed:', error);
       }
     },
-    interval: 30000, // 30 seconds (increased from 10s to reduce load)
+    interval: 30000,
     enabled: true,
     immediate: false
   });
 
   useEffect(() => {
-    // Only start polling when component is mounted and visible
     if (typeof window !== 'undefined') {
       startPolling();
       return () => stopPolling();
     }
-  }, [startPolling, stopPolling]); // Include polling functions in deps
+  }, [startPolling, stopPolling]);
 
   const handleEditClick = useCallback((tenant) => {
     logger.action('Tenant: Edit button clicked', { tenantId: tenant.id, tenantName: `${tenant.firstName} ${tenant.lastName}` });
     logger.modal('Tenant modal opened', { mode: 'edit', tenantId: tenant.id });
-    pinaka.setCountry(tenant.country || "CA");  // Use composite hook shortcut
+    pinaka.setCountry(tenant.country || "CA");
     
     // Extract phone - handle formatted strings, objects, or null
     let phoneValue = tenant.phone || "";
@@ -363,15 +336,12 @@ function TenantsClient({ initialTenants, user }) {
       phoneValue = phoneValue.value || phoneValue.phone || phoneValue.formatted || "";
     }
     
-    // Format phone number for display in form (application standard: (XXX) XXX-XXXX)
-    // Always format phone number if it exists and is a string
+    // Format phone number for display in form
     if (phoneValue && typeof phoneValue === 'string' && phoneValue.trim()) {
-      // Remove any existing formatting and re-format
       const digitsOnly = phoneValue.replace(/\D/g, '');
       if (digitsOnly.length >= 10) {
         phoneValue = formatPhoneNumber(digitsOnly);
       } else if (phoneValue.length > 0) {
-        // Format even if incomplete
         phoneValue = formatPhoneNumber(phoneValue);
       }
     }
@@ -379,7 +349,6 @@ function TenantsClient({ initialTenants, user }) {
     // Extract address - handle objects or strings
     let addressValue = tenant.currentAddress || "";
     if (addressValue && typeof addressValue === 'object' && addressValue !== null) {
-      // Extract string from address object
       addressValue = addressValue.formattedAddress 
         || addressValue.addressLine1 
         || addressValue.address
@@ -400,11 +369,11 @@ function TenantsClient({ initialTenants, user }) {
       provinceState: tenant.provinceState || "",
       postalZip: tenant.postalZip || "",
       city: tenant.city || "",
-      dateOfBirth: tenant.dateOfBirth ? dayjs(tenant.dateOfBirth).startOf('day') : undefined,
+      dateOfBirth: tenant.dateOfBirth ? dayjs(tenant.dateOfBirth).startOf('day').format('YYYY-MM-DD') : undefined,
       currentAddress: addressValue,
       numberOfAdults: tenant.numberOfAdults || 1,
       numberOfChildren: tenant.numberOfChildren || 0,
-      moveInDate: tenant.moveInDate ? dayjs(tenant.moveInDate).startOf('day') : undefined,
+      moveInDate: tenant.moveInDate ? dayjs(tenant.moveInDate).startOf('day').format('YYYY-MM-DD') : undefined,
       leaseTerm: tenant.leaseTerm || undefined,
     });
     
@@ -417,13 +386,11 @@ function TenantsClient({ initialTenants, user }) {
         phone: c.phone,
         isPrimary: c.isPrimary
       }));
-      // Ensure at least 2 slots
       while (contacts.length < 2) {
         contacts.push({ contactName: '', email: '', phone: '', isPrimary: false });
       }
       setEmergencyContacts(contacts);
     } else {
-      // Use legacy fields if no new emergency contacts
       setEmergencyContacts([
         { 
           contactName: tenant.emergencyContactName || '', 
@@ -449,7 +416,6 @@ function TenantsClient({ initialTenants, user }) {
         documents: e.employmentDocuments || []
       })));
     } else {
-      // Use legacy fields if no new employer data
       setEmployers([{
         employerName: '',
         employerAddress: '',
@@ -471,7 +437,7 @@ function TenantsClient({ initialTenants, user }) {
   }, [pinaka]);
 
   const { isOpen: inviteModalVisible, open: openInviteModal, close: closeInviteModal, openForCreate: openInviteModalForCreate } = useModalState();
-  const [inviteForm] = Form.useForm();
+  const inviteForm = useFormState({ expiresInDays: 14 });
   const [invitations, setInvitations] = useState([]);
   const { loading: loadingInvitations, withLoading: withLoadingInvitations } = useLoading();
   const [showPendingInvitations, setShowPendingInvitations] = useState(false);
@@ -486,12 +452,10 @@ function TenantsClient({ initialTenants, user }) {
     return await withLoadingInvitations(async () => {
       const { v1Api } = await import('@/lib/api/v1-client');
       const data = await v1Api.specialized.listTenantInvitations();
-      // Handle standardized API response format
       const invitationsData = data?.data?.invitations || data?.invitations || [];
       setInvitations(invitationsData);
-      return invitationsData; // Return the invitations for use in callbacks
+      return invitationsData;
     }).catch((error) => {
-      // Error already handled
       setInvitations([]);
       return [];
     });
@@ -512,7 +476,7 @@ function TenantsClient({ initialTenants, user }) {
       });
       logger.apiResponse('POST', '/api/v1/tenants/invitations', 200, data);
       notify.success(`Invitation sent to ${tenant.firstName} ${tenant.lastName}`);
-      await loadInvitations(); // Refresh invitations list
+      await loadInvitations();
     } catch (error) {
       logger.apiError('POST', '/api/v1/tenants/invitations', error);
       notify.error(error.message || 'Failed to send invitation');
@@ -532,32 +496,27 @@ function TenantsClient({ initialTenants, user }) {
         expiresInDays: values.expiresInDays || 14,
       });
       
-      // Success
       const responseData = data?.data || data;
       
-      // Close modal immediately for better UX
       closeInviteModal();
       inviteForm.resetFields();
       
-      // Show success message
       if (responseData?.warning) {
         notify.warning(responseData.warning);
       } else {
         notify.success(`Invitation sent to ${values.email}`);
       }
       
-      // Refresh invitations list in background (non-blocking)
       loadInvitations().catch(err => {
         console.error('[Invite Tenant] Error refreshing invitations:', err);
       });
     } catch (error) {
       console.error('[Invite Tenant] Error:', error);
       
-      // Check if it's a duplicate invitation error (409 Conflict)
+      // Check if it's a duplicate invitation error
       if (error?.message?.includes('already exists') || error?.message?.includes('INVITATION_EXISTS') || error?.message?.includes('TENANT_EXISTS')) {
         let invitationId;
         
-        // Try to extract invitation ID from error message or load invitations
         try {
           const loadedInvitations = await loadInvitations();
           const existingInvitation = loadedInvitations.find(inv => 
@@ -566,26 +525,24 @@ function TenantsClient({ initialTenants, user }) {
           );
           if (existingInvitation) {
             invitationId = existingInvitation.id;
-            console.log('[Invite Tenant] Found existing invitation:', invitationId);
           }
         } catch (e) {
           console.error('[Invite Tenant] Error loading invitations:', e);
         }
         
-        // Show modal with resend option
-        Modal.confirm({
+        // Show modal with resend option using ModalHelper
+        ModalHelper.confirm({
           title: 'Invitation Already Exists',
           content: (
             <div>
               <p>An active invitation already exists for <strong>{values.email}</strong>.</p>
-              <p style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+              <p className="mt-2 text-gray-600 text-sm">
                 Would you like to resend it? The invitation will appear in the "Pending Invitations" section above the tenants table.
               </p>
             </div>
           ),
           okText: 'Yes, Resend',
           cancelText: 'Cancel',
-          width: 500,
           onOk: async () => {
             if (invitationId) {
               try {
@@ -593,7 +550,7 @@ function TenantsClient({ initialTenants, user }) {
                 notify.success(`Invitation resent to ${values.email}`);
                 closeInviteModal();
                 inviteForm.resetFields();
-                await loadInvitations(); // Refresh to show in pending section
+                await loadInvitations();
               } catch (resendError) {
                 console.error('[Invite Tenant] Resend error:', resendError);
                 notify.error('Failed to resend invitation. Please try again.');
@@ -604,15 +561,13 @@ function TenantsClient({ initialTenants, user }) {
             }
           },
           onCancel: () => {
-            // User cancelled, just close the modal
             closeInviteModal();
             inviteForm.resetFields();
           }
         });
-        return; // Don't show default error
+        return;
       }
       
-      // For other errors, show error message
       notify.error(error?.message || 'Failed to send invitation. Please try again.');
     }
   }
@@ -624,12 +579,10 @@ function TenantsClient({ initialTenants, user }) {
       const data = await v1Api.specialized.resendTenantInvitation(invitationId);
       console.log('[Resend Invitation] Response:', data);
       
-      // Success response
       if (data?.data?.message || data?.success) {
         notify.success('Invitation resent successfully');
-        await loadInvitations(); // Refresh to update status
+        await loadInvitations();
       } else {
-        // Check if there's a warning or error in the response
         if (data?.data?.warning) {
           notify.warning(data.data.warning);
         } else if (data?.error) {
@@ -645,7 +598,6 @@ function TenantsClient({ initialTenants, user }) {
     } catch (error) {
       console.error('[Resend Invitation] Error:', error);
       notify.error(error instanceof Error ? error.message : 'Failed to resend invitation');
-      // Just refresh invitations list in case status changed
       await loadInvitations();
     }
   }
@@ -668,28 +620,27 @@ function TenantsClient({ initialTenants, user }) {
     });
     pinaka.close();
     form.resetFields();
-    pinaka.setCountry("CA");  // Reset to default using composite hook
+    pinaka.setCountry("CA");
   }
 
   // Approval workflow handlers
   function handleApproveClick(tenant) {
-    setSelectedTenant(tenant);
-    setApprovalModalVisible(true);
+    setSelectedTenantForApproval(tenant);
+    openApprovalModalForEdit(tenant);
   }
 
   function handleRejectClick(tenant) {
-    setSelectedTenant(tenant);
+    setSelectedTenantForApproval(tenant);
     rejectForm.resetFields();
-    setRejectModalVisible(true);
+    openRejectModalForEdit(tenant);
   }
 
   async function handleApprove() {
-    if (!selectedTenant) return;
+    if (!selectedTenantForApproval) return;
     
     await withApproving(async () => {
-      // Use v1Api for tenant approval
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/tenants/${selectedTenant.id}/approve`, {
+      const response = await apiClient(`/api/v1/tenants/${selectedTenantForApproval.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -706,12 +657,11 @@ function TenantsClient({ initialTenants, user }) {
   }
 
   async function handleReject(values) {
-    if (!selectedTenant) return;
+    if (!selectedTenantForApproval) return;
     
     await withRejecting(async () => {
-      // Use v1Api for tenant rejection
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/tenants/${selectedTenant.id}/reject`, {
+      const response = await apiClient(`/api/v1/tenants/${selectedTenantForApproval.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: values.reason }),
@@ -734,17 +684,19 @@ function TenantsClient({ initialTenants, user }) {
     withSorter(
       customizeColumn(TENANT_COLUMNS.NAME, {
         render: (_, tenant) => (
-          <Space>
-            <Avatar size={40} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-            <Text strong>{tenant.firstName} {tenant.lastName}</Text>
-          </Space>
+          <div className="flex items-center gap-2">
+            <Avatar size="lg" rounded className="bg-blue-600">
+              <HiUser className="h-5 w-5 text-white" />
+            </Avatar>
+            <span className="font-semibold">{tenant.firstName} {tenant.lastName}</span>
+          </div>
         ),
       }),
       sortFunctions.string('firstName')
     ),
     withSorter(
       customizeColumn(TENANT_COLUMNS.EMAIL, {
-        render: (email) => <Text>{email}</Text>,
+        render: (email) => <span>{email}</span>,
       }),
       sortFunctions.string('email')
     ),
@@ -752,7 +704,6 @@ function TenantsClient({ initialTenants, user }) {
       customizeColumn(TENANT_COLUMNS.PHONE, {
         dataIndex: 'phone',
         render: (phone, tenant) => {
-          // Handle phone - check tenant object directly first (most reliable)
           let phoneValue = tenant?.phone || phone;
           
           if (phoneValue && typeof phoneValue === 'object') {
@@ -760,24 +711,21 @@ function TenantsClient({ initialTenants, user }) {
           }
           
           if (!phoneValue || (typeof phoneValue === 'string' && phoneValue.trim() === '')) {
-            return <Text type="secondary">—</Text>;
+            return <span className="text-gray-400">—</span>;
           }
           
           try {
-            // Extract digits only and format
             const digitsOnly = String(phoneValue).replace(/\D/g, '');
             if (digitsOnly.length >= 10) {
               const formatted = formatPhoneNumber(digitsOnly);
-              return formatted ? <Text>{formatted}</Text> : <Text type="secondary">—</Text>;
+              return formatted ? <span>{formatted}</span> : <span className="text-gray-400">—</span>;
             } else if (digitsOnly.length > 0) {
-              // Format even if incomplete
               const formatted = formatPhoneNumber(digitsOnly);
-              return formatted ? <Text>{formatted}</Text> : <Text type="secondary">—</Text>;
+              return formatted ? <span>{formatted}</span> : <span className="text-gray-400">—</span>;
             }
-            return <Text type="secondary">—</Text>;
+            return <span className="text-gray-400">—</span>;
           } catch (error) {
-            // Silently handle formatting errors in production
-            return <Text type="secondary">—</Text>;
+            return <span className="text-gray-400">—</span>;
           }
         },
       }),
@@ -790,19 +738,14 @@ function TenantsClient({ initialTenants, user }) {
       width: 250,
       ellipsis: true,
       render: (address, tenant) => {
-        // Handle address - check tenant object directly first (most reliable)
         let addressValue = tenant?.currentAddress || address;
         let addressString = '';
         
         if (addressValue) {
           if (typeof addressValue === 'object' && addressValue !== null) {
-            // Skip React components and other non-serializable objects
             if (addressValue.$$typeof) {
-              // This is a React component, skip it
               addressString = '';
             } else {
-              // Extract string from address object
-              // Try common address object properties in order of preference
               addressString = addressValue.formattedAddress 
                 || addressValue.addressLine1 
                 || addressValue.address
@@ -811,15 +754,13 @@ function TenantsClient({ initialTenants, user }) {
                 || addressValue.fullAddress
                 || '';
               
-              // Try to build from number + street if available
               if (!addressString && addressValue.number && addressValue.street) {
                 addressString = `${addressValue.number} ${addressValue.street}`.trim();
               }
               
-              // If still no string found, try to find any string property (but avoid circular refs)
               if (!addressString) {
                 try {
-                  const keys = Object.keys(addressValue).slice(0, 10); // Limit to first 10 keys to avoid issues
+                  const keys = Object.keys(addressValue).slice(0, 10);
                   for (const key of keys) {
                     const value = addressValue[key];
                     if (typeof value === 'string' && value && value.length < 200 && key !== 'fullAddress') {
@@ -828,7 +769,6 @@ function TenantsClient({ initialTenants, user }) {
                     }
                   }
                 } catch (e) {
-                  // Ignore errors from circular references
                   addressString = '';
                 }
               }
@@ -838,17 +778,15 @@ function TenantsClient({ initialTenants, user }) {
           }
         }
         
-        // Build full address: street address, city, province, postal code
-        // Always include street address first if available, then city, province, postal code
         const parts = [];
         if (addressString) parts.push(addressString);
         if (tenant?.city) parts.push(tenant.city);
         if (tenant?.provinceState) parts.push(tenant.provinceState);
         if (tenant?.postalZip) parts.push(tenant.postalZip);
         
-        if (parts.length === 0) return <Text type="secondary">—</Text>;
+        if (parts.length === 0) return <span className="text-gray-400">—</span>;
         const fullAddress = parts.join(', ');
-        return <Text title={fullAddress}>{fullAddress}</Text>;
+        return <span title={fullAddress}>{fullAddress}</span>;
       },
     },
     {
@@ -890,18 +828,18 @@ function TenantsClient({ initialTenants, user }) {
         );
         
         return (
-          <Space direction="vertical" size="small">
+          <div className="flex flex-col gap-1">
             {hasActiveLease ? (
-              <Tag color="success">Active Lease</Tag>
+              <Badge color="success">Active Lease</Badge>
             ) : (
-              <Tag color="default">No Active Lease</Tag>
+              <Badge color="gray">No Active Lease</Badge>
             )}
             {pendingInvitation && (
-              <Tag color="processing" icon={<SendOutlined />}>
+              <Badge color="info" icon={HiPaperAirplane}>
                 Invitation {pendingInvitation.status}
-              </Tag>
+              </Badge>
             )}
-          </Space>
+          </div>
         );
       },
       filters: [
@@ -920,17 +858,17 @@ function TenantsClient({ initialTenants, user }) {
         const isPending = approvalStatus === 'PENDING';
         
         return (
-          <Space size="small">
+          <div className="flex items-center gap-2">
             {isPending && (
               <>
                 <IconButton
-                  icon={<SaveOutlined />}
+                  icon={<HiSave className="h-4 w-4" />}
                   onClick={() => handleApproveClick(tenant)}
                   tooltip="Approve Application"
                   type="primary"
                 />
                 <IconButton
-                  icon={<CloseCircleOutlined />}
+                  icon={<HiXCircle className="h-4 w-4" />}
                   onClick={() => handleRejectClick(tenant)}
                   tooltip="Reject Application"
                   type="default"
@@ -944,26 +882,26 @@ function TenantsClient({ initialTenants, user }) {
             />
             {approvalStatus === 'APPROVED' && (
               <IconButton
-                icon={<SendOutlined />}
+                icon={<HiPaperAirplane className="h-4 w-4" />}
                 onClick={() => sendInvitation(tenant)}
                 tooltip="Send Invitation"
                 type="default"
               />
             )}
-            <Popconfirm
+            <FlowbitePopconfirm
               title="Delete tenant?"
               description="This action cannot be undone."
               onConfirm={() => handleDelete(tenant)}
               okText="Yes"
               cancelText="No"
-              okButtonProps={{ danger: true }}
+              danger={true}
             >
               <ActionButton
                 action="delete"
                 tooltip="Delete Tenant"
               />
-            </Popconfirm>
-          </Space>
+            </FlowbitePopconfirm>
+          </div>
         );
       },
     },
@@ -971,9 +909,9 @@ function TenantsClient({ initialTenants, user }) {
 
   // Configure columns with standard settings
   const configuredColumns = configureTableColumns(columns, {
-    addSorting: false, // Keep existing sorters
+    addSorting: false,
     centerAlign: true,
-    addWidths: false, // Keep existing widths
+    addWidths: false,
   });
 
   // Use resizable table hook with column width persistence
@@ -990,36 +928,75 @@ function TenantsClient({ initialTenants, user }) {
     return !hasTenant && isActive && notExpired;
   });
 
+  // Handle form submission
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const values = form.getFieldsValue();
+      await pinaka.handleSubmit(values);
+    } catch (error) {
+      console.error('Form validation failed:', error);
+    }
+  };
+
+  // Handle invite form submission
+  const handleInviteFormSubmit = async (e) => {
+    e.preventDefault();
+    const values = inviteForm.getFieldsValue();
+    await inviteNewTenant(values);
+  };
+
+  // Handle reject form submission
+  const handleRejectFormSubmit = async (e) => {
+    e.preventDefault();
+    const values = rejectForm.getFieldsValue();
+    if (!values.reason || values.reason.length < 10) {
+      rejectForm.setFieldError('reason', 'Reason must be at least 10 characters');
+      return;
+    }
+    await handleReject(values);
+  };
+
   return (
-    <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="p-3 h-full flex flex-col">
       <PropertyContextBanner userRole="landlord" />
       <PageLayout
-        headerTitle={<><TeamOutlined /> Tenants</>}
+        headerTitle={
+          <div className="flex items-center gap-2">
+            <HiUserGroup className="h-5 w-5" />
+            <span>Tenants</span>
+          </div>
+        }
         headerActions={[
           permissions.canEditTenants && (
             <Button
               key="add"
-              type="primary"
-              icon={<PlusOutlined />}
+              color="blue"
               onClick={handleAddClick}
+              className="flex items-center gap-2"
             >
+              <HiPlus className="h-4 w-4" />
               Add Tenant
             </Button>
           ),
           permissions.canEditTenants && (
             <Button
               key="invite"
-              icon={<UserAddOutlined />}
+              color="gray"
               onClick={openInviteModalForCreate}
+              className="flex items-center gap-2"
             >
+              <HiUserAdd className="h-4 w-4" />
               Invite Tenant
             </Button>
           ),
           <Button
             key="refresh"
-            icon={<ReloadOutlined />}
+            color="gray"
             onClick={pinaka.refresh}
+            className="flex items-center gap-2"
           >
+            <HiRefresh className="h-4 w-4" />
             Refresh
           </Button>,
         ]}
@@ -1033,120 +1010,100 @@ function TenantsClient({ initialTenants, user }) {
       >
         {/* Pending Invitations Section */}
         {pendingInvitations.length > 0 && (
-          <Card 
-            style={{ marginBottom: 12 }}
-            size="small"
-            title={
-              <Space>
-                <SendOutlined />
-                <span>Pending Invitations ({pendingInvitations.length})</span>
-              </Space>
-            }
-            extra={
+          <Card className="mb-3">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <HiPaperAirplane className="h-5 w-5" />
+                Pending Invitations ({pendingInvitations.length})
+              </h3>
               <IconButton
-                icon={<ReloadOutlined />}
+                icon={<HiRefresh className="h-4 w-4" />}
                 onClick={loadInvitations}
                 tooltip="Refresh Invitations"
               />
-            }
-          >
-            <Table
-              dataSource={pendingInvitations}
-              rowKey="id"
-              size="small"
-              pagination={false}
-              columns={[
-                {
-                  title: 'Email',
-                  dataIndex: 'email',
-                  key: 'email',
-                  render: (email) => <Text strong>{email}</Text>,
-                },
-                {
-                  title: 'Status',
-                  dataIndex: 'status',
-                  key: 'status',
-                  render: (status) => (
-                    <Tag color={status === 'sent' ? 'blue' : status === 'opened' ? 'cyan' : 'orange'}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: 'Sent',
-                  dataIndex: 'createdAt',
-                  key: 'createdAt',
-                  render: (date) => date ? dayjs(date).format('MMM D, YYYY') : '-',
-                },
-                {
-                  title: 'Expires',
-                  dataIndex: 'expiresAt',
-                  key: 'expiresAt',
-                  render: (date) => {
-                    const expiresDate = new Date(date);
-                    const isExpiringSoon = expiresDate.getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000; // 3 days
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <Table.Head>
+                  <Table.HeadCell>Email</Table.HeadCell>
+                  <Table.HeadCell>Status</Table.HeadCell>
+                  <Table.HeadCell>Sent</Table.HeadCell>
+                  <Table.HeadCell>Expires</Table.HeadCell>
+                  <Table.HeadCell>Actions</Table.HeadCell>
+                </Table.Head>
+                <Table.Body className="divide-y">
+                  {pendingInvitations.map((invitation) => {
+                    const expiresDate = new Date(invitation.expiresAt);
+                    const isExpiringSoon = expiresDate.getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000;
                     return (
-                      <Text type={isExpiringSoon ? 'warning' : 'secondary'}>
-                        {dayjs(date).format('MMM D, YYYY')}
-                      </Text>
+                      <Table.Row key={invitation.id}>
+                        <Table.Cell>
+                          <span className="font-semibold">{invitation.email}</span>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Badge color={invitation.status === 'sent' ? 'info' : invitation.status === 'opened' ? 'info' : 'warning'}>
+                            {invitation.status.charAt(0).toUpperCase() + invitation.status.slice(1)}
+                          </Badge>
+                        </Table.Cell>
+                        <Table.Cell>
+                          {invitation.createdAt ? dayjs(invitation.createdAt).format('MMM D, YYYY') : '-'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <span className={isExpiringSoon ? 'text-yellow-600' : 'text-gray-500'}>
+                            {dayjs(invitation.expiresAt).format('MMM D, YYYY')}
+                          </span>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex items-center gap-2">
+                            <IconButton
+                              icon={<HiPaperAirplane className="h-4 w-4" />}
+                              onClick={() => resendInvitation(invitation.id)}
+                              tooltip="Resend Invitation"
+                              type="default"
+                            />
+                            <FlowbitePopconfirm
+                              title="Cancel invitation?"
+                              description="This will cancel the invitation and it cannot be resent."
+                              onConfirm={() => cancelInvitation(invitation.id)}
+                              okText="Yes"
+                              cancelText="No"
+                              danger={true}
+                            >
+                              <IconButton
+                                icon={<HiX className="h-4 w-4" />}
+                                tooltip="Cancel Invitation"
+                                type="default"
+                              />
+                            </FlowbitePopconfirm>
+                          </div>
+                        </Table.Cell>
+                      </Table.Row>
                     );
-                  },
-                },
-                {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 150,
-                  render: (_, invitation) => (
-                    <Space size="small">
-                      <IconButton
-                        icon={<SendOutlined />}
-                        onClick={() => resendInvitation(invitation.id)}
-                        tooltip="Resend Invitation"
-                        type="default"
-                      />
-                      <Popconfirm
-                        title="Cancel invitation?"
-                        description="This will cancel the invitation and it cannot be resent."
-                        onConfirm={() => cancelInvitation(invitation.id)}
-                        okText="Yes"
-                        cancelText="No"
-                        okButtonProps={{ danger: true }}
-                      >
-                        <IconButton
-                          icon={<CloseOutlined />}
-                          tooltip="Cancel Invitation"
-                          type="default"
-                        />
-                      </Popconfirm>
-                    </Space>
-                  ),
-                },
-              ]}
-            />
+                  })}
+                </Table.Body>
+              </Table>
+            </div>
           </Card>
         )}
 
         {pinaka.data.length === 0 ? (
           <EmptyState
-            icon={<UserOutlined />}
+            icon={<HiUser className="h-12 w-12 text-gray-400" />}
             title="No tenants yet"
             description="Click 'Add Tenant' to add your first tenant"
           />
         ) : (
           <TableWrapper>
-            <ProTable
+            <FlowbiteTable
               {...tableProps}
               dataSource={filteredData}
               rowKey="id"
               loading={pinaka.loading}
-              search={false}
-              toolBarRender={false}
               pagination={{
                 pageSize: 25,
                 showSizeChanger: true,
                 showTotal: (total) => `Total ${total} tenants`,
               }}
-              size="middle"
               onRow={(record) => ({
                 onDoubleClick: () => handleEditClick(record),
                 style: { cursor: 'pointer' }
@@ -1157,133 +1114,143 @@ function TenantsClient({ initialTenants, user }) {
 
       {/* Add/Edit Tenant Modal */}
       <Modal
-        title={pinaka.isEditing ? "Edit Tenant" : "Add Tenant"}
-        open={pinaka.isOpen}
-        onCancel={handleClose}
-        footer={null}
-        width={700}
+        show={pinaka.isOpen}
+        onClose={handleClose}
+        size="4xl"
       >
-        <ProForm
-          form={form}
-          layout="vertical"
-          onFinish={pinaka.handleSubmit}
-          preserve={true}
-          style={{ marginTop: 0 }}
-          size="small"
-          submitter={{
-            render: (props, doms) => {
-              return (
-                <div style={{ marginBottom: 0, marginTop: 24 }}>
-                  {pinaka.renderFormButtons({ hideCancel: true })}
-                </div>
-              );
-            }
-          }}
-        >
-          <Tabs 
-            defaultActiveKey="1"
-            destroyInactiveTabPane={false}
-            items={[
-              {
-                key: '1',
-                label: 'Personal Information',
-                children: (
-                  <>
-                    {/* Row 1: First Name, Middle Initial, Last Name */}
-                    <Row gutter={8}>
-                      <Col span={8}>
-                        <Form.Item
+        <Modal.Header>{pinaka.isEditing ? "Edit Tenant" : "Add Tenant"}</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleFormSubmit} className="space-y-6">
+            <Tabs aria-label="Tenant form tabs">
+              <Tabs.Item active title="Personal Information">
+                <div className="space-y-4">
+                  {/* Row 1: First Name, Middle Initial, Last Name */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-5">
+                      <div>
+                        <Label htmlFor="firstName" className="mb-2">
+                          First Name <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="firstName"
                           name="firstName"
-                          label="First Name"
-                          rules={[rules.required('First Name')]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Input placeholder="John" size="large" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={2}>
-                        <Form.Item
+                          placeholder="John"
+                          value={form.values.firstName || ''}
+                          onChange={(e) => form.setFieldsValue({ firstName: e.target.value })}
+                          required
+                          color={form.errors.firstName ? 'failure' : 'gray'}
+                          helperText={form.errors.firstName}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <div>
+                        <Label htmlFor="middleName" className="mb-2">M.I.</Label>
+                        <TextInput
+                          id="middleName"
                           name="middleName"
-                          label="M.I."
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Input placeholder="M" maxLength={2} size="large" style={{ textTransform: 'uppercase' }} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={14}>
-                        <Form.Item
+                          placeholder="M"
+                          maxLength={2}
+                          value={form.values.middleName || ''}
+                          onChange={(e) => form.setFieldsValue({ middleName: e.target.value.toUpperCase() })}
+                          className="uppercase"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-5">
+                      <div>
+                        <Label htmlFor="lastName" className="mb-2">
+                          Last Name <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="lastName"
                           name="lastName"
-                          label="Last Name"
-                          rules={[rules.required('Last Name')]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Input placeholder="Doe" size="large" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                          placeholder="Doe"
+                          value={form.values.lastName || ''}
+                          onChange={(e) => form.setFieldsValue({ lastName: e.target.value })}
+                          required
+                          color={form.errors.lastName ? 'failure' : 'gray'}
+                          helperText={form.errors.lastName}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* Row 2: Email, Phone Number, Date of Birth */}
-                    <Row gutter={8}>
-                      <Col span={8}>
-                        <Form.Item
-                          name="email"
-                          label="Email"
-                          rules={ruleCombos.requiredEmail}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Input placeholder="john.doe@example.com" prefix={<MailOutlined />} size="large" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="phone" label="Phone Number" rules={[rules.required('Phone number')]} style={{ marginBottom: 12 }}>
-                          <PhoneNumberInput country={pinaka.country} size="large" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item 
-                          name="dateOfBirth" 
-                          label="Date of Birth"
-                          rules={[rules.required('Date of birth')]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <DatePicker style={{ width: '100%' }} size="large" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                  {/* Row 2: Email, Phone Number, Date of Birth */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="email" className="mb-2">
+                          Email <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <HiMail className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <TextInput
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="john.doe@example.com"
+                            value={form.values.email || ''}
+                            onChange={(e) => form.setFieldsValue({ email: e.target.value })}
+                            required
+                            className="pl-10"
+                            color={form.errors.email ? 'failure' : 'gray'}
+                            helperText={form.errors.email}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="phone" className="mb-2">
+                          Phone Number <span className="text-red-500">*</span>
+                        </Label>
+                        <PhoneNumberInput 
+                          country={pinaka.country} 
+                          value={form.values.phone || ''}
+                          onChange={(e) => form.setFieldsValue({ phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="dateOfBirth" className="mb-2">
+                          Date of Birth <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="dateOfBirth"
+                          name="dateOfBirth"
+                          type="date"
+                          value={form.values.dateOfBirth || ''}
+                          onChange={(e) => form.setFieldsValue({ dateOfBirth: e.target.value })}
+                          required
+                          color={form.errors.dateOfBirth ? 'failure' : 'gray'}
+                          helperText={form.errors.dateOfBirth}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* Row 3: Current Address with Autocomplete, City */}
-                    <Row gutter={8}>
-                      <Col span={16}>
-                        <Form.Item 
-                          name="currentAddress" 
-                          label="Current Address"
-                          rules={[rules.required('Address')]}
-                          tooltip="Start typing an address to see autocomplete suggestions"
-                          style={{ marginBottom: 12 }}
-                        >
-                          <AddressAutocomplete
-                            placeholder="Type an address (e.g., 123 Main St, Toronto)"
-                            country={pinaka.country === 'CA' ? 'CA,US' : pinaka.country === 'US' ? 'CA,US' : 'CA,US'}
-                            size="large"
-                            onSelect={(addressData) => {
-                              // Country code is already normalized by AddressAutocomplete component
-                              const countryCode = addressData.country;
+                  {/* Row 3: Current Address with Autocomplete, City */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-8">
+                      <div>
+                        <Label htmlFor="currentAddress" className="mb-2">
+                          Current Address <span className="text-red-500">*</span>
+                        </Label>
+                        <AddressAutocomplete
+                          placeholder="Type an address (e.g., 123 Main St, Toronto)"
+                          country={pinaka.country === 'CA' ? 'CA,US' : pinaka.country === 'US' ? 'CA,US' : 'CA,US'}
+                          value={form.values.currentAddress || ''}
+                          onSelect={(addressData) => {
+                            const countryCode = addressData.country;
+                            
+                            if (countryCode === 'CA' || countryCode === 'US') {
+                              pinaka.setCountry(countryCode);
                               
-                              // Update country context first (this will update the region dropdown options)
-                              if (countryCode === 'CA' || countryCode === 'US') {
-                                pinaka.setCountry(countryCode);
-                                
-                                // Auto-fill address fields when address is selected
-                                setTimeout(() => {
-                                  form.setFieldsValue({
-                                    currentAddress: addressData.addressLine1,
-                                    city: addressData.city,
-                                    provinceState: addressData.provinceState,
-                                    postalZip: addressData.postalZip,
-                                    country: countryCode,
-                                  });
-                                }, 50);
-                              } else {
+                              setTimeout(() => {
                                 form.setFieldsValue({
                                   currentAddress: addressData.addressLine1,
                                   city: addressData.city,
@@ -1291,571 +1258,707 @@ function TenantsClient({ initialTenants, user }) {
                                   postalZip: addressData.postalZip,
                                   country: countryCode,
                                 });
-                              }
-                            }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="city" label="City" rules={[rules.required('City')]} style={{ marginBottom: 12 }}>
-                          <Input placeholder="Toronto" size="large" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                              }, 50);
+                            } else {
+                              form.setFieldsValue({
+                                currentAddress: addressData.addressLine1,
+                                city: addressData.city,
+                                provinceState: addressData.provinceState,
+                                postalZip: addressData.postalZip,
+                                country: countryCode,
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="city" className="mb-2">
+                          City <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="city"
+                          name="city"
+                          placeholder="Toronto"
+                          value={form.values.city || ''}
+                          onChange={(e) => form.setFieldsValue({ city: e.target.value })}
+                          required
+                          color={form.errors.city ? 'failure' : 'gray'}
+                          helperText={form.errors.city}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* Row 4: Province, Postal Code, Country */}
-                    <Row gutter={8}>
-                      <Col span={8}>
-                        <Form.Item 
-                          name="provinceState" 
-                          label={pinaka.countryRegion.getRegionLabel()}
-                          rules={[rules.required('Province/state')]}
-                          style={{ marginBottom: 12 }}
+                  {/* Row 4: Province, Postal Code, Country */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="provinceState" className="mb-2">
+                          {pinaka.countryRegion.getRegionLabel()} <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          id="provinceState"
+                          name="provinceState"
+                          value={form.values.provinceState || ''}
+                          onChange={(e) => form.setFieldsValue({ provinceState: e.target.value })}
+                          required
                         >
-                          <Select placeholder="ON" size="large" virtual={false}>
-                            {pinaka.countryRegion.getRegions().map(region => (
-                              <Select.Option key={region.code} value={region.code}>{region.code}</Select.Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item 
-                          name="postalZip" 
-                          label={pinaka.countryRegion.getPostalLabel()}
-                          rules={[rules.required('Postal/ZIP code')]}
-                          style={{ marginBottom: 12 }}
+                          <option value="">Select...</option>
+                          {pinaka.countryRegion.getRegions().map(region => (
+                            <option key={region.code} value={region.code}>{region.code}</option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="postalZip" className="mb-2">
+                          {pinaka.countryRegion.getPostalLabel()} <span className="text-red-500">*</span>
+                        </Label>
+                        <PostalCodeInput 
+                          country={pinaka.country} 
+                          value={form.values.postalZip || ''}
+                          onChange={(e) => form.setFieldsValue({ postalZip: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-4">
+                      <div>
+                        <Label htmlFor="country" className="mb-2">
+                          Country <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          id="country"
+                          name="country"
+                          value={form.values.country || 'CA'}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            pinaka.setCountry(value);
+                            form.setFieldsValue({ 
+                              country: value,
+                              provinceState: pinaka.countryRegion.DEFAULT_REGIONS[value] 
+                            });
+                          }}
+                          required
                         >
-                          <PostalCodeInput country={pinaka.country} size="large" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item 
-                          name="country" 
-                          label="Country"
-                          rules={[rules.required('Country')]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Select 
-                            loading={pinaka.countryRegion.loading}
-                            size="large"
-                            virtual={false}
-                            onChange={(value) => {
-                              pinaka.setCountry(value);
-                              form.setFieldsValue({ provinceState: pinaka.countryRegion.DEFAULT_REGIONS[value] });
-                            }}
-                          >
-                            {pinaka.countryRegion.getCountries().map(c => (
-                              <Select.Option key={c.code} value={c.code}>{c.name}</Select.Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                          {pinaka.countryRegion.getCountries().map(c => (
+                            <option key={c.code} value={c.code}>{c.name}</option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* Row 5: Number of Occupants */}
-                    <Row gutter={8}>
-                      <Col span={6}>
-                        <Form.Item 
-                          name="numberOfAdults" 
-                          label="Number of Adults"
-                          rules={[rules.required('Number of adults')]}
-                          initialValue={1}
-                          style={{ marginBottom: 12 }}
+                  {/* Row 5: Number of Occupants */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-3">
+                      <div>
+                        <Label htmlFor="numberOfAdults" className="mb-2">
+                          Number of Adults <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="numberOfAdults"
+                          name="numberOfAdults"
+                          type="number"
+                          min={1}
+                          max={20}
+                          placeholder="1"
+                          value={form.values.numberOfAdults || 1}
+                          onChange={(e) => form.setFieldsValue({ numberOfAdults: parseInt(e.target.value) || 1 })}
+                          required
+                          color={form.errors.numberOfAdults ? 'failure' : 'gray'}
+                          helperText={form.errors.numberOfAdults}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-3">
+                      <div>
+                        <Label htmlFor="numberOfChildren" className="mb-2">Number of Children</Label>
+                        <TextInput
+                          id="numberOfChildren"
+                          name="numberOfChildren"
+                          type="number"
+                          min={0}
+                          max={20}
+                          placeholder="0"
+                          value={form.values.numberOfChildren || 0}
+                          onChange={(e) => form.setFieldsValue({ numberOfChildren: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-3">
+                      <div>
+                        <Label htmlFor="moveInDate" className="mb-2">
+                          Move-in Date <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          id="moveInDate"
+                          name="moveInDate"
+                          type="date"
+                          value={form.values.moveInDate || ''}
+                          onChange={(e) => form.setFieldsValue({ moveInDate: e.target.value })}
+                          required
+                          color={form.errors.moveInDate ? 'failure' : 'gray'}
+                          helperText={form.errors.moveInDate}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-3">
+                      <div>
+                        <Label htmlFor="leaseTerm" className="mb-2">
+                          Lease Term <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          id="leaseTerm"
+                          name="leaseTerm"
+                          value={form.values.leaseTerm || ''}
+                          onChange={(e) => form.setFieldsValue({ leaseTerm: e.target.value })}
+                          required
                         >
-                          <InputNumber 
-                            min={1} 
-                            max={20} 
-                            style={{ width: '100%' }} 
-                            placeholder="1" 
-                            size="large"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item 
-                          name="numberOfChildren" 
-                          label="Number of Children"
-                          initialValue={0}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <InputNumber 
-                            min={0} 
-                            max={20} 
-                            style={{ width: '100%' }} 
-                            placeholder="0" 
-                            size="large"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item 
-                          name="moveInDate" 
-                          label="Move-in Date"
-                          rules={[{ required: true, message: 'Please select move-in date' }]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <DatePicker 
-                            style={{ width: '100%' }} 
-                            size="large"
-                            placeholder="Select date"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item 
-                          name="leaseTerm" 
-                          label="Lease Term"
-                          rules={[{ required: true, message: 'Please select lease term' }]}
-                          style={{ marginBottom: 12 }}
-                        >
-                          <Select placeholder="Select term" size="large" virtual={false}>
-                            <Select.Option value="6">6 Months</Select.Option>
-                            <Select.Option value="12">12 Months</Select.Option>
-                            <Select.Option value="18">18 Months</Select.Option>
-                            <Select.Option value="24">24 Months</Select.Option>
-                            <Select.Option value="month-to-month">Month-to-Month</Select.Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </>
-                )
-              },
-              {
-                key: '2',
-                label: 'Emergency',
-                children: (
-                  <>
-                    {emergencyContacts.map((contact, index) => (
-                      <div key={index} style={{ marginBottom: index < emergencyContacts.length - 1 ? 12 : 0 }}>
-                        <Row gutter={8}>
-                          <Col span={8}>
-                            <Form.Item 
-                              label={`Contact ${index + 1} Name`}
+                          <option value="">Select term</option>
+                          <option value="6">6 Months</option>
+                          <option value="12">12 Months</option>
+                          <option value="18">18 Months</option>
+                          <option value="24">24 Months</option>
+                          <option value="month-to-month">Month-to-Month</option>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Tabs.Item>
+              
+              <Tabs.Item title="Emergency">
+                <div className="space-y-4">
+                  {emergencyContacts.map((contact, index) => (
+                    <div key={index} className={index < emergencyContacts.length - 1 ? "mb-4 pb-4 border-b border-gray-200" : ""}>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`contact-${index}-name`} className="mb-2">
+                              Contact {index + 1} Name {index === 0 && <span className="text-red-500">*</span>}
+                            </Label>
+                            <TextInput
+                              id={`contact-${index}-name`}
+                              placeholder="Jane Doe"
+                              value={contact.contactName}
+                              onChange={(e) => {
+                                const updated = [...emergencyContacts];
+                                updated[index].contactName = e.target.value;
+                                setEmergencyContacts(updated);
+                              }}
                               required={index === 0}
-                              style={{ marginBottom: 12 }}
-                            >
-                              <Input 
-                                placeholder="Jane Doe" 
-                                value={contact.contactName}
-                                onChange={(e) => {
-                                  const updated = [...emergencyContacts];
-                                  updated[index].contactName = e.target.value;
-                                  setEmergencyContacts(updated);
-                                }}
-                                size="large"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={8}>
-                            <Form.Item label={`Contact ${index + 1} Email`} style={{ marginBottom: 12 }}>
-                              <Input 
-                                placeholder="jane.doe@example.com" 
-                                prefix={<MailOutlined />}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`contact-${index}-email`} className="mb-2">Contact {index + 1} Email</Label>
+                            <div className="relative">
+                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <HiMail className="h-5 w-5 text-gray-400" />
+                              </div>
+                              <TextInput
+                                id={`contact-${index}-email`}
+                                type="email"
+                                placeholder="jane.doe@example.com"
                                 value={contact.email}
                                 onChange={(e) => {
                                   const updated = [...emergencyContacts];
                                   updated[index].email = e.target.value;
                                   setEmergencyContacts(updated);
                                 }}
-                                size="large"
+                                className="pl-10"
                               />
-                            </Form.Item>
-                          </Col>
-                          <Col span={8}>
-                            <Form.Item 
-                              label={`Contact ${index + 1} Phone`}
-                              required={index === 0}
-                              style={{ marginBottom: 12 }}
-                            >
-                              <PhoneNumberInput
-                                country={pinaka.country}
-                                value={contact.phone}
-                                onChange={(e) => {
-                                  const updated = [...emergencyContacts];
-                                  updated[index].phone = e.target.value;
-                                  setEmergencyContacts(updated);
-                                }}
-                                size="large"
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                      </div>
-                    ))}
-                  </>
-                )
-              },
-              {
-                key: '3',
-                label: 'Employer',
-                children: (
-                  <>
-                    {employers.map((employer, index) => (
-                      <div key={index} style={{ marginBottom: 16 }}>
-                        <Row gutter={8}>
-                          <Col span={8}>
-                            <Form.Item 
-                              label="Employer Name" 
-                              required
-                              validateStatus={!employer.employerName ? 'error' : ''}
-                              help={!employer.employerName ? 'Please enter employer name' : ''}
-                              style={{ marginBottom: 12 }}
-                            >
-                              <Input 
-                                placeholder="ABC Corporation" 
-                                value={employer.employerName}
-                                onChange={(e) => {
-                                  const updated = [...employers];
-                                  updated[index].employerName = e.target.value;
-                                  setEmployers(updated);
-                                }}
-                                size="large"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={8}>
-                            <Form.Item label="Job Title" style={{ marginBottom: 12 }}>
-                              <Input 
-                                placeholder="Software Engineer" 
-                                value={employer.jobTitle}
-                                onChange={(e) => {
-                                  const updated = [...employers];
-                                  updated[index].jobTitle = e.target.value;
-                                  setEmployers(updated);
-                                }}
-                                size="large"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={8}>
-                            <Form.Item label="Annual Income" style={{ marginBottom: 12 }}>
-                              <CurrencyInput
-                                country={pinaka.country}
-                                value={employer.income}
-                                onChange={(value) => {
-                                  const updated = [...employers];
-                                  updated[index].income = value;
-                                  setEmployers(updated);
-                                }}
-                                style={{ width: '100%' }}
-                                size="large"
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                        
-                        <Row gutter={8}>
-                          <Col span={8}>
-                            <Form.Item label="Employment Start Date" style={{ marginBottom: 12 }}>
-                              <DatePicker
-                                style={{ width: '100%' }}
-                                value={employer.startDate ? dayjs(employer.startDate) : null}
-                                onChange={(date) => {
-                                  const updated = [...employers];
-                                  updated[index].startDate = date ? date.format('YYYY-MM-DD') : null;
-                                  setEmployers(updated);
-                                }}
-                                size="large"
-                                placeholder="Select date"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={8}>
-                            <Form.Item label="Pay Frequency" style={{ marginBottom: 12 }}>
-                              <Select
-                                value={employer.payFrequency}
-                                onChange={(value) => {
-                                  const updated = [...employers];
-                                  updated[index].payFrequency = value;
-                                  setEmployers(updated);
-                                }}
-                                placeholder="Select frequency"
-                                size="large"
-                                virtual={false}
-                              >
-                                <Select.Option value="weekly">Weekly</Select.Option>
-                                <Select.Option value="biweekly">Bi-weekly</Select.Option>
-                                <Select.Option value="monthly">Monthly</Select.Option>
-                                <Select.Option value="semimonthly">Semi-monthly</Select.Option>
-                              </Select>
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                        
-                        <Form.Item label="Employer Address" style={{ marginBottom: 12 }}>
-                          <Input.TextArea 
-                            rows={2}
-                            placeholder="123 Business St, Suite 100, City, State, ZIP" 
-                            value={employer.employerAddress}
-                            onChange={(e) => {
-                              const updated = [...employers];
-                              updated[index].employerAddress = e.target.value;
-                              setEmployers(updated);
-                            }}
-                          />
-                        </Form.Item>
-                        
-                        <Form.Item label="Employment Letters">
-                          <div style={{ marginTop: 8 }}>
-                            <ActionButton
-                              action="add"
-                              icon={<UploadOutlined />}
-                              onClick={() => {
-                                notify.info('File upload functionality coming soon');
-                              }}
-                              showText={true}
-                              text="Upload Document"
-                            />
-                            {employer.documents && employer.documents.length > 0 && (
-                              <div style={{ marginTop: 12 }}>
-                                {employer.documents.map((doc, docIndex) => (
-                                  <div key={docIndex} style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between',
-                                    padding: '8px 12px',
-                                    background: '#f5f5f5',
-                                    borderRadius: 4,
-                                    marginBottom: 8
-                                  }}>
-                                    <Space>
-                                      <FileOutlined />
-                                      <Text>{doc.fileName}</Text>
-                                    </Space>
-                                    <ActionButton
-                                      action="delete"
-                                      size="small"
-                                      onClick={() => {
-                                        const updated = [...employers];
-                                        updated[index].documents.splice(docIndex, 1);
-                                        setEmployers(updated);
-                                      }}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            </div>
                           </div>
-                        </Form.Item>
+                        </div>
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`contact-${index}-phone`} className="mb-2">
+                              Contact {index + 1} Phone {index === 0 && <span className="text-red-500">*</span>}
+                            </Label>
+                            <PhoneNumberInput
+                              country={pinaka.country}
+                              value={contact.phone}
+                              onChange={(e) => {
+                                const updated = [...emergencyContacts];
+                                updated[index].phone = e.target.value;
+                                setEmergencyContacts(updated);
+                              }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </>
-                )
-              }
-            ]}
-          />
+                    </div>
+                  ))}
+                </div>
+              </Tabs.Item>
+              
+              <Tabs.Item title="Employer">
+                <div className="space-y-6">
+                  {employers.map((employer, index) => (
+                    <div key={index} className={index < employers.length - 1 ? "mb-6 pb-6 border-b border-gray-200" : ""}>
+                      <div className="grid grid-cols-12 gap-4 mb-4">
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`employer-${index}-name`} className="mb-2">
+                              Employer Name <span className="text-red-500">*</span>
+                            </Label>
+                            <TextInput
+                              id={`employer-${index}-name`}
+                              placeholder="ABC Corporation"
+                              value={employer.employerName}
+                              onChange={(e) => {
+                                const updated = [...employers];
+                                updated[index].employerName = e.target.value;
+                                setEmployers(updated);
+                              }}
+                              required
+                              color={!employer.employerName ? 'failure' : 'gray'}
+                              helperText={!employer.employerName ? 'Please enter employer name' : ''}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`employer-${index}-title`} className="mb-2">Job Title</Label>
+                            <TextInput
+                              id={`employer-${index}-title`}
+                              placeholder="Software Engineer"
+                              value={employer.jobTitle}
+                              onChange={(e) => {
+                                const updated = [...employers];
+                                updated[index].jobTitle = e.target.value;
+                                setEmployers(updated);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-span-4">
+                          <div>
+                            <Label htmlFor={`employer-${index}-income`} className="mb-2">Annual Income</Label>
+                            <CurrencyInput
+                              country={pinaka.country}
+                              value={employer.income}
+                              onChange={(value) => {
+                                const updated = [...employers];
+                                updated[index].income = value;
+                                setEmployers(updated);
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-12 gap-4 mb-4">
+                        <div className="col-span-6">
+                          <div>
+                            <Label htmlFor={`employer-${index}-startDate`} className="mb-2">Employment Start Date</Label>
+                            <TextInput
+                              id={`employer-${index}-startDate`}
+                              type="date"
+                              value={employer.startDate || ''}
+                              onChange={(e) => {
+                                const updated = [...employers];
+                                updated[index].startDate = e.target.value || null;
+                                setEmployers(updated);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-span-6">
+                          <div>
+                            <Label htmlFor={`employer-${index}-payFrequency`} className="mb-2">Pay Frequency</Label>
+                            <Select
+                              id={`employer-${index}-payFrequency`}
+                              value={employer.payFrequency || ''}
+                              onChange={(e) => {
+                                const updated = [...employers];
+                                updated[index].payFrequency = e.target.value || null;
+                                setEmployers(updated);
+                              }}
+                            >
+                              <option value="">Select frequency</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="biweekly">Bi-weekly</option>
+                              <option value="monthly">Monthly</option>
+                              <option value="semimonthly">Semi-monthly</option>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <Label htmlFor={`employer-${index}-address`} className="mb-2">Employer Address</Label>
+                        <Textarea
+                          id={`employer-${index}-address`}
+                          rows={2}
+                          placeholder="123 Business St, Suite 100, City, State, ZIP"
+                          value={employer.employerAddress}
+                          onChange={(e) => {
+                            const updated = [...employers];
+                            updated[index].employerAddress = e.target.value;
+                            setEmployers(updated);
+                          }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="mb-2">Employment Letters</Label>
+                        <div className="mt-2">
+                          <ActionButton
+                            action="add"
+                            icon={<HiCloudUpload className="h-4 w-4" />}
+                            onClick={() => {
+                              notify.info('File upload functionality coming soon');
+                            }}
+                            showText={true}
+                            text="Upload Document"
+                          />
+                          {employer.documents && employer.documents.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {employer.documents.map((doc, docIndex) => (
+                                <div key={docIndex} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <HiDocumentText className="h-5 w-5 text-gray-500" />
+                                    <span>{doc.fileName}</span>
+                                  </div>
+                                  <ActionButton
+                                    action="delete"
+                                    size="small"
+                                    onClick={() => {
+                                      const updated = [...employers];
+                                      updated[index].documents.splice(docIndex, 1);
+                                      setEmployers(updated);
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Tabs.Item>
+            </Tabs>
 
-        </ProForm>
+            <div className="mt-6 flex justify-end gap-3">
+              {pinaka.renderFormButtons({ hideCancel: true })}
+            </div>
+          </form>
+        </Modal.Body>
       </Modal>
 
-      {/* Invite Tenant Modal */}
+      {/* Invite Tenant Modal with Flowbite Pro styling */}
       <Modal
-        title="Invite New Tenant"
-        open={inviteModalVisible}
-        onCancel={() => {
+        show={inviteModalVisible}
+        onClose={() => {
           closeInviteModal();
           inviteForm.resetFields();
         }}
-        footer={null}
-        width={600}
+        size="md"
+        className="[&>div]:rounded-lg"
       >
-        <Form
-          form={inviteForm}
-          layout="vertical"
-          onFinish={inviteNewTenant}
-          initialValues={{ expiresInDays: 14 }}
-        >
-          <Form.Item
-            name="email"
-            label="Email Address"
-            rules={[
-              { required: true, message: 'Email is required' },
-              { type: 'email', message: 'Please enter a valid email' }
-            ]}
-          >
-            <Input placeholder="tenant@example.com" prefix={<MailOutlined />} size="large" />
-          </Form.Item>
+        <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <HiUserAdd className="h-6 w-6 text-blue-600" />
+              Invite New Tenant
+            </h3>
+            <button
+              onClick={() => {
+                closeInviteModal();
+                inviteForm.resetFields();
+              }}
+              className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
+            >
+              <HiX className="h-5 w-5" />
+              <span className="sr-only">Close modal</span>
+            </button>
+          </div>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          <form id="invite-form" onSubmit={handleInviteFormSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="invite-email" className="mb-2">
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <HiMail className="h-5 w-5 text-gray-400" />
+                </div>
+                <TextInput
+                  id="invite-email"
+                  name="email"
+                  type="email"
+                  placeholder="tenant@example.com"
+                  value={inviteForm.values.email || ''}
+                  onChange={(e) => inviteForm.setFieldsValue({ email: e.target.value })}
+                  required
+                  className="pl-10"
+                  color={inviteForm.errors.email ? 'failure' : 'gray'}
+                  helperText={inviteForm.errors.email}
+                />
+              </div>
+            </div>
 
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item
-                name="firstName"
-                label="First Name (Optional)"
-              >
-                <Input placeholder="John" size="large" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="lastName"
-                label="Last Name (Optional)"
-              >
-                <Input placeholder="Doe" size="large" />
-              </Form.Item>
-            </Col>
-          </Row>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="invite-firstName" className="mb-2">First Name (Optional)</Label>
+                <TextInput
+                  id="invite-firstName"
+                  name="firstName"
+                  placeholder="John"
+                  value={inviteForm.values.firstName || ''}
+                  onChange={(e) => inviteForm.setFieldsValue({ firstName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="invite-lastName" className="mb-2">Last Name (Optional)</Label>
+                <TextInput
+                  id="invite-lastName"
+                  name="lastName"
+                  placeholder="Doe"
+                  value={inviteForm.values.lastName || ''}
+                  onChange={(e) => inviteForm.setFieldsValue({ lastName: e.target.value })}
+                />
+              </div>
+            </div>
 
-          <Form.Item
-            name="phone"
-            label="Phone Number (Optional)"
-          >
-            <PhoneNumberInput country={pinaka.country} size="large" />
-          </Form.Item>
-
-          <Form.Item
-            name="expiresInDays"
-            label="Invitation Expires In (Days)"
-            tooltip="How many days until the invitation expires"
-          >
-            <InputNumber min={1} max={30} style={{ width: '100%' }} size="large" />
-          </Form.Item>
-
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <ActionButton
-                action="cancel"
-                onClick={() => {
-                  closeInviteModal();
-                  inviteForm.resetFields();
-                }}
-                showText={true}
-                text="Cancel"
+            <div>
+              <Label htmlFor="invite-phone" className="mb-2">Phone Number (Optional)</Label>
+              <PhoneNumberInput 
+                country={pinaka.country} 
+                value={inviteForm.values.phone || ''}
+                onChange={(e) => inviteForm.setFieldsValue({ phone: e.target.value })}
               />
-              <ActionButton
-                action="add"
-                htmlType="submit"
-                icon={<SendOutlined />}
-                showText={true}
-                text="Send Invitation"
+            </div>
+
+            <div>
+              <Label htmlFor="invite-expiresInDays" className="mb-2">
+                Invitation Expires In (Days)
+                <Tooltip content="How many days until the invitation expires">
+                  <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+                </Tooltip>
+              </Label>
+              <TextInput
+                id="invite-expiresInDays"
+                name="expiresInDays"
+                type="number"
+                min={1}
+                max={30}
+                value={inviteForm.values.expiresInDays || 14}
+                onChange={(e) => inviteForm.setFieldsValue({ expiresInDays: parseInt(e.target.value) || 14 })}
               />
-            </Space>
-          </Form.Item>
-        </Form>
+            </div>
+
+          </form>
+        </Modal.Body>
+        <Modal.Footer className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button
+              color="gray"
+              onClick={() => {
+                closeInviteModal();
+                inviteForm.resetFields();
+              }}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="invite-form"
+              color="blue"
+              className="min-w-[150px] flex items-center justify-center gap-2"
+            >
+              <HiPaperAirplane className="h-4 w-4" />
+              Send Invitation
+            </Button>
+          </div>
+        </Modal.Footer>
       </Modal>
 
-      {/* Invitations Management Modal */}
+      {/* Approve Tenant Modal with Flowbite Pro styling */}
       <Modal
-        title="Pending Invitations"
-        open={false}
-        onCancel={() => {}}
-        footer={null}
-        width={800}
-      >
-        {/* This will be implemented as a separate component if needed */}
-      </Modal>
-
-      {/* Approve Tenant Modal */}
-      <Modal
-        title="Approve Tenant Application"
-        open={approvalModalVisible}
-        onOk={handleApprove}
-        onCancel={() => {
+        show={approvalModalVisible}
+        onClose={() => {
           closeApprovalModal();
         }}
-        confirmLoading={approving}
-        okText="Approve"
-        okButtonProps={{ type: 'primary' }}
-        width={600}
+        size="md"
+        className="[&>div]:rounded-lg"
       >
-        {selectedTenant && (
-          <div>
-            <Alert
-              message="Approve Application"
-              description={
+        <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <HiCheckCircle className="h-6 w-6 text-green-600" />
+              Approve Tenant Application
+            </h3>
+            <button
+              onClick={() => closeApprovalModal()}
+              className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
+            >
+              <HiX className="h-5 w-5" />
+              <span className="sr-only">Close modal</span>
+            </button>
+          </div>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          {selectedTenantForApproval && (
+            <div>
+              <Alert color="info" className="mb-4">
                 <div>
-                  <p>Are you sure you want to approve the application for:</p>
-                  <p style={{ marginTop: 8, fontSize: 16, fontWeight: 500 }}>
-                    {selectedTenant.firstName} {selectedTenant.lastName}
+                  <h3 className="font-semibold mb-2">Approve Application</h3>
+                  <p className="text-sm mb-2">Are you sure you want to approve the application for:</p>
+                  <p className="text-base font-semibold mb-1">
+                    {selectedTenantForApproval.firstName} {selectedTenantForApproval.lastName}
                   </p>
-                  <p style={{ marginTop: 8, color: '#666' }}>
-                    {selectedTenant.email}
+                  <p className="text-sm text-gray-600 mb-4">
+                    {selectedTenantForApproval.email}
                   </p>
-                  <Divider />
-                  <p style={{ marginTop: 8, color: '#666' }}>
+                  <hr className="my-4" />
+                  <p className="text-sm text-gray-600">
                     Once approved, the tenant will be able to access the system and will be prompted to upload required documents.
                   </p>
                 </div>
-              }
-              type="info"
-              showIcon
-            />
+              </Alert>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button 
+              color="gray" 
+              onClick={() => closeApprovalModal()}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button 
+              color="success" 
+              onClick={handleApprove}
+              disabled={approving}
+              className="min-w-[120px] flex items-center justify-center gap-2"
+            >
+              {approving ? (
+                <>
+                  <Spinner size="sm" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <HiCheckCircle className="h-4 w-4" />
+                  Approve
+                </>
+              )}
+            </Button>
           </div>
-        )}
+        </Modal.Footer>
       </Modal>
 
-      {/* Reject Tenant Modal */}
+      {/* Reject Tenant Modal with Flowbite Pro styling */}
       <Modal
-        title="Reject Tenant Application"
-        open={rejectModalVisible}
-        onCancel={() => {
+        show={rejectModalVisible}
+        onClose={() => {
           closeRejectModal();
           rejectForm.resetFields();
         }}
-        footer={null}
-        width={600}
+        size="md"
+        className="[&>div]:rounded-lg"
       >
-        {selectedTenant && (
-          <Form
-            form={rejectForm}
-            layout="vertical"
-            onFinish={handleReject}
-          >
-            <Alert
-              message="Reject Application"
-              description={
+        <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-red-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <HiXCircle className="h-6 w-6 text-red-600" />
+              Reject Tenant Application
+            </h3>
+            <button
+              onClick={() => {
+                closeRejectModal();
+                rejectForm.resetFields();
+              }}
+              className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
+            >
+              <HiX className="h-5 w-5" />
+              <span className="sr-only">Close modal</span>
+            </button>
+          </div>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          {selectedTenantForApproval && (
+            <form onSubmit={handleRejectFormSubmit} className="space-y-4">
+              <Alert color="warning" className="mb-4">
                 <div>
-                  <p>You are about to reject the application for:</p>
-                  <p style={{ marginTop: 8, fontSize: 16, fontWeight: 500 }}>
-                    {selectedTenant.firstName} {selectedTenant.lastName}
+                  <h3 className="font-semibold mb-2">Reject Application</h3>
+                  <p className="text-sm mb-2">You are about to reject the application for:</p>
+                  <p className="text-base font-semibold mb-1">
+                    {selectedTenantForApproval.firstName} {selectedTenantForApproval.lastName}
                   </p>
-                  <p style={{ marginTop: 8, color: '#666' }}>
-                    {selectedTenant.email}
+                  <p className="text-sm text-gray-600">
+                    {selectedTenantForApproval.email}
                   </p>
                 </div>
-              }
-              type="warning"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
+              </Alert>
 
-            <Form.Item
-              name="reason"
-              label="Rejection Reason"
-              rules={[
-                { required: true, message: 'Please provide a reason for rejection' },
-                { min: 10, message: 'Reason must be at least 10 characters' },
-              ]}
+              <div>
+                <Label htmlFor="reject-reason" className="mb-2">
+                  Rejection Reason <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="reject-reason"
+                  name="reason"
+                  rows={4}
+                  placeholder="Please explain why this application is being rejected. This will be sent to the tenant."
+                  value={rejectForm.values.reason || ''}
+                  onChange={(e) => rejectForm.setFieldsValue({ reason: e.target.value })}
+                  required
+                  color={rejectForm.errors.reason ? 'failure' : 'gray'}
+                  helperText={rejectForm.errors.reason || 'Reason must be at least 10 characters'}
+                />
+              </div>
+
+            </form>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button
+              color="gray"
+              onClick={() => {
+                closeRejectModal();
+                rejectForm.resetFields();
+              }}
+              className="min-w-[100px]"
             >
-              <Input.TextArea
-                rows={4}
-                placeholder="Please explain why this application is being rejected. This will be sent to the tenant."
-              />
-            </Form.Item>
-
-            <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
-              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button
-                  onClick={() => {
-                    closeRejectModal();
-                    rejectForm.resetFields();
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  danger
-                  htmlType="submit"
-                  loading={rejecting}
-                >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reject-form"
+              color="failure"
+              disabled={rejecting}
+              className="min-w-[150px] flex items-center justify-center gap-2"
+            >
+              {rejecting ? (
+                <>
+                  <Spinner size="sm" />
+                  Rejecting...
+                </>
+              ) : (
+                <>
+                  <HiXCircle className="h-4 w-4" />
                   Reject Application
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        )}
+                </>
+              )}
+            </Button>
+          </div>
+        </Modal.Footer>
       </Modal>
       </PageLayout>
     </div>
@@ -1864,7 +1967,6 @@ function TenantsClient({ initialTenants, user }) {
 
 // Memoize component to prevent unnecessary re-renders
 export default React.memo(TenantsClient, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if tenants array reference changes or user changes
   return (
     prevProps.initialTenants === nextProps.initialTenants &&
     prevProps.user?.id === nextProps.user?.id

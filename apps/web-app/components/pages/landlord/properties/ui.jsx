@@ -2,34 +2,31 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
-  Typography, Button, Table, Tag, Space, Modal, Form, Input, 
-  Select, InputNumber, Tabs, Popconfirm, Empty, Tooltip, Row, Col,
-  Divider, DatePicker
-} from 'antd';
-import { PageLayout, EmptyState, TableWrapper, StandardModal, FormTextInput, FormSelect, FormDatePicker, FormPhoneInput } from '@/components/shared';
+  Button, Table, Badge, Modal, Card, Tabs, Spinner, Tooltip,
+  TextInput, Label, Select, Textarea
+} from 'flowbite-react';
+import { PageLayout, EmptyState, TableWrapper } from '@/components/shared';
 import { notify } from '@/lib/utils/notification-helper';
 import { ActionButton, IconButton } from '@/components/shared/buttons';
-// Lazy load Pro components to reduce initial bundle size (~200KB savings)
-import { 
-  ProTable, 
-  ProForm, 
-  ProFormText, 
-  ProFormSelect, 
-  ProFormDigit, 
-  ProFormDatePicker, 
-  ProFormTextArea 
-} from '@/components/shared/LazyProComponents';
-import { 
-  PlusOutlined, EditOutlined, DeleteOutlined, HomeOutlined, 
-  SaveOutlined, CloseOutlined, DownOutlined, RightOutlined,
-  ReloadOutlined, BuildOutlined, CheckCircleOutlined
-} from '@ant-design/icons';
+import ExpandableFlowbiteTable from '@/components/shared/ExpandableFlowbiteTable';
+import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
+import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
+import { useFormState } from '@/lib/hooks/useFormState';
+import {
+  HiPlus,
+  HiPencil,
+  HiTrash,
+  HiHome,
+  HiSave,
+  HiX,
+  HiRefresh,
+  HiCog,
+  HiCheckCircle,
+} from 'react-icons/hi';
 
 // Custom Hooks
 import { 
   usePinakaCRUDWithAddress, 
-  usePinakaCRUD,
-  getPostalCodeProps, 
   useResizableTable, 
   withSorter, 
   sortFunctions, 
@@ -38,9 +35,6 @@ import {
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { rules } from '@/lib/utils/validation-rules';
-import { getFieldRules } from '@/lib/utils/zod-to-antd-rules';
-import { propertyCreateSchema } from '@/lib/schemas';
-import { renderStatus } from '@/components/shared/TableRenderers';
 import { PostalCodeInput, AddressAutocomplete } from '@/components/forms';
 import { v1Api } from '@/lib/api/v1-client';
 
@@ -56,14 +50,16 @@ import { UNIT_STATUSES } from '@/lib/constants/statuses';
 import dayjs from 'dayjs';
 import { formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 
-const { Title, Text } = Typography;
-
 // Memoize component to prevent unnecessary re-renders
 const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient({ landlordId, initialProperties, landlordData }) {
   const { fetch } = useUnifiedApi({ showUserMessage: true });
   const searchParams = useSearchParams();
-  const [propertyForm] = Form.useForm();
-  const [unitForm] = Form.useForm();
+  const propertyForm = useFormState({ 
+    country: 'CA', 
+    unitCount: 1, 
+    provinceState: 'ON'
+  });
+  const unitForm = useFormState();
   const [unitCount, setUnitCount] = useState(1);
   const [unitFinancials, setUnitFinancials] = useState([]);
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
@@ -72,17 +68,16 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   // Unit modal state
   const { isOpen: unitModalVisible, open: openUnitModal, close: closeUnitModal, editingItem: editingUnit, openForEdit: openUnitModalForEdit, openForCreate: openUnitModalForCreate } = useModalState();
   const [selectedPropertyForUnit, setSelectedPropertyForUnit] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Force re-render after unit update
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Properties are loaded from server component
-  // Provide default landlordData if not passed
   const safeLandlordData = landlordData || { country: 'CA' };
 
   // 🎯 PINAKA UNIFIED HOOK WITH ADDRESS - For Properties (v1 API)
   const pinaka = usePinakaCRUDWithAddress({
-    apiEndpoint: '/api/v1/properties', // v1 endpoint
-    domain: 'properties', // Domain name for v1Api
-    useV1Api: true, // Use v1Api client
+    apiEndpoint: '/api/v1/properties',
+    domain: 'properties',
+    useV1Api: true,
     initialData: initialProperties,
     entityName: 'Property',
     initialCountry: safeLandlordData.country || 'CA',
@@ -97,7 +92,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       provinceState: 'ON'
     },
     onBeforeCreate: (payload) => {
-      const formValues = propertyForm.getFieldsValue(true);
+      const formValues = propertyForm.getFieldsValue();
       return { 
         ...formValues,
         ...payload, 
@@ -105,27 +100,20 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         mortgageStartDate: formValues.mortgageStartDate 
           ? formatDateForAPI(formValues.mortgageStartDate)
           : undefined,
-        // Always send unitFinancials if we have them, even for single-unit properties
         unitFinancials: unitFinancials && unitFinancials.length > 0 ? unitFinancials : undefined
       };
     },
     onBeforeUpdate: (payload) => {
-      const allValues = propertyForm.getFieldsValue(true);
-      // Always send unitFinancials if we have units, even for single-unit properties
-      // This ensures unit changes are tracked
+      const allValues = propertyForm.getFieldsValue();
       let finalUnitFinancials = unitFinancials;
       
-      // If unitFinancials is empty or missing, try to get it from selectedItem
       if (!finalUnitFinancials || finalUnitFinancials.length === 0) {
         const existingUnits = pinaka.selectedItem?.units || [];
         if (existingUnits.length > 0) {
-          // Re-initialize from existing units
           finalUnitFinancials = initializeUnitFinancials(unitCount, existingUnits);
-          console.log('[Property Form] Re-initialized unitFinancials from existing units:', finalUnitFinancials);
         }
       }
       
-      // For single unit, ensure we have unitFinancials
       if (unitCount === 1 && (!finalUnitFinancials || finalUnitFinancials.length === 0)) {
         const existingUnits = pinaka.selectedItem?.units || [];
         if (existingUnits.length > 0) {
@@ -140,15 +128,8 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             depositAmount: allValues.depositAmount || unit.depositAmount,
             status: allValues.rented === "Yes" ? "Occupied" : "Vacant"
           }];
-          console.log('[Property Form] Created unitFinancials for single unit:', finalUnitFinancials);
         }
       }
-      
-      console.log('[Property Form] onBeforeUpdate - Sending unitFinancials:', {
-        unitCount,
-        unitFinancialsLength: finalUnitFinancials?.length || 0,
-        unitFinancials: finalUnitFinancials
-      });
       
       return {
         ...allValues,
@@ -161,33 +142,10 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
     }
   });
 
-  // 🎯 Unit CRUD Hook - Using v1Api (nested under properties)
-  // Note: Units are managed via v1Api.units methods with propertyId
-
-  // Calculate combined stats for properties and units
-  const calculateStats = (properties) => {
-    const allUnits = properties.flatMap(p => p.units || []);
-    const occupiedUnits = allUnits.filter(u => 
-      u.status === "Occupied" || (u.leases && u.leases.some(l => l.status === "Active"))
-    ).length;
-    const vacantUnits = allUnits.filter(u => 
-      u.status === "Vacant" && (!u.leases || !u.leases.some(l => l.status === "Active"))
-    ).length;
-    const maintenanceUnits = allUnits.filter(u => u.status === "Under Maintenance").length;
-
-    return [
-      { label: 'Properties', value: properties.length, color: '#1890ff' },
-      { label: 'Units', value: allUnits.length, color: '#722ed1' },
-      { label: 'Occupied', value: occupiedUnits, color: '#52c41a' },
-      { label: 'Vacant', value: vacantUnits, color: '#faad14' },
-    ];
-  };
-
   // Unified search across properties and units
   const searchInPropertiesAndUnits = (item, searchValue) => {
     const lowerSearch = searchValue.toLowerCase();
     
-    // Search in property fields
     const propertyMatch = [
       item.propertyName,
       item.addressLine1,
@@ -197,7 +155,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       item.propertyType
     ].some(field => field?.toLowerCase().includes(lowerSearch));
 
-    // Search in unit fields
     const unitMatch = item.units?.some(unit =>
       [
         unit.unitName,
@@ -208,7 +165,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       ].some(field => field?.toLowerCase().includes(lowerSearch))
     );
 
-    // If unit matches, auto-expand the property
     if (unitMatch && !expandedRowKeys.includes(item.id)) {
       setExpandedRowKeys(prev => [...prev, item.id]);
     }
@@ -233,24 +189,24 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
     {
       title: 'Properties',
       value: pinaka.data.length,
-      prefix: <BuildOutlined />,
+      prefix: <HiCog className="h-5 w-5" />,
     },
     {
       title: 'Units',
       value: allUnits.length,
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
       valueStyle: { color: '#722ed1' },
     },
     {
       title: 'Occupied',
       value: occupiedUnits,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Vacant',
       value: vacantUnits,
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
   ];
@@ -260,6 +216,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
     if (searchParams.get("action") === "add") {
       handleAddPropertyClick();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleAddPropertyClick() {
@@ -272,7 +229,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       provinceState: "ON",
       unitCount: 1 
     });
-    // Initialize unitFinancials for single unit so users can add details
     const financials = initializeUnitFinancials(1, []);
     setUnitFinancials(financials);
     pinaka.openAdd();
@@ -316,30 +272,28 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
 
   function handleEditPropertyClick(property) {
     pinaka.setCountry(property.country);
-    // Use actual unit count from database, not stored unitCount field
-    // This ensures consistency when units are added/removed independently
     const actualUnitCount = property.units?.length || 0;
     const count = actualUnitCount > 0 ? actualUnitCount : (property.unitCount || 1);
     setUnitCount(count);
     
-    // Map property type to match dropdown options
-    // "Multi-Unit" -> "Multi-family" (for backward compatibility)
     let mappedPropertyType = property.propertyType || null;
     if (mappedPropertyType === 'Multi-Unit') {
       mappedPropertyType = 'Multi-family';
     }
     setSelectedPropertyType(mappedPropertyType);
     
-    // Always initialize unitFinancials, even for single-unit properties
     const financials = initializeUnitFinancials(count, property.units || []);
-    console.log('[Property Form] Initializing unitFinancials:', {
-      count,
-      actualUnitCount,
-      storedUnitCount: property.unitCount,
-      unitsCount: property.units?.length || 0,
-      financials
-    });
     setUnitFinancials(financials);
+    
+    // Format mortgageStartDate for date input
+    let mortgageStartDateValue = undefined;
+    if (property.mortgageStartDate) {
+      const date = new Date(property.mortgageStartDate);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      mortgageStartDateValue = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
     
     propertyForm.setFieldsValue({
       propertyName: property.propertyName || "",
@@ -355,19 +309,11 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       mortgageAmount: property.mortgageAmount || undefined,
       interestRate: property.interestRate || undefined,
       mortgageTermYears: property.mortgageTermYears || undefined,
-      mortgageStartDate: property.mortgageStartDate ? (() => {
-        // Extract local date components to avoid UTC timezone shift
-        const date = new Date(property.mortgageStartDate);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1; // dayjs uses 0-indexed months, but we want 1-indexed
-        const day = date.getDate();
-        return dayjs(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
-      })() : undefined,
+      mortgageStartDate: mortgageStartDateValue,
       paymentFrequency: property.paymentFrequency || 'biweekly',
       rent: property.rent || undefined,
       depositAmount: property.depositAmount || undefined,
       rented: property.rented || "No",
-      // New fields (will be stored if schema supports them)
       squareFootage: property.squareFootage || undefined,
       propertyDescription: property.propertyDescription || "",
       propertyTaxes: property.propertyTaxes || undefined,
@@ -383,8 +329,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   
   const handleUnitCountChange = (newCount) => {
     setUnitCount(newCount);
-    // Always initialize unitFinancials, even for single-unit properties
-    // This allows users to add unit details (bedrooms, bathrooms, etc.) for single-unit properties
     const existingUnits = pinaka.selectedItem?.units || [];
     const financials = initializeUnitFinancials(newCount, existingUnits);
     setUnitFinancials(financials);
@@ -404,7 +348,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   
   const handleAddUnitClick = (property) => {
     setSelectedPropertyForUnit(property);
-    setEditingUnit(null);
     unitForm.resetFields();
     unitForm.setFieldsValue({
       propertyId: property.id,
@@ -414,17 +357,9 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   };
 
   const handleEditUnitClick = (unit, property) => {
-    console.log('[Edit Unit] Opening edit modal for unit:', {
-      unitId: unit.id,
-      unitName: unit.unitName,
-      floorNumber: unit.floorNumber,
-      propertyId: unit.propertyId,
-    });
-    
     setSelectedPropertyForUnit(property);
     openUnitModalForEdit(unit);
     
-    // Use setTimeout to ensure form is ready before setting values
     setTimeout(() => {
       unitForm.setFieldsValue({
         propertyId: unit.propertyId || property?.id,
@@ -437,23 +372,19 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         status: unit.status || "Vacant",
       });
     }, 100);
-    
-    openUnitModalForCreate();
   };
 
   const handleDeleteUnit = async (unitId) => {
     try {
-      // Find the property that owns this unit
       const property = pinaka.data?.find(p => p.units?.some(u => u.id === unitId));
       if (!property) {
         notify.error('Property not found for this unit');
         return;
       }
 
-      // Use v1Api to delete unit
       await v1Api.units.deletePropertyUnit(property.id, unitId);
       notify.success('Unit deleted successfully');
-      pinaka.refresh(); // Refresh properties to update units
+      pinaka.refresh();
     } catch (error) {
       notify.error(error.message || 'Failed to delete unit');
     }
@@ -468,7 +399,6 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
 
       const propertyId = selectedPropertyForUnit.id;
 
-      // Ensure floorNumber is properly formatted (can be 0, null, or a number)
       const payload = {
         ...values,
         floorNumber: values.floorNumber !== undefined && values.floorNumber !== null && values.floorNumber !== '' 
@@ -477,21 +407,17 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       };
 
       if (editingUnit && editingUnit.id) {
-        // Update existing unit using v1Api
         await v1Api.units.updatePropertyUnit(propertyId, editingUnit.id, payload);
         notify.success('Unit updated successfully');
       } else {
-        // Create new unit using v1Api
         await v1Api.units.createPropertyUnit(propertyId, payload);
         notify.success('Unit added successfully');
       }
 
       closeUnitModal();
       unitForm.resetFields();
-      setEditingUnit(null);
       setSelectedPropertyForUnit(null);
       
-      // Refresh properties to get updated units
       await new Promise(resolve => setTimeout(resolve, 500));
       await pinaka.refresh();
       setRefreshKey(prev => prev + 1);
@@ -502,13 +428,12 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   };
 
   const handleCloseUnit = () => {
-    setUnitModalVisible(false);
+    closeUnitModal();
     unitForm.resetFields();
-    setEditingUnit(null);
     setSelectedPropertyForUnit(null);
   };
 
-  const getStatusTagColor = (status, hasActiveLease) => {
+  const getStatusBadgeColor = (status, hasActiveLease) => {
     if (hasActiveLease) return "success";
     switch (status) {
       case "Occupied":
@@ -516,32 +441,16 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       case "Vacant":
         return "warning";
       case "Under Maintenance":
-        return "error";
+        return "failure";
       default:
-        return "default";
+        return "gray";
     }
   };
 
   // ========== EXPANDABLE ROW: UNITS TABLE ==========
   
   const expandedRowRender = (property) => {
-    // Use refreshKey to force re-render when units are updated
     const units = property.units || [];
-    
-    // Debug: Log units data to verify floor numbers
-    if (units.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log('[Expanded Row] Units for property:', {
-        propertyName: property.propertyName,
-        propertyId: property.id,
-        refreshKey,
-        units: units.map(u => ({
-          id: u.id,
-          unitName: u.unitName,
-          floorNumber: u.floorNumber,
-          floorNumberType: typeof u.floorNumber,
-        })),
-      });
-    }
 
     const unitColumns = [
       {
@@ -550,7 +459,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         key: 'unitName',
         width: 120,
         sorter: (a, b) => (a.unitName || '').localeCompare(b.unitName || ''),
-        render: (name) => <Text strong>{name}</Text>,
+        render: (name) => <span className="font-semibold">{name}</span>,
       },
       {
         title: 'Floor(s)',
@@ -559,7 +468,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         width: 80,
         align: 'center',
         sorter: (a, b) => (a.floorNumber ?? 0) - (b.floorNumber ?? 0),
-        render: (floor) => <Text>{floor !== null && floor !== undefined ? floor.toString() : "-"}</Text>,
+        render: (floor) => <span>{floor !== null && floor !== undefined ? floor.toString() : "-"}</span>,
       },
       {
         title: 'Beds',
@@ -568,7 +477,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         width: 80,
         align: 'center',
         sorter: (a, b) => (a.bedrooms || 0) - (b.bedrooms || 0),
-        render: (beds) => <Text>{beds || "-"}</Text>,
+        render: (beds) => <span>{beds || "-"}</span>,
       },
       {
         title: 'Baths',
@@ -577,7 +486,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         width: 80,
         align: 'center',
         sorter: (a, b) => (a.bathrooms || 0) - (b.bathrooms || 0),
-        render: (baths) => <Text>{baths || "-"}</Text>,
+        render: (baths) => <span>{baths || "-"}</span>,
       },
       {
         title: 'Rent',
@@ -593,7 +502,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             strong 
             style={{ color: '#52c41a' }}
           />
-        ) : <Text type="secondary">-</Text>,
+        ) : <span className="text-gray-400">-</span>,
       },
       {
         title: 'Deposit',
@@ -604,7 +513,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         sorter: (a, b) => (a.depositAmount || 0) - (b.depositAmount || 0),
         render: (deposit) => deposit ? (
           <CurrencyDisplay value={deposit} country={property.country || 'CA'} />
-        ) : <Text type="secondary">-</Text>,
+        ) : <span className="text-gray-400">-</span>,
       },
       {
         title: 'Status',
@@ -619,7 +528,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         render: (_, unit) => {
           const hasActiveLease = unit.leases && unit.leases.some(l => l.status === "Active");
           const displayStatus = hasActiveLease ? "Rented" : unit.status;
-          return <Tag color={getStatusTagColor(unit.status, hasActiveLease)}>{displayStatus}</Tag>;
+          return <Badge color={getStatusBadgeColor(unit.status, hasActiveLease)}>{displayStatus}</Badge>;
         },
       },
       {
@@ -628,55 +537,51 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         width: 120,
         fixed: 'right',
         render: (_, unit) => (
-          <Space size="small">
+          <div className="flex items-center gap-2">
             <ActionButton
               action="edit"
               size="small"
               onClick={() => handleEditUnitClick(unit, property)}
               tooltip="Edit Unit"
             />
-            <Popconfirm
+            <FlowbitePopconfirm
               title="Delete unit?"
               description="This will also delete all associated leases and data."
               onConfirm={() => handleDeleteUnit(unit.id)}
               okText="Yes"
               cancelText="No"
-              okButtonProps={{ danger: true }}
+              danger={true}
             >
               <ActionButton
                 action="delete"
                 size="small"
                 tooltip="Delete Unit"
               />
-            </Popconfirm>
-          </Space>
+            </FlowbitePopconfirm>
+          </div>
         ),
       },
     ];
 
     if (units.length === 0) {
       return (
-        <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#fafafa' }}>
-          <Empty 
-            description="No units yet"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <ActionButton
-              action="add"
-              onClick={() => handleAddUnitClick(property)}
-              tooltip="Add Unit"
-            />
-          </Empty>
+        <div className="p-6 text-center bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+          <p className="text-gray-500 mb-4">No units yet</p>
+          <ActionButton
+            action="add"
+            onClick={() => handleAddUnitClick(property)}
+            tooltip="Add Unit"
+          />
         </div>
       );
     }
 
     return (
-      <div style={{ padding: '0 48px 16px 48px' }}>
-        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary">
+      <div className="px-12 pb-4">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-gray-600">
             <strong>{units.length}</strong> {units.length === 1 ? 'unit' : 'units'} in this property
-          </Text>
+          </span>
           <ActionButton
             action="add"
             onClick={() => handleAddUnitClick(property)}
@@ -684,26 +589,38 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             size="small"
           />
         </div>
-        <Table
-          key={`units-table-${property.id}-${refreshKey}`}
-          columns={unitColumns}
-          dataSource={units}
-          rowKey="id"
-          pagination={false}
-          size="small"
-          bordered
-          onRow={(record) => ({
-            onDoubleClick: () => handleEditUnitClick(record, property),
-            style: { cursor: 'pointer' }
-          })}
-        />
+        <div className="overflow-x-auto">
+          <Table>
+            <Table.Head>
+              {unitColumns.map((col, idx) => (
+                <Table.HeadCell key={idx} className={col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}>
+                  {col.title}
+                </Table.HeadCell>
+              ))}
+            </Table.Head>
+            <Table.Body className="divide-y">
+              {units.map((unit) => (
+                <Table.Row 
+                  key={unit.id}
+                  className="cursor-pointer hover:bg-gray-50"
+                  onDoubleClick={() => handleEditUnitClick(unit, property)}
+                >
+                  {unitColumns.map((col, colIdx) => (
+                    <Table.Cell key={colIdx} className={col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}>
+                      {col.render ? col.render(unit[col.dataIndex], unit, 0) : unit[col.dataIndex]}
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </div>
       </div>
     );
   };
 
   // ========== PROPERTY TABLE COLUMNS ==========
   
-  // Use consolidated column definitions with customizations
   const columns = [
     withSorter(
       customizeColumn(PROPERTY_COLUMNS.NAME, {
@@ -734,7 +651,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             style={{ color: '#52c41a' }}
           />
         ) : (
-          <Text type="secondary">No active leases</Text>
+          <span className="text-gray-400">No active leases</span>
         );
       },
     }),
@@ -753,11 +670,11 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
           ).length || 0;
           
           return (
-            <Text>
-              <Text strong>{occupiedUnits} / {totalUnits}</Text>
+            <span>
+              <span className="font-semibold">{occupiedUnits} / {totalUnits}</span>
               {' '}
-              <Text type="secondary">occupied</Text>
-            </Text>
+              <span className="text-gray-500">occupied</span>
+            </span>
           );
         },
       },
@@ -770,35 +687,35 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       width: 150,
       fixed: 'right',
       render: (_, property) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <ActionButton
             action="edit"
             onClick={() => handleEditPropertyClick(property)}
             tooltip="Edit Property"
           />
-          <Popconfirm
+          <FlowbitePopconfirm
             title="Delete property?"
             description="This will also delete all associated units and data."
             onConfirm={() => pinaka.remove(property.id, property)}
             okText="Yes"
             cancelText="No"
-            okButtonProps={{ danger: true }}
+            danger={true}
           >
             <ActionButton
               action="delete"
               tooltip="Delete Property"
             />
-          </Popconfirm>
-        </Space>
+          </FlowbitePopconfirm>
+        </div>
       ),
     }),
   ];
 
   // Configure columns with standard settings
   const configuredColumns = configureTableColumns(columns, {
-    addSorting: false, // Keep existing sorters
+    addSorting: false,
     centerAlign: true,
-    addWidths: false, // Keep existing widths
+    addWidths: false,
   });
 
   // Use resizable table hook with column width persistence
@@ -809,41 +726,41 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
 
   // ========== PROPERTY FORM TABS ==========
   
-  // Filter property types to exclude Duplex, Triplex, Fourplex (these are multi-family)
   const getFilteredPropertyTypes = () => {
     const excludedTypes = ['Duplex', 'Triplex', 'Fourplex'];
     return pinaka.countryRegion.getPropertyTypes().filter(type => !excludedTypes.includes(type));
   };
   
   const propertyInfoTab = (
-    <div style={{ padding: '4px 0' }}>
-      <Row gutter={[12, 16]}>
-        <Col span={8}>
-          <Form.Item 
-            name="propertyName" 
-            label="Property Name"
-          >
-            <Input 
-              placeholder="e.g., Maple Street" 
+    <div className="py-1 space-y-4">
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-4">
+          <div>
+            <Label htmlFor="propertyName" className="mb-2">Property Name</Label>
+            <TextInput
+              id="propertyName"
+              name="propertyName"
+              placeholder="e.g., Maple Street"
               autoComplete="off"
-              data-form-type="property-name"
+              value={propertyForm.values.propertyName || ''}
+              onChange={(e) => propertyForm.setFieldsValue({ propertyName: e.target.value })}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={8}>
-          <Form.Item 
-            name="propertyType" 
-            label="Property Type"
-            rules={[{ required: true, message: 'Required' }]}
-          >
-            <Select 
-              placeholder="Select type" 
-              allowClear 
-              loading={pinaka.countryRegion.loading}
-              value={selectedPropertyType}
+        <div className="col-span-4">
+          <div>
+            <Label htmlFor="propertyType" className="mb-2">
+              Property Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              id="propertyType"
+              name="propertyType"
+              placeholder="Select type"
+              value={selectedPropertyType || propertyForm.values.propertyType || ''}
               onChange={(value) => {
                 setSelectedPropertyType(value);
+                propertyForm.setFieldsValue({ propertyType: value });
                 if (value === 'Single-family' || value === 'Townhouse') {
                   propertyForm.setFieldsValue({ unitCount: 1 });
                   setUnitCount(1);
@@ -852,61 +769,64 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
                   setUnitFinancials(financials);
                 }
               }}
+              required
             >
+              <option value="">Select type</option>
               {getFilteredPropertyTypes().map(type => (
-                <Select.Option key={type} value={type}>{type}</Select.Option>
-            ))}
+                <option key={type} value={type}>{type}</option>
+              ))}
             </Select>
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={8}>
-          <Form.Item 
-            name="unitCount" 
-            label="Number of Units"
-            initialValue={1}
-          >
-            <InputNumber 
-              min={1} 
-              style={{ width: '100%' }}
-              onChange={handleUnitCountChange}
-              disabled={!selectedPropertyType || selectedPropertyType === 'Single-family' || selectedPropertyType === 'Townhouse'}
+        <div className="col-span-4">
+          <div>
+            <Label htmlFor="unitCount" className="mb-2">Number of Units</Label>
+            <TextInput
+              id="unitCount"
+              name="unitCount"
+              type="number"
+              min={1}
               placeholder="1"
+              value={propertyForm.values.unitCount || 1}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 1;
+                propertyForm.setFieldsValue({ unitCount: value });
+                handleUnitCountChange(value);
+              }}
+              disabled={!selectedPropertyType || selectedPropertyType === 'Single-family' || selectedPropertyType === 'Townhouse'}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={16}>
-          <Form.Item
-            name="addressLine1"
-            label="Street Address"
-            rules={[{ required: true, message: 'Required' }]}
-            tooltip="Start typing an address to see autocomplete suggestions"
-          >
+        <div className="col-span-8">
+          <div>
+            <Label htmlFor="addressLine1" className="mb-2">
+              Street Address <span className="text-red-500">*</span>
+              <Tooltip content="Start typing an address to see autocomplete suggestions">
+                <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+              </Tooltip>
+            </Label>
             <AddressAutocomplete
               placeholder="Type an address (e.g., 123 Main St, Toronto)"
               country={pinaka.country === 'CA' ? 'CA,US' : pinaka.country === 'US' ? 'CA,US' : 'CA,US'}
+              value={propertyForm.values.addressLine1 || ''}
               onSelect={(addressData) => {
-                // Country code is already normalized by AddressAutocomplete component
                 const countryCode = addressData.country;
                 
-                // Update country context first (this will update the region dropdown options)
                 if (countryCode === 'CA' || countryCode === 'US') {
                   pinaka.setCountry(countryCode);
                   
-                  // Auto-fill address fields when address is selected
-                  // Use setTimeout to ensure country change has processed and dropdown options are updated
                   setTimeout(() => {
                     propertyForm.setFieldsValue({
                       addressLine1: addressData.addressLine1,
                       city: addressData.city,
-                      provinceState: addressData.provinceState, // 2-letter code (e.g., 'ON', 'NY', 'CA')
-                      postalZip: addressData.postalZip, // Will be formatted by PostalCodeInput based on country
+                      provinceState: addressData.provinceState,
+                      postalZip: addressData.postalZip,
                       country: countryCode,
                     });
-                  }, 50); // Small delay to ensure country change propagates
+                  }, 50);
                 } else {
-                  // If country is not CA/US, just set the fields without country change
                   propertyForm.setFieldsValue({
                     addressLine1: addressData.addressLine1,
                     city: addressData.city,
@@ -917,416 +837,413 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
                 }
               }}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={8}>
-          <Form.Item
-            name="city"
-            label="City"
-            rules={[{ required: true, message: 'Required' }]}
-          >
-            <Input 
-              placeholder="City" 
+        <div className="col-span-4">
+          <div>
+            <Label htmlFor="city" className="mb-2">
+              City <span className="text-red-500">*</span>
+            </Label>
+            <TextInput
+              id="city"
+              name="city"
+              placeholder="City"
+              value={propertyForm.values.city || ''}
+              onChange={(e) => propertyForm.setFieldsValue({ city: e.target.value })}
+              required
+              color={propertyForm.errors.city ? 'failure' : 'gray'}
+              helperText={propertyForm.errors.city}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item
-            name="provinceState"
-            label={pinaka.countryRegion.getRegionLabel(pinaka.country)}
-            rules={[{ required: true, message: 'Required' }]}
-            initialValue="ON"
-          >
-            <Select 
-              placeholder="Select" 
-              loading={pinaka.countryRegion.loading}
-              virtual={false}
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="provinceState" className="mb-2">
+              {pinaka.countryRegion.getRegionLabel(pinaka.country)} <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              id="provinceState"
+              name="provinceState"
+              placeholder="Select"
+              value={propertyForm.values.provinceState || 'ON'}
+              onChange={(e) => propertyForm.setFieldsValue({ provinceState: e.target.value })}
+              required
             >
+              <option value="">Select</option>
               {pinaka.countryRegion.getRegionsByCountry(pinaka.country).map(region => (
-                <Select.Option key={region.code} value={region.code}>{region.code}</Select.Option>
+                <option key={region.code} value={region.code}>{region.code}</option>
               ))}
             </Select>
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item
-            name="postalZip"
-            label={pinaka.countryRegion.getPostalLabel(pinaka.country)}
-            rules={[{ required: true, message: 'Required' }]}
-          >
-            <PostalCodeInput country={pinaka.country} />
-          </Form.Item>
-        </Col>
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="postalZip" className="mb-2">
+              {pinaka.countryRegion.getPostalLabel(pinaka.country)} <span className="text-red-500">*</span>
+            </Label>
+            <PostalCodeInput 
+              country={pinaka.country} 
+              value={propertyForm.values.postalZip || ''}
+              onChange={(e) => propertyForm.setFieldsValue({ postalZip: e.target.value })}
+            />
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item
-            name="country"
-            label="Country"
-            rules={[{ required: true, message: 'Required' }]}
-            initialValue="CA"
-          >
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="country" className="mb-2">
+              Country <span className="text-red-500">*</span>
+            </Label>
             <Select
-              loading={pinaka.countryRegion.loading}
-              virtual={false}
-              onChange={(value) => {
+              id="country"
+              name="country"
+              value={propertyForm.values.country || 'CA'}
+              onChange={(e) => {
+                const value = e.target.value;
                 pinaka.setCountry(value);
                 const defaultRegion = value === 'CA' ? 'ON' : value === 'US' ? 'NJ' : undefined;
-                propertyForm.setFieldsValue({ provinceState: defaultRegion });
+                propertyForm.setFieldsValue({ 
+                  country: value,
+                  provinceState: defaultRegion 
+                });
               }}
+              required
             >
               {pinaka.countryRegion.getCountries().map(c => (
-                <Select.Option key={c.code} value={c.code}>{c.name}</Select.Option>
+                <option key={c.code} value={c.code}>{c.name}</option>
               ))}
             </Select>
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="squareFootage" 
-            label="SQ. Ft."
-          >
-            <InputNumber
-              min={0}
-              style={{ width: '100%' }}
-              placeholder="1500"
-              formatter={value => value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-              parser={value => value ? value.replace(/\$\s?|(,*)/g, '') : ''}
-              addonAfter="sq ft"
-            />
-          </Form.Item>
-        </Col>
-      </Row>
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="squareFootage" className="mb-2">SQ. Ft.</Label>
+            <div className="flex">
+              <TextInput
+                id="squareFootage"
+                name="squareFootage"
+                type="number"
+                min={0}
+                placeholder="1500"
+                value={propertyForm.values.squareFootage || ''}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/,/g, '');
+                  propertyForm.setFieldsValue({ squareFootage: value ? parseInt(value) : undefined });
+                }}
+                className="rounded-r-none"
+              />
+              <span className="px-3 py-2 text-sm text-gray-500 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg flex items-center">
+                sq ft
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <Row gutter={[12, 16]}>
-        <Col span={24}>
-          <Form.Item 
-            name="propertyDescription" 
-            label="Notes"
-          >
-            <Input.TextArea
-              rows={2}
-              placeholder="Additional details or notes (optional)"
-              maxLength={500}
-              showCount
-            />
-          </Form.Item>
-        </Col>
-      </Row>
+      <div>
+        <Label htmlFor="propertyDescription" className="mb-2">Notes</Label>
+        <Textarea
+          id="propertyDescription"
+          name="propertyDescription"
+          rows={2}
+          placeholder="Additional details or notes (optional)"
+          maxLength={500}
+          value={propertyForm.values.propertyDescription || ''}
+          onChange={(e) => propertyForm.setFieldsValue({ propertyDescription: e.target.value })}
+        />
+        <p className="mt-1 text-sm text-gray-500">
+          {(propertyForm.values.propertyDescription || '').length} / 500 characters
+        </p>
+      </div>
     </div>
   );
 
   const unitsTab = (
-    <div style={{ padding: '8px 0' }}>
+    <div className="py-2">
       {unitFinancials.length === 0 ? (
-        <div style={{ 
-          padding: 40, 
-          textAlign: 'center', 
-          color: 'rgba(0, 0, 0, 0.45)',
-          border: '1px dashed #d9d9d9',
-          borderRadius: '6px',
-          backgroundColor: '#fafafa'
-        }}>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            Set number of units in Property Info tab
-          </Text>
+        <div className="p-10 text-center text-gray-500 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <p className="text-sm">Set number of units in Property Info tab</p>
         </div>
       ) : (
-        <Table
-          dataSource={unitFinancials.map((unit, index) => ({ ...unit, key: unit.unitNumber }))}
-          pagination={false}
-          size="small"
-          bordered
-          style={{ fontSize: '14px' }}
-          columns={[
-            {
-              title: 'Unit',
-              dataIndex: 'unitName',
-              key: 'unitName',
-              width: '14%',
-              align: 'center',
-              render: (text, record) => (
-                <Input
-                  value={text}
-                  onChange={(e) => updateUnitFinancial(record.unitNumber, 'unitName', e.target.value)}
-                  placeholder="101"
-                  autoComplete="off"
-                  data-form-type="unit-name"
-                  style={{ width: '100%', textAlign: 'center' }}
-                />
-              ),
-            },
-            {
-              title: 'Floor(s)',
-              dataIndex: 'floorNumber',
-              key: 'floorNumber',
-              width: '12%',
-              align: 'center',
-              render: (value, record) => (
-                <InputNumber
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'floorNumber', val)}
-                  placeholder="1"
-                  min={0}
-                  max={99}
-                  style={{ width: '100%', textAlign: 'center' }}
-                  controls={false}
-                />
-              ),
-            },
-            {
-              title: 'Beds',
-              dataIndex: 'bedrooms',
-              key: 'bedrooms',
-              width: '12%',
-              align: 'center',
-              render: (value, record) => (
-                <InputNumber
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'bedrooms', val)}
-                  placeholder="2"
-                  min={0}
-                  style={{ width: '100%', textAlign: 'center' }}
-                  controls={false}
-                />
-              ),
-            },
-            {
-              title: 'Baths',
-              dataIndex: 'bathrooms',
-              key: 'bathrooms',
-              width: '12%',
-              align: 'center',
-              render: (value, record) => (
-                <InputNumber
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'bathrooms', val)}
-                  placeholder="1"
-                  min={0}
-                  step={0.5}
-                  style={{ width: '100%', textAlign: 'center' }}
-                  controls={false}
-                />
-              ),
-            },
-            {
-              title: 'Rent',
-              dataIndex: 'rentPrice',
-              key: 'rentPrice',
-              width: '16%',
-              align: 'center',
-              render: (value, record) => (
-                <CurrencyInput
-                  country={pinaka.country}
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'rentPrice', val)}
-                  placeholder="0.00"
-                  style={{ width: '100%' }}
-                />
-              ),
-            },
-            {
-              title: 'Deposit',
-              dataIndex: 'depositAmount',
-              key: 'depositAmount',
-              width: '16%',
-              align: 'center',
-              render: (value, record) => (
-                <CurrencyInput
-                  country={pinaka.country}
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'depositAmount', val)}
-                  placeholder="0.00"
-                  style={{ width: '100%' }}
-                />
-              ),
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              width: '18%',
-              align: 'center',
-              render: (value, record) => (
-                <Select
-                  value={value}
-                  onChange={(val) => updateUnitFinancial(record.unitNumber, 'status', val)}
-                  style={{ width: '100%' }}
-                  dropdownStyle={{ minWidth: '200px' }}
-                >
-                  <Select.Option value="Vacant">Vacant</Select.Option>
-                  <Select.Option value="Occupied">Occupied</Select.Option>
-                  <Select.Option value="Under Maintenance">Maintenance</Select.Option>
-                </Select>
-              ),
-            },
-          ]}
-        />
+        <div className="overflow-x-auto">
+          <Table>
+            <Table.Head>
+              <Table.HeadCell className="text-center">Unit</Table.HeadCell>
+              <Table.HeadCell className="text-center">Floor(s)</Table.HeadCell>
+              <Table.HeadCell className="text-center">Beds</Table.HeadCell>
+              <Table.HeadCell className="text-center">Baths</Table.HeadCell>
+              <Table.HeadCell className="text-center">Rent</Table.HeadCell>
+              <Table.HeadCell className="text-center">Deposit</Table.HeadCell>
+              <Table.HeadCell className="text-center">Status</Table.HeadCell>
+            </Table.Head>
+            <Table.Body className="divide-y">
+              {unitFinancials.map((unit) => (
+                <Table.Row key={unit.unitNumber}>
+                  <Table.Cell className="text-center">
+                    <TextInput
+                      value={unit.unitName}
+                      onChange={(e) => updateUnitFinancial(unit.unitNumber, 'unitName', e.target.value)}
+                      placeholder="101"
+                      autoComplete="off"
+                      className="text-center"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <TextInput
+                      type="number"
+                      min={0}
+                      max={99}
+                      value={unit.floorNumber || ''}
+                      onChange={(e) => updateUnitFinancial(unit.unitNumber, 'floorNumber', e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="1"
+                      className="text-center"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <TextInput
+                      type="number"
+                      min={0}
+                      value={unit.bedrooms || ''}
+                      onChange={(e) => updateUnitFinancial(unit.unitNumber, 'bedrooms', e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="2"
+                      className="text-center"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <TextInput
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={unit.bathrooms || ''}
+                      onChange={(e) => updateUnitFinancial(unit.unitNumber, 'bathrooms', e.target.value ? parseFloat(e.target.value) : null)}
+                      placeholder="1"
+                      className="text-center"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <CurrencyInput
+                      country={pinaka.country}
+                      value={unit.rentPrice}
+                      onChange={(val) => updateUnitFinancial(unit.unitNumber, 'rentPrice', val)}
+                      placeholder="0.00"
+                      className="w-full"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <CurrencyInput
+                      country={pinaka.country}
+                      value={unit.depositAmount}
+                      onChange={(val) => updateUnitFinancial(unit.unitNumber, 'depositAmount', val)}
+                      placeholder="0.00"
+                      className="w-full"
+                    />
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    <Select
+                      value={unit.status}
+                      onChange={(e) => updateUnitFinancial(unit.unitNumber, 'status', e.target.value)}
+                      className="w-full"
+                    >
+                      <option value="Vacant">Vacant</option>
+                      <option value="Occupied">Occupied</option>
+                      <option value="Under Maintenance">Maintenance</option>
+                    </Select>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </div>
       )}
     </div>
   );
 
   const financialTab = (
-    <div style={{ padding: '4px 0' }}>
-      <Row gutter={[12, 16]}>
-        <Col span={6}>
-          <Form.Item 
-            name="yearBuilt" 
-            label="Year Built"
-          >
-            <InputNumber
+    <div className="py-1 space-y-4">
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="yearBuilt" className="mb-2">Year Built</Label>
+            <TextInput
+              id="yearBuilt"
+              name="yearBuilt"
+              type="number"
               min={1800}
               max={new Date().getFullYear()}
-              style={{ width: '100%' }}
               placeholder="2015"
+              value={propertyForm.values.yearBuilt || ''}
+              onChange={(e) => propertyForm.setFieldsValue({ yearBuilt: e.target.value ? parseInt(e.target.value) : undefined })}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="purchasePrice" 
-            label="Purchase Price"
-          >
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="purchasePrice" className="mb-2">Purchase Price</Label>
             <CurrencyInput
               country={pinaka.country}
-              style={{ width: '100%' }}
+              value={propertyForm.values.purchasePrice}
+              onChange={(value) => propertyForm.setFieldsValue({ purchasePrice: value })}
               placeholder="0.00"
+              className="w-full"
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="mortgageAmount" 
-            label="Mortgage Amount"
-          >
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="mortgageAmount" className="mb-2">Mortgage Amount</Label>
             <CurrencyInput
               country={pinaka.country}
-              style={{ width: '100%' }}
+              value={propertyForm.values.mortgageAmount}
+              onChange={(value) => propertyForm.setFieldsValue({ mortgageAmount: value })}
               placeholder="0.00"
+              className="w-full"
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="propertyTaxes" 
-            label="Annual Taxes"
-          >
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="propertyTaxes" className="mb-2">Annual Taxes</Label>
             <CurrencyInput
               country={pinaka.country}
-              style={{ width: '100%' }}
+              value={propertyForm.values.propertyTaxes}
+              onChange={(value) => propertyForm.setFieldsValue({ propertyTaxes: value })}
               placeholder="0.00"
+              className="w-full"
             />
-          </Form.Item>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
 
-      <Row gutter={[12, 16]}>
-        <Col span={6}>
-          <Form.Item 
-            name="mortgageStartDate" 
-            label="Start Date"
-          >
-            <DatePicker
-              style={{ width: '100%' }}
-              format="YYYY-MM-DD"
-              placeholder="Select date"
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="mortgageStartDate" className="mb-2">Start Date</Label>
+            <TextInput
+              id="mortgageStartDate"
+              name="mortgageStartDate"
+              type="date"
+              value={propertyForm.values.mortgageStartDate || ''}
+              onChange={(e) => propertyForm.setFieldsValue({ mortgageStartDate: e.target.value })}
             />
-          </Form.Item>
-        </Col>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="interestRate" 
-            label="Interest Rate"
-          >
-            <InputNumber
-              min={0}
-              max={100}
-              precision={2}
-              style={{ width: '100%' }}
-              placeholder="5.25"
-              suffix="%"
-            />
-          </Form.Item>
-        </Col>
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="interestRate" className="mb-2">Interest Rate</Label>
+            <div className="flex">
+              <TextInput
+                id="interestRate"
+                name="interestRate"
+                type="number"
+                min={0}
+                max={100}
+                step={0.01}
+                placeholder="5.25"
+                value={propertyForm.values.interestRate || ''}
+                onChange={(e) => propertyForm.setFieldsValue({ interestRate: e.target.value ? parseFloat(e.target.value) : undefined })}
+                className="rounded-r-none"
+              />
+              <span className="px-3 py-2 text-sm text-gray-500 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg flex items-center">
+                %
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="mortgageTermYears" 
-            label="Term"
-          >
-            <InputNumber
-              min={1}
-              max={50}
-              style={{ width: '100%' }}
-              placeholder="25"
-              addonAfter="years"
-            />
-          </Form.Item>
-        </Col>
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="mortgageTermYears" className="mb-2">Term</Label>
+            <div className="flex">
+              <TextInput
+                id="mortgageTermYears"
+                name="mortgageTermYears"
+                type="number"
+                min={1}
+                max={50}
+                placeholder="25"
+                value={propertyForm.values.mortgageTermYears || ''}
+                onChange={(e) => propertyForm.setFieldsValue({ mortgageTermYears: e.target.value ? parseInt(e.target.value) : undefined })}
+                className="rounded-r-none"
+              />
+              <span className="px-3 py-2 text-sm text-gray-500 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg flex items-center">
+                years
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <Col span={6}>
-          <Form.Item 
-            name="paymentFrequency" 
-            label="Payment Frequency"
-          >
+        <div className="col-span-3">
+          <div>
+            <Label htmlFor="paymentFrequency" className="mb-2">Payment Frequency</Label>
             <Select
-              style={{ width: '100%' }}
-              placeholder="Select"
+              id="paymentFrequency"
+              name="paymentFrequency"
+              value={propertyForm.values.paymentFrequency || 'biweekly'}
+              onChange={(e) => propertyForm.setFieldsValue({ paymentFrequency: e.target.value })}
             >
-              <Select.Option value="biweekly">Bi-weekly</Select.Option>
-              <Select.Option value="monthly">Monthly</Select.Option>
+              <option value="biweekly">Bi-weekly</option>
+              <option value="monthly">Monthly</option>
             </Select>
-          </Form.Item>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
-  const propertyTabItems = [
-    {
-      key: 'property',
-      label: 'Property Info',
-      children: propertyInfoTab,
-    },
-    {
-      key: 'units',
-      label: 'Units',
-      children: unitsTab,
-    },
-    {
-      key: 'financial',
-      label: 'Financial Details',
-      children: financialTab,
-    },
-  ];
+  // Handle form submission
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const values = propertyForm.getFieldsValue();
+      await pinaka.handleSubmit(values);
+    } catch (error) {
+      console.error('Form validation failed:', error);
+    }
+  };
+
+  // Handle unit form submission
+  const handleUnitFormSubmit = async (e) => {
+    e.preventDefault();
+    const values = unitForm.getFieldsValue();
+    await handleUnitSubmit(values);
+  };
 
   return (
     <PageLayout
-      headerTitle={<><BuildOutlined /> Properties</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiCog className="h-5 w-5" />
+          <span>Properties</span>
+        </div>
+      }
       headerActions={[
         <Button
           key="add"
-          type="primary"
-          icon={<PlusOutlined />}
+          color="blue"
           onClick={handleAddPropertyClick}
+          className="flex items-center gap-2"
         >
+          <HiPlus className="h-4 w-4" />
           Add Property
         </Button>,
         <Button
           key="refresh"
-          icon={<ReloadOutlined />}
+          color="gray"
           onClick={() => {
             pinaka.refresh();
             notify.success('Refreshed properties and units');
           }}
+          className="flex items-center gap-2"
         >
+          <HiRefresh className="h-4 w-4" />
           Refresh
         </Button>,
       ]}
@@ -1340,60 +1257,25 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
     >
       {pinaka.data.length === 0 ? (
         <EmptyState
-          icon={<HomeOutlined />}
+          icon={<HiHome className="h-12 w-12 text-gray-400" />}
           title="No properties yet"
           description="Click 'Add Property' to add your first property"
         />
       ) : (
         <TableWrapper>
-          <ProTable
+          <ExpandableFlowbiteTable
             {...tableProps}
             dataSource={filteredData}
             rowKey="id"
             loading={pinaka.loading}
-            search={false}
-            toolBarRender={false}
-            expandable={{
-              expandedRowRender,
-              expandedRowKeys,
-              onExpandedRowsChange: setExpandedRowKeys,
-              expandIcon: ({ expanded, onExpand, record }) => {
-                const hasMultipleUnits = record.units && record.units.length > 1;
-                
-                if (!hasMultipleUnits) {
-                  return <span style={{ display: 'inline-block', width: '16px' }} />;
-                }
-                
-                return (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onExpand(record, e);
-                    }}
-                    style={{
-                      fontSize: '14px',
-                      color: '#1890ff',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'transform 0.2s',
-                      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                      width: '16px',
-                      height: '16px'
-                    }}
-                  >
-                    ▶
-                  </span>
-                );
-              },
-            }}
             pagination={{
               pageSize: 25,
               showSizeChanger: true,
               showTotal: (total) => `Total ${total} properties`,
             }}
-            size="middle"
+            expandedRowRender={expandedRowRender}
+            expandedRowKeys={expandedRowKeys}
+            onExpandedRowsChange={setExpandedRowKeys}
             onRow={(record) => ({
               onDoubleClick: () => handleEditPropertyClick(record),
               style: { cursor: 'pointer' }
@@ -1404,117 +1286,184 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
 
       {/* Property Modal */}
       <Modal
-        title={pinaka.isEditing ? "Edit Property" : "Add Property"}
-        open={pinaka.isOpen}
-        onCancel={handleCloseProperty}
-        footer={null}
-        width={700}
+        show={pinaka.isOpen}
+        onClose={handleCloseProperty}
+        size="4xl"
       >
-        <ProForm
-          form={propertyForm}
-          layout="vertical"
-          onFinish={pinaka.handleSubmit}
-          preserve={true}
-          requiredMark={false}
-          submitter={{
-            render: (props, doms) => {
-              return (
-                <div style={{
-                  marginTop: 16,
-                  paddingTop: 16,
-                  borderTop: '1px solid #f0f0f0',
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 8
-                }}>
-                  {pinaka.renderFormButtons()}
-                </div>
-              );
-            }
-          }}
-        >
-          <Tabs
-            items={propertyTabItems}
-            style={{ marginBottom: 16 }}
-            destroyInactiveTabPane={false}
-          />
-        </ProForm>
+        <Modal.Header>{pinaka.isEditing ? "Edit Property" : "Add Property"}</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleFormSubmit} className="space-y-6">
+            <Tabs aria-label="Property form tabs">
+              <Tabs.Item active title="Property Info">
+                {propertyInfoTab}
+              </Tabs.Item>
+              
+              <Tabs.Item title="Units">
+                {unitsTab}
+              </Tabs.Item>
+              
+              <Tabs.Item title="Financial Details">
+                {financialTab}
+              </Tabs.Item>
+            </Tabs>
+
+            <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+              {pinaka.renderFormButtons()}
+            </div>
+          </form>
+        </Modal.Body>
       </Modal>
 
       {/* Unit Modal */}
-      <StandardModal
-        title={editingUnit ? "Edit Unit" : "Add Unit"}
-        open={unitModalVisible}
-        form={unitForm}
-        loading={false}
-        submitText={editingUnit ? "Save" : "Add"}
-        onCancel={handleCloseUnit}
-        onFinish={handleUnitSubmit}
-        width={600}
+      <Modal
+        show={unitModalVisible}
+        onClose={handleCloseUnit}
+        size="md"
       >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="propertyId" label="Property Name" rules={[{ required: true, message: 'Please select a property' }]}>
-                <Select placeholder="Select property" size="large" disabled>
-                  <Select.Option value={selectedPropertyForUnit?.id}>
-                    {selectedPropertyForUnit?.propertyName || selectedPropertyForUnit?.addressLine1}
-                  </Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="unitName" label="Unit Number" rules={[{ required: true, message: 'Please enter unit number' }]}>
-                <Input 
-                  placeholder="e.g., 101" 
-                  size="large" 
-                  autoComplete="off"
-                  data-form-type="unit-name"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+        <Modal.Header>{editingUnit ? "Edit Unit" : "Add Unit"}</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleUnitFormSubmit} className="space-y-4">
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-6">
+            <div>
+              <Label htmlFor="unit-propertyId" className="mb-2">
+                Property Name <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="unit-propertyId"
+                name="propertyId"
+                value={unitForm.values.propertyId || selectedPropertyForUnit?.id || ''}
+                disabled
+                required
+              >
+                <option value={selectedPropertyForUnit?.id}>
+                  {selectedPropertyForUnit?.propertyName || selectedPropertyForUnit?.addressLine1}
+                </option>
+              </Select>
+            </div>
+          </div>
+          <div className="col-span-6">
+            <div>
+              <Label htmlFor="unit-unitName" className="mb-2">
+                Unit Number <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="unit-unitName"
+                name="unitName"
+                placeholder="e.g., 101"
+                autoComplete="off"
+                value={unitForm.values.unitName || ''}
+                onChange={(e) => unitForm.setFieldsValue({ unitName: e.target.value })}
+                required
+                color={unitForm.errors.unitName ? 'failure' : 'gray'}
+                helperText={unitForm.errors.unitName}
+              />
+            </div>
+          </div>
+        </div>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="floorNumber" label="Floor(s)">
-                <InputNumber min={0} max={99} style={{ width: '100%' }} placeholder="e.g., 1" size="large" controls={false} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="bedrooms" label="Bedrooms">
-                <InputNumber min={0} max={20} style={{ width: '100%' }} placeholder="e.g., 2" size="large" controls={false} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="bathrooms" label="Bathrooms">
-                <InputNumber min={0} max={10} step={0.5} style={{ width: '100%' }} placeholder="e.g., 2.0" size="large" controls={false} />
-              </Form.Item>
-            </Col>
-          </Row>
+        <div className="grid grid-cols-12 gap-4 mt-4">
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-floorNumber" className="mb-2">Floor(s)</Label>
+              <TextInput
+                id="unit-floorNumber"
+                name="floorNumber"
+                type="number"
+                min={0}
+                max={99}
+                placeholder="e.g., 1"
+                value={unitForm.values.floorNumber || ''}
+                onChange={(e) => unitForm.setFieldsValue({ floorNumber: e.target.value ? parseInt(e.target.value) : null })}
+              />
+            </div>
+          </div>
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-bedrooms" className="mb-2">Bedrooms</Label>
+              <TextInput
+                id="unit-bedrooms"
+                name="bedrooms"
+                type="number"
+                min={0}
+                max={20}
+                placeholder="e.g., 2"
+                value={unitForm.values.bedrooms || ''}
+                onChange={(e) => unitForm.setFieldsValue({ bedrooms: e.target.value ? parseInt(e.target.value) : null })}
+              />
+            </div>
+          </div>
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-bathrooms" className="mb-2">Bathrooms</Label>
+              <TextInput
+                id="unit-bathrooms"
+                name="bathrooms"
+                type="number"
+                min={0}
+                max={10}
+                step={0.5}
+                placeholder="e.g., 2.0"
+                value={unitForm.values.bathrooms || ''}
+                onChange={(e) => unitForm.setFieldsValue({ bathrooms: e.target.value ? parseFloat(e.target.value) : null })}
+              />
+            </div>
+          </div>
+        </div>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="rentPrice" label="Rent">
-                <CurrencyInput country={selectedPropertyForUnit?.country || 'CA'} style={{ width: '100%' }} placeholder="0.00" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="depositAmount" label="Security Deposit">
-                <CurrencyInput country={selectedPropertyForUnit?.country || 'CA'} style={{ width: '100%' }} placeholder="0.00" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="status" label="Status">
-                <Select size="large">
-                  {UNIT_STATUSES.map(status => (
-                    <Select.Option key={status} value={status}>{status}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+        <div className="grid grid-cols-12 gap-4 mt-4">
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-rentPrice" className="mb-2">Rent</Label>
+              <CurrencyInput 
+                country={selectedPropertyForUnit?.country || 'CA'} 
+                value={unitForm.values.rentPrice}
+                onChange={(value) => unitForm.setFieldsValue({ rentPrice: value })}
+                placeholder="0.00"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-depositAmount" className="mb-2">Security Deposit</Label>
+              <CurrencyInput 
+                country={selectedPropertyForUnit?.country || 'CA'} 
+                value={unitForm.values.depositAmount}
+                onChange={(value) => unitForm.setFieldsValue({ depositAmount: value })}
+                placeholder="0.00"
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div className="col-span-4">
+            <div>
+              <Label htmlFor="unit-status" className="mb-2">Status</Label>
+              <Select
+                id="unit-status"
+                name="status"
+                value={unitForm.values.status || 'Vacant'}
+                onChange={(e) => unitForm.setFieldsValue({ status: e.target.value })}
+              >
+                {UNIT_STATUSES.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        </div>
 
-      </StandardModal>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button color="gray" onClick={handleCloseUnit}>
+                Cancel
+              </Button>
+              <Button type="submit" color="blue">
+                {editingUnit ? "Save" : "Add"}
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
     </PageLayout>
   );
 });

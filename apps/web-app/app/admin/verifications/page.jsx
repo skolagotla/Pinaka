@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
 import VerificationsClient from '../../verifications/ui';
-import { Spin } from 'antd';
+import { Spinner } from 'flowbite-react';
 import { adminApi } from '@/lib/api/admin-api';
 
 /**
@@ -65,8 +65,8 @@ export default function AdminVerificationsPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <Spin size="large" />
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <Spinner size="xl" />
       </div>
     );
   }

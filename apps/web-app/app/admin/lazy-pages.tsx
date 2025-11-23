@@ -7,17 +7,11 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Spin } from 'antd';
+import { Spinner } from 'flowbite-react';
 
 const LoadingComponent = () => (
-  <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    minHeight: 400,
-    padding: 40 
-  }}>
-    <Spin size="large" />
+  <div className="flex justify-center items-center min-h-[400px] p-10">
+    <Spinner size="xl" />
   </div>
 );
 

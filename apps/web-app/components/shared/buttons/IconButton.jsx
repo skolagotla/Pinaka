@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * IconButton Component
+ * IconButton Component (Flowbite Version)
  * 
  * Standardized circular icon button for Search, Refresh, and other icon-only actions
  * Ensures consistent styling across all pages
@@ -16,7 +16,21 @@
  */
 
 import React from 'react';
-import { Button, Tooltip } from 'antd';
+import { Button, Tooltip } from 'flowbite-react';
+
+const SIZE_MAP = {
+  small: 'xs',
+  middle: 'sm',
+  large: 'md',
+};
+
+const COLOR_MAP = {
+  primary: 'blue',
+  default: 'gray',
+  dashed: 'light',
+  link: 'light',
+  text: 'light',
+};
 
 export default function IconButton({
   icon,
@@ -30,24 +44,28 @@ export default function IconButton({
   text, // Filter out text prop - IconButton doesn't support text
   ...restProps
 }) {
+  const flowbiteSize = SIZE_MAP[size] || 'md';
+  const flowbiteColor = COLOR_MAP[type] || 'gray';
+  
   const button = (
     <Button
-      type={type}
-      shape="circle"
-      size={size}
-      icon={icon}
+      color={flowbiteColor}
+      size={flowbiteSize}
+      pill
       onClick={onClick}
-      loading={loading}
-      disabled={disabled}
-      style={
-        type !== 'primary'
-          ? { background: '#fff', border: '1px solid #d9d9d9' }
-          : undefined
-      }
+      disabled={disabled || loading}
+      className="p-2"
       {...restProps}
-    />
+    >
+      {loading && (
+        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      )}
+      {!loading && icon}
+    </Button>
   );
 
-  return tooltip ? <Tooltip title={tooltip}>{button}</Tooltip> : button;
+  return tooltip ? <Tooltip content={tooltip} trigger="hover">{button}</Tooltip> : button;
 }
-

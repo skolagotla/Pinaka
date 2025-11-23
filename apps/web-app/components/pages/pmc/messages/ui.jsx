@@ -1,20 +1,17 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, List, Button, Input, Space, Avatar, Tag, Empty, Modal, Form, Select, Tabs, Typography, Row, Col, Statistic } from 'antd';
+import { Card, Button, TextInput, Textarea, Select, Label, Badge, Tooltip, Tabs, Avatar, Modal, Spinner, Alert } from 'flowbite-react';
 import { StandardModal, FormTextInput, FormSelect } from '@/components/shared';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { MessageOutlined, SendOutlined, PlusOutlined, UserOutlined, TeamOutlined, HomeOutlined } from '@ant-design/icons';
+import { HiChat, HiPaperAirplane, HiPlus, HiUser, HiUserGroup, HiHome } from 'react-icons/hi';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useModalState } from '@/lib/hooks/useModalState';
-import { ProCard } from '@/components/shared/LazyProComponents';
+import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { rules } from '@/lib/utils/validation-rules';
-
-const { TextArea } = Input;
-const { Option } = Select;
-const { Title, Text } = Typography;
+import { useFormState } from '@/lib/hooks/useFormState';
 
 /**
  * PMC Messages Component
@@ -28,7 +25,7 @@ export default function PMCMessagesClient() {
   const { loading, withLoading } = useLoading(true);
   const { loading: loadingContacts, withLoading: withLoadingContacts } = useLoading(true);
   const { isOpen: createModalVisible, open: openCreateModal, close: closeCreateModal, openForCreate: openCreateModalForCreate } = useModalState();
-  const [createForm] = Form.useForm();
+  const createForm = useFormState();
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'landlords', 'tenants'
   const [landlords, setLandlords] = useState([]);
   const [tenants, setTenants] = useState([]);
@@ -48,7 +45,6 @@ export default function PMCMessagesClient() {
   const fetchContacts = async () => {
     await withLoadingContacts(async () => {
       try {
-        // Use v1Api client (Note: landlords/tenants endpoints might not be in v1 yet, keep legacy for now)
         const { v1Api } = await import('@/lib/api/v1-client');
         const [landlordsData, tenantsData] = await Promise.all([
           v1Api.landlords.list({ page: 1, limit: 1000 }).then(response => {
@@ -73,14 +69,6 @@ export default function PMCMessagesClient() {
   const fetchConversations = async () => {
     await withLoading(async () => {
       try {
-        const params = new URLSearchParams();
-        if (activeTab === 'landlords') {
-          params.append('type', 'LANDLORD_PMC');
-        } else if (activeTab === 'tenants') {
-          params.append('type', 'PMC_TENANT');
-        }
-
-        // Use v1Api client
         const { v1Api } = await import('@/lib/api/v1-client');
         const response = await v1Api.conversations.list({ 
           page: 1, 
@@ -101,7 +89,6 @@ export default function PMCMessagesClient() {
 
   const fetchMessages = async (conversationId) => {
     try {
-      // Use v1Api client - get conversation which includes messages
       const { v1Api } = await import('@/lib/api/v1-client');
       const response = await v1Api.conversations.get(conversationId);
       const conversation = response.data || response;
@@ -117,7 +104,6 @@ export default function PMCMessagesClient() {
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
-      // Use v1Api client
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
       setNewMessage('');
@@ -129,12 +115,13 @@ export default function PMCMessagesClient() {
     }
   };
 
-  const handleCreateConversation = async (values) => {
-    try {
-      const conversationType = values.contactType === 'landlord' ? 'LANDLORD_PMC' : 'PMC_TENANT';
-      const contactId = values.contactType === 'landlord' ? values.landlordId : values.tenantId;
+  const handleCreateConversation = async (e) => {
+    e?.preventDefault();
+    const values = createForm.getFieldsValue();
+    const conversationType = values.contactType === 'landlord' ? 'LANDLORD_PMC' : 'PMC_TENANT';
+    const contactId = values.contactType === 'landlord' ? values.landlordId : values.tenantId;
 
-      // Use v1Api client
+    try {
       const { v1Api } = await import('@/lib/api/v1-client');
       const response = await v1Api.conversations.create({
         contactType: values.contactType,
@@ -189,537 +176,444 @@ export default function PMCMessagesClient() {
   }).length;
 
   return (
-    <div style={{ padding: 0, maxWidth: '100%', height: '100%', display: 'flex', flexDirection: 'column' }} suppressHydrationWarning>
+    <div className="p-0 max-w-full h-full flex flex-col" suppressHydrationWarning>
       {/* Header Section */}
-      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="mb-3 flex justify-between items-center flex-wrap gap-3">
         <div>
-          <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 20 }}>
-            <MessageOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+          <h2 className="text-xl font-bold m-0 flex items-center gap-2">
+            <HiChat className="h-6 w-6 text-blue-600" />
             Messages
-          </Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13, marginTop: 2, display: 'block' }}>
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
             Communicate with landlords and tenants
-          </Typography.Text>
+          </p>
         </div>
         <Button
-          type="primary"
-          icon={<PlusOutlined />}
+          color="blue"
           onClick={openCreateModalForCreate}
-          style={{ height: 36 }}
+          className="flex items-center gap-2"
         >
+          <HiPlus className="h-4 w-4" />
           New Conversation
         </Button>
       </div>
 
       {/* Statistics Section */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard hoverable bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="Total Conversations"
-              value={filteredConversations.length}
-              prefix={<MessageOutlined style={{ color: '#1890ff', fontSize: 16 }} />}
-              valueStyle={{ fontSize: 20, fontWeight: 600 }}
-            />
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard hoverable bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title="Unread Messages"
-              value={unreadCount}
-              valueStyle={{ color: '#ff4d4f', fontSize: 20, fontWeight: 600 }}
-              prefix={<MessageOutlined style={{ color: '#ff4d4f', fontSize: 16 }} />}
-            />
-          </ProCard>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-3 mb-3">
+        <Card>
+          <FlowbiteStatistic
+            title="Total Conversations"
+            value={filteredConversations.length}
+            prefix={<HiChat className="h-4 w-4 text-blue-600" />}
+            valueStyle={{ fontSize: 20, fontWeight: 600 }}
+          />
+        </Card>
+        <Card>
+          <FlowbiteStatistic
+            title="Unread Messages"
+            value={unreadCount}
+            valueStyle={{ color: '#ff4d4f', fontSize: 20, fontWeight: 600 }}
+            prefix={<HiChat className="h-4 w-4 text-red-600" />}
+          />
+        </Card>
+      </div>
 
       {/* Main Messages Interface */}
-      <ProCard
-        style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
-        bodyStyle={{ padding: 0, height: '100%', display: 'flex', flexDirection: 'column' }}
-      >
-        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <Card className="flex-1 min-h-0 flex flex-col p-0">
+        <div className="flex flex-1 min-h-0">
           {/* Conversations Sidebar */}
-          <div style={{ 
-            width: '360px', 
-            borderRight: '1px solid #f0f0f0', 
-            display: 'flex', 
-            flexDirection: 'column',
-            backgroundColor: '#fafafa',
-            flexShrink: 0
-          }}>
+          <div className="w-[360px] border-r border-gray-200 flex flex-col bg-gray-50 flex-shrink-0">
             {/* Tabs */}
-            <div style={{ padding: '12px 12px 0 12px', borderBottom: '1px solid #f0f0f0', backgroundColor: '#fff' }}>
-              <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={[
-                  {
-                    key: 'all',
-                    label: (
-                      <Space>
-                        <MessageOutlined />
-                        <span>All</span>
-                      </Space>
-                    ),
-                  },
-                  {
-                    key: 'landlords',
-                    label: (
-                      <Space>
-                        <HomeOutlined />
-                        <span>Landlords</span>
-                      </Space>
-                    ),
-                  },
-                  {
-                    key: 'tenants',
-                    label: (
-                      <Space>
-                        <TeamOutlined />
-                        <span>Tenants</span>
-                      </Space>
-                    ),
-                  },
-                ]}
-                style={{ marginBottom: 0 }}
-              />
+            <div className="p-3 border-b border-gray-200 bg-white">
+              <Tabs activeTab={activeTab} onActiveTabChange={setActiveTab}>
+                <Tabs.Item active={activeTab === 'all'} title={
+                  <div className="flex items-center gap-2">
+                    <HiChat className="h-4 w-4" />
+                    <span>All</span>
+                  </div>
+                } />
+                <Tabs.Item active={activeTab === 'landlords'} title={
+                  <div className="flex items-center gap-2">
+                    <HiHome className="h-4 w-4" />
+                    <span>Landlords</span>
+                  </div>
+                } />
+                <Tabs.Item active={activeTab === 'tenants'} title={
+                  <div className="flex items-center gap-2">
+                    <HiUserGroup className="h-4 w-4" />
+                    <span>Tenants</span>
+                  </div>
+                } />
+              </Tabs>
             </div>
 
             {/* Conversations List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
-              <List
-                dataSource={filteredConversations}
-                loading={loading}
-                locale={{ emptyText: <Empty description="No conversations" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                renderItem={(conversation) => {
-                  const isUnread = !conversation.pmcLastReadAt || 
-                    (conversation.lastMessage && new Date(conversation.lastMessage.createdAt) > new Date(conversation.pmcLastReadAt));
-                  const isSelected = selectedConversation?.id === conversation.id;
-                  
-                  return (
-                    <List.Item
-                      style={{
-                        cursor: 'pointer',
-                        padding: '12px 16px',
-                        marginBottom: 4,
-                        borderRadius: 8,
-                        backgroundColor: isSelected ? '#e6f7ff' : isUnread ? '#f0f9ff' : 'transparent',
-                        border: isSelected ? '1px solid #1890ff' : '1px solid transparent',
-                        transition: 'all 0.2s',
-                      }}
-                      onClick={() => setSelectedConversation(conversation)}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = '#f5f5f5';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = isUnread ? '#f0f9ff' : 'transparent';
-                        }
-                      }}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar 
-                            size={48}
-                            icon={<UserOutlined />}
-                            style={{ 
-                              backgroundColor: getParticipantType(conversation) === 'landlord' ? '#1890ff' : '#52c41a' 
-                            }}
-                          />
-                        }
-                        title={
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                            <Text strong style={{ fontSize: 15, flex: 1 }} ellipsis>
-                              {conversation.subject}
-                            </Text>
-                            {isUnread && (
-                              <div style={{ 
-                                width: 8, 
-                                height: 8, 
-                                borderRadius: '50%', 
-                                backgroundColor: '#ff4d4f',
-                                marginLeft: 8,
-                                marginTop: 4
-                              }} />
-                            )}
-                          </div>
-                        }
-                        description={
-                          <div>
-                            <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <Text type="secondary" style={{ fontSize: 13 }}>
+            <div className="flex-1 overflow-y-auto p-1.5">
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Spinner size="xl" />
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No conversations</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredConversations.map((conversation) => {
+                    const isUnread = !conversation.pmcLastReadAt || 
+                      (conversation.lastMessage && new Date(conversation.lastMessage.createdAt) > new Date(conversation.pmcLastReadAt));
+                    const isSelected = selectedConversation?.id === conversation.id;
+                    
+                    return (
+                      <div
+                        key={conversation.id}
+                        onClick={() => setSelectedConversation(conversation)}
+                        className={`p-3 mb-1 rounded-lg cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'bg-blue-50 border border-blue-500' 
+                            : isUnread 
+                              ? 'bg-blue-50 border border-transparent hover:bg-gray-100' 
+                              : 'bg-transparent border border-transparent hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar
+                            size="md"
+                            img={null}
+                            rounded
+                            className={`${
+                              getParticipantType(conversation) === 'landlord' ? 'bg-blue-600' : 'bg-green-600'
+                            }`}
+                          >
+                            <HiUser className="h-5 w-5 text-white" />
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className={`font-semibold text-sm flex-1 truncate ${isUnread ? 'text-blue-600' : ''}`}>
+                                {conversation.subject}
+                              </span>
+                              {isUnread && (
+                                <div className="w-2 h-2 rounded-full bg-red-600 ml-2 mt-1 flex-shrink-0" />
+                              )}
+                            </div>
+                            <div className="mb-1.5 flex items-center gap-2 flex-wrap">
+                              <span className="text-xs text-gray-500">
                                 {getParticipantName(conversation)}
-                              </Text>
-                              <Tag 
-                                size="small" 
-                                color={getParticipantType(conversation) === 'landlord' ? 'blue' : 'green'}
-                                style={{ margin: 0 }}
+                              </span>
+                              <Badge 
+                                size="sm" 
+                                color={getParticipantType(conversation) === 'landlord' ? 'blue' : 'success'}
                               >
                                 {getParticipantType(conversation) === 'landlord' ? 'Landlord' : 'Tenant'}
-                              </Tag>
+                              </Badge>
                             </div>
                             {conversation.property && (
-                              <div style={{ marginBottom: 4 }}>
-                                <Tag size="small" icon={<HomeOutlined />} style={{ margin: 0 }}>
+                              <div className="mb-1">
+                                <Badge size="sm" icon={HiHome} color="gray">
                                   {conversation.property.propertyName || conversation.property.addressLine1}
-                                </Tag>
+                                </Badge>
                               </div>
                             )}
                             {conversation.lastMessage && (
-                              <Text 
-                                type="secondary" 
-                                style={{ 
-                                  fontSize: 12, 
-                                  display: 'block',
-                                  marginTop: 4,
-                                  color: isUnread ? '#1890ff' : '#8c8c8c'
-                                }}
-                                ellipsis
-                              >
+                              <span className={`text-xs block mt-1 truncate ${
+                                isUnread ? 'text-blue-600' : 'text-gray-500'
+                              }`}>
                                 {formatDateTimeDisplay(conversation.lastMessage.createdAt)}
-                              </Text>
+                              </span>
                             )}
                           </div>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Messages Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+          <div className="flex-1 flex flex-col bg-white">
             {selectedConversation ? (
               <>
                 {/* Conversation Header */}
-                <div style={{ 
-                  padding: '12px 16px', 
-                  borderBottom: '1px solid #f0f0f0',
-                  backgroundColor: '#fafafa'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <Title level={5} style={{ margin: 0, fontSize: 16 }}>
+                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <h5 className="text-base font-semibold m-0">
                       {selectedConversation.subject}
-                    </Title>
+                    </h5>
                   </div>
-                  <Space size="middle" wrap>
-                    <Tag 
-                      color={getParticipantType(selectedConversation) === 'landlord' ? 'blue' : 'green'}
-                      icon={getParticipantType(selectedConversation) === 'landlord' ? <HomeOutlined /> : <TeamOutlined />}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge 
+                      color={getParticipantType(selectedConversation) === 'landlord' ? 'blue' : 'success'}
+                      icon={getParticipantType(selectedConversation) === 'landlord' ? HiHome : HiUserGroup}
                     >
                       {getParticipantType(selectedConversation) === 'landlord' ? 'Landlord' : 'Tenant'}: {getParticipantName(selectedConversation)}
-                    </Tag>
+                    </Badge>
                     {selectedConversation.property && (
-                      <Tag icon={<HomeOutlined />}>
+                      <Badge icon={HiHome} color="gray">
                         {selectedConversation.property.propertyName || selectedConversation.property.addressLine1}
-                      </Tag>
+                      </Badge>
                     )}
-                  </Space>
+                  </div>
                 </div>
 
                 {/* Messages Container */}
-                <div style={{ 
-                  flex: 1, 
-                  overflowY: 'auto', 
-                  padding: '16px',
-                  backgroundColor: '#f5f5f5'
-                }}>
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                   {messages.length === 0 ? (
-                    <Empty 
-                      description="No messages yet. Start the conversation!" 
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      style={{ marginTop: 100 }}
-                    />
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <HiChat className="h-16 w-16 text-gray-300 mb-4" />
+                      <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                    </div>
                   ) : (
-                    messages.map((msg, index) => {
-                      const isPMC = msg.senderRole === 'pmc';
-                      const showDateSeparator = index === 0 || 
-                        new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString();
-                      
-                      return (
-                        <div key={msg.id}>
-                          {showDateSeparator && (
-                            <div style={{ 
-                              textAlign: 'center', 
-                              margin: '16px 0',
-                              position: 'relative'
-                            }}>
-                              <div style={{
-                                display: 'inline-block',
-                                padding: '4px 12px',
-                                backgroundColor: '#fff',
-                                borderRadius: 12,
-                                fontSize: 12,
-                                color: '#8c8c8c',
-                                border: '1px solid #f0f0f0'
-                              }}>
-                                {new Date(msg.createdAt).toLocaleDateString('en-US', { 
-                                  weekday: 'long', 
-                                  year: 'numeric', 
-                                  month: 'long', 
-                                  day: 'numeric' 
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          <div
-                            style={{
-                              marginBottom: 16,
-                              display: 'flex',
-                              justifyContent: isPMC ? 'flex-end' : 'flex-start',
-                              alignItems: 'flex-end',
-                              gap: 12,
-                            }}
-                          >
-                            {!isPMC && (
-                              <Avatar 
-                                size={36}
-                                icon={<UserOutlined />}
-                                style={{ 
-                                  backgroundColor: getParticipantType(selectedConversation) === 'landlord' ? '#1890ff' : '#52c41a',
-                                  flexShrink: 0
-                                }}
-                              />
-                            )}
-                            <div style={{ 
-                              maxWidth: '65%',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: isPMC ? 'flex-end' : 'flex-start'
-                            }}>
-                              <div
-                                style={{
-                                  padding: '12px 16px',
-                                  borderRadius: isPMC ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                                  backgroundColor: isPMC ? '#1890ff' : '#fff',
-                                  color: isPMC ? '#fff' : '#262626',
-                                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                  wordBreak: 'break-word',
-                                  lineHeight: 1.5,
-                                }}
-                              >
-                                <div style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>
-                                  {msg.messageText || msg.content}
+                    <div className="space-y-4">
+                      {messages.map((msg, index) => {
+                        const isPMC = msg.senderRole === 'pmc';
+                        const showDateSeparator = index === 0 || 
+                          new Date(msg.createdAt).toDateString() !== new Date(messages[index - 1].createdAt).toDateString();
+                        
+                        return (
+                          <div key={msg.id}>
+                            {showDateSeparator && (
+                              <div className="text-center my-4 relative">
+                                <div className="inline-block px-3 py-1 bg-white rounded-full text-xs text-gray-500 border border-gray-200">
+                                  {new Date(msg.createdAt).toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                  })}
                                 </div>
                               </div>
-                              <Text 
-                                type="secondary" 
-                                style={{ 
-                                  fontSize: 11, 
-                                  marginTop: 4,
-                                  padding: '0 4px'
-                                }}
-                              >
-                                {formatDateTimeDisplay(msg.createdAt)}
-                              </Text>
-                            </div>
-                            {isPMC && (
-                              <Avatar 
-                                size={36}
-                                icon={<UserOutlined />}
-                                style={{ 
-                                  backgroundColor: '#1890ff',
-                                  flexShrink: 0
-                                }}
-                              />
                             )}
+                            <div
+                              className={`mb-4 flex items-end gap-3 ${
+                                isPMC ? 'justify-end' : 'justify-start'
+                              }`}
+                            >
+                              {!isPMC && (
+                                <Avatar 
+                                  size="md"
+                                  img={null}
+                                  rounded
+                                  className={`flex-shrink-0 ${
+                                    getParticipantType(selectedConversation) === 'landlord' ? 'bg-blue-600' : 'bg-green-600'
+                                  }`}
+                                >
+                                  <HiUser className="h-5 w-5 text-white" />
+                                </Avatar>
+                              )}
+                              <div className={`max-w-[65%] flex flex-col ${
+                                isPMC ? 'items-end' : 'items-start'
+                              }`}>
+                                <div
+                                  className={`px-4 py-3 rounded-2xl shadow-sm break-words ${
+                                    isPMC 
+                                      ? 'bg-blue-600 text-white rounded-br-sm' 
+                                      : 'bg-white text-gray-800 rounded-bl-sm'
+                                  }`}
+                                >
+                                  <div className="text-sm whitespace-pre-wrap">
+                                    {msg.messageText || msg.content}
+                                  </div>
+                                </div>
+                                <span className="text-xs text-gray-500 mt-1 px-1">
+                                  {formatDateTimeDisplay(msg.createdAt)}
+                                </span>
+                              </div>
+                              {isPMC && (
+                                <Avatar 
+                                  size="md"
+                                  img={null}
+                                  rounded
+                                  className="flex-shrink-0 bg-blue-600"
+                                >
+                                  <HiUser className="h-5 w-5 text-white" />
+                                </Avatar>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
                 {/* Message Input */}
-                <div style={{ 
-                  padding: '12px 16px', 
-                  borderTop: '1px solid #f0f0f0',
-                  backgroundColor: '#fff'
-                }}>
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input.TextArea
+                <div className="p-3 border-t border-gray-200 bg-white">
+                  <div className="flex gap-2">
+                    <Textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type a message..."
                       rows={2}
-                      style={{ 
-                        borderRadius: '6px 0 0 6px',
-                        resize: 'none'
-                      }}
-                      onPressEnter={(e) => {
-                        if (e.shiftKey) return;
-                        e.preventDefault();
-                        handleSendMessage();
+                      className="flex-1 rounded-lg resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
                       }}
                     />
                     <Button
-                      type="primary"
-                      icon={<SendOutlined />}
+                      color="blue"
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim()}
-                      style={{ 
-                        height: 'auto',
-                        borderRadius: '0 6px 6px 0',
-                        padding: '0 20px'
-                      }}
+                      className="flex items-center gap-2 px-5"
                     >
+                      <HiPaperAirplane className="h-4 w-4" />
                       Send
                     </Button>
-                  </Space.Compact>
+                  </div>
                 </div>
               </>
             ) : (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%',
-                flexDirection: 'column',
-                gap: 16
-              }}>
-                <MessageOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
-                <Empty 
-                  description={
-                    <div>
-                      <Text type="secondary" style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
-                        Select a conversation to view messages
-                      </Text>
-                      <Button 
-                        type="primary" 
-                        icon={<PlusOutlined />}
-                        onClick={openCreateModalForCreate}
-                      >
-                        Start New Conversation
-                      </Button>
-                    </div>
-                  } 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
+              <div className="flex items-center justify-center h-full flex-col gap-4">
+                <HiChat className="h-16 w-16 text-gray-300" />
+                <div className="text-center">
+                  <p className="text-gray-500 text-base mb-2">
+                    Select a conversation to view messages
+                  </p>
+                  <Button 
+                    color="blue" 
+                    onClick={openCreateModalForCreate}
+                    className="flex items-center gap-2"
+                  >
+                    <HiPlus className="h-4 w-4" />
+                    Start New Conversation
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         </div>
-      </ProCard>
+      </Card>
 
       {/* Create Conversation Modal */}
-      <StandardModal
-        title="New Conversation"
-        open={createModalVisible}
-        form={createForm}
-        loading={false}
-        submitText="Create"
-        onCancel={() => {
-          setCreateModalVisible(false);
+      <Modal
+        show={createModalVisible}
+        onClose={() => {
+          closeCreateModal();
           createForm.resetFields();
         }}
-        onFinish={handleCreateConversation}
-        width={600}
+        size="md"
       >
-          <Form.Item
-            name="contactType"
-            label="Contact Type"
-            rules={[rules.required('Contact type')]}
-            initialValue="landlord"
-          >
-            <Select placeholder="Select contact type">
-              <Option value="landlord">Landlord</Option>
-              <Option value="tenant">Tenant</Option>
-            </Select>
-          </Form.Item>
+        <Modal.Header>New Conversation</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleCreateConversation} className="space-y-4">
+            <div>
+              <Label htmlFor="contactType" className="mb-2">
+                Contact Type <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="contactType"
+                name="contactType"
+                value={createForm.values.contactType || 'landlord'}
+                onChange={(e) => {
+                  createForm.setFieldsValue({ contactType: e.target.value });
+                  createForm.setFieldsValue({ landlordId: '', tenantId: '' });
+                }}
+                required
+              >
+                <option value="landlord">Landlord</option>
+                <option value="tenant">Tenant</option>
+              </Select>
+            </div>
 
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.contactType !== currentValues.contactType}
-          >
-            {({ getFieldValue }) => {
-              const contactType = getFieldValue('contactType');
-              if (contactType === 'landlord') {
-                return (
-                  <Form.Item
-                    name="landlordId"
-                    label="Landlord"
-                    rules={[rules.required('Landlord')]}
-                  >
-                    <Select
-                      placeholder="Select landlord"
-                      loading={loadingContacts}
-                      showSearch
-                      optionFilterProp="children"
-                      filterOption={(input, option) =>
-                        (option?.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
-                      }
-                    >
-                      {(Array.isArray(landlords) ? landlords : []).map((landlord) => {
-                        if (!landlord || !landlord.id) {
-                          return null;
-                        }
-                        return (
-                          <Option key={landlord.id} value={landlord.id}>
-                            {landlord.firstName} {landlord.lastName} ({landlord.email})
-                          </Option>
-                        );
-                      })}
-                    </Select>
-                  </Form.Item>
-                );
-              } else if (contactType === 'tenant') {
-                return (
-                  <Form.Item
-                    name="tenantId"
-                    label="Tenant"
-                    rules={[rules.required('Tenant')]}
-                  >
-                    <Select
-                      placeholder="Select tenant"
-                      loading={loadingContacts}
-                      showSearch
-                      optionFilterProp="children"
-                      filterOption={(input, option) =>
-                        (option?.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
-                      }
-                    >
-                      {(Array.isArray(tenants) ? tenants : []).map((tenant) => {
-                        if (!tenant || !tenant.id) {
-                          return null;
-                        }
-                        return (
-                          <Option key={tenant.id} value={tenant.id}>
-                            {tenant.firstName} {tenant.lastName} ({tenant.email})
-                          </Option>
-                        );
-                      })}
-                    </Select>
-                  </Form.Item>
-                );
-              }
-              return null;
-            }}
-          </Form.Item>
+            {createForm.values.contactType === 'landlord' && (
+              <div>
+                <Label htmlFor="landlordId" className="mb-2">
+                  Landlord <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  id="landlordId"
+                  name="landlordId"
+                  value={createForm.values.landlordId || ''}
+                  onChange={(e) => createForm.setFieldsValue({ landlordId: e.target.value })}
+                  required
+                >
+                  <option value="">Select landlord</option>
+                  {(Array.isArray(landlords) ? landlords : []).map((landlord) => {
+                    if (!landlord || !landlord.id) return null;
+                    return (
+                      <option key={landlord.id} value={landlord.id}>
+                        {landlord.firstName} {landlord.lastName} ({landlord.email})
+                      </option>
+                    );
+                  })}
+                </Select>
+              </div>
+            )}
 
-          <Form.Item
-            name="subject"
-            label="Subject"
-            rules={[rules.required('Subject')]}
-          >
-            <Input placeholder="Conversation subject" />
-          </Form.Item>
+            {createForm.values.contactType === 'tenant' && (
+              <div>
+                <Label htmlFor="tenantId" className="mb-2">
+                  Tenant <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  id="tenantId"
+                  name="tenantId"
+                  value={createForm.values.tenantId || ''}
+                  onChange={(e) => createForm.setFieldsValue({ tenantId: e.target.value })}
+                  required
+                >
+                  <option value="">Select tenant</option>
+                  {(Array.isArray(tenants) ? tenants : []).map((tenant) => {
+                    if (!tenant || !tenant.id) return null;
+                    return (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.firstName} {tenant.lastName} ({tenant.email})
+                      </option>
+                    );
+                  })}
+                </Select>
+              </div>
+            )}
 
-          <Form.Item
-            name="initialMessage"
-            label="Initial Message"
-            rules={[rules.required('Initial message')]}
-          >
-            <TextArea rows={4} placeholder="Start the conversation..." />
-          </Form.Item>
-      </StandardModal>
+            <div>
+              <Label htmlFor="subject" className="mb-2">
+                Subject <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="subject"
+                name="subject"
+                type="text"
+                placeholder="Conversation subject"
+                value={createForm.values.subject || ''}
+                onChange={(e) => createForm.setFieldsValue({ subject: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="initialMessage" className="mb-2">
+                Initial Message <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="initialMessage"
+                name="initialMessage"
+                rows={4}
+                placeholder="Start the conversation..."
+                value={createForm.values.initialMessage || ''}
+                onChange={(e) => createForm.setFieldsValue({ initialMessage: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+              <Button color="gray" onClick={() => {
+                closeCreateModal();
+                createForm.resetFields();
+              }}>
+                Cancel
+              </Button>
+              <Button color="blue" type="submit" className="flex items-center gap-2">
+                <HiPlus className="h-4 w-4" />
+                Create
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
-

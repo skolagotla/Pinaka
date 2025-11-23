@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ActionButton Component
+ * ActionButton Component (Flowbite Version)
  * 
  * Standardized action button for common actions
  * Ensures consistent look and feel across all pages
@@ -18,111 +18,115 @@
  */
 
 import React from 'react';
-import { Button, Tooltip } from 'antd';
+import { Button, Tooltip } from 'flowbite-react';
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SaveOutlined,
-  CloseOutlined,
-  EyeOutlined,
-  SendOutlined,
-  DownloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  FileTextOutlined,
-  ReloadOutlined,
-  CopyOutlined,
-  ShareAltOutlined,
-} from '@ant-design/icons';
+  HiPlus,
+  HiPencil,
+  HiTrash,
+  HiSave,
+  HiX,
+  HiEye,
+  HiPaperAirplane,
+  HiDownload,
+  HiCheckCircle,
+  HiXCircle,
+  HiDocumentText,
+  HiRefresh,
+  HiClipboard,
+  HiShare,
+} from 'react-icons/hi';
 
 const ACTION_CONFIG = {
   add: {
-    icon: <PlusOutlined />,
-    type: 'primary',
+    icon: HiPlus,
+    color: 'blue',
     defaultTooltip: 'Add',
     defaultText: 'Add',
   },
   edit: {
-    icon: <EditOutlined />,
-    type: 'default',
+    icon: HiPencil,
+    color: 'gray',
     defaultTooltip: 'Edit',
     defaultText: 'Edit',
   },
   delete: {
-    icon: <DeleteOutlined />,
-    type: 'default',
-    danger: true,
+    icon: HiTrash,
+    color: 'failure',
     defaultTooltip: 'Delete',
     defaultText: 'Delete',
   },
   save: {
-    icon: <SaveOutlined />,
-    type: 'primary',
+    icon: HiSave,
+    color: 'blue',
     defaultTooltip: 'Save',
     defaultText: 'Save',
   },
   cancel: {
-    icon: <CloseOutlined />,
-    type: 'default',
+    icon: HiX,
+    color: 'gray',
     defaultTooltip: 'Cancel',
     defaultText: 'Cancel',
   },
   view: {
-    icon: <EyeOutlined />,
-    type: 'default',
+    icon: HiEye,
+    color: 'gray',
     defaultTooltip: 'View',
     defaultText: 'View',
   },
   send: {
-    icon: <SendOutlined />,
-    type: 'default',
+    icon: HiPaperAirplane,
+    color: 'gray',
     defaultTooltip: 'Send',
     defaultText: 'Send',
   },
   download: {
-    icon: <DownloadOutlined />,
-    type: 'default',
+    icon: HiDownload,
+    color: 'gray',
     defaultTooltip: 'Download',
     defaultText: 'Download',
   },
   approve: {
-    icon: <CheckCircleOutlined />,
-    type: 'primary',
+    icon: HiCheckCircle,
+    color: 'blue',
     defaultTooltip: 'Approve',
     defaultText: 'Approve',
   },
   reject: {
-    icon: <CloseCircleOutlined />,
-    type: 'default',
-    danger: true,
+    icon: HiXCircle,
+    color: 'failure',
     defaultTooltip: 'Reject',
     defaultText: 'Reject',
   },
   archive: {
-    icon: <FileTextOutlined />,
-    type: 'default',
+    icon: HiDocumentText,
+    color: 'gray',
     defaultTooltip: 'Archive',
     defaultText: 'Archive',
   },
   refresh: {
-    icon: <ReloadOutlined />,
-    type: 'default',
+    icon: HiRefresh,
+    color: 'gray',
     defaultTooltip: 'Refresh',
     defaultText: 'Refresh',
   },
   copy: {
-    icon: <CopyOutlined />,
-    type: 'default',
+    icon: HiClipboard,
+    color: 'gray',
     defaultTooltip: 'Copy',
     defaultText: 'Copy',
   },
   share: {
-    icon: <ShareAltOutlined />,
-    type: 'default',
+    icon: HiShare,
+    color: 'gray',
     defaultTooltip: 'Share',
     defaultText: 'Share',
   },
+};
+
+const SIZE_MAP = {
+  small: 'xs',
+  middle: 'sm',
+  large: 'md',
 };
 
 export default function ActionButton({
@@ -135,7 +139,7 @@ export default function ActionButton({
   showText = false,
   text,
   htmlType,
-  buttonType, // 'default' | 'text' | 'link' - overrides config.type for table actions
+  buttonType, // 'default' | 'text' | 'link' - overrides config.color for table actions
   ...restProps
 }) {
   const config = ACTION_CONFIG[action];
@@ -145,56 +149,53 @@ export default function ActionButton({
     return null;
   }
 
-  // Use buttonType prop if provided (for table actions), otherwise use config.type
-  const finalType = buttonType || config.type;
+  const Icon = config.icon;
+  const flowbiteSize = SIZE_MAP[size] || 'md';
   
-  // For icon-only buttons (no text), use 'text' type for cleaner appearance in tables
-  // For buttons with text, use the configured type
+  // For icon-only buttons, use outline style; for buttons with text, use solid
   const isIconOnly = !showText;
-  const buttonTypeForIconOnly = isIconOnly && (buttonType === 'text' || buttonType === 'link') ? 'text' : finalType;
+  const color = buttonType === 'text' || buttonType === 'link' ? 'light' : config.color;
+  const outline = isIconOnly && buttonType !== 'text' && buttonType !== 'link';
   
   // Wrap onClick to add debugging and ensure it's called
-  // Note: onClick from useGridActions expects to be called with the event
-  // and will handle passing the record internally
   const handleClick = onClick ? (e) => {
     console.log(`[ActionButton] ${action} button clicked`, { onClick: !!onClick, event: e });
     if (e) {
       e.stopPropagation();
     }
-    // Call the onClick handler - it will handle the record internally
     if (onClick) {
       onClick(e);
     }
   } : undefined;
   
-  const buttonProps = {
-    type: buttonTypeForIconOnly,
-    danger: config.danger,
-    icon: config.icon,
-    onClick: handleClick,
-    loading,
-    disabled,
-    size,
-    shape: showText ? 'round' : undefined, // No shape for icon-only buttons in tables
-    style: {
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      ...restProps.style,
-    },
-    ...restProps,
-  };
+  const button = (
+    <Button
+      color={color}
+      size={flowbiteSize}
+      outline={outline}
+      disabled={disabled || loading}
+      onClick={handleClick}
+      type={htmlType}
+      className={buttonType === 'text' || buttonType === 'link' ? 'text-gray-600 hover:text-gray-900' : ''}
+      {...restProps}
+    >
+      {loading && (
+        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      )}
+      <Icon className="h-4 w-4" />
+      {showText && <span className="ml-2">{text || config.defaultText}</span>}
+    </Button>
+  );
 
-  if (htmlType) {
-    buttonProps.htmlType = htmlType;
-  }
-
-  const button = <Button {...buttonProps}>{showText && (text || config.defaultText)}</Button>;
   const tooltipText = tooltip || config.defaultTooltip;
 
-  // Wrap in Tooltip if needed - Tooltip should not block onClick events
-  // For icon-only buttons, Tooltip can wrap the button directly
+  // Wrap in Tooltip if needed - for icon-only buttons
   if (tooltipText && !showText) {
     return (
-      <Tooltip title={tooltipText} mouseEnterDelay={0.3}>
+      <Tooltip content={tooltipText} trigger="hover">
         {button}
       </Tooltip>
     );
@@ -202,4 +203,3 @@ export default function ActionButton({
   
   return button;
 }
-

@@ -1,30 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { Card, Button, Badge, Select, Spinner, Alert } from 'flowbite-react';
+import { PageLayout } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Typography,
-  Select,
-  Button,
-  Table,
-  Tag,
-  Spin,
-  Space,
-} from 'antd';
-import {
-  BarChartOutlined,
-  UserOutlined,
-  HomeOutlined,
-  FileTextOutlined,
-  ToolOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-
-const { Title } = Typography;
-const { Option } = Select;
+  HiChartBar,
+  HiUser,
+  HiHome,
+  HiDocumentText,
+  HiCog,
+  HiRefresh,
+} from 'react-icons/hi';
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -77,7 +64,7 @@ export default function AdminAnalyticsPage() {
       title: 'Action',
       dataIndex: 'action',
       key: 'action',
-      render: (action) => action ? <Tag color="blue">{action}</Tag> : '-',
+      render: (action) => action ? <Badge color="info">{action}</Badge> : '-',
     },
     {
       title: 'Resource',
@@ -90,119 +77,172 @@ export default function AdminAnalyticsPage() {
       dataIndex: 'success',
       key: 'success',
       render: (success) => (
-        <Tag color={success ? 'success' : 'error'}>
+        <Badge color={success ? 'success' : 'failure'}>
           {success ? 'Success' : 'Failed'}
-        </Tag>
+        </Badge>
       ),
     },
   ];
 
   if (loading && !analytics) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Spin size="large" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <BarChartOutlined /> Analytics & Reporting
-        </Title>
-        <Space>
-          <Select
-            value={period}
-            onChange={setPeriod}
-            style={{ width: 150 }}
-          >
-            <Option value="7d">Last 7 Days</Option>
-            <Option value="30d">Last 30 Days</Option>
-            <Option value="90d">Last 90 Days</Option>
-            <Option value="1y">Last Year</Option>
-          </Select>
-          <Button icon={<ReloadOutlined />} onClick={fetchAnalytics} loading={loading}>
-            Refresh
-          </Button>
-        </Space>
-      </div>
+    <PageLayout
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiChartBar className="h-5 w-5" />
+          <span>Analytics & Reporting</span>
+        </div>
+      }
+      headerActions={[
+        <Select
+          key="period"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          className="w-40"
+        >
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="90d">Last 90 Days</option>
+          <option value="1y">Last Year</option>
+        </Select>,
+        <Button
+          key="refresh"
+          color="gray"
+          onClick={fetchAnalytics}
+          disabled={loading}
+        >
+          <HiRefresh className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      ]}
+      contentStyle={{ maxWidth: 1400, margin: '0 auto' }}
+    >
 
       {analytics && analytics.overview ? (
         <>
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Total Landlords"
-                  value={analytics.overview?.users?.landlords || 0}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Total Tenants"
-                  value={analytics.overview?.users?.tenants || 0}
-                  prefix={<UserOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Total Properties"
-                  value={analytics.overview?.properties?.total || 0}
-                  prefix={<HomeOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card>
-                <Statistic
-                  title="Active Leases"
-                  value={analytics.overview?.leases?.active || 0}
-                  prefix={<FileTextOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Total Landlords
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.users?.landlords || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                  <HiUser className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Total Tenants
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.users?.tenants || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
+                  <HiUser className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Total Properties
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.properties?.total || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
+                  <HiHome className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Active Leases
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.leases?.active || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400">
+                  <HiDocumentText className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+          </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Maintenance Requests"
-                  value={analytics.overview?.maintenance?.total || 0}
-                  prefix={<ToolOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Open Maintenance"
-                  value={analytics.overview?.maintenance?.open || 0}
-                  prefix={<ToolOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card>
-                <Statistic
-                  title="Total Documents"
-                  value={analytics.overview?.documents?.total || 0}
-                  prefix={<FileTextOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Total Maintenance Requests
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.maintenance?.total || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+                  <HiCog className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Open Maintenance
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.maintenance?.open || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400">
+                  <HiCog className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    Total Documents
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.overview?.documents?.total || 0}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                  <HiDocumentText className="h-6 w-6" />
+                </div>
+              </div>
+            </Card>
+          </div>
 
           {analytics.activity && (
             <>
-              <Card title="Top Actions" style={{ marginBottom: 24 }}>
-                <Table
+              <Card className="p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Actions</h3>
+                <FlowbiteTable
                   dataSource={analytics.activity.topActions || []}
                   columns={[
                     { title: 'Action', dataIndex: 'action', key: 'action' },
@@ -213,8 +253,9 @@ export default function AdminAnalyticsPage() {
                 />
               </Card>
 
-              <Card title="Recent Activity">
-                <Table
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
+                <FlowbiteTable
                   columns={recentActivityColumns}
                   dataSource={analytics.activity.recent || []}
                   pagination={false}
@@ -225,19 +266,28 @@ export default function AdminAnalyticsPage() {
           )}
         </>
       ) : error ? (
-        <Card>
-          <Typography.Text type="danger">{error}</Typography.Text>
-          <br />
-          <Button onClick={fetchAnalytics} style={{ marginTop: 16 }}>
-            Retry
-          </Button>
-        </Card>
+        <Alert color="failure" className="mb-6">
+          <div>
+            <div className="font-medium">Error</div>
+            <div className="text-sm mt-1">{error}</div>
+            <Button
+              color="gray"
+              size="sm"
+              onClick={fetchAnalytics}
+              className="mt-3"
+            >
+              Retry
+            </Button>
+          </div>
+        </Alert>
       ) : (
-        <Card>
-          <Typography.Text type="secondary">No analytics data available. Please refresh to load data.</Typography.Text>
+        <Card className="p-6">
+          <p className="text-gray-500 dark:text-gray-400">
+            No analytics data available. Please refresh to load data.
+          </p>
         </Card>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

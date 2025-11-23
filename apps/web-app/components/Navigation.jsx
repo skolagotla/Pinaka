@@ -1,39 +1,26 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu } from 'antd';
+import { Sidebar } from 'flowbite-react';
 import {
-  DashboardOutlined,
-  HomeOutlined,
-  AppstoreOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  DollarOutlined,
-  FileAddOutlined,
-  ToolOutlined,
-  ReconciliationOutlined,
-  LockOutlined,
-  FormOutlined,
-  WalletOutlined,
-  CalendarOutlined,
-  MessageOutlined,
-  ContactsOutlined,
-  BookOutlined,
-  BankOutlined,
-  CheckCircleOutlined,
-  CalculatorOutlined,
-  FileSearchOutlined,
-  MailOutlined,
-  BarChartOutlined,
-  SafetyCertificateOutlined,
-  UserOutlined,
-  DatabaseOutlined,
-  SettingOutlined,
-  CustomerServiceOutlined,
-  SafetyOutlined,
-  DownloadOutlined,
-  BellOutlined,
-  KeyOutlined,
-} from '@ant-design/icons';
+  HiHome,
+  HiUser,
+  HiDocumentText,
+  HiCurrencyDollar,
+  HiClipboard,
+  HiLockClosed,
+  HiCalendar,
+  HiChat,
+  HiBookOpen,
+  HiMail,
+  HiShieldCheck,
+  HiCheckCircle,
+  HiCalculator,
+  HiDatabase,
+  HiCog,
+  HiDownload,
+  HiBell,
+  HiKey,
+} from 'react-icons/hi';
 
 export default function Navigation({ show, userRole, collapsed = false }) {
   const pathname = usePathname();
@@ -41,74 +28,73 @@ export default function Navigation({ show, userRole, collapsed = false }) {
   
   if (!show) return null;
   
-  // Different navigation items based on user role
-  // Using unified root-level routes that determine content based on role
   const landlordNavItems = [
-    { key: "/dashboard", label: "Dashboard", icon: <DashboardOutlined /> },
-    { key: "/properties", label: "Properties", icon: <HomeOutlined /> },
-    { key: "/tenants", label: "Tenants", icon: <TeamOutlined /> },
-    { key: "/leases", label: "Leases", icon: <FileTextOutlined /> },
-    { key: "/financials", label: "Financials", icon: <WalletOutlined /> },
-    { key: "/library", label: "Library", icon: <BookOutlined /> },
-    { key: "/legal", label: "Legal", icon: <FormOutlined /> },
-    { key: "/operations", label: "Operations", icon: <ToolOutlined /> },
-    { key: "/calendar", label: "Calendar", icon: <CalendarOutlined /> },
-    { key: "/messages", label: "Messages", icon: <MessageOutlined /> },
-    { key: "/partners", label: "Partners", icon: <ContactsOutlined /> },
-    { key: "/settings", label: "PMC Permissions", icon: <LockOutlined /> },
-    { key: "/verifications", label: "Verifications", icon: <SafetyCertificateOutlined /> },
+    { key: "/dashboard", label: "Dashboard", icon: HiHome },
+    { key: "/portfolio", label: "Portfolio", icon: HiHome },
+    { key: "/properties", label: "Properties", icon: HiHome },
+    { key: "/tenants", label: "Tenants", icon: HiUser },
+    { key: "/leases", label: "Leases", icon: HiDocumentText },
+    { key: "/financials", label: "Financials", icon: HiCurrencyDollar },
+    { key: "/library", label: "Library", icon: HiBookOpen },
+    { key: "/legal", label: "Legal", icon: HiDocumentText },
+    { key: "/operations", label: "Operations", icon: HiClipboard },
+    { key: "/calendar", label: "Calendar", icon: HiCalendar },
+    { key: "/messages", label: "Messages", icon: HiChat },
+    { key: "/partners", label: "Partners", icon: HiUser },
+    { key: "/settings", label: "PMC Permissions", icon: HiLockClosed },
+    { key: "/verifications", label: "Verifications", icon: HiShieldCheck },
   ];
   
   const tenantNavItems = [
-    { key: "/dashboard", label: "Dashboard", icon: <DashboardOutlined /> },
-    { key: "/payments", label: "Payments", icon: <DollarOutlined /> },
-    { key: "/operations", label: "Operations", icon: <ToolOutlined /> },
-    { key: "/library", label: "Library", icon: <BookOutlined /> },
-    { key: "/messages", label: "Messages", icon: <MessageOutlined /> },
-    { key: "/checklist", label: "Checklist", icon: <CheckCircleOutlined /> },
-    { key: "/estimator", label: "Estimator", icon: <CalculatorOutlined /> },
-    { key: "/verifications", label: "Verifications", icon: <SafetyCertificateOutlined /> },
+    { key: "/dashboard", label: "Dashboard", icon: HiHome },
+    { key: "/payments", label: "Payments", icon: HiCurrencyDollar },
+    { key: "/operations", label: "Operations", icon: HiClipboard },
+    { key: "/library", label: "Library", icon: HiBookOpen },
+    { key: "/messages", label: "Messages", icon: HiChat },
+    { key: "/checklist", label: "Checklist", icon: HiCheckCircle },
+    { key: "/estimator", label: "Estimator", icon: HiCalculator },
+    { key: "/verifications", label: "Verifications", icon: HiShieldCheck },
   ];
   
   const pmcNavItems = [
-    { key: "/dashboard", label: "Dashboard", icon: <DashboardOutlined /> },
-    { key: "/properties", label: "Properties", icon: <HomeOutlined /> },
-    { key: "/landlords", label: "Landlords", icon: <TeamOutlined /> },
-    { key: "/tenants", label: "Tenants", icon: <TeamOutlined /> },
-    { key: "/leases", label: "Leases", icon: <FileTextOutlined /> },
-    { key: "/financials", label: "Financials", icon: <WalletOutlined /> },
-    { key: "/invitations", label: "Invitations", icon: <MailOutlined /> },
-    { key: "/library", label: "Library", icon: <BookOutlined /> },
-    { key: "/legal", label: "Legal", icon: <FormOutlined /> },
-    { key: "/operations", label: "Operations", icon: <ToolOutlined /> },
-    { key: "/calendar", label: "Calendar", icon: <CalendarOutlined /> },
-    { key: "/messages", label: "Messages", icon: <MessageOutlined /> },
-    { key: "/partners", label: "Partners", icon: <ContactsOutlined /> },
-    { key: "/rbac", label: "RBAC Settings", icon: <LockOutlined /> },
-    { key: "/verifications", label: "Verifications", icon: <SafetyCertificateOutlined /> },
+    { key: "/dashboard", label: "Dashboard", icon: HiHome },
+    { key: "/portfolio", label: "Portfolio", icon: HiHome },
+    { key: "/properties", label: "Properties", icon: HiHome },
+    { key: "/landlords", label: "Landlords", icon: HiUser },
+    { key: "/tenants", label: "Tenants", icon: HiUser },
+    { key: "/leases", label: "Leases", icon: HiDocumentText },
+    { key: "/financials", label: "Financials", icon: HiCurrencyDollar },
+    { key: "/invitations", label: "Invitations", icon: HiMail },
+    { key: "/library", label: "Library", icon: HiBookOpen },
+    { key: "/legal", label: "Legal", icon: HiDocumentText },
+    { key: "/operations", label: "Operations", icon: HiClipboard },
+    { key: "/calendar", label: "Calendar", icon: HiCalendar },
+    { key: "/messages", label: "Messages", icon: HiChat },
+    { key: "/partners", label: "Partners", icon: HiUser },
+    { key: "/rbac", label: "RBAC Settings", icon: HiLockClosed },
+    { key: "/verifications", label: "Verifications", icon: HiShieldCheck },
   ];
   
-  // Admin navigation items - use admin routes (must match app/admin/layout.jsx)
   const adminNavItems = [
-    { key: "/admin/dashboard", label: "Dashboard", icon: <DashboardOutlined /> },
-    { key: "/admin/users", label: "Users", icon: <UserOutlined /> },
-    { key: "/admin/rbac", label: "RBAC Settings", icon: <LockOutlined /> },
-    { key: "/verifications", label: "Verifications", icon: <SafetyCertificateOutlined /> },
-    { key: "/admin/system", label: "System Monitoring", icon: <DatabaseOutlined /> },
-    { key: "/admin/audit-logs", label: "Audit Logs", icon: <FileTextOutlined /> },
-    { key: "/admin/settings", label: "Platform Settings", icon: <SettingOutlined /> },
-    { key: "/admin/analytics", label: "Analytics", icon: <BarChartOutlined /> },
-    { key: "/admin/support-tickets", label: "Support Tickets", icon: <CustomerServiceOutlined /> },
-    { key: "/admin/security", label: "Security Center", icon: <SafetyOutlined /> },
-    { key: "/admin/data-export", label: "Data Export", icon: <DownloadOutlined /> },
-    { key: "/admin/notifications", label: "Notifications", icon: <BellOutlined /> },
-    { key: "/admin/user-activity", label: "User Activity", icon: <UserOutlined /> },
-    { key: "/admin/content", label: "Content Management", icon: <FileTextOutlined /> },
-    { key: "/admin/api-keys", label: "API Keys", icon: <KeyOutlined /> },
-    { key: "/admin/database", label: "Database", icon: <DatabaseOutlined /> },
+    { key: "/admin/dashboard", label: "Dashboard", icon: HiHome },
+    { key: "/admin/portfolio", label: "Portfolio", icon: HiHome },
+    { key: "/admin/users", label: "Users", icon: HiUser },
+    { key: "/admin/rbac", label: "RBAC Settings", icon: HiLockClosed },
+    { key: "/verifications", label: "Verifications", icon: HiShieldCheck },
+    { key: "/admin/system", label: "System Monitoring", icon: HiDatabase },
+    { key: "/admin/audit-logs", label: "Audit Logs", icon: HiDocumentText },
+    { key: "/admin/settings", label: "Platform Settings", icon: HiCog },
+    { key: "/admin/analytics", label: "Analytics", icon: HiCog },
+    { key: "/admin/support-tickets", label: "Support Tickets", icon: HiMail },
+    { key: "/admin/security", label: "Security Center", icon: HiShieldCheck },
+    { key: "/admin/data-export", label: "Data Export", icon: HiDownload },
+    { key: "/admin/notifications", label: "Notifications", icon: HiBell },
+    { key: "/admin/user-activity", label: "User Activity", icon: HiUser },
+    { key: "/admin/content", label: "Content Management", icon: HiDocumentText },
+    { key: "/admin/api-keys", label: "API Keys", icon: HiKey },
+    { key: "/admin/database", label: "Database", icon: HiDatabase },
   ];
   
-  // Determine navigation items based on role
   let navItems;
   if (userRole === 'admin') {
     navItems = adminNavItems;
@@ -120,24 +106,34 @@ export default function Navigation({ show, userRole, collapsed = false }) {
     navItems = landlordNavItems;
   }
   
-  const handleClick = (e) => {
-    // Use window.location for more reliable navigation that handles redirects better
-    if (e.key && e.key !== pathname) {
-      window.location.href = e.key;
+  const handleClick = (path) => {
+    if (path !== pathname) {
+      window.location.href = path;
     }
   };
   
   return (
-    <Menu
-      onClick={handleClick}
-      selectedKeys={[pathname]}
-      mode="inline"
-      items={navItems}
-      style={{
-        borderRight: 'none',
-        backgroundColor: 'transparent',
-        height: '100%',
-      }}
-    />
+    <Sidebar.Items>
+      <Sidebar.ItemGroup>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.key;
+          return (
+            <Sidebar.Item
+              key={item.key}
+              href={item.key}
+              icon={Icon}
+              active={isActive}
+              onClick={(e) => {
+                e.preventDefault();
+                handleClick(item.key);
+              }}
+            >
+              {item.label}
+            </Sidebar.Item>
+          );
+        })}
+      </Sidebar.ItemGroup>
+    </Sidebar.Items>
   );
 }

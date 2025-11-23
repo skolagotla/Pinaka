@@ -1,20 +1,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Tabs, Badge, Button, Card } from 'flowbite-react';
+import { PageLayout } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
 import {
-  Table,
-  Tabs,
-  Tag,
-  Popconfirm,
-} from 'antd';
-import { ActionButton, IconButton } from '@/components/shared/buttons';
-import { PageLayout, TableWrapper, StatCard } from '@/components/shared';
-import {
-  SafetyOutlined,
-  ReloadOutlined,
-  StopOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+  HiShieldCheck,
+  HiRefresh,
+  HiStop,
+  HiUser,
+} from 'react-icons/hi';
 
 export default function AdminSecurityPage() {
   const [loading, setLoading] = useState(true);
@@ -83,7 +79,7 @@ export default function AdminSecurityPage() {
       title: 'Type',
       dataIndex: 'attemptType',
       key: 'attemptType',
-      render: (type) => <Tag>{type}</Tag>,
+      render: (type) => <Badge color="info">{type}</Badge>,
     },
     {
       title: 'Reason',
@@ -131,7 +127,9 @@ export default function AdminSecurityPage() {
       dataIndex: 'isRevoked',
       key: 'isRevoked',
       render: (revoked) => (
-        <Tag color={revoked ? 'red' : 'green'}>{revoked ? 'Revoked' : 'Active'}</Tag>
+        <Badge color={revoked ? 'failure' : 'success'}>
+          {revoked ? 'Revoked' : 'Active'}
+        </Badge>
       ),
     },
     {
@@ -139,18 +137,14 @@ export default function AdminSecurityPage() {
       key: 'actions',
       render: (_, record) => (
         !record.isRevoked && (
-          <Popconfirm
+          <FlowbitePopconfirm
             title="Revoke this session?"
             onConfirm={() => handleRevokeSession(record.id)}
           >
-            <ActionButton
-              action="delete"
-              size="small"
-              tooltip="Revoke"
-              showText={true}
-              text="Revoke"
-            />
-          </Popconfirm>
+            <Button size="xs" color="failure" title="Revoke">
+              Revoke
+            </Button>
+          </FlowbitePopconfirm>
         )
       ),
     },
@@ -160,89 +154,129 @@ export default function AdminSecurityPage() {
     {
       title: 'Failed Logins (24h)',
       value: stats.last24Hours,
-      prefix: <UserOutlined />,
+      icon: HiUser,
+      color: 'warning',
     },
     {
       title: 'Active Sessions',
       value: sessions.filter(s => !s.isRevoked).length,
-      prefix: <SafetyOutlined />,
+      icon: HiShieldCheck,
+      color: 'success',
     },
     {
       title: 'Top Suspicious IPs',
       value: stats.topIPs.length,
-      prefix: <StopOutlined />,
+      icon: HiStop,
+      color: 'failure',
     },
   ] : [];
 
+  const [activeTab, setActiveTab] = useState('failed-logins');
+
   return (
     <PageLayout
-      headerTitle={<><SafetyOutlined /> Security Center</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiShieldCheck className="h-5 w-5" />
+          <span>Security Center</span>
+        </div>
+      }
       headerActions={[
-        <IconButton
+        <Button
           key="refresh"
-          icon={<ReloadOutlined />}
+          color="gray"
           onClick={() => { fetchFailedLogins(); fetchSessions(); }}
-          tooltip="Refresh"
-        />
+        >
+          <HiRefresh className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       ]}
-      stats={statsData}
-      statsCols={3}
     >
-      <Tabs
-        items={[
-          {
-            key: 'failed-logins',
-            label: 'Failed Login Attempts',
-            children: (
-              <TableWrapper>
-                <Table
-                  columns={failedLoginColumns}
-                  dataSource={failedLogins}
-                  loading={loading}
-                  rowKey="id"
-                  pagination={{ pageSize: 50 }}
-                />
-              </TableWrapper>
-            ),
-          },
-          {
-            key: 'sessions',
-            label: 'Active Sessions',
-            children: (
-              <TableWrapper>
-                <Table
-                  columns={sessionColumns}
-                  dataSource={sessions}
-                  rowKey="id"
-                  pagination={{ pageSize: 50 }}
-                />
-              </TableWrapper>
-            ),
-          },
-          {
-            key: 'top-ips',
-            label: 'Top Suspicious IPs',
-            children: (
-              <TableWrapper>
-                {stats?.topIPs && stats.topIPs.length > 0 ? (
-                  <Table
-                    dataSource={stats.topIPs.map((item, index) => ({ ...item, key: index }))}
-                    columns={[
-                      { title: 'IP Address', dataIndex: 'ip', key: 'ip' },
-                      { title: 'Failed Attempts', dataIndex: 'count', key: 'count' },
-                    ]}
-                    pagination={false}
-                  />
-                ) : (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#999' }}>
-                    No suspicious IPs found
+      {/* Statistics Cards */}
+      {statsData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          {statsData.map((stat, idx) => {
+            const Icon = stat.icon;
+            const colorClasses = {
+              warning: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
+              success: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+              failure: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+            };
+            
+            return (
+              <Card key={idx} className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      {stat.title}
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {stat.value}
+                    </p>
                   </div>
-                )}
-              </TableWrapper>
-            ),
-          },
-        ]}
-      />
+                  <div className={`p-3 rounded-lg ${colorClasses[stat.color]}`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Card className="p-6">
+        <Tabs
+          aria-label="Security tabs"
+          style="underline"
+          onActiveTabChange={(tabIndex) => {
+            const tabKeys = ['failed-logins', 'sessions', 'top-ips'];
+            const selectedKey = tabKeys[tabIndex];
+            if (selectedKey) {
+              setActiveTab(selectedKey);
+            }
+          }}
+        >
+          <Tabs.Item active={activeTab === 'failed-logins'} title="Failed Login Attempts">
+            <div className="pt-4">
+              <FlowbiteTable
+                columns={failedLoginColumns}
+                dataSource={failedLogins}
+                loading={loading}
+                rowKey="id"
+                pagination={{ pageSize: 50 }}
+              />
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'sessions'} title="Active Sessions">
+            <div className="pt-4">
+              <FlowbiteTable
+                columns={sessionColumns}
+                dataSource={sessions}
+                rowKey="id"
+                pagination={{ pageSize: 50 }}
+              />
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'top-ips'} title="Top Suspicious IPs">
+            <div className="pt-4">
+              {stats?.topIPs && stats.topIPs.length > 0 ? (
+                <FlowbiteTable
+                  dataSource={stats.topIPs.map((item, index) => ({ ...item, key: index }))}
+                  columns={[
+                    { title: 'IP Address', dataIndex: 'ip', key: 'ip' },
+                    { title: 'Failed Attempts', dataIndex: 'count', key: 'count' },
+                  ]}
+                  pagination={false}
+                />
+              ) : (
+                <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  No suspicious IPs found
+                </div>
+              )}
+            </div>
+          </Tabs.Item>
+        </Tabs>
+      </Card>
     </PageLayout>
   );
 }

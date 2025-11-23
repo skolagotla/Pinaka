@@ -45,6 +45,7 @@ export * from '@/schema/types/domains/document.schema';
 export * from '@/schema/types/domains/expense.schema';
 export * from '@/schema/types/domains/inspection.schema';
 export * from '@/schema/types/domains/vendor.schema';
+export * from '@/schema/types/domains/portfolio.schema';
 export * from '@/schema/types/domains/conversation.schema';
 export * from '@/schema/types/domains/application.schema';
 export * from '@/schema/types/domains/notification.schema';

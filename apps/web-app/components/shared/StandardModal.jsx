@@ -1,152 +1,104 @@
 "use client";
 
-/**
- * StandardModal Component
- * 
- * A reusable modal component that wraps Ant Design Modal with Form,
- * providing consistent patterns for forms across the application.
- * 
- * Features:
- * - Automatic form validation
- * - Loading states
- * - Standardized footer buttons (Save/Cancel)
- * - Form reset on cancel
- * - Error handling
- * 
- * @param {Object} props
- * @param {string} props.title - Modal title
- * @param {boolean} props.open - Modal visibility
- * @param {function} props.onCancel - Cancel handler
- * @param {function} props.onFinish - Form submission handler (receives form values)
- * @param {React.ReactNode} props.children - Form content (Form.Item components)
- * @param {object} props.form - Ant Design Form instance (from Form.useForm())
- * @param {boolean} props.loading - Loading state for submit button
- * @param {string} props.submitText - Submit button text (default: 'Save')
- * @param {string} props.cancelText - Cancel button text (default: 'Cancel')
- * @param {boolean} props.showCancel - Show cancel button (default: true)
- * @param {number} props.width - Modal width (default: 600)
- * @param {string} props.layout - Form layout: 'vertical' | 'horizontal' | 'inline' (default: 'vertical')
- * @param {function} props.onFinishFailed - Handler for form validation failures
- * @param {object} props.initialValues - Initial form values
- * @param {boolean} props.destroyOnClose - Destroy form on close (default: true)
- * 
- * @example
- * const [form] = Form.useForm();
- * const [loading, setLoading] = useState(false);
- * 
- * <StandardModal
- *   title="Add User"
- *   open={modalVisible}
- *   form={form}
- *   loading={loading}
- *   onCancel={() => setModalVisible(false)}
- *   onFinish={async (values) => {
- *     setLoading(true);
- *     try {
- *       await createUser(values);
- *       setModalVisible(false);
- *       form.resetFields();
- *     } finally {
- *       setLoading(false);
- *     }
- *   }}
- * >
- *   <Form.Item name="name" label="Name" rules={[{ required: true }]}>
- *     <Input />
- *   </Form.Item>
- * </StandardModal>
- */
-
 import React from 'react';
-import { Modal, Form, Button, Space, message } from 'antd';
-import { ActionButton } from './buttons';
+import { Modal, Button, Spinner } from 'flowbite-react';
+import { HiX } from 'react-icons/hi';
 
+/**
+ * StandardModal Component (Flowbite Pro Enhanced)
+ * 
+ * A standardized modal component for forms and content with Flowbite Pro styling
+ */
 export default function StandardModal({
   title,
   open,
   onCancel,
   onFinish,
   children,
-  form,
   loading = false,
-  submitText = 'Save',
-  cancelText = 'Cancel',
-  showCancel = true,
+  submitText = "Submit",
+  cancelText = "Cancel",
   width = 600,
-  layout = 'vertical',
-  onFinishFailed,
-  initialValues,
-  destroyOnClose = true,
-  ...modalProps
+  form,
+  submitColor = "blue",
+  ...props
 }) {
-  const handleCancel = () => {
-    if (!loading && form) {
-      form.resetFields();
-    }
-    onCancel?.();
-  };
-
-  const handleFinish = async (values) => {
-    try {
-      await onFinish?.(values);
-    } catch (error) {
-      console.error('[StandardModal] Form submission error:', error);
-      // Error handling is done by the parent component
-    }
-  };
-
-  const handleFinishFailed = (errorInfo) => {
-    if (onFinishFailed) {
-      onFinishFailed(errorInfo);
+  const handleSubmit = async () => {
+    if (form) {
+      try {
+        const values = await form.validateFields();
+        onFinish?.(values);
+      } catch (error) {
+        console.error('Form validation failed:', error);
+      }
     } else {
-      // Default error handling
-      const firstError = errorInfo.errorFields?.[0];
-      const firstErrorMsg = firstError?.errors?.[0]?.message || 'Please fill in all required fields';
-      message.error(firstErrorMsg);
+      onFinish?.();
     }
   };
 
-  const footer = (
-    <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-      {showCancel && (
-        <Button
-          onClick={handleCancel}
-          disabled={loading}
-        >
-          {cancelText}
-        </Button>
-      )}
-      <Button
-        type="primary"
-        loading={loading}
-        onClick={() => form?.submit()}
-      >
-        {submitText}
-      </Button>
-    </Space>
-  );
+  // Determine modal size based on width
+  const getModalSize = () => {
+    if (width > 1200) return "7xl";
+    if (width > 800) return "5xl";
+    if (width > 600) return "3xl";
+    if (width > 400) return "xl";
+    return "md";
+  };
 
   return (
     <Modal
-      title={title}
-      open={open}
-      onCancel={handleCancel}
-      footer={footer}
-      width={width}
-      destroyOnClose={destroyOnClose}
-      {...modalProps}
+      show={open}
+      onClose={onCancel}
+      size={getModalSize()}
+      className="[&>div]:rounded-lg"
+      {...props}
     >
-      <Form
-        form={form}
-        layout={layout}
-        onFinish={handleFinish}
-        onFinishFailed={handleFinishFailed}
-        initialValues={initialValues}
-        preserve={!destroyOnClose}
-      >
-        {children}
-      </Form>
+      <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+        <div className="flex items-center justify-between w-full">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <button
+            onClick={onCancel}
+            className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
+          >
+            <HiX className="h-5 w-5" />
+            <span className="sr-only">Close modal</span>
+          </button>
+        </div>
+      </Modal.Header>
+      <Modal.Body className="p-6">
+        <div className="space-y-4">
+          {children}
+        </div>
+      </Modal.Body>
+      <Modal.Footer className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <div className="flex items-center justify-end gap-3 w-full">
+          <Button 
+            color="gray" 
+            onClick={onCancel} 
+            disabled={loading}
+            className="min-w-[100px]"
+          >
+            {cancelText}
+          </Button>
+          <Button 
+            color={submitColor}
+            onClick={handleSubmit} 
+            disabled={loading}
+            className="min-w-[100px]"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Spinner size="sm" />
+                Loading...
+              </span>
+            ) : (
+              submitText
+            )}
+          </Button>
+        </div>
+      </Modal.Footer>
     </Modal>
   );
 }
-

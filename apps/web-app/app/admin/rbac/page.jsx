@@ -1,6 +1,7 @@
 /**
  * RBAC Settings Page
  * Admin interface for managing Role-Based Access Control
+ * Converted to Flowbite
  * 
  * Features:
  * - Permission Matrix Editor
@@ -16,44 +17,36 @@ import { useState, useEffect } from 'react';
 import {
   Card,
   Tabs,
-  Table,
   Button,
-  Space,
+  Badge,
   Modal,
-  Form,
   Select,
-  Input,
-  Tag,
-  message,
-  Typography,
-  Row,
-  Col,
-  Switch,
-  Divider,
+  TextInput,
+  Label,
+  ToggleSwitch,
+  Textarea,
   Alert,
-  Spin,
-} from 'antd';
+  Spinner,
+} from 'flowbite-react';
 import {
-  LockOutlined,
-  UserOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  EyeOutlined,
-} from '@ant-design/icons';
+  HiLockClosed,
+  HiUser,
+  HiDocumentText,
+  HiPlus,
+  HiPencil,
+  HiRefresh,
+  HiCheckCircle,
+  HiEye,
+} from 'react-icons/hi';
 import { PageLayout } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import RoleAssignmentModal from '@/components/rbac/RoleAssignmentModal';
 import PermissionMatrixViewer from '@/components/rbac/PermissionMatrixViewer';
 import PermissionMatrixEditor from '@/components/rbac/PermissionMatrixEditor';
 import ScopeAssignment from '@/components/rbac/ScopeAssignment';
 import { getRoleLabel } from '@/lib/rbac/resourceLabels';
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 export default function AdminRBACPage() {
   const [activeTab, setActiveTab] = useState('roles');
@@ -84,7 +77,12 @@ export default function AdminRBACPage() {
   // Role Management state
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
-  const [roleForm] = Form.useForm();
+  const roleForm = useFormState({
+    name: '',
+    displayName: '',
+    description: '',
+    isActive: true,
+  });
 
   useEffect(() => {
     fetchRoles();
@@ -101,11 +99,11 @@ export default function AdminRBACPage() {
       if (data.success) {
         setRoles(data.data || []);
       } else {
-        message.error(data.error || 'Failed to fetch roles');
+        notify.error(data.error || 'Failed to fetch roles');
       }
     } catch (error) {
       console.error('Error fetching roles:', error);
-      message.error(error?.message || 'Failed to fetch roles');
+      notify.error(error?.message || 'Failed to fetch roles');
     } finally {
       setRolesLoading(false);
       setRolesLoaded(true);
@@ -145,6 +143,12 @@ export default function AdminRBACPage() {
   const handleCreateRole = () => {
     setEditingRole(null);
     roleForm.resetFields();
+    roleForm.setFieldsValue({
+      name: '',
+      displayName: '',
+      description: '',
+      isActive: true,
+    });
     setRoleModalVisible(true);
   };
 
@@ -166,14 +170,14 @@ export default function AdminRBACPage() {
       const data = await adminApi.initializeRBAC();
       
       if (data.success) {
-        message.success('RBAC system initialized successfully! All system roles and permissions have been created.');
+        notify.success('RBAC system initialized successfully! All system roles and permissions have been created.');
         fetchRoles();
       } else {
-        message.error(data.error || 'Failed to initialize RBAC system');
+        notify.error(data.error || 'Failed to initialize RBAC system');
       }
     } catch (error) {
       console.error('Error initializing RBAC:', error);
-      message.error(error?.message || 'Failed to initialize RBAC system');
+      notify.error(error?.message || 'Failed to initialize RBAC system');
     } finally {
       setLoading(false);
     }
@@ -181,7 +185,14 @@ export default function AdminRBACPage() {
 
   const handleSaveRole = async () => {
     try {
-      const values = await roleForm.validateFields();
+      const values = roleForm.values;
+      
+      // Basic validation
+      if (!values.name || !values.displayName) {
+        notify.error('System name and display name are required');
+        return;
+      }
+      
       setLoading(true);
       
       const url = editingRole 
@@ -197,15 +208,15 @@ export default function AdminRBACPage() {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        message.success(editingRole ? 'Role updated successfully' : 'Role created successfully');
+        notify.success(editingRole ? 'Role updated successfully' : 'Role created successfully');
         setRoleModalVisible(false);
         fetchRoles();
       } else {
-        message.error(data.error || 'Failed to save role');
+        notify.error(data.error || 'Failed to save role');
       }
     } catch (error) {
       console.error('Error saving role:', error);
-      message.error('Failed to save role');
+      notify.error('Failed to save role');
     } finally {
       setLoading(false);
     }
@@ -217,35 +228,40 @@ export default function AdminRBACPage() {
       dataIndex: 'displayName',
       key: 'displayName',
       render: (text, record) => (
-        <Space>
-          <Text strong>{text}</Text>
-          <Tag color={record.isActive ? 'green' : 'red'}>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-gray-900 dark:text-white">{text}</span>
+          <Badge color={record.isActive ? 'success' : 'failure'}>
             {record.isActive ? 'Active' : 'Inactive'}
-          </Tag>
-        </Space>
+          </Badge>
+        </div>
       ),
     },
     {
       title: 'System Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <Tag>{getRoleLabel(text)}</Tag>,
+      render: (text) => <Badge color="info">{getRoleLabel(text)}</Badge>,
     },
     {
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
+      render: (text) => (
+        <span className="text-gray-700 dark:text-gray-300 truncate max-w-xs">
+          {text || '-'}
+        </span>
+      ),
     },
     {
       title: 'Permissions',
       key: 'permissions',
       render: (_, record) => (
         <Button
-          type="link"
-          icon={<LockOutlined />}
+          color="blue"
+          size="xs"
           onClick={() => handleViewPermissionMatrix(record)}
         >
+          <HiLockClosed className="h-4 w-4 mr-1" />
           View Permissions
         </Button>
       ),
@@ -254,15 +270,14 @@ export default function AdminRBACPage() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEditRole(record)}
-          >
-            Edit
-          </Button>
-        </Space>
+        <Button
+          color="gray"
+          size="xs"
+          onClick={() => handleEditRole(record)}
+        >
+          <HiPencil className="h-4 w-4 mr-1" />
+          Edit
+        </Button>
       ),
     },
   ];
@@ -279,17 +294,19 @@ export default function AdminRBACPage() {
       title: 'User',
       key: 'user',
       render: (_, record) => (
-        <Space>
-          <Text>{record.userName || record.userEmail || 'System'}</Text>
-          <Tag>{record.userType}</Tag>
-        </Space>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-900 dark:text-white">
+            {record.userName || record.userEmail || 'System'}
+          </span>
+          <Badge color="info">{record.userType}</Badge>
+        </div>
       ),
     },
     {
       title: 'Action',
       dataIndex: 'action',
       key: 'action',
-      render: (action) => <Tag color="blue">{action}</Tag>,
+      render: (action) => <Badge color="info">{action}</Badge>,
     },
     {
       title: 'Resource',
@@ -302,243 +319,9 @@ export default function AdminRBACPage() {
       dataIndex: 'details',
       key: 'details',
       render: (details) => (
-        <Text ellipsis style={{ maxWidth: 200 }}>
+        <span className="text-gray-700 dark:text-gray-300 truncate max-w-xs">
           {details ? JSON.stringify(details).substring(0, 50) + '...' : '-'}
-        </Text>
-      ),
-    },
-  ];
-
-  const tabItems = [
-    {
-      key: 'roles',
-      label: (
-        <Space>
-          <UserOutlined />
-          <span>Roles & Permissions</span>
-        </Space>
-      ),
-      children: (
-        <Card>
-          <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-            <Title level={4}>Roles Management</Title>
-            <Space>
-              {rolesLoaded && roles.length === 0 && (
-                <Button
-                  type="primary"
-                  icon={<CheckCircleOutlined />}
-                  onClick={handleInitializeRBAC}
-                  loading={loading}
-                >
-                  Initialize RBAC System
-                </Button>
-              )}
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchRoles}
-                loading={rolesLoading}
-              >
-                Refresh
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleCreateRole}
-                disabled={!rolesLoaded || roles.length === 0}
-              >
-                Create Role
-              </Button>
-            </Space>
-          </Space>
-          
-          <Alert
-            message="Role-Based Access Control"
-            description={
-              <div>
-                <p style={{ marginBottom: 8 }}>
-                  Manage roles and their permissions. Each role has a set of permissions that determine what users can do in the system.
-                </p>
-                {rolesLoaded && roles.length === 0 && (
-                  <div style={{ marginTop: 8, padding: 8, background: '#fff3cd', borderRadius: 4 }}>
-                    <strong>⚠️ No roles found!</strong>
-                    <p style={{ margin: '4px 0 0 0' }}>
-                      You need to initialize the RBAC system first. Click the "Initialize RBAC System" button above, or run this command in your terminal:
-                    </p>
-                    <code style={{ display: 'block', marginTop: 4, padding: 4, background: '#fff', borderRadius: 2 }}>
-                      npx tsx scripts/initialize-rbac.ts
-                    </code>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
-                      This will create all 13 system roles and their default permissions.
-                    </p>
-                  </div>
-                )}
-              </div>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          
-          <Table
-            columns={rolesColumns}
-            dataSource={roles}
-            loading={rolesLoading}
-            rowKey="id"
-            pagination={{ pageSize: 20 }}
-          />
-        </Card>
-      ),
-    },
-    {
-      key: 'permissions',
-      label: (
-        <Space>
-          <LockOutlined />
-          <span>Permission Matrix</span>
-        </Space>
-      ),
-      children: (
-        <Card>
-          <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-            <Title level={4}>Permission Matrix</Title>
-            <Space>
-              <Select
-                placeholder="Select a role to view/edit permissions"
-                style={{ width: 300 }}
-                value={selectedRole?.id}
-                onChange={(value) => {
-                  const role = roles.find(r => r.id === value);
-                  if (role) {
-                    setSelectedRole(role);
-                  }
-                }}
-              >
-                {roles.map(role => (
-                  <Option key={role.id} value={role.id}>
-                    {role.displayName}
-                  </Option>
-                ))}
-              </Select>
-              <Button
-                type={permissionEditorMode ? 'default' : 'primary'}
-                icon={permissionEditorMode ? <EyeOutlined /> : <EditOutlined />}
-                onClick={() => setPermissionEditorMode(!permissionEditorMode)}
-                disabled={!selectedRole}
-              >
-                {permissionEditorMode ? 'View Mode' : 'Edit Mode'}
-              </Button>
-            </Space>
-          </Space>
-          
-          {selectedRole ? (
-            <>
-              <Alert
-                message={permissionEditorMode ? 'Edit Permissions' : 'View Permissions by Role'}
-                description={
-                  permissionEditorMode
-                    ? 'You can now edit permissions for the selected role. Check/uncheck actions to modify permissions, then click "Save Changes" to apply.'
-                    : 'Viewing permissions for the selected role. Click "Edit Mode" to modify permissions.'
-                }
-                type={permissionEditorMode ? 'warning' : 'info'}
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-              {permissionEditorMode ? (
-                <PermissionMatrixEditor
-                  roleId={selectedRole.id}
-                  roleName={selectedRole.name}
-                  readOnly={false}
-                  onSave={() => {
-                    message.success('Permissions updated successfully');
-                    // Optionally refresh roles
-                    fetchRoles();
-                  }}
-                />
-              ) : (
-                <PermissionMatrixViewer
-                  roleId={selectedRole.id}
-                  roleName={selectedRole.name}
-                  readOnly={true}
-                />
-              )}
-            </>
-          ) : (
-            <Alert
-              message="Select a Role"
-              description="Please select a role from the dropdown above to view or edit its permission matrix."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-        </Card>
-      ),
-    },
-    {
-      key: 'assignment',
-      label: (
-        <Space>
-          <UserOutlined />
-          <span>Role Assignment</span>
-        </Space>
-      ),
-      children: (
-        <Card>
-          <Title level={4}>User Role Assignment</Title>
-          <Alert
-            message="Assign Roles to Users"
-            description="Use the Users page to assign roles to individual users. You can also manage scopes (portfolio, property, unit) for each role assignment."
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          <Button
-            type="primary"
-            icon={<UserOutlined />}
-            onClick={() => window.location.href = '/admin/users'}
-          >
-            Go to Users Page
-          </Button>
-        </Card>
-      ),
-    },
-    {
-      key: 'audit',
-      label: (
-        <Space>
-          <FileTextOutlined />
-          <span>RBAC Audit Logs</span>
-        </Space>
-      ),
-      children: (
-        <Card>
-          <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-            <Title level={4}>RBAC Audit Logs</Title>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchAuditLogs}
-              loading={auditLogsLoading}
-            >
-              Refresh
-            </Button>
-          </Space>
-          
-          <Alert
-            message="RBAC Activity Log"
-            description="This log tracks all RBAC-related activities including role assignments, permission changes, scope modifications, and access attempts."
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          
-          <Table
-            columns={auditLogsColumns}
-            dataSource={auditLogs}
-            loading={auditLogsLoading}
-            rowKey="id"
-            pagination={{ pageSize: 50 }}
-          />
-        </Card>
+        </span>
       ),
     },
   ];
@@ -546,93 +329,378 @@ export default function AdminRBACPage() {
   return (
     <PageLayout
       headerTitle={
-        <Space>
-          <LockOutlined />
+        <div className="flex items-center gap-2">
+          <HiLockClosed className="h-5 w-5" />
           <span>RBAC Settings</span>
-        </Space>
+        </div>
       }
     >
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-        size="large"
-      />
+      <Tabs aria-label="RBAC Settings tabs" onActiveTabChange={(tab) => setActiveTab(tab)}>
+        <Tabs.Item active={activeTab === 'roles'} title={
+          <span className="flex items-center gap-2">
+            <HiUser className="h-4 w-4" />
+            Roles & Permissions
+          </span>
+        }>
+          <Card className="mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Roles Management</h3>
+              <div className="flex items-center gap-2">
+                {rolesLoaded && roles.length === 0 && (
+                  <Button
+                    color="blue"
+                    onClick={handleInitializeRBAC}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner size="sm" className="mr-2" />
+                        Initializing...
+                      </>
+                    ) : (
+                      <>
+                        <HiCheckCircle className="h-4 w-4 mr-2" />
+                        Initialize RBAC System
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button
+                  color="gray"
+                  onClick={fetchRoles}
+                  disabled={rolesLoading}
+                >
+                  {rolesLoading ? (
+                    <>
+                      <Spinner size="sm" className="mr-2" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <HiRefresh className="h-4 w-4 mr-2" />
+                      Refresh
+                    </>
+                  )}
+                </Button>
+                <Button
+                  color="blue"
+                  onClick={handleCreateRole}
+                  disabled={!rolesLoaded || roles.length === 0}
+                >
+                  <HiPlus className="h-4 w-4 mr-2" />
+                  Create Role
+                </Button>
+              </div>
+            </div>
+            
+            <Alert color="info" className="mb-4">
+              <div>
+                <p className="font-medium mb-2">
+                  Role-Based Access Control
+                </p>
+                <p className="text-sm mb-2">
+                  Manage roles and their permissions. Each role has a set of permissions that determine what users can do in the system.
+                </p>
+                {rolesLoaded && roles.length === 0 && (
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900 rounded">
+                    <p className="font-semibold">⚠️ No roles found!</p>
+                    <p className="text-sm mt-1">
+                      You need to initialize the RBAC system first. Click the "Initialize RBAC System" button above, or run this command in your terminal:
+                    </p>
+                    <code className="block mt-1 p-1 bg-white dark:bg-gray-800 rounded text-xs">
+                      npx tsx scripts/initialize-rbac.ts
+                    </code>
+                    <p className="text-xs mt-1">
+                      This will create all 13 system roles and their default permissions.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Alert>
+            
+            <FlowbiteTable
+              columns={rolesColumns}
+              dataSource={roles}
+              loading={rolesLoading}
+              rowKey="id"
+              pagination={{ pageSize: 20 }}
+            />
+          </Card>
+        </Tabs.Item>
+
+        <Tabs.Item active={activeTab === 'permissions'} title={
+          <span className="flex items-center gap-2">
+            <HiLockClosed className="h-4 w-4" />
+            Permission Matrix
+          </span>
+        }>
+          <Card className="mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Permission Matrix</h3>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedRole?.id || ''}
+                  onChange={(e) => {
+                    const role = roles.find(r => r.id === e.target.value);
+                    if (role) {
+                      setSelectedRole(role);
+                    }
+                  }}
+                  className="w-64"
+                >
+                  <option value="">Select a role to view/edit permissions</option>
+                  {roles.map(role => (
+                    <option key={role.id} value={role.id}>
+                      {role.displayName}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  color={permissionEditorMode ? 'gray' : 'blue'}
+                  onClick={() => setPermissionEditorMode(!permissionEditorMode)}
+                  disabled={!selectedRole}
+                >
+                  {permissionEditorMode ? (
+                    <>
+                      <HiEye className="h-4 w-4 mr-2" />
+                      View Mode
+                    </>
+                  ) : (
+                    <>
+                      <HiPencil className="h-4 w-4 mr-2" />
+                      Edit Mode
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {selectedRole ? (
+              <>
+                <Alert color={permissionEditorMode ? 'warning' : 'info'} className="mb-4">
+                  <div>
+                    <p className="font-medium">
+                      {permissionEditorMode ? 'Edit Permissions' : 'View Permissions by Role'}
+                    </p>
+                    <p className="text-sm mt-1">
+                      {permissionEditorMode
+                        ? 'You can now edit permissions for the selected role. Check/uncheck actions to modify permissions, then click "Save Changes" to apply.'
+                        : 'Viewing permissions for the selected role. Click "Edit Mode" to modify permissions.'}
+                    </p>
+                  </div>
+                </Alert>
+                {permissionEditorMode ? (
+                  <PermissionMatrixEditor
+                    roleId={selectedRole.id}
+                    roleName={selectedRole.name}
+                    readOnly={false}
+                    onSave={() => {
+                      notify.success('Permissions updated successfully');
+                      fetchRoles();
+                    }}
+                  />
+                ) : (
+                  <PermissionMatrixViewer
+                    roleId={selectedRole.id}
+                    roleName={selectedRole.name}
+                    readOnly={true}
+                  />
+                )}
+              </>
+            ) : (
+              <Alert color="info" className="mb-4">
+                <div>
+                  <p className="font-medium">Select a Role</p>
+                  <p className="text-sm mt-1">
+                    Please select a role from the dropdown above to view or edit its permission matrix.
+                  </p>
+                </div>
+              </Alert>
+            )}
+          </Card>
+        </Tabs.Item>
+
+        <Tabs.Item active={activeTab === 'assignment'} title={
+          <span className="flex items-center gap-2">
+            <HiUser className="h-4 w-4" />
+            Role Assignment
+          </span>
+        }>
+          <Card className="mt-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">User Role Assignment</h3>
+            <Alert color="info" className="mb-4">
+              <div>
+                <p className="font-medium">Assign Roles to Users</p>
+                <p className="text-sm mt-1">
+                  Use the Users page to assign roles to individual users. You can also manage scopes (portfolio, property, unit) for each role assignment.
+                </p>
+              </div>
+            </Alert>
+            <Button
+              color="blue"
+              onClick={() => window.location.href = '/admin/users'}
+            >
+              <HiUser className="h-4 w-4 mr-2" />
+              Go to Users Page
+            </Button>
+          </Card>
+        </Tabs.Item>
+
+        <Tabs.Item active={activeTab === 'audit'} title={
+          <span className="flex items-center gap-2">
+            <HiDocumentText className="h-4 w-4" />
+            RBAC Audit Logs
+          </span>
+        }>
+          <Card className="mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">RBAC Audit Logs</h3>
+              <Button
+                color="gray"
+                onClick={fetchAuditLogs}
+                disabled={auditLogsLoading}
+              >
+                {auditLogsLoading ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <HiRefresh className="h-4 w-4 mr-2" />
+                    Refresh
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            <Alert color="info" className="mb-4">
+              <div>
+                <p className="font-medium">RBAC Activity Log</p>
+                <p className="text-sm mt-1">
+                  This log tracks all RBAC-related activities including role assignments, permission changes, scope modifications, and access attempts.
+                </p>
+              </div>
+            </Alert>
+            
+            <FlowbiteTable
+              columns={auditLogsColumns}
+              dataSource={auditLogs}
+              loading={auditLogsLoading}
+              rowKey="id"
+              pagination={{ pageSize: 50 }}
+            />
+          </Card>
+        </Tabs.Item>
+      </Tabs>
 
       {/* Permission Matrix Modal */}
-      <Modal
-        title={selectedRole ? `Permission Matrix: ${selectedRole.displayName}` : 'Permission Matrix'}
-        open={permissionMatrixVisible}
-        onCancel={() => {
-          setPermissionMatrixVisible(false);
-          setSelectedRole(null);
-        }}
-        footer={null}
-        width={1200}
-      >
-        {selectedRole ? (
-          <PermissionMatrixViewer
-            roleId={selectedRole.id}
-            roleName={selectedRole.name}
-            readOnly={true}
-          />
-        ) : (
-          <Alert message="No role selected" type="warning" />
-        )}
+      <Modal show={permissionMatrixVisible} onClose={() => {
+        setPermissionMatrixVisible(false);
+        setSelectedRole(null);
+      }} size="7xl">
+        <Modal.Header>
+          {selectedRole ? `Permission Matrix: ${selectedRole.displayName}` : 'Permission Matrix'}
+        </Modal.Header>
+        <Modal.Body>
+          {selectedRole ? (
+            <PermissionMatrixViewer
+              roleId={selectedRole.id}
+              roleName={selectedRole.name}
+              readOnly={true}
+            />
+          ) : (
+            <Alert color="warning">
+              <div>
+                <p className="font-medium">No role selected</p>
+              </div>
+            </Alert>
+          )}
+        </Modal.Body>
       </Modal>
 
       {/* Role Management Modal */}
-      <Modal
-        title={editingRole ? 'Edit Role' : 'Create Role'}
-        open={roleModalVisible}
-        onOk={handleSaveRole}
-        onCancel={() => {
-          setRoleModalVisible(false);
-          setEditingRole(null);
-          roleForm.resetFields();
-        }}
-        confirmLoading={loading}
-        width={600}
-      >
-        <Form
-          form={roleForm}
-          layout="vertical"
-        >
-          <Form.Item
-            name="name"
-            label="System Name"
-            rules={[{ required: true, message: 'System name is required' }]}
-            tooltip="Internal system name (e.g., PMC_ADMIN, PROPERTY_MANAGER)"
-          >
-            <Input placeholder="e.g., PMC_ADMIN" disabled={!!editingRole} />
-          </Form.Item>
-          
-          <Form.Item
-            name="displayName"
-            label="Display Name"
-            rules={[{ required: true, message: 'Display name is required' }]}
-          >
-            <Input placeholder="e.g., PMC Admin" />
-          </Form.Item>
-          
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea rows={3} placeholder="Role description" />
-          </Form.Item>
-          
-          <Form.Item
-            name="isActive"
-            label="Active"
-            valuePropName="checked"
-            initialValue={true}
-          >
-            <Switch />
-          </Form.Item>
-        </Form>
+      <Modal show={roleModalVisible} onClose={() => {
+        setRoleModalVisible(false);
+        setEditingRole(null);
+        roleForm.resetFields();
+      }}>
+        <Modal.Header>
+          {editingRole ? 'Edit Role' : 'Create Role'}
+        </Modal.Header>
+        <Modal.Body>
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveRole(); }} className="space-y-4">
+            <div>
+              <Label htmlFor="name" value="System Name" />
+              <TextInput
+                id="name"
+                type="text"
+                placeholder="e.g., PMC_ADMIN"
+                value={roleForm.values.name}
+                onChange={(e) => roleForm.setFieldsValue({ name: e.target.value })}
+                disabled={!!editingRole}
+                required
+                className="mt-1"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Internal system name (e.g., PMC_ADMIN, PROPERTY_MANAGER)
+              </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="displayName" value="Display Name" />
+              <TextInput
+                id="displayName"
+                type="text"
+                placeholder="e.g., PMC Admin"
+                value={roleForm.values.displayName}
+                onChange={(e) => roleForm.setFieldsValue({ displayName: e.target.value })}
+                required
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="description" value="Description" />
+              <Textarea
+                id="description"
+                placeholder="Role description"
+                value={roleForm.values.description}
+                onChange={(e) => roleForm.setFieldsValue({ description: e.target.value })}
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <ToggleSwitch
+                checked={roleForm.values.isActive}
+                onChange={(checked) => roleForm.setFieldsValue({ isActive: checked })}
+                label="Active"
+              />
+            </div>
+          </form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={() => {
+            setRoleModalVisible(false);
+            setEditingRole(null);
+            roleForm.resetFields();
+          }}>
+            Cancel
+          </Button>
+          <Button color="blue" onClick={handleSaveRole} disabled={loading}>
+            {loading ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
+          </Button>
+        </Modal.Footer>
       </Modal>
     </PageLayout>
   );
 }
-

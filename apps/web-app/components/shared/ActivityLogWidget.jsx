@@ -2,19 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, List, Typography, Space, Tag, Empty, Spin } from 'antd';
-import { ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Badge, Spinner } from 'flowbite-react';
+import { HiClock, HiUser } from 'react-icons/hi';
 import { formatDateTimeDisplay as formatDateTimeLocal } from '@/lib/utils/date-utils';
-
-const { Text, Title } = Typography;
 
 const ACTION_COLORS = {
   create: 'green',
   update: 'blue',
   delete: 'red',
-  view: 'default',
-  approve: 'success',
-  reject: 'error',
+  view: 'gray',
+  approve: 'green',
+  reject: 'red',
   send: 'cyan',
   upload: 'purple',
 };
@@ -106,98 +104,85 @@ export default function ActivityLogWidget({ limit = 4, userRole, showViewAll = t
 
   if (loading) {
     return (
-      <Card title="Recent Activity" style={{ height: '100%' }}>
-        <Spin size="large" style={{ display: 'block', textAlign: 'center', padding: '40px' }} />
+      <Card className="h-full">
+        <div className="flex items-center justify-center py-10">
+          <Spinner size="xl" />
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card
-      title="Recent Activity"
-      extra={
-        showViewAll && (
-          <a 
+    <Card className="h-full min-h-[300px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+        {showViewAll && (
+          <a
             onClick={(e) => {
               e.preventDefault();
               router.push('/activity-logs');
             }}
-            style={{ 
-              color: '#1890ff',
-              fontWeight: 500,
-              textDecoration: 'none',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+            className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
           >
             View All →
           </a>
-        )
-      }
-      style={{ height: '100%', minHeight: '300px' }}
-      bodyStyle={{ padding: '16px' }}
-    >
+        )}
+      </div>
       {activities.length === 0 ? (
-        <Empty description="No recent activity" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+        <div className="text-center py-10 text-gray-500">
+          <p>No recent activity</p>
+        </div>
       ) : (
         <>
-          <List
-            dataSource={activities.slice(0, limit)}
-            renderItem={(activity) => (
-              <List.Item style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <List.Item.Meta
-                  avatar={
-                    <div style={{ fontSize: '20px', width: '32px', textAlign: 'center' }}>
-                      {ENTITY_ICONS[activity.entityType?.toLowerCase()] || '📋'}
-                    </div>
-                  }
-                  title={
-                    <Space size="small" wrap>
-                      <Text strong style={{ fontSize: '13px' }}>
+          <div className="space-y-4">
+            {activities.slice(0, limit).map((activity, index) => (
+              <div key={index} className="border-b border-gray-200 pb-4 last:border-b-0">
+                <div className="flex items-start gap-3">
+                  <div className="text-xl w-8 text-center flex-shrink-0">
+                    {ENTITY_ICONS[activity.entityType?.toLowerCase()] || '📋'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-semibold text-sm text-gray-900">
                         {activity.userName || 'System'}
-                      </Text>
-                      <Tag color={activity.userRole === 'landlord' ? 'blue' : activity.userRole === 'tenant' ? 'green' : 'default'} style={{ fontSize: '10px', margin: 0 }}>
+                      </span>
+                      <Badge
+                        color={
+                          activity.userRole === 'landlord'
+                            ? 'blue'
+                            : activity.userRole === 'tenant'
+                            ? 'green'
+                            : 'gray'
+                        }
+                        className="text-xs"
+                      >
                         {activity.userRole || 'system'}
-                      </Tag>
-                      <Tag color={ACTION_COLORS[activity.action?.toLowerCase()] || 'default'} style={{ fontSize: '10px', margin: 0 }}>
+                      </Badge>
+                      <Badge
+                        color={ACTION_COLORS[activity.action?.toLowerCase()] || 'gray'}
+                        className="text-xs"
+                      >
                         {activity.action || 'action'}
-                      </Tag>
-                    </Space>
-                  }
-                  description={
-                    <div>
-                      <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 4 }}>
-                        {getActionDescription(activity)}
-                      </Text>
-                      <Space size="small" style={{ marginTop: 6 }}>
-                        <ClockCircleOutlined style={{ fontSize: '11px', color: '#999' }} />
-                        <Text type="secondary" style={{ fontSize: '11px' }}>
-                          {formatDateTimeLocal(activity.createdAt)}
-                        </Text>
-                      </Space>
+                      </Badge>
                     </div>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+                    <p className="text-xs text-gray-600 mb-2">{getActionDescription(activity)}</p>
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <HiClock className="h-3 w-3" />
+                      <span>{formatDateTimeLocal(activity.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
           {showViewAll && activities.length > limit && (
-            <div style={{ textAlign: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-              <a 
+            <div className="text-center mt-4 pt-4 border-t border-gray-200">
+              <a
                 onClick={(e) => {
                   e.preventDefault();
                   router.push('/activity-logs');
                 }}
-                style={{ 
-                  color: '#1890ff',
-                  fontWeight: 500,
-                  textDecoration: 'none',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-                onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm cursor-pointer"
               >
                 View All {activities.length} Activities →
               </a>
@@ -208,4 +193,3 @@ export default function ActivityLogWidget({ limit = 4, userRole, showViewAll = t
     </Card>
   );
 }
-

@@ -1,13 +1,24 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Card, Table, Tag, Empty, Spin, Typography, Button, Space, Tooltip, Tabs, Calendar, Badge, Alert, List, Divider } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, EyeOutlined, CalendarOutlined, BellOutlined, DollarOutlined, FileTextOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Badge, Tooltip, Tabs, Alert, Spinner, Table } from 'flowbite-react';
+import { 
+  HiCheckCircle, 
+  HiClock, 
+  HiExclamationCircle, 
+  HiDownload, 
+  HiEye, 
+  HiCalendar, 
+  HiBell, 
+  HiCurrencyDollar, 
+  HiDocumentText, 
+  HiXCircle
+} from 'react-icons/hi';
 import { PageLayout, TableWrapper, renderDate } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import { renderReceiptNumber } from '@/components/shared/TableRenderers';
 import PaymentStatusTag from '@/components/shared/PaymentStatusTag';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
-import PaymentCalendar from '@/components/shared/PaymentCalendar';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
@@ -24,8 +35,6 @@ const PDFViewerModal = dynamic(
   { ssr: false }
 );
 
-const { Text } = Typography;
-
 export default function PaymentsClient() {
   const { fetch } = useUnifiedApi({ showUserMessage: false });
   const { loading, withLoading } = useLoading(true);
@@ -35,27 +44,19 @@ export default function PaymentsClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(dayjs());
   
-  // Filter payments - remove the separate receipts filter since all payments with receipts are already shown
+  // Filter payments
   const filteredPaymentsForTable = useMemo(() => {
     let filtered = payments;
     
-    // Filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(p => {
-        // Search in receipt number
         if (p.receiptNumber && p.receiptNumber.toLowerCase().includes(searchLower)) return true;
-        // Search in property name
         if (p.lease?.unit?.property?.propertyName?.toLowerCase().includes(searchLower)) return true;
-        // Search in property address
         if (p.lease?.unit?.property?.addressLine1?.toLowerCase().includes(searchLower)) return true;
-        // Search in unit name
         if (p.lease?.unit?.unitName?.toLowerCase().includes(searchLower)) return true;
-        // Search in status
         if (p.status?.toLowerCase().includes(searchLower)) return true;
-        // Search in amount
         if (p.amount?.toString().includes(searchTerm)) return true;
-        // Search in dates
         if (p.dueDate && formatDateDisplay(p.dueDate).toLowerCase().includes(searchLower)) return true;
         if (p.paidDate && formatDateDisplay(p.paidDate).toLowerCase().includes(searchLower)) return true;
         return false;
@@ -95,8 +96,6 @@ export default function PaymentsClient() {
     });
   };
 
-
-  // Wrapper for receipt viewing with tenant API path
   const handleViewReceiptWrapper = (payment) => {
     handleViewReceipt(payment, '/api/tenant-rent-receipts');
   };
@@ -104,8 +103,6 @@ export default function PaymentsClient() {
   const handleDownloadReceiptWrapper = (payment) => {
     handleDownloadReceipt(payment, '/api/tenant-rent-receipts');
   };
-
-  // Status tag now uses shared PaymentStatusTag component
 
   const baseColumns = [
     {
@@ -120,68 +117,52 @@ export default function PaymentsClient() {
     }),
     customizeColumn(STANDARD_COLUMNS.PROPERTY_NAME, {
       render: (_, record) => {
-        // Add null checks for nested property access
         if (!record?.lease?.unit?.property) {
-          return <Text type="secondary">N/A</Text>;
+          return <span className="text-gray-400">N/A</span>;
         }
         
         const property = record.lease.unit.property;
         const propertyName = property.propertyName || property.addressLine1 || 'Unknown Property';
         
-        // Single unit: show property name only
         if (property.unitCount === 1) {
-          return <Text style={{ fontWeight: 500 }}>{propertyName}</Text>;
+          return <span className="font-medium">{propertyName}</span>;
         }
         
-        // Multiple units: show "Unit# - Property Name" (e.g., "1801 Aspen")
         const unitName = record.lease.unit?.unitName || '';
-        return <Text style={{ fontWeight: 500 }}>{unitName} - {propertyName}</Text>;
+        return <span className="font-medium">{unitName} - {propertyName}</span>;
       }
     }),
     {
       title: 'Rent Amount',
       dataIndex: 'amount',
       key: 'amount',
-      align: 'right', // Keep right alignment for amounts
       render: (amount) => `$${amount.toFixed(2)}`,
     },
     {
       title: 'Amount Paid',
       key: 'amountPaid',
-      align: 'right', // Keep right alignment for amounts
       render: (_, record) => {
         const paid = record.totalPartialPaid || (record.status === 'Paid' ? record.amount : 0);
-        return <Text strong={paid > 0} style={{ color: paid > 0 ? '#34a853' : '#999' }}>
+        return <span className={paid > 0 ? 'font-semibold text-green-600' : 'text-gray-400'}>
           ${paid.toFixed(2)}
-        </Text>;
+        </span>;
       }
     },
     {
       title: 'Balance',
       key: 'balance',
-      align: 'right', // Keep right alignment for amounts
       render: (_, record) => {
         const balance = record.remainingBalance || 0;
         if (balance === 0) {
-          return <Text style={{ color: '#34a853' }}>$0.00</Text>;
+          return <span className="text-green-600">$0.00</span>;
         }
-        return <Text strong style={{ color: balance > 0 ? '#ea4335' : '#999' }}>
+        return <span className={`font-semibold ${balance > 0 ? 'text-red-600' : 'text-gray-400'}`}>
           ${balance.toFixed(2)}
-        </Text>;
+        </span>;
       }
     },
     customizeColumn(STANDARD_COLUMNS.STATUS, {
       render: (_, record) => <PaymentStatusTag payment={record} stripePayment={record.stripePayment} />,
-      filters: [
-        { text: 'Paid', value: 'Paid' },
-        { text: 'Partial', value: 'Partial' },
-        { text: 'Unpaid', value: 'Unpaid' },
-        { text: 'Overdue', value: 'Overdue' }
-      ],
-      onFilter: (value, record) => {
-        if (value === 'Overdue') return record.isOverdue;
-        return record.status === value;
-      }
     }),
     customizeColumn(STANDARD_COLUMNS.PAYMENT_DATE, {
       render: (_, record) => renderDate(record.paidDate),
@@ -189,18 +170,15 @@ export default function PaymentsClient() {
     {
       title: 'Actions',
       key: 'actions',
-      sorter: false, // Disable sorting for actions
       render: (_, record) => {
         const actions = [];
         
-        // Show retry approval/rejection buttons if retry requires approval
         if (record.stripePayment?.requiresTenantApproval && record.stripePayment?.tenantApprovedRetry === null) {
           actions.push(
-            <Tooltip key="approve" title="Approve Payment Retry">
+            <Tooltip key="approve" content="Approve Payment Retry">
               <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
+                color="success"
+                size="sm"
                 onClick={async () => {
                   try {
                     const response = await fetch(
@@ -208,8 +186,7 @@ export default function PaymentsClient() {
                       {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                      },
-                      { operation: 'Approve payment retry' }
+                      }
                     );
                     if (response.ok) {
                       notify.success('Payment retry approved');
@@ -220,14 +197,14 @@ export default function PaymentsClient() {
                   }
                 }}
               >
+                <HiCheckCircle className="h-4 w-4 mr-1" />
                 Approve Retry
               </Button>
             </Tooltip>,
-            <Tooltip key="reject" title="Reject Payment Retry">
+            <Tooltip key="reject" content="Reject Payment Retry">
               <Button
-                danger
-                size="small"
-                icon={<CloseCircleOutlined />}
+                color="failure"
+                size="sm"
                 onClick={async () => {
                   try {
                     const response = await fetch(
@@ -235,8 +212,7 @@ export default function PaymentsClient() {
                       {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                      },
-                      { operation: 'Reject payment retry' }
+                      }
                     );
                     if (response.ok) {
                       notify.success('Payment retry rejected');
@@ -247,54 +223,53 @@ export default function PaymentsClient() {
                   }
                 }}
               >
+                <HiXCircle className="h-4 w-4 mr-1" />
                 Reject Retry
               </Button>
             </Tooltip>
           );
         }
         
-        // Show receipt actions if payment has a receipt
         if (record.receiptSent && record.receiptNumber && (record.status === 'Paid' || record.status === 'Partial')) {
           actions.push(
-            <Tooltip key="view" title="View Receipt">
+            <Tooltip key="view" content="View Receipt">
               <Button
-                type="text"
-                size="small"
-                icon={<EyeOutlined />}
+                color="gray"
+                size="sm"
                 onClick={() => handleViewReceiptWrapper(record)}
-              />
+              >
+                <HiEye className="h-4 w-4" />
+              </Button>
             </Tooltip>,
-            <Tooltip key="download" title="Download Receipt">
+            <Tooltip key="download" content="Download Receipt">
               <Button
-                type="text"
-                size="small"
-                icon={<DownloadOutlined />}
+                color="gray"
+                size="sm"
                 onClick={() => handleDownloadReceiptWrapper(record)}
-              />
+              >
+                <HiDownload className="h-4 w-4" />
+              </Button>
             </Tooltip>
           );
         }
         
-        return actions.length > 0 ? <Space>{actions}</Space> : null;
+        return actions.length > 0 ? <div className="flex items-center gap-2">{actions}</div> : null;
       }
     }
   ];
 
-  // Configure columns with standard settings (sorting, center alignment, resizable)
   const columns = configureTableColumns(baseColumns);
   
-  // Use resizable table hook
   const { tableProps } = useResizableTable(columns, {
     storageKey: 'tenant-payments-table',
     defaultSort: { field: 'dueDate', order: 'descend' },
   });
 
-
   const handleSearchClear = () => {
     setSearchTerm('');
   };
 
-  // Calendar data processing - only show upcoming and paid dates
+  // Calendar data processing
   const calendarData = useMemo(() => {
     const data = {};
     const today = dayjs().startOf('day');
@@ -306,7 +281,6 @@ export default function PaymentsClient() {
       const isOverdue = !isPaid && dueDate.isBefore(today);
       const isUpcoming = !isPaid && (dueDate.isAfter(today) || dueDate.isSame(today));
       
-      // Only include if paid or upcoming
       if (isPaid && paidDate) {
         const paidDateStr = paidDate.format('YYYY-MM-DD');
         if (!data[paidDateStr]) {
@@ -320,7 +294,6 @@ export default function PaymentsClient() {
         }
         data[dueDateStr].push({ ...payment, type: 'upcoming', date: dueDateStr });
       } else if (isOverdue) {
-        // Show overdue payments in red
         const dueDateStr = dueDate.format('YYYY-MM-DD');
         if (!data[dueDateStr]) {
           data[dueDateStr] = [];
@@ -331,7 +304,6 @@ export default function PaymentsClient() {
     return data;
   }, [payments]);
 
-  // Get upcoming payments (next 30 days)
   const upcomingPayments = useMemo(() => {
     const today = dayjs();
     const thirtyDaysFromNow = today.add(30, 'days');
@@ -344,55 +316,6 @@ export default function PaymentsClient() {
       .slice(0, 5);
   }, [payments]);
 
-  // Calendar cell renderer - only show upcoming and paid dates
-  const dateCellRender = (value) => {
-    const dateStr = value.format('YYYY-MM-DD');
-    const dayData = calendarData[dateStr];
-    if (!dayData || dayData.length === 0) return null;
-
-    return (
-      <div style={{ fontSize: '11px' }}>
-        {dayData.map((item, index) => {
-          const isOverdue = item.type === 'overdue';
-          const isPaid = item.type === 'paid';
-          const isUpcoming = item.type === 'upcoming';
-          
-          return (
-            <div
-              key={index}
-              onClick={(e) => {
-                e.stopPropagation();
-                // If paid and has receipt, open receipt
-                if (isPaid && item.receiptNumber && item.receiptSent) {
-                  handleViewReceiptWrapper(item);
-                } else if (isOverdue || isUpcoming) {
-                  // For overdue/upcoming, could show payment details or do nothing
-                  // For now, just prevent default calendar selection
-                }
-              }}
-              style={{
-                marginBottom: '2px',
-                padding: '2px 4px',
-                borderRadius: '2px',
-                backgroundColor: isOverdue ? '#ff4d4f' : isPaid ? '#52c41a' : '#1890ff',
-                color: 'white',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                cursor: (isPaid && item.receiptNumber && item.receiptSent) ? 'pointer' : 'default'
-              }}
-              title={isPaid && item.receiptNumber ? 'Click to view receipt' : ''}
-            >
-              {isOverdue ? '⚠️ ' : isPaid ? '✓ ' : ''}
-              ${item.amount.toFixed(0)}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Get payments for selected date
   const selectedDatePayments = useMemo(() => {
     const dateStr = selectedDate.format('YYYY-MM-DD');
     const dayData = calendarData[dateStr];
@@ -404,30 +327,35 @@ export default function PaymentsClient() {
     {
       title: 'Total Rent',
       value: `$${summary.totalRent.toFixed(2)}`,
-      prefix: <DollarOutlined />,
+      prefix: <HiCurrencyDollar className="h-5 w-5" />,
     },
     {
       title: 'Total Paid',
       value: `$${summary.totalPaid.toFixed(2)}`,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Outstanding',
       value: `$${summary.totalOutstanding.toFixed(2)}`,
-      prefix: <ExclamationCircleOutlined />,
+      prefix: <HiExclamationCircle className="h-5 w-5" />,
       valueStyle: { color: summary.totalOutstanding > 0 ? '#ff4d4f' : '#52c41a' },
     },
     {
       title: 'Receipts',
       value: payments.filter(p => p.receiptSent && (p.status === 'Paid' || p.status === 'Partial')).length,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
     },
   ] : [];
 
   return (
     <PageLayout
-      headerTitle={<><DollarOutlined /> Payments</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiCurrencyDollar className="h-5 w-5" />
+          <span>Payments</span>
+        </div>
+      }
       stats={statsData}
       statsCols={4}
       showSearch={true}
@@ -436,187 +364,166 @@ export default function PaymentsClient() {
       onSearchClear={handleSearchClear}
       searchPlaceholder="Search by receipt number, property, amount, date, or status..."
     >
-
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" />
+        <div className="text-center py-12">
+          <Spinner size="xl" />
         </div>
       ) : payments.length === 0 ? (
         <Card>
-          <Empty description="No payment history found" />
+          <div className="text-center py-12">
+            <p className="text-gray-500">No payment history found</p>
+          </div>
         </Card>
       ) : (
         <>
-          {/* Payments with Tabs: Calendar and Table */}
           <Card>
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              items={[
-                {
-                  key: 'payments',
-                  label: `Payments (${payments.length})`,
-                  children: (
-                    <TableWrapper>
-                      <Table
-                        {...tableProps}
-                        dataSource={filteredPaymentsForTable}
-                        rowKey="id"
-                        pagination={{
-                          pageSize: 10,
-                          showSizeChanger: true,
-                          showTotal: (total) => `Total ${total} payments`
-                        }}
+            <Tabs activeTab={activeTab} onActiveTabChange={setActiveTab}>
+              <Tabs.Item active={activeTab === 'payments'} title={`Payments (${payments.length})`}>
+                <TableWrapper>
+                  <FlowbiteTable
+                    {...tableProps}
+                    dataSource={filteredPaymentsForTable}
+                    rowKey="id"
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: true
+                    }}
+                  />
+                </TableWrapper>
+              </Tabs.Item>
+              <Tabs.Item active={activeTab === 'calendar'} title={
+                <div className="flex items-center gap-2">
+                  <HiCalendar className="h-4 w-4" />
+                  <span>Calendar View</span>
+                </div>
+              }>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2">
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">Select Date</label>
+                      <input
+                        type="date"
+                        value={selectedDate.format('YYYY-MM-DD')}
+                        onChange={(e) => setSelectedDate(dayjs(e.target.value))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2"
                       />
-                    </TableWrapper>
-                  )
-                },
-                {
-                  key: 'calendar',
-                  label: (
-                    <span>
-                      <CalendarOutlined /> Calendar View
-                    </span>
-                  ),
-                  children: (
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-                      <div>
-                        <Calendar
-                          dateCellRender={dateCellRender}
-                          onSelect={(date) => setSelectedDate(date)}
-                          value={selectedDate}
-                        />
-                        {selectedDatePayments.length > 0 && (
-                          <Card 
-                            title={`Payments for ${selectedDate.format('MMMM D, YYYY')}`}
-                            style={{ marginTop: 16 }}
-                            size="small"
-                          >
-                            <List
-                              dataSource={selectedDatePayments}
-                              renderItem={(item) => {
-                                const isOverdue = item.type === 'overdue';
-                                const isPaid = item.type === 'paid';
-                                const isUpcoming = item.type === 'upcoming';
-                                
-                                return (
-                                  <List.Item>
-                                    <List.Item.Meta
-                                      title={
-                                        <Space>
-                                          {isOverdue ? (
-                                            <Tag color="red">
-                                              Overdue: <CurrencyDisplay value={item.amount} country="CA" />
-                                            </Tag>
-                                          ) : isPaid ? (
-                                            <Tag color="green">
-                                              Paid: <CurrencyDisplay value={item.amount} country="CA" />
-                                            </Tag>
-                                          ) : (
-                                            <Tag color="blue">
-                                              Upcoming: <CurrencyDisplay value={item.amount} country="CA" />
-                                            </Tag>
-                                          )}
-                                          <Text strong>
-                                            {item.lease?.unit?.property?.propertyName || item.lease?.unit?.property?.addressLine1}
-                                          </Text>
-                                        </Space>
-                                      }
-                                      description={
-                                        <Space>
-                                          <Text type="secondary">
-                                            {isPaid ? '✓ Paid' : item.status === 'Partial' ? 'Partial Payment' : isOverdue ? 'Overdue' : 'Upcoming'}
-                                          </Text>
-                                          {isPaid && item.receiptNumber && item.receiptSent && (
-                                            <Button
-                                              type="link"
-                                              size="small"
-                                              icon={<EyeOutlined />}
-                                              onClick={() => handleViewReceiptWrapper(item)}
-                                            >
-                                              View Receipt
-                                            </Button>
-                                          )}
-                                        </Space>
-                                      }
-                                    />
-                                  </List.Item>
-                                );
-                              }}
-                            />
-                          </Card>
-                        )}
-                      </div>
-                      <div>
-                        <Card title="Upcoming Payments" size="small" style={{ marginBottom: 16 }}>
-                          {upcomingPayments.length > 0 ? (
-                            <List
-                              dataSource={upcomingPayments}
-                              renderItem={(payment) => (
-                                <List.Item>
-                                  <div style={{ width: '100%' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                      <Text strong>{formatDateShort(payment.dueDate)}</Text>
-                                      <CurrencyDisplay value={payment.amount} country="CA" strong />
-                                    </div>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                      {payment.lease?.unit?.property?.propertyName || payment.lease?.unit?.property?.addressLine1}
-                                    </Text>
-                                    {dayjs(payment.dueDate).diff(dayjs(), 'days') <= 7 && (
-                                      <Alert
-                                        message={`Due in ${dayjs(payment.dueDate).diff(dayjs(), 'days')} days`}
-                                        type="warning"
-                                        showIcon
-                                        style={{ marginTop: 8 }}
-                                        size="small"
-                                      />
-                                    )}
-                                  </div>
-                                </List.Item>
-                              )}
-                            />
-                          ) : (
-                            <Empty description="No upcoming payments" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                          )}
-                        </Card>
-                        <Card title="Payment Reminders" size="small">
-                          <List
-                            dataSource={payments.filter(p => p.isOverdue)}
-                            renderItem={(payment) => (
-                              <List.Item>
-                                <Alert
-                                  message={
-                                    <Space>
-                                      <BellOutlined />
-                                      <Text strong>Overdue Payment</Text>
-                                    </Space>
-                                  }
-                                  description={
-                                    <div>
-                                      <Text>Due: {formatDateDisplay(payment.dueDate)}</Text>
-                                      <br />
-                                      <CurrencyDisplay value={payment.remainingBalance || payment.amount} country="CA" strong style={{ color: '#ff4d4f' }} />
-                                    </div>
-                                  }
-                                  type="error"
-                                  showIcon
-                                  style={{ width: '100%' }}
-                                />
-                              </List.Item>
-                            )}
-                          />
-                        </Card>
-                      </div>
                     </div>
-                  )
-                }
-              ]}
-            />
+                    {selectedDatePayments.length > 0 && (
+                      <Card className="mt-4">
+                        <h3 className="text-lg font-semibold mb-4">
+                          Payments for {selectedDate.format('MMMM D, YYYY')}
+                        </h3>
+                        <div className="space-y-3">
+                          {selectedDatePayments.map((item, idx) => {
+                            const isOverdue = item.type === 'overdue';
+                            const isPaid = item.type === 'paid';
+                            const isUpcoming = item.type === 'upcoming';
+                            
+                            return (
+                              <div key={idx} className="p-3 border border-gray-200 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    {isOverdue ? (
+                                      <Badge color="failure">
+                                        Overdue: <CurrencyDisplay value={item.amount} country="CA" />
+                                      </Badge>
+                                    ) : isPaid ? (
+                                      <Badge color="success">
+                                        Paid: <CurrencyDisplay value={item.amount} country="CA" />
+                                      </Badge>
+                                    ) : (
+                                      <Badge color="blue">
+                                        Upcoming: <CurrencyDisplay value={item.amount} country="CA" />
+                                      </Badge>
+                                    )}
+                                    <span className="font-semibold">
+                                      {item.lease?.unit?.property?.propertyName || item.lease?.unit?.property?.addressLine1}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <span>
+                                    {isPaid ? '✓ Paid' : item.status === 'Partial' ? 'Partial Payment' : isOverdue ? 'Overdue' : 'Upcoming'}
+                                  </span>
+                                  {isPaid && item.receiptNumber && item.receiptSent && (
+                                    <Button
+                                      color="blue"
+                                      size="xs"
+                                      onClick={() => handleViewReceiptWrapper(item)}
+                                    >
+                                      <HiEye className="h-3 w-3 mr-1" />
+                                      View Receipt
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <Card>
+                      <h3 className="text-lg font-semibold mb-4">Upcoming Payments</h3>
+                      {upcomingPayments.length > 0 ? (
+                        <div className="space-y-3">
+                          {upcomingPayments.map((payment) => (
+                            <div key={payment.id} className="p-3 border border-gray-200 rounded-lg">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-semibold">{formatDateShort(payment.dueDate)}</span>
+                                <CurrencyDisplay value={payment.amount} country="CA" strong />
+                              </div>
+                              <p className="text-sm text-gray-600">
+                                {payment.lease?.unit?.property?.propertyName || payment.lease?.unit?.property?.addressLine1}
+                              </p>
+                              {dayjs(payment.dueDate).diff(dayjs(), 'days') <= 7 && (
+                                <Alert color="warning" className="mt-2 text-xs">
+                                  Due in {dayjs(payment.dueDate).diff(dayjs(), 'days')} days
+                                </Alert>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No upcoming payments</p>
+                        </div>
+                      )}
+                    </Card>
+                    <Card>
+                      <h3 className="text-lg font-semibold mb-4">Payment Reminders</h3>
+                      {payments.filter(p => p.isOverdue).length > 0 ? (
+                        <div className="space-y-3">
+                          {payments.filter(p => p.isOverdue).map((payment) => (
+                            <Alert key={payment.id} color="failure">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <HiBell className="h-4 w-4" />
+                                  <span className="font-semibold">Overdue Payment</span>
+                                </div>
+                                <p className="text-sm">Due: {formatDateDisplay(payment.dueDate)}</p>
+                                <p className="text-sm font-semibold text-red-600">
+                                  <CurrencyDisplay value={payment.remainingBalance || payment.amount} country="CA" />
+                                </p>
+                              </div>
+                            </Alert>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No overdue payments</p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                </div>
+              </Tabs.Item>
+            </Tabs>
           </Card>
         </>
       )}
 
-      {/* PDF Viewer Modal */}
       <PDFViewerModal
         open={isModalOpen}
         title={`Receipt #${viewingReceipt?.receiptNumber || ''}`}
@@ -631,4 +538,3 @@ export default function PaymentsClient() {
     </PageLayout>
   );
 }
-

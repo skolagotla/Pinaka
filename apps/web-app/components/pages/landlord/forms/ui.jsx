@@ -3,20 +3,29 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Card, Button, Table, Tag, Space, Modal, Form, Select, Input, DatePicker,
-  Tooltip, Popconfirm, Empty, Spin, Descriptions, Typography, Steps,
-  Alert, Row, Col
-} from 'antd';
+  Card, Button, Modal, Select, TextInput, Label, Textarea,
+  Tooltip, Badge, Alert, Spinner
+} from 'flowbite-react';
 import {
-  PlusOutlined, FileTextOutlined, EyeOutlined, EditOutlined, DeleteOutlined,
-  CheckCircleOutlined, DownloadOutlined, FileDoneOutlined, ClockCircleOutlined,
-  SendOutlined, FileProtectOutlined
-} from '@ant-design/icons';
+  HiPlus,
+  HiDocumentText,
+  HiEye,
+  HiPencil,
+  HiTrash,
+  HiCheckCircle,
+  HiDownload,
+  HiPaperClip,
+  HiClock,
+  HiPaperAirplane,
+  HiX,
+} from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateMonthYear, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { formatAmount } from '@/lib/currency-utils';
 import { PageLayout, TableWrapper, renderDate, DeleteConfirmButton } from '@/components/shared';
-import { renderStatus } from '@/components/shared/TableRenderers';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
+import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
 import { notify } from '@/lib/utils/notification-helper';
 import { rules } from '@/lib/utils/validation-rules';
 import { useLoading } from '@/lib/hooks/useLoading';
@@ -24,16 +33,13 @@ import SigningFlow from '@/components/SigningFlow';
 import dynamic from 'next/dynamic';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useResizableTable, configureTableColumns, useModalState } from '@/lib/hooks';
+import { useFormState } from '@/lib/hooks/useFormState';
 
 // Lazy load PDFViewerModal to reduce initial bundle size
 const PDFViewerModal = dynamic(
   () => import('@/components/shared/PDFViewerModal'),
   { ssr: false, loading: () => null }
 );
-
-const { Text, Paragraph, Title } = Typography;
-const { TextArea } = Input;
-const { Step } = Steps;
 
 export default function GeneratedFormsClient({ userRole, user = null }) {
   const router = useRouter();
@@ -43,8 +49,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
   const [tenants, setTenants] = useState([]);
   const [tenantsWithBalance, setTenantsWithBalance] = useState([]);
   const [properties, setProperties] = useState([]);
-  
-  // Removed filter state - now using table column filters
   
   // Form generation state
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -70,38 +74,29 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
   const [signatureUrl, setSignatureUrl] = useState(null);
 
   // Form for custom data
-  const [form] = Form.useForm();
+  const form = useFormState();
 
-  // Use a ref to prevent duplicate API calls (especially in React Strict Mode)
+  // Use a ref to prevent duplicate API calls
   const signatureFetchAttempted = useRef(false);
 
-  // Load signature on mount - ONLY for landlords (PMC users need landlordId parameter)
-  // Completely skip this effect for non-landlord users
+  // Load signature on mount - ONLY for landlords
   useEffect(() => {
-    // Prevent duplicate calls
     if (signatureFetchAttempted.current) {
       return;
     }
 
-    // Strict check: only proceed if userRole is explicitly 'landlord'
-    // This check must be very strict - only 'landlord' string, nothing else
     const currentUserRole = String(userRole || '').trim();
     
     if (currentUserRole !== 'landlord') {
-      // Do nothing for PMC, tenant, undefined, null, or any other value
-      // Debug log in development
       if (process.env.NODE_ENV === 'development') {
         console.log('[GeneratedFormsClient] Skipping signature fetch - userRole is not "landlord":', currentUserRole);
       }
       return;
     }
     
-    // Mark as attempted to prevent duplicate calls
     signatureFetchAttempted.current = true;
     
-    // Only fetch signature for landlords
     const fetchSignature = async () => {
-      // Double-check userRole inside the async function
       const roleCheck = String(userRole || '').trim();
       if (roleCheck !== 'landlord') {
         if (process.env.NODE_ENV === 'development') {
@@ -111,12 +106,10 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       }
       
       try {
-        // Use v1Api to get signature
         const { v1Api } = await import('@/lib/api/v1-client');
-        const data = await v1Api.signatures.getSignature(landlordId || undefined);
+        const data = await v1Api.signatures.getSignature(undefined);
         setSignatureUrl(data.signatureUrl);
       } catch (error) {
-        // Silently fail - signature might not be available
         setSignatureUrl(null);
       }
     };
@@ -128,7 +121,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
   const formatTenantName = (tenant, allTenantsList = null) => {
     if (!tenant) return 'N/A';
     
-    // For tenants with balance (N4 forms), use allTenants if available
     if (tenant.allTenants && Array.isArray(tenant.allTenants) && tenant.allTenants.length > 1) {
       return tenant.allTenants
         .filter(t => t && t.firstName && t.lastName)
@@ -136,15 +128,12 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         .join(', ');
     }
     
-    // For regular tenants, check if they have multiple tenants on the same lease
     if (tenant.leaseTenants && Array.isArray(tenant.leaseTenants) && tenant.leaseTenants.length > 0 && allTenantsList) {
-      // Find active lease
       const activeLeaseTenant = tenant.leaseTenants.find(
         lt => lt?.lease && lt.lease.status === 'Active'
       );
       
       if (activeLeaseTenant && activeLeaseTenant.lease) {
-        // Get all tenants for this lease from the allTenantsList array
         const leaseId = activeLeaseTenant.lease.id;
         const leaseTenants = Array.isArray(allTenantsList) ? allTenantsList.filter(t => 
           t && t.leaseTenants && Array.isArray(t.leaseTenants) && t.leaseTenants.some(
@@ -153,7 +142,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         ) : [];
         
         if (leaseTenants.length > 1) {
-          // Sort: primary first, then by name
           const sorted = [...leaseTenants].sort((a, b) => {
             if (!a || !b) return 0;
             const aIsPrimary = a.leaseTenants?.find(lt => lt?.lease?.id === leaseId)?.isPrimaryTenant || false;
@@ -173,7 +161,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       }
     }
     
-    // Default: single tenant
     if (tenant.firstName && tenant.lastName) {
       return `${tenant.firstName} ${tenant.lastName}`;
     }
@@ -238,11 +225,11 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
     } catch (error) {
       console.error('[GeneratedFormsClient] Error in loadData useEffect:', error);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
     await withLoading(async () => {
-      // Use v1Api for all endpoints
       const { v1Api } = await import('@/lib/api/v1-client');
       const [formsRes, tenantsRes, tenantsWithBalanceRes, propertiesRes] = await Promise.all([
         v1Api.generatedForms.list({ page: 1, limit: 1000 }).then(response => {
@@ -289,7 +276,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
           const tenantsList = Array.isArray(data?.tenants) ? data.tenants : [];
           setTenantsWithBalance(tenantsList);
           
-          // Extract unique properties eligible for N4 (properties with tenants who have outstanding balances)
           const uniqueProperties = new Map();
           tenantsList.forEach(tenant => {
             if (tenant?.property && tenant.property.id) {
@@ -329,7 +315,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const fetchTenantRentData = async (tenantId) => {
     try {
-      // Use v1Api to get tenant rent data
       const { v1Api } = await import('@/lib/api/v1-client');
       const data = await v1Api.specialized.getTenantRentData(tenantId);
       
@@ -340,206 +325,85 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       });
       
       if (unpaidPayments.length === 0) {
-        // No arrears - just set termination date
         const terminationDate = new Date();
         terminationDate.setDate(terminationDate.getDate() + 15);
         return {
-          terminationDate: dayjs(terminationDate),
+          terminationDate: dayjs(terminationDate).format('YYYY-MM-DD'),
           notes: 'No outstanding rent balance'
         };
       }
       
-      // Find first unpaid payment (arrears start date)
       const firstUnpaid = unpaidPayments.sort(
         (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       )[0];
       
-      // Calculate total arrears
       const totalArrears = unpaidPayments.reduce(
         (sum, p) => sum + (p.amount || 0),
         0
       );
       
-      // Format dates
       const arrearsStartDate = firstUnpaid.dueDate 
-        ? dayjs(firstUnpaid.dueDate).add(1, 'day') // Day after due date
+        ? dayjs(firstUnpaid.dueDate).add(1, 'day').format('YYYY-MM-DD')
         : null;
       
       const lastUnpaid = unpaidPayments.sort(
         (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
       )[0];
       const arrearsEndDate = lastUnpaid.dueDate 
-        ? dayjs(lastUnpaid.dueDate)
+        ? dayjs(lastUnpaid.dueDate).format('YYYY-MM-DD')
         : null;
       
-      // Get landlord name from settings
       let landlordName = 'the landlord';
       try {
-        const settingsRes = await fetch(
-          '/api/settings',
-          {},
-          { operation: 'Fetch landlord settings', showUserMessage: false }
-        );
+        const settingsRes = await fetch('/api/settings');
         const settingsData = await settingsRes.json();
         if (settingsData.landlord?.firstName && settingsData.landlord?.lastName) {
           landlordName = `${settingsData.landlord.firstName} ${settingsData.landlord.lastName}`;
         }
       } catch (e) {
-        // Error already handled by useUnifiedApi
+        // Error handling
       }
       
-      // Format notes with detailed arrears information
       let notes = '';
       if (arrearsStartDate && arrearsEndDate) {
-        notes = `Rent owed from ${arrearsStartDate.format('MMMM D, YYYY')} until ${arrearsEndDate.format('MMMM D, YYYY')} to the amount of $${totalArrears.toFixed(2)} to the landlord ${landlordName}.`;
+        notes = `Rent owed from ${dayjs(arrearsStartDate).format('MMMM D, YYYY')} until ${dayjs(arrearsEndDate).format('MMMM D, YYYY')} to the amount of $${totalArrears.toFixed(2)} to the landlord ${landlordName}.`;
       } else if (arrearsStartDate) {
-        notes = `Rent owed from ${arrearsStartDate.format('MMMM D, YYYY')} to the amount of $${totalArrears.toFixed(2)} to the landlord ${landlordName}.`;
+        notes = `Rent owed from ${dayjs(arrearsStartDate).format('MMMM D, YYYY')} to the amount of $${totalArrears.toFixed(2)} to the landlord ${landlordName}.`;
       } else {
         notes = `Total outstanding rent: $${totalArrears.toFixed(2)} to the landlord ${landlordName}.`;
       }
       
-      // Set termination date (15 days from today)
       const terminationDate = new Date();
       terminationDate.setDate(terminationDate.getDate() + 15);
       
       return {
         arrearsStartDate,
-        terminationDate: dayjs(terminationDate),
+        terminationDate: dayjs(terminationDate).format('YYYY-MM-DD'),
         notes,
         totalArrears,
-        unpaidPaymentsCount: unpaidPayments.length
+        unpaidCount: unpaidPayments.length
       };
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      // Error handling
     }
     
-    // Fallback: just set termination date
     const terminationDate = new Date();
     terminationDate.setDate(terminationDate.getDate() + 15);
     
     return {
-      terminationDate: dayjs(terminationDate),
+      terminationDate: dayjs(terminationDate).format('YYYY-MM-DD'),
       notes: 'Arrears calculated automatically from database'
     };
-    
-    // OLD CODE - keeping for reference but disabled
-    /*
-    try {
-      // Fetch rent payments for this tenant
-      console.log('📞 [Frontend] Calling API: /api/tenant-rent-data?tenantId=' + tenantId);
-      const response = await fetch(`/api/tenant-rent-data?tenantId=${tenantId}`);
-      console.log('📡 [Frontend] API response status:', response.status, response.statusText);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ [Frontend] API response:', data);
-        const payments = data.rentPayments || [];
-        console.log('📋 [Frontend] Payments received:', payments.length);
-        
-        // Calculate arrears
-        const now = new Date();
-        console.log('📊 [Frontend] Payment statuses:', payments.map(p => ({ status: p.status, amount: p.amount })));
-        const unpaidPayments = payments.filter(p => {
-          if (!p.status) return true; // If no status, consider unpaid
-          const status = String(p.status).toLowerCase();
-          return status !== 'paid' && status !== 'completed';
-        });
-        console.log('💰 [Frontend] Unpaid payments:', unpaidPayments.length);
-        
-        // Find first unpaid payment
-        let arrearsStartDate = null;
-        let totalArrears = 0;
-        let arrearsMonths = [];
-        let arrearsBreakdown = [];
-        
-        if (unpaidPayments.length > 0) {
-          // Sort by dueDate ascending
-          unpaidPayments.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-          
-          const firstUnpaid = unpaidPayments[0];
-          const firstDueDate = new Date(firstUnpaid.dueDate);
-          
-          // Arrears start the day after rent was due
-          arrearsStartDate = new Date(firstDueDate);
-          arrearsStartDate.setDate(arrearsStartDate.getDate() + 1);
-          
-          // Calculate total arrears, months, and detailed breakdown
-          unpaidPayments.forEach(payment => {
-            // RentPayment has 'amount' field, not 'amountDue'
-            // Partial payments are in a separate table, for now treat unpaid as fully owing
-            const amountOwing = payment.amount;
-            totalArrears += amountOwing;
-            arrearsMonths.push(formatDateMonthYear(payment.dueDate));
-            
-            // Add to breakdown for PDF
-            // The rent period is typically the month the rent is FOR, not when it's due
-            // For example, rent due Nov 1 is for the period Nov 1 - Nov 30
-            const dueDate = dayjs(payment.dueDate);
-            const periodStart = dueDate.startOf('month');
-            const periodEnd = dueDate.endOf('month');
-            
-            arrearsBreakdown.push({
-              fromDate: periodStart.format('YYYY-MM-DD'),
-              toDate: periodEnd.format('YYYY-MM-DD'),
-              rentCharged: payment.amount,
-              rentPaid: 0  // Note: Partial payments are handled by the API endpoint
-            });
-          });
-        }
-      
-      // Termination date is 15 days from today
-      const terminationDate = new Date(now);
-      terminationDate.setDate(terminationDate.getDate() + 15);
-      
-      // Generate notes
-      let notes = '';
-      if (unpaidPayments.length > 0) {
-        notes = `Outstanding rent arrears of $${totalArrears.toFixed(2)} for the following period(s): ${arrearsMonths.join(', ')}. `;
-        notes += `First unpaid rent was due ${formatDateDisplay(unpaidPayments[0].dueDate)}.`;
-      }
-      
-      const rentData = {
-        arrearsStartDate: arrearsStartDate ? dayjs(arrearsStartDate) : null,
-        terminationDate: dayjs(terminationDate),
-        totalArrears,
-        arrearsMonths,
-        arrearsBreakdown,
-        notes,
-        unpaidCount: unpaidPayments.length
-      };
-      
-      console.log('💾 [Frontend] Setting tenantRentData:', {
-        totalArrears: rentData.totalArrears,
-        arrearsBreakdownLength: rentData.arrearsBreakdown?.length,
-        unpaidCount: rentData.unpaidCount
-      });
-      
-      setTenantRentData(rentData);
-      
-      return {
-        arrearsStartDate: arrearsStartDate ? dayjs(arrearsStartDate) : null,
-        terminationDate: dayjs(terminationDate),
-        arrearsBreakdown,
-        notes
-      };
-      }
-    } catch (error) {
-      console.error('[Forms] Error fetching rent data:', error);
-    }
-    return null;
-    */
   };
 
   const handleTenantSelect = async (tenantId) => {
     setSelectedTenant(tenantId);
     
-    // If we're selecting tenant for N4 form, fetch rent data
     if (selectedFormType === 'N4') {
       const rentData = await fetchTenantRentData(tenantId);
       
-      // Store rent data in state for display
       setTenantRentData(rentData);
       
-      // Auto-populate form fields
       if (rentData) {
         form.setFieldsValue({
           arrearsStartDate: rentData.arrearsStartDate,
@@ -548,7 +412,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         });
       }
     } else {
-      // Clear rent data for non-N4 forms
       setTenantRentData(null);
     }
   };
@@ -580,10 +443,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
       const customData = form.getFieldsValue();
       
-      // Arrears data is now calculated automatically on the backend
-      // No need to pass it from frontend
-      
-      // Use v1Api to generate form
       const { v1Api } = await import('@/lib/api/v1-client');
       const response = await v1Api.forms.generateForm({
         formType: selectedFormType,
@@ -593,7 +452,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         customData
       });
       setGeneratedFormData(response.form);
-      // No success message - will open review modal instead
 
     } catch (error) {
       // Error already handled by useUnifiedApi
@@ -604,7 +462,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleFinalizeForm = async (formId) => {
     try {
-      // Use v1Api client
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.generatedForms.update(formId, { status: 'finalized' });
 
@@ -619,7 +476,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleViewForm = async (formRecord) => {
     try {
-      // Use v1Api to download form PDF
       const { v1Api } = await import('@/lib/api/v1-client');
       const blob = await v1Api.forms.downloadForm(formRecord.id);
       const url = URL.createObjectURL(blob);
@@ -650,22 +506,19 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
   };
 
   const handleDownloadPDF = async (record) => {
-    // Open signing flow for DocuSign-like experience
-      setSigningForm(record);
-      openSigningFlow();
+    setSigningForm(record);
+    openSigningFlow();
   };
 
   const handleSendForm = async (record) => {
     try {
       notify.loading('Sending email to tenant...');
       
-      // Use v1Api to send form
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.forms.sendForm(record.id);
 
       notify.success('Email sent successfully to tenant!');
       
-      // Update form status to 'sent' and refresh the list
       loadData();
     } catch (error) {
       notify.error(error.message || 'Failed to send email');
@@ -674,13 +527,11 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleReviewPDF = async () => {
     try {
-      // If form not generated yet, generate it first
       if (!generatedFormData) {
         setGenerating(true);
         
         const customData = form.getFieldsValue();
         
-        // Use v1Api to generate form
         const { v1Api } = await import('@/lib/api/v1-client');
         const response = await v1Api.forms.generateForm({
           formType: selectedFormType,
@@ -692,32 +543,26 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         setGeneratedFormData(response.form);
         setGenerating(false);
         
-        // Close the form generation modal
         closeWizard();
         
-        // Refresh forms list to show the new draft
         await loadData();
         
-        // Open review modal with the generated form
-        setSigningForm(data.form);
+        setSigningForm(response.form);
         openSigningFlow();
       } else {
-        // Form already generated, close modal and open review
         closeWizard();
         setSigningForm(generatedFormData);
         openSigningFlow();
       }
     } catch (error) {
-      // Error already handled by useUnifiedApi
       setGenerating(false);
     }
   };
 
   const handleSignComplete = () => {
     notify.success('Document signed and downloaded successfully!');
-    loadData(); // Refresh the forms list
+    loadData();
   };
-
 
   // Table columns
   const baseColumns = [
@@ -726,27 +571,24 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       dataIndex: 'formType',
       key: 'formType',
       render: (type) => {
-        if (!type) return <Tag>N/A</Tag>;
+        if (!type) return <Badge color="gray">N/A</Badge>;
         return (
-          <Tag color={
-            type.startsWith('L') ? 'red' :
-            type === 'N4' || type === 'N7' ? 'orange' :
+          <Badge color={
+            type.startsWith('L') ? 'failure' :
+            type === 'N4' || type === 'N7' ? 'warning' :
             'blue'
           }>
             {type}
-          </Tag>
+          </Badge>
         );
       },
-      filters: Array.isArray(formTypes) ? formTypes.map(ft => ({ text: ft.value, value: ft.value })) : [],
-      onFilter: (value, record) => record?.formType === value,
-      filterMultiple: false,
     },
     {
       title: 'Tenant',
       dataIndex: 'tenantName',
       key: 'tenantName',
       render: (name) => (
-        <Text strong>{name || 'N/A'}</Text>
+        <span className="font-semibold">{name || 'N/A'}</span>
       )
     },
     {
@@ -754,21 +596,19 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       dataIndex: 'propertyAddress',
       key: 'propertyAddress',
       render: (address, record) => {
-        if (!record) return <Text>N/A</Text>;
+        if (!record) return <span>N/A</span>;
         const propertyName = record?.propertyName || address || 'N/A';
         
-        // Single unit: show property name only
         if (record?.propertyUnitCount === 1) {
-          return <Text>{propertyName}</Text>;
+          return <span>{propertyName}</span>;
         }
         
-        // Multiple units: show "Unit# - Property Name" (e.g., "1801 Aspen")
         const unitName = record?.unitName || '';
         if (unitName) {
-          return <Text>{unitName} - {propertyName}</Text>;
+          return <span>{unitName} - {propertyName}</span>;
         }
         
-        return <Text>{propertyName}</Text>;
+        return <span>{propertyName}</span>;
       }
     },
     {
@@ -783,8 +623,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        if (!status) return <Tag>N/A</Tag>;
-        // Map form statuses to standard status names for renderStatus
+        if (!status) return <Badge color="gray">N/A</Badge>;
         const statusMap = {
           draft: 'Draft',
           finalized: 'Completed',
@@ -793,22 +632,14 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         };
         return renderStatus(statusMap[status] || status, {
           customColors: {
-            'Draft': 'default',
+            'Draft': 'gray',
             'Completed': 'success',
-            'In Progress': 'processing',
-            'Sent': 'processing',
+            'In Progress': 'info',
+            'Sent': 'info',
             'Filed': 'purple'
           }
         });
       },
-      filters: [
-        { text: 'Draft', value: 'draft' },
-        { text: 'Finalized', value: 'finalized' },
-        { text: 'Sent', value: 'sent' },
-        { text: 'Filed', value: 'filed' }
-      ],
-      onFilter: (value, record) => record?.status === value,
-      filterMultiple: false,
     },
     {
       title: 'Actions',
@@ -816,77 +647,93 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       render: (_, record) => {
         if (!record) return null;
         return (
-          <Space>
-            <Tooltip title="View">
+          <div className="flex items-center gap-2">
+            <Tooltip content="View" style="dark" placement="top">
               <Button
-                type="text"
-                icon={<EyeOutlined />}
+                size="sm"
+                color="gray"
                 onClick={() => handleViewForm(record)}
-              />
+                className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <HiEye className="h-4 w-4" />
+              </Button>
             </Tooltip>
             {record?.status === 'draft' && (
-            <>
-              <Tooltip title="Edit">
+              <>
+                <Tooltip content="Edit" style="dark" placement="top">
+                  <Button
+                    size="sm"
+                    color="gray"
+                    onClick={() => {
+                      notify.info('Edit functionality coming soon');
+                    }}
+                    className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <HiPencil className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Finalize" style="dark" placement="top">
+                  <Button
+                    size="sm"
+                    color="success"
+                    onClick={() => handleFinalizeForm(record?.id)}
+                    className="hover:bg-green-700 transition-colors"
+                  >
+                    <HiCheckCircle className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+            <Tooltip content="Download PDF" style="dark" placement="top">
+              <Button
+                size="sm"
+                color="gray"
+                onClick={() => handleDownloadPDF(record)}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <HiDownload className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            <Tooltip content="Send to Tenant" style="dark" placement="top">
+              <Button
+                size="sm"
+                color="blue"
+                onClick={() => handleSendForm(record)}
+                className="hover:bg-blue-700 transition-colors"
+              >
+                <HiPaperAirplane className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            {(record.status === 'draft' || record.status === 'finalized') && (
+              <FlowbitePopconfirm
+                title={`Delete ${record.status === 'draft' ? 'draft' : 'form'}?`}
+                description={
+                  record.status === 'draft' 
+                    ? "This draft will be permanently deleted. This action cannot be undone."
+                    : "This finalized form will be permanently deleted. This action cannot be undone."
+                }
+                onConfirm={() => handleDeleteForm(record.id)}
+                okText="Yes, Delete"
+                cancelText="Cancel"
+                danger={true}
+              >
                 <Button
-                  type="text"
-                  icon={<EditOutlined />}
-                  onClick={() => {
-                    notify.info('Edit functionality coming soon');
-                  }}
-                />
-              </Tooltip>
-              <Tooltip title="Finalize">
-                <Button
-                  type="text"
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => handleFinalizeForm(record?.id)}
-                />
-              </Tooltip>
-            </>
-          )}
-          <Tooltip title="Download PDF">
-            <Button
-              type="text"
-              icon={<DownloadOutlined />}
-              onClick={() => handleDownloadPDF(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Send to Tenant">
-            <Button
-              type="text"
-              icon={<SendOutlined />}
-              onClick={() => handleSendForm(record)}
-            />
-          </Tooltip>
-          {/* Allow delete for drafts and finalized forms, but not for sent/filed forms */}
-          {(record.status === 'draft' || record.status === 'finalized') && (
-            <DeleteConfirmButton
-              entityName={record.status === 'draft' ? 'draft' : 'form'}
-              description={
-                record.status === 'draft' 
-                  ? "This draft will be permanently deleted. This action cannot be undone."
-                  : "This finalized form will be permanently deleted. This action cannot be undone."
-              }
-              onConfirm={() => handleDeleteForm(record.id)}
-              type="text"
-              buttonProps={{ 
-                title: record.status === 'draft' ? "Delete Draft" : "Delete Form"
-              }}
-              popconfirmProps={{
-                okText: "Yes, Delete",
-                cancelText: "Cancel"
-              }}
-            />
-          )}
-        </Space>
+                  size="sm"
+                  color="failure"
+                  title={record.status === 'draft' ? "Delete Draft" : "Delete Form"}
+                >
+                  <HiTrash className="h-4 w-4" />
+                </Button>
+              </FlowbitePopconfirm>
+            )}
+          </div>
         );
       },
-      sorter: false, // Disable sorting for actions
       fixed: 'right'
     }
   ];
 
-  // Configure columns with standard settings (sorting, center alignment, resizable)
+  // Configure columns
   const columns = configureTableColumns(baseColumns);
   
   // Use resizable table hook
@@ -895,44 +742,48 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
     defaultSort: { field: 'generatedAt', order: 'descend' },
   });
 
-  // No need for client-side filtering - table handles it via column filters
-
   const statsData = [
     {
       title: 'Total Forms',
       value: Array.isArray(forms) ? forms.length : 0,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
     },
     {
       title: 'Drafts',
       value: Array.isArray(forms) ? forms.filter(f => f?.status === 'draft').length : 0,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
     {
       title: 'Finalized',
       value: Array.isArray(forms) ? forms.filter(f => f?.status === 'finalized').length : 0,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Sent',
       value: Array.isArray(forms) ? forms.filter(f => f?.status === 'sent').length : 0,
-      prefix: <SendOutlined />,
+      prefix: <HiPaperAirplane className="h-5 w-5" />,
       valueStyle: { color: '#1890ff' },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><FileTextOutlined /> Generated Forms</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiDocumentText className="h-5 w-5" />
+          <span>Generated Forms</span>
+        </div>
+      }
       headerActions={[
         <Button
           key="generate"
-          type="primary"
-          icon={<PlusOutlined />}
+          color="blue"
           onClick={openWizard}
+          className="flex items-center gap-2"
         >
+          <HiPlus className="h-4 w-4" />
           Generate Form
         </Button>
       ]}
@@ -942,339 +793,388 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       {/* Generated Forms Table */}
       <Card>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <Spin size="large" />
+          <div className="text-center py-12">
+            <Spinner size="xl" />
           </div>
         ) : !Array.isArray(forms) || forms.length === 0 ? (
-          <Empty
-            image={<FileTextOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
-            description="No forms generated yet"
-          >
-            <Button type="primary" icon={<PlusOutlined />} onClick={openWizard}>
+          <div className="text-center py-12">
+            <HiDocumentText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 mb-4">No forms generated yet</p>
+            <Button color="blue" onClick={openWizard} className="flex items-center gap-2 mx-auto">
+              <HiPlus className="h-4 w-4" />
               Generate Your First Form
             </Button>
-          </Empty>
+          </div>
         ) : (
           <TableWrapper>
-            <Table
+            <FlowbiteTable
               {...tableProps}
               dataSource={Array.isArray(forms) ? forms : []}
               rowKey="id"
               pagination={{ pageSize: 20 }}
-              scroll={{ x: 1200 }}
             />
           </TableWrapper>
         )}
       </Card>
 
-      {/* Form Generation - Single Screen */}
+      {/* Form Generation Modal with Flowbite Pro styling */}
       <Modal
-        title={selectedFormType ? `Generate ${selectedFormType}` : "Generate Legal Form"}
-        open={wizardOpen}
-        onCancel={closeWizard}
-        width={900}
-        footer={null}
+        show={wizardOpen}
+        onClose={closeWizard}
+        size="4xl"
+        className="[&>div]:rounded-lg"
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Step 1: Select Form Type (Dropdown) */}
-          <div>
-            <Title level={5} style={{ marginBottom: 8 }}>Select Form Type:</Title>
-            <Select
-              style={{ width: '100%' }}
-              placeholder="Choose the form you need"
-              value={selectedFormType}
-              onChange={(value) => {
-                setSelectedFormType(value);
-                setSelectedProperty(null);
-                setSelectedTenant(null);
-                setTenantRentData(null);
-                form.resetFields();
-              }}
-              options={Array.isArray(formTypes) ? formTypes.map(ft => ({
-                value: ft?.value,
-                label: (
-                  <Space>
-                    <Tag color={ft?.urgent ? 'red' : 'blue'}>{ft?.value || 'N/A'}</Tag>
-                    {ft?.urgent && <Tag color="orange">Urgent</Tag>}
-                    <Text>{ft?.label || 'N/A'}</Text>
-                  </Space>
-                )
-              })) : []}
-            />
+        <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center justify-between w-full">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <HiDocumentText className="h-6 w-6 text-blue-600" />
+              {selectedFormType ? `Generate ${selectedFormType}` : "Generate Legal Form"}
+            </h3>
+            <button
+              onClick={closeWizard}
+              className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
+            >
+              <HiX className="h-5 w-5" />
+              <span className="sr-only">Close modal</span>
+            </button>
           </div>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          <div className="space-y-6">
+            {/* Step 1: Select Form Type with Flowbite Pro styling */}
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <Label htmlFor="formType" className="mb-3 text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <HiDocumentText className="h-5 w-5 text-blue-600" />
+                Select Form Type:
+              </Label>
+              <Select
+                id="formType"
+                name="formType"
+                value={selectedFormType || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedFormType(value || null);
+                  setSelectedProperty(null);
+                  setSelectedTenant(null);
+                  setTenantRentData(null);
+                  form.resetFields();
+                }}
+                className="w-full"
+              >
+                <option value="">Choose the form you need</option>
+                {Array.isArray(formTypes) ? formTypes.map(ft => (
+                  <option key={ft?.value} value={ft?.value}>
+                    {ft?.value} - {ft?.label}
+                  </option>
+                )) : []}
+              </Select>
+              {selectedFormType && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {formTypes.find(ft => ft.value === selectedFormType)?.description}
+                  </p>
+                </div>
+              )}
+            </div>
 
-          {/* Step 2: Property, Tenant, and Amount Owed - All in one row */}
-          {selectedFormType && (
-            <div>
-              <Row gutter={16}>
-                {/* Property */}
-                <Col span={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 8 : selectedTenant ? 8 : 12}>
-                  <Title level={5} style={{ marginBottom: 8 }}>Property:</Title>
-                  {selectedFormType === 'N4' ? (
-                    !Array.isArray(eligibleProperties) || eligibleProperties.length === 0 ? (
-                      <Alert
-                        message="No properties with tenants who owe rent"
-                        description="N4 forms are only available for properties with tenants who have outstanding balances."
-                        type="warning"
-                        showIcon
-                        style={{ marginBottom: 0 }}
-                      />
-                    ) : (
-                      <Select
-                        showSearch
-                        style={{ width: '100%' }}
-                        placeholder="Select property"
-                        value={selectedProperty}
-                        onChange={(value) => {
-                          setSelectedProperty(value);
-                          setSelectedTenant(null);
-                          setTenantRentData(null);
-                          form.resetFields();
-                        }}
-                        filterOption={(input, option) =>
-                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                        }
-                        options={Array.isArray(eligibleProperties) ? eligibleProperties.map(p => ({
-                          value: p?.id,
-                          label: `${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`
-                        })) : []}
-                      />
-                    )
-                  ) : (
-                    !Array.isArray(properties) || properties.length === 0 ? (
-                      <Alert
-                        message="No properties found"
-                        description="You need to create properties first."
-                        type="info"
-                        showIcon
-                        style={{ marginBottom: 0 }}
-                      />
-                    ) : (
-                      <Select
-                        showSearch
-                        style={{ width: '100%' }}
-                        placeholder="Select property"
-                        value={selectedProperty}
-                        onChange={(value) => {
-                          setSelectedProperty(value);
-                          setSelectedTenant(null);
-                          setTenantRentData(null);
-                          form.resetFields();
-                        }}
-                        filterOption={(input, option) =>
-                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                        }
-                        options={Array.isArray(properties) ? properties.map(p => ({
-                          value: p?.id,
-                          label: `${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`
-                        })) : []}
-                      />
-                    )
-                  )}
-                </Col>
-
-                {/* Tenant */}
-                {selectedProperty && (
-                  <Col span={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 8 : 12}>
-                    <Title level={5} style={{ marginBottom: 8 }}>Select Tenant:</Title>
+            {/* Step 2: Property, Tenant, and Amount Owed */}
+            {selectedFormType && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-12 gap-4">
+                  {/* Property */}
+                  <div className={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 'col-span-4' : selectedTenant ? 'col-span-4' : 'col-span-6'}>
+                    <Label className="mb-2 text-base font-semibold">Property:</Label>
                     {selectedFormType === 'N4' ? (
-                      (() => {
-                        // Filter tenants by selected property
-                        const filteredTenants = Array.isArray(tenantsWithBalance) ? tenantsWithBalance.filter(t => 
-                          t?.property && t.property.id === selectedProperty
-                        ) : [];
-                        
-                        if (!Array.isArray(filteredTenants) || filteredTenants.length === 0) {
-                          return (
-                            <Alert
-                              message="No tenants with outstanding balance for this property"
-                              description="This property has no tenants who owe rent."
-                              type="warning"
-                              showIcon
-                              style={{ marginBottom: 0 }}
-                            />
-                          );
-                        }
-                        
-                        return (
-                          <Select
-                            showSearch
-                            style={{ width: '100%' }}
-                            placeholder="Search by tenant name"
-                            value={selectedTenant}
-                            onChange={handleTenantSelect}
-                            filterOption={(input, option) =>
-                              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                            }
-                            options={Array.isArray(filteredTenants) ? filteredTenants.map(t => ({
-                              value: t?.id,
-                              label: formatTenantName(t)
-                            })) : []}
-                          />
-                        );
-                      })()
-                    ) : (
-                      !Array.isArray(tenants) || tenants.length === 0 ? (
-                        <Alert
-                          message="No tenants found"
-                          description="You need to create tenants first."
-                          type="info"
-                          showIcon
-                          style={{ marginBottom: 0 }}
-                          action={
-                            <Button 
-                              size="small" 
-                              type="primary"
-                              onClick={() => router.push('/tenants')}
-                            >
-                              Go to Tenants
-                            </Button>
-                          }
-                        />
+                      !Array.isArray(eligibleProperties) || eligibleProperties.length === 0 ? (
+                        <Alert color="warning" className="mb-0">
+                          <div>
+                            <p className="font-semibold">No properties with tenants who owe rent</p>
+                            <p className="text-sm">N4 forms are only available for properties with tenants who have outstanding balances.</p>
+                          </div>
+                        </Alert>
                       ) : (
                         <Select
-                          showSearch
-                          style={{ width: '100%' }}
-                          placeholder="Search by tenant name or email"
-                          value={selectedTenant}
-                          onChange={handleTenantSelect}
-                          filterOption={(input, option) =>
-                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                          }
-                          options={Array.isArray(tenants) ? tenants.map(t => ({
-                            value: t?.id,
-                            label: formatTenantName(t, tenants)
-                          })) : []}
-                        />
+                          value={selectedProperty || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSelectedProperty(value || null);
+                            setSelectedTenant(null);
+                            setTenantRentData(null);
+                            form.resetFields();
+                          }}
+                        >
+                          <option value="">Select property</option>
+                          {Array.isArray(eligibleProperties) ? eligibleProperties.map(p => (
+                            <option key={p?.id} value={p?.id}>
+                              {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
+                            </option>
+                          )) : []}
+                        </Select>
+                      )
+                    ) : (
+                      !Array.isArray(properties) || properties.length === 0 ? (
+                        <Alert color="info" className="mb-0">
+                          <div>
+                            <p className="font-semibold">No properties found</p>
+                            <p className="text-sm">You need to create properties first.</p>
+                          </div>
+                        </Alert>
+                      ) : (
+                        <Select
+                          value={selectedProperty || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSelectedProperty(value || null);
+                            setSelectedTenant(null);
+                            setTenantRentData(null);
+                            form.resetFields();
+                          }}
+                        >
+                          <option value="">Select property</option>
+                          {Array.isArray(properties) ? properties.map(p => (
+                            <option key={p?.id} value={p?.id}>
+                              {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
+                            </option>
+                          )) : []}
+                        </Select>
                       )
                     )}
-                  </Col>
-                )}
-                
-                {/* Amount Owed - Show after tenant selection on same line */}
-                {selectedTenant && tenantRentData && selectedFormType === 'N4' && (
-                  <Col span={8}>
-                    <Title level={5} style={{ marginBottom: 8 }}>Amount Owed:</Title>
-                    <Input
-                      value={`$${formatAmount(tenantRentData.totalArrears || 0)}`}
-                      readOnly
-                      style={{ background: '#f5f5f5', fontWeight: 600 }}
-                    />
-                  </Col>
-                )}
-              </Row>
-            </div>
-          )}
+                  </div>
 
-          {/* Form Details - Always visible */}
-          {selectedFormType && selectedProperty && selectedTenant && (
-            <div>
-              {selectedFormType === 'N4' && tenantRentData && tenantRentData.unpaidCount > 0 && (
-                <Alert
-                  message="Rent Arrears Detected"
-                  description={
-                    <div>
-                      <Text strong>Total Arrears: ${formatAmount(tenantRentData.totalArrears || 0)}</Text>
+                  {/* Tenant */}
+                  {selectedProperty && (
+                    <div className={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 'col-span-4' : 'col-span-6'}>
+                      <Label className="mb-2 text-base font-semibold">Select Tenant:</Label>
+                      {selectedFormType === 'N4' ? (
+                        (() => {
+                          const filteredTenants = Array.isArray(tenantsWithBalance) ? tenantsWithBalance.filter(t => 
+                            t?.property && t.property.id === selectedProperty
+                          ) : [];
+                          
+                          if (!Array.isArray(filteredTenants) || filteredTenants.length === 0) {
+                            return (
+                              <Alert color="warning" className="mb-0">
+                                <div>
+                                  <p className="font-semibold">No tenants with outstanding balance for this property</p>
+                                  <p className="text-sm">This property has no tenants who owe rent.</p>
+                                </div>
+                              </Alert>
+                            );
+                          }
+                          
+                          return (
+                            <Select
+                              value={selectedTenant || ''}
+                              onChange={(e) => handleTenantSelect(e.target.value)}
+                            >
+                              <option value="">Search by tenant name</option>
+                              {Array.isArray(filteredTenants) ? filteredTenants.map(t => (
+                                <option key={t?.id} value={t?.id}>
+                                  {formatTenantName(t)}
+                                </option>
+                              )) : []}
+                            </Select>
+                          );
+                        })()
+                      ) : (
+                        !Array.isArray(tenants) || tenants.length === 0 ? (
+                          <Alert color="info" className="mb-0">
+                            <div>
+                              <p className="font-semibold">No tenants found</p>
+                              <p className="text-sm">You need to create tenants first.</p>
+                              <Button
+                                size="sm"
+                                color="blue"
+                                onClick={() => router.push('/tenants')}
+                                className="mt-2"
+                              >
+                                Go to Tenants
+                              </Button>
+                            </div>
+                          </Alert>
+                        ) : (
+                          <Select
+                            value={selectedTenant || ''}
+                            onChange={(e) => handleTenantSelect(e.target.value)}
+                          >
+                            <option value="">Search by tenant name or email</option>
+                            {Array.isArray(tenants) ? tenants.map(t => (
+                              <option key={t?.id} value={t?.id}>
+                                {formatTenantName(t, tenants)}
+                              </option>
+                            )) : []}
+                          </Select>
+                        )
+                      )}
                     </div>
-                  }
-                  type="warning"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-              )}
-              
-              <Form form={form} layout="vertical">
-                {selectedFormType === 'N4' && (
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="arrearsStartDate"
-                        label="Arrears Start Date"
-                        tooltip="Day after rent was first due and unpaid"
-                      >
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="terminationDate"
-                        label="Termination Date"
-                        tooltip="15 days from today (standard notice period)"
-                      >
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  )}
+                  
+                  {/* Amount Owed */}
+                  {selectedTenant && tenantRentData && selectedFormType === 'N4' && (
+                    <div className="col-span-4">
+                      <Label className="mb-2 text-base font-semibold">Amount Owed:</Label>
+                      <TextInput
+                        value={`$${formatAmount(tenantRentData.totalArrears || 0)}`}
+                        readOnly
+                        className="bg-gray-100 font-semibold"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Form Details */}
+            {selectedFormType && selectedProperty && selectedTenant && (
+              <div className="space-y-4">
+                {selectedFormType === 'N4' && tenantRentData && tenantRentData.unpaidCount > 0 && (
+                  <Alert color="warning">
+                    <div>
+                      <p className="font-semibold">Rent Arrears Detected</p>
+                      <p className="text-sm">Total Arrears: ${formatAmount(tenantRentData.totalArrears || 0)}</p>
+                    </div>
+                  </Alert>
                 )}
                 
-                {selectedFormType === 'N5' && (
-                  <>
-                    <Form.Item
-                      name="misconductDetails"
-                      label="Misconduct Details"
-                      rules={[rules.required('Misconduct Details')]}
-                    >
-                      <TextArea rows={4} placeholder="Describe the misconduct..." />
-                    </Form.Item>
-                    <Form.Item
-                      name="incidentDate"
-                      label="Incident Date"
-                    >
-                      <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-                  </>
-                )}
-                
-                {selectedFormType === 'N12' && (
-                  <>
-                    <Form.Item
-                      name="personMovingIn"
-                      label="Person Moving In"
-                    >
-                      <Input placeholder="e.g., Myself, My son" />
-                    </Form.Item>
-                    <Form.Item
-                      name="relationshipToLandlord"
-                      label="Relationship to Landlord"
-                    >
-                      <Select>
-                        <Select.Option value="Self">Self</Select.Option>
-                        <Select.Option value="Spouse">Spouse</Select.Option>
-                        <Select.Option value="Child">Child</Select.Option>
-                        <Select.Option value="Parent">Parent</Select.Option>
-                      </Select>
-                    </Form.Item>
-                  </>
-                )}
+                <form className="space-y-4">
+                  {selectedFormType === 'N4' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="arrearsStartDate" className="mb-2">
+                          Arrears Start Date
+                          <Tooltip content="Day after rent was first due and unpaid">
+                            <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+                          </Tooltip>
+                        </Label>
+                        <TextInput
+                          id="arrearsStartDate"
+                          name="arrearsStartDate"
+                          type="date"
+                          value={form.values.arrearsStartDate || ''}
+                          onChange={(e) => form.setFieldsValue({ arrearsStartDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="terminationDate" className="mb-2">
+                          Termination Date
+                          <Tooltip content="15 days from today (standard notice period)">
+                            <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
+                          </Tooltip>
+                        </Label>
+                        <TextInput
+                          id="terminationDate"
+                          name="terminationDate"
+                          type="date"
+                          value={form.values.terminationDate || ''}
+                          onChange={(e) => form.setFieldsValue({ terminationDate: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedFormType === 'N5' && (
+                    <>
+                      <div>
+                        <Label htmlFor="misconductDetails" className="mb-2">
+                          Misconduct Details <span className="text-red-500">*</span>
+                        </Label>
+                        <Textarea
+                          id="misconductDetails"
+                          name="misconductDetails"
+                          rows={4}
+                          placeholder="Describe the misconduct..."
+                          value={form.values.misconductDetails || ''}
+                          onChange={(e) => form.setFieldsValue({ misconductDetails: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="incidentDate" className="mb-2">Incident Date</Label>
+                        <TextInput
+                          id="incidentDate"
+                          name="incidentDate"
+                          type="date"
+                          value={form.values.incidentDate || ''}
+                          onChange={(e) => form.setFieldsValue({ incidentDate: e.target.value })}
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {selectedFormType === 'N12' && (
+                    <>
+                      <div>
+                        <Label htmlFor="personMovingIn" className="mb-2">Person Moving In</Label>
+                        <TextInput
+                          id="personMovingIn"
+                          name="personMovingIn"
+                          placeholder="e.g., Myself, My son"
+                          value={form.values.personMovingIn || ''}
+                          onChange={(e) => form.setFieldsValue({ personMovingIn: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="relationshipToLandlord" className="mb-2">Relationship to Landlord</Label>
+                        <Select
+                          id="relationshipToLandlord"
+                          name="relationshipToLandlord"
+                          value={form.values.relationshipToLandlord || ''}
+                          onChange={(e) => form.setFieldsValue({ relationshipToLandlord: e.target.value })}
+                        >
+                          <option value="">Select relationship</option>
+                          <option value="Self">Self</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Child">Child</option>
+                          <option value="Parent">Parent</option>
+                        </Select>
+                      </div>
+                    </>
+                  )}
 
-                <Form.Item
-                  name="notes"
-                  label="Additional Notes"
-                >
-                  <TextArea rows={3} placeholder="Any additional information..." />
-                </Form.Item>
-              </Form>
-            </div>
-          )}
+                  <div>
+                    <Label htmlFor="notes" className="mb-2">Additional Notes</Label>
+                    <Textarea
+                      id="notes"
+                      name="notes"
+                      rows={3}
+                      placeholder="Any additional information..."
+                      value={form.values.notes || ''}
+                      onChange={(e) => form.setFieldsValue({ notes: e.target.value })}
+                    />
+                  </div>
+                </form>
+              </div>
+            )}
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginTop: 16 }}>
-            <Button onClick={closeWizard}>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center justify-between w-full">
+            <Button color="gray" onClick={closeWizard} className="min-w-[100px]">
               Cancel
             </Button>
             {selectedFormType && selectedProperty && selectedTenant && (
               <Button
-                type="primary"
-                icon={<EyeOutlined />}
-                size="large"
+                color="blue"
                 onClick={handleReviewPDF}
-                loading={generating}
+                disabled={generating}
+                className="min-w-[150px] flex items-center justify-center gap-2"
               >
-                Review PDF
+                {generating ? (
+                  <>
+                    <Spinner size="sm" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <HiEye className="h-4 w-4" />
+                    Review PDF
+                  </>
+                )}
               </Button>
             )}
           </div>
-        </Space>
+        </Modal.Footer>
       </Modal>
 
       {/* PDF Viewer Modal */}
@@ -1284,7 +1184,6 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         pdfUrl={pdfViewerUrl}
         onClose={() => {
           setPdfViewerOpen(false);
-          // Clean up blob URL to prevent memory leaks
           if (pdfViewerUrl) {
             URL.revokeObjectURL(pdfViewerUrl);
             setPdfViewerUrl(null);
@@ -1305,12 +1204,11 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         height={750}
       />
 
-      {/* Signing Flow Modal - DocuSign-like Experience */}
+      {/* Signing Flow Modal */}
       <SigningFlow
         open={signingFlowOpen}
         onClose={() => {
           closeSigningFlow();
-          // Refresh forms list when closing signing flow
           loadData();
         }}
         formId={signingForm?.id}

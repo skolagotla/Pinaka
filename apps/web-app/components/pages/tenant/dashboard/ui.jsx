@@ -4,52 +4,26 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { formatCurrency, getCurrencyFromCountry, formatAmount } from '@/lib/currency-utils';
 import { getOrdinal, formatRelativeTime, getStatusColor } from '@/lib/utils/dashboard-helpers';
-import {
-  Row,
-  Col,
-  Card,
-  Statistic,
-  Typography,
-  Space,
-  Button,
-  Avatar,
-  Tag,
-  Progress,
-  Divider,
-  Alert,
-  List,
-  Skeleton,
-  Collapse,
-} from 'antd';
-// Lazy load ProCard to reduce initial bundle size
-import { ProCard } from '@/components/shared/LazyProComponents';
+import { Card, Button, Badge, Alert, Progress, Avatar, Accordion, Spinner } from 'flowbite-react';
+import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import OptimizedButton from '@/components/shared/OptimizedButton';
-// Dynamically import charts to reduce initial bundle size
-import dynamic from 'next/dynamic';
-const Bar = dynamic(() => import('@ant-design/charts').then(mod => mod.Bar), { ssr: false });
+import PaymentHistoryChart from '@/components/charts/PaymentHistoryChart';
 import {
-  HomeOutlined,
-  ReconciliationOutlined,
-  ToolOutlined,
-  LockOutlined,
-  CalendarOutlined,
-  RiseOutlined,
-  WarningOutlined,
-  UserOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  WalletOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  ArrowRightOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
-
-// Helper functions now imported from shared utilities
+  HiHome,
+  HiDocumentText,
+  HiCog,
+  HiLockClosed,
+  HiCalendar,
+  HiTrendingUp,
+  HiExclamation,
+  HiUser,
+  HiMail,
+  HiPhone,
+  HiCheckCircle,
+  HiClock,
+  HiArrowRight,
+  HiRefresh,
+} from 'react-icons/hi';
 
 export default function TenantDashboardClient({ tenant, landlord, stats, loading = false }) {
   const router = useRouter();
@@ -84,7 +58,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
     if (stats.overdueRentAmount > 0) {
       insights.push({
         priority: 1,
-        type: 'error',
+        type: 'failure',
         title: 'Overdue Rent Payment',
         description: `You have ${Object.keys(stats.overdueByCurrency).map(curr => `$${formatAmount(stats.overdueByCurrency[curr])} ${curr}`).join(', ')} in overdue rent`,
         action: {
@@ -125,628 +99,566 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
     }
 
     return insights.sort((a, b) => a.priority - b.priority);
-  }, [stats, router]);
+  }, [stats, router, tenant]);
 
   // Quick actions
   const quickActions = [
     {
       label: "Contact Landlord",
-      icon: <MailOutlined />,
+      icon: <HiMail className="h-5 w-5" />,
       onClick: () => landlord && (window.location.href = `mailto:${landlord.email}`),
       primary: true,
     },
     {
       label: "Submit Maintenance",
-      icon: <ToolOutlined />,
+      icon: <HiCog className="h-5 w-5" />,
       onClick: () => router.push("/operations?tab=maintenance"),
     },
     {
       label: "View Receipts",
-      icon: <ReconciliationOutlined />,
+      icon: <HiDocumentText className="h-5 w-5" />,
       onClick: () => router.push("/payments"),
     },
     {
       label: "My Documents",
-      icon: <LockOutlined />,
+      icon: <HiLockClosed className="h-5 w-5" />,
       onClick: () => router.push("/library"),
     },
   ];
 
-  // Chart configuration
-  const paymentHistoryConfig = stats.monthlyPayments && stats.monthlyPayments.length > 0 && stats.monthlyPayments.some(mp => mp.amount > 0) ? {
-    data: stats.monthlyPayments,
-    xField: 'month',
-    yField: 'amount',
-    color: '#52c41a',
-    xAxis: {
-      title: {
-        text: 'Month',
-        style: { fontSize: 12 },
-      },
-    },
-    yAxis: {
-      title: {
-        text: 'Amount Paid ($)',
-        style: { fontSize: 12 },
-      },
-      label: {
-        formatter: (v) => `$${(v / 1000).toFixed(0)}K`,
-      },
-    },
-  } : null;
+  // Chart data for payment history
+  const paymentHistoryData = stats.monthlyPayments && stats.monthlyPayments.length > 0 && stats.monthlyPayments.some(mp => mp.amount > 0) 
+    ? stats.monthlyPayments 
+    : null;
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px' }}>
-        <Skeleton active paragraph={{ rows: 2 }} style={{ marginBottom: 32 }} />
-        <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-          {[1, 2, 3].map(i => (
-            <Col xs={24} sm={12} md={8} key={i}>
-              <ProCard>
-                <Skeleton active />
-              </ProCard>
-            </Col>
-          ))}
-        </Row>
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <Card key={i} className="h-32">
+                <div className="h-20 bg-gray-200 rounded"></div>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Header with Flowbite Pro styling */}
+      <div className="flex justify-between items-center flex-wrap gap-4 mb-8">
         <div>
-          <Title level={2} style={{ marginBottom: 8 }}>
-            Welcome back, {tenant.firstName}!
-          </Title>
-          <Text type="secondary" style={{ fontSize: 16 }}>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <HiHome className="h-8 w-8 text-blue-600" />
+            Welcome back, <span className="text-blue-600">{tenant.firstName}</span>!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
             Your rental information and account overview
-          </Text>
+          </p>
         </div>
-        <Button 
-          icon={<ReloadOutlined />} 
-          onClick={() => window.location.reload()}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button color="light" size="sm" onClick={() => router.push('/payments')}>
+            <HiCurrencyDollar className="h-4 w-4 mr-1" />
+            Payments
+          </Button>
+          <Button color="gray" size="sm" onClick={() => window.location.reload()}>
+            <HiRefresh className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Actionable Insights */}
+      {/* Actionable Insights with Flowbite Pro enhanced styling */}
       {actionableInsights.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <Title level={4} style={{ marginBottom: 16 }}>
-            Action Required
-          </Title>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Action Required</h2>
+            <Badge color="red" size="sm">{actionableInsights.length} items</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {actionableInsights.map((insight, index) => (
-              <Alert
+              <Card 
                 key={index}
-                message={
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <Text strong style={{ display: 'block', marginBottom: 4 }}>
-                        {insight.title}
-                      </Text>
-                      <Text type="secondary">{insight.description}</Text>
+                className={`border-l-4 ${
+                  insight.type === 'failure' ? 'border-l-red-500 bg-red-50 dark:bg-red-900/10' :
+                  insight.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/10' :
+                  'border-l-blue-500 bg-blue-50 dark:bg-blue-900/10'
+                } hover:shadow-lg transition-shadow duration-200`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {insight.type === 'failure' && <HiExclamation className="h-5 w-5 text-red-600" />}
+                      {insight.type === 'warning' && <HiClock className="h-5 w-5 text-yellow-600" />}
+                      {insight.type === 'info' && <HiCheckCircle className="h-5 w-5 text-blue-600" />}
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{insight.title}</h3>
                     </div>
-                    <Button 
-                      type={insight.type === 'error' ? 'primary' : 'default'}
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{insight.description}</p>
+                    <Button
+                      color={insight.type === 'failure' ? 'failure' : 'gray'}
+                      size="sm"
                       onClick={insight.action.onClick}
-                      icon={<ArrowRightOutlined />}
+                      className="flex items-center gap-2"
                     >
                       {insight.action.label}
+                      <HiArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
-                }
-                type={insight.type}
-                showIcon
-                style={{ borderRadius: 8 }}
-              />
+                </div>
+              </Card>
             ))}
-          </Space>
+          </div>
         </div>
       )}
 
       {/* Active Lease Information - Most Important */}
       {activeLease && (
-        <div style={{ marginBottom: 32 }}>
-          <Title level={4} style={{ marginBottom: 16 }}>
-            Your Rental Home
-          </Title>
-          <ProCard>
-            <Row gutter={[24, 24]}>
-              <Col xs={24} md={12}>
-                <div>
-                  <Title level={5} style={{ marginBottom: 8, color: '#1f2937' }}>
-                    {activeLease.unit.property.addressLine1}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 12 }}>
-                    {activeLease.unit.property.city}, {activeLease.unit.property.provinceState} {activeLease.unit.property.postalZip}
-                  </Text>
-                  <Tag color="blue">Unit: {activeLease.unit.unitName}</Tag>
-                </div>
-              </Col>
-              <Col xs={24} md={12}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={8}>
-                    <ProCard size="small" style={{ textAlign: 'center' }}>
-                      <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-                        Monthly Rent
-                      </Text>
-                      <Title level={5} style={{ color: '#52c41a', margin: '8px 0', fontWeight: 700 }}>
-                        {formatAmount(activeLease.rentAmount)}
-                      </Title>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {getCurrencyFromCountry(activeLease.unit.property.country)}
-                      </Text>
-                    </ProCard>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <ProCard size="small" style={{ textAlign: 'center' }}>
-                      <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-                        Due Day
-                      </Text>
-                      <Title level={5} style={{ color: '#1890ff', margin: '8px 0', fontWeight: 700 }}>
-                        {getOrdinal(activeLease.rentDueDay)}
-                      </Title>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        of each month
-                      </Text>
-                    </ProCard>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <ProCard size="small" style={{ textAlign: 'center' }}>
-                      <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
-                        Next Due
-                      </Text>
-                      <Title level={5} style={{ color: '#faad14', margin: '8px 0', fontWeight: 700 }}>
-                        {stats.daysUntilNextRent || 'N/A'}
-                      </Title>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {stats.daysUntilNextRent ? 'days' : ''}
-                      </Text>
-                    </ProCard>
-                  </Col>
-                </Row>
-              </Col>
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Rental Home</h2>
+          <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {activeLease.unit.property.addressLine1}
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  {activeLease.unit.property.city}, {activeLease.unit.property.provinceState} {activeLease.unit.property.postalZip}
+                </p>
+                <Badge color="blue">Unit: {activeLease.unit.unitName}</Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="text-center">
+                  <p className="text-xs uppercase text-gray-500 mb-2">Monthly Rent</p>
+                  <p className="text-lg font-bold text-green-600 mb-1">
+                    {formatAmount(activeLease.rentAmount)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {getCurrencyFromCountry(activeLease.unit.property.country)}
+                  </p>
+                </Card>
+                <Card className="text-center">
+                  <p className="text-xs uppercase text-gray-500 mb-2">Due Day</p>
+                  <p className="text-lg font-bold text-blue-600 mb-1">
+                    {getOrdinal(activeLease.rentDueDay)}
+                  </p>
+                  <p className="text-xs text-gray-500">of each month</p>
+                </Card>
+                <Card className="text-center">
+                  <p className="text-xs uppercase text-gray-500 mb-2">Next Due</p>
+                  <p className="text-lg font-bold text-yellow-600 mb-1">
+                    {stats.daysUntilNextRent || 'N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {stats.daysUntilNextRent ? 'days' : ''}
+                  </p>
+                </Card>
+              </div>
               {landlord && (
-                <Col xs={24}>
-                  <Divider style={{ margin: '16px 0' }} />
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    flexWrap: 'wrap', 
-                    gap: 16,
-                  }}>
-                    <Space size="large">
-                      <Avatar size={48} style={{ backgroundColor: '#1890ff' }}>
-                        <UserOutlined />
+                <div className="col-span-2 border-t border-gray-200 pt-6 mt-6">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar size="lg" rounded className="bg-blue-600">
+                        <HiUser className="h-6 w-6 text-white" />
                       </Avatar>
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
-                          Your Landlord
-                        </Text>
-                        <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
+                        <p className="text-xs uppercase text-gray-500 mb-1">Your Landlord</p>
+                        <p className="font-semibold text-gray-900 mb-1">
                           {landlord.firstName} {landlord.lastName}
-                        </Text>
-                        <Space split={<Divider type="vertical" />} size="small">
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            <MailOutlined /> {landlord.email}
-                          </Text>
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <HiMail className="h-3 w-3" />
+                            {landlord.email}
+                          </span>
                           {landlord.phone && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              <PhoneOutlined /> {landlord.phone}
-                            </Text>
+                            <span className="flex items-center gap-1">
+                              <HiPhone className="h-3 w-3" />
+                              {landlord.phone}
+                            </span>
                           )}
-                        </Space>
+                        </div>
                       </div>
-                    </Space>
-                    <Button 
-                      type="primary"
-                      icon={<MailOutlined />}
+                    </div>
+                    <Button
+                      color="blue"
                       onClick={() => window.location.href = `mailto:${landlord.email}`}
+                      className="flex items-center gap-2"
                     >
+                      <HiMail className="h-4 w-4" />
                       Contact Landlord
                     </Button>
                   </div>
-                </Col>
+                </div>
               )}
-            </Row>
-          </ProCard>
+            </div>
+          </Card>
         </div>
       )}
 
       {/* No Active Lease */}
       {!activeLease && (
-        <ProCard style={{ marginBottom: 32, textAlign: 'center' }}>
-          <Title level={5} type="secondary" style={{ marginBottom: 8 }}>
-            No Active Leases
-          </Title>
-          <Text type="secondary">
+        <Card className="mb-8 text-center">
+          <h3 className="text-lg font-semibold text-gray-500 mb-2">No Active Leases</h3>
+          <p className="text-gray-600">
             You don't have any active leases at the moment.
-          </Text>
-        </ProCard>
+          </p>
+        </Card>
       )}
 
-      {/* Quick Actions */}
-      <div style={{ marginBottom: 32 }}>
-        <Title level={4} style={{ marginBottom: 16 }}>
-          Quick Actions
-        </Title>
-        <Row gutter={[16, 16]}>
+      {/* Quick Actions with Flowbite Pro enhanced styling */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
+          <Button color="light" size="sm" className="text-sm">
+            View All
+            <HiArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
-            <Col xs={24} sm={12} md={6} key={index}>
-              <OptimizedButton
-                block
-                size="large"
-                type={action.primary ? 'primary' : 'default'}
-                icon={action.icon}
-                onClick={action.onClick}
-                style={{ height: 56, fontSize: 15, fontWeight: 500 }}
-              >
-                {action.label}
-              </OptimizedButton>
-            </Col>
+            <Card
+              key={index}
+              className={`cursor-pointer hover:shadow-xl transition-all duration-200 border-2 ${
+                action.primary 
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-600' 
+                  : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+              } group`}
+              onClick={action.onClick}
+            >
+              <div className="flex flex-col items-center justify-center gap-3 h-20">
+                <div className={`p-3 rounded-xl ${
+                  action.primary 
+                    ? 'bg-blue-100 dark:bg-blue-900/40 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/60' 
+                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                } transition-colors`}>
+                  {action.icon}
+                </div>
+                <span className={`text-sm font-semibold ${
+                  action.primary 
+                    ? 'text-blue-700 dark:text-blue-300' 
+                    : 'text-gray-700 dark:text-gray-300'
+                }`}>
+                  {action.label}
+                </span>
+              </div>
+            </Card>
           ))}
-        </Row>
+        </div>
       </div>
 
       {/* Financial Summary */}
-      <Title level={4} style={{ marginBottom: 16 }}>
-        Financial Summary
-      </Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard 
-            hoverable
-            onClick={() => router.push('/payments')}
-            style={{ cursor: 'pointer' }}
-          >
-            <Statistic
-              title="Next Payment"
-              value={stats.daysUntilNextRent || 'N/A'}
-              suffix={stats.daysUntilNextRent ? "days" : ""}
-              prefix={<CalendarOutlined style={{ color: stats.daysUntilNextRent && stats.daysUntilNextRent <= 7 ? '#faad14' : '#1890ff' }} />}
-            />
-            {stats.nextRentAmount && (
-              <div style={{ marginTop: 12 }}>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  Amount: {formatAmount(stats.nextRentAmount)}
-                </Text>
-              </div>
-            )}
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard 
-            hoverable
-            onClick={() => router.push('/payments')}
-            style={{ cursor: 'pointer' }}
-          >
-            <Statistic
-              title="Paid This Year"
-              value={stats.totalPaidThisYear > 0 ? `$${formatAmount(stats.totalPaidThisYear)}` : '$0'}
-              prefix={<WalletOutlined style={{ color: '#52c41a' }} />}
-            />
-            {activeLease && (
-              <div style={{ marginTop: 12 }}>
-                <Text type="secondary" style={{ fontSize: 13 }}>
-                  {getCurrencyFromCountry(activeLease.unit.property.country)}
-                </Text>
-              </div>
-            )}
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard>
-            <Statistic
-              title="Lease Progress"
-              value={stats.leaseProgress || 'N/A'}
-              suffix={stats.leaseProgress ? "%" : ""}
-              prefix={<RiseOutlined style={{ color: '#13c2c2' }} />}
-            />
-            {stats.leaseProgress && (
-              <div style={{ marginTop: 12 }}>
-                <Progress 
-                  percent={parseFloat(stats.leaseProgress)} 
-                  size="small"
-                  strokeColor="#13c2c2"
-                />
-                {stats.daysUntilLeaseEnd && (
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                    {stats.daysUntilLeaseEnd} days remaining
-                  </Text>
-                )}
-              </div>
-            )}
-          </ProCard>
-        </Col>
-      </Row>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Summary</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/payments')}
+        >
+          <FlowbiteStatistic
+            title="Next Payment"
+            value={stats.daysUntilNextRent || 'N/A'}
+            suffix={stats.daysUntilNextRent ? "days" : ""}
+            prefix={<HiCalendar className={`h-6 w-6 ${stats.daysUntilNextRent && stats.daysUntilNextRent <= 7 ? 'text-yellow-500' : 'text-blue-500'}`} />}
+          />
+          {stats.nextRentAmount && (
+            <p className="text-sm text-gray-600 mt-3">
+              Amount: {formatAmount(stats.nextRentAmount)}
+            </p>
+          )}
+        </Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/payments')}
+        >
+          <FlowbiteStatistic
+            title="Paid This Year"
+            value={stats.totalPaidThisYear > 0 ? `$${formatAmount(stats.totalPaidThisYear)}` : '$0'}
+            prefix={<HiCurrencyDollar className="h-6 w-6 text-green-500" />}
+          />
+          {activeLease && (
+            <p className="text-sm text-gray-600 mt-3">
+              {getCurrencyFromCountry(activeLease.unit.property.country)}
+            </p>
+          )}
+        </Card>
+        <Card>
+          <FlowbiteStatistic
+            title="Lease Progress"
+            value={stats.leaseProgress || 'N/A'}
+            suffix={stats.leaseProgress ? "%" : ""}
+            prefix={<HiTrendingUp className="h-6 w-6 text-cyan-500" />}
+          />
+          {stats.leaseProgress && (
+            <div className="mt-3">
+              <Progress 
+                progress={parseFloat(stats.leaseProgress)} 
+                color="cyan"
+                size="sm"
+              />
+              {stats.daysUntilLeaseEnd && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {stats.daysUntilLeaseEnd} days remaining
+                </p>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
 
       {/* Activity Overview */}
-      <Title level={4} style={{ marginBottom: 16 }}>
-        Activity Overview
-      </Title>
-      <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard 
-            hoverable
-            onClick={() => router.push('/payments')}
-            style={{ cursor: 'pointer' }}
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Activity Overview</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/payments')}
+        >
+          <FlowbiteStatistic
+            title="Rent Receipts"
+            value={stats.rentReceiptsCount}
+            prefix={<HiDocumentText className="h-6 w-6 text-green-500" />}
+          />
+          <Button 
+            color="light"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/payments');
+            }}
+            className="mt-3 p-0 h-auto text-blue-600 hover:text-blue-800"
           >
-            <Statistic
-              title="Rent Receipts"
-              value={stats.rentReceiptsCount}
-              prefix={<ReconciliationOutlined style={{ color: '#52c41a' }} />}
-            />
-            <Button 
-              type="link" 
-              size="small" 
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push('/payments');
-              }}
-              style={{ padding: 0, marginTop: 8 }}
-            >
-              View All Receipts →
-            </Button>
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard 
-            hoverable
-            onClick={() => router.push('/library')}
-            style={{ cursor: 'pointer' }}
+            View All Receipts →
+          </Button>
+        </Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/library')}
+        >
+          <FlowbiteStatistic
+            title="My Documents"
+            value={stats.documentsCount + stats.leaseDocumentsCount}
+            prefix={<HiLockClosed className="h-6 w-6 text-cyan-500" />}
+          />
+          <Button 
+            color="light"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/library');
+            }}
+            className="mt-3 p-0 h-auto text-blue-600 hover:text-blue-800"
           >
-            <Statistic
-              title="My Documents"
-              value={stats.documentsCount + stats.leaseDocumentsCount}
-              prefix={<LockOutlined style={{ color: '#13c2c2' }} />}
-            />
-            <Button 
-              type="link" 
-              size="small" 
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push('/library');
-              }}
-              style={{ padding: 0, marginTop: 8 }}
-            >
-              View Documents →
-            </Button>
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <ProCard 
-            hoverable
-            onClick={() => router.push('/operations?tab=maintenance')}
-            style={{ cursor: 'pointer' }}
+            View Documents →
+          </Button>
+        </Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/operations?tab=maintenance')}
+        >
+          <FlowbiteStatistic
+            title="Maintenance"
+            value={`${stats.openMaintenanceCount} / ${stats.maintenanceRequestsCount}`}
+            suffix="Open / Total"
+            prefix={<HiCog className={`h-6 w-6 ${stats.openMaintenanceCount > 0 ? 'text-yellow-500' : 'text-green-500'}`} />}
+          />
+          <Button 
+            color="light"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/operations?tab=maintenance');
+            }}
+            className="mt-3 p-0 h-auto text-blue-600 hover:text-blue-800"
           >
-            <Statistic
-              title="Maintenance"
-              value={`${stats.openMaintenanceCount} / ${stats.maintenanceRequestsCount}`}
-              suffix="Open / Total"
-              prefix={<ToolOutlined style={{ color: stats.openMaintenanceCount > 0 ? '#faad14' : '#52c41a' }} />}
-            />
-            <Button 
-              type="link" 
-              size="small" 
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push('/operations?tab=maintenance');
-              }}
-              style={{ padding: 0, marginTop: 8 }}
-            >
-              View Requests →
-            </Button>
-          </ProCard>
-        </Col>
-      </Row>
+            View Requests →
+          </Button>
+        </Card>
+      </div>
 
       {/* Payment Status - Detailed */}
       {stats.upcomingRentPayment && (
-        <div style={{ marginBottom: 32 }}>
-          <Title level={4} style={{ marginBottom: 16 }}>
-            Payment Status
-          </Title>
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Status</h2>
           <Alert
-            message={
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                <Space size="large">
-                  <Avatar 
-                    size={56} 
-                    style={{ 
-                      backgroundColor: stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? '#ff4d4f' : '#52c41a'
-                    }}
-                  >
+            color={stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? "failure" : "success"}
+            className="rounded-lg"
+          >
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <Avatar 
+                  size="lg" 
+                  rounded
+                  className={stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 'bg-red-500' : 'bg-green-500'}
+                >
+                  {stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 
+                    <HiExclamation className="h-6 w-6 text-white" /> : <HiCurrencyDollar className="h-6 w-6 text-white" />
+                  }
+                </Avatar>
+                <div>
+                  <p className="text-xs uppercase text-gray-500 mb-1">
                     {stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 
-                      <WarningOutlined /> : <WalletOutlined />
+                      'Overdue Payment' : 'Next Payment'
                     }
-                  </Avatar>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
-                      {stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 
-                        'Overdue Payment' : 'Next Payment'
-                      }
-                    </Text>
-                    <Title 
-                      level={4} 
-                      style={{ 
-                        margin: '4px 0',
-                        color: stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 
-                          '#ff4d4f' : '#52c41a'
-                      }}
-                    >
-                      {formatAmount(stats.upcomingRentPayment.amount)} {stats.upcomingRentPayment?.lease?.unit?.property?.country ? getCurrencyFromCountry(stats.upcomingRentPayment.lease.unit.property.country) : ''}
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: 13 }}>
-                      Due: {new Date(stats.upcomingRentPayment.dueDate).toLocaleDateString()}
-                      {stats.upcomingRentPayment.status === 'Partial' && stats.upcomingRentPayment.partialPayments.length > 0 && (
-                        <Tag color="warning" style={{ marginLeft: 8 }}>
-                          Partial: {formatAmount(stats.upcomingRentPayment.partialPayments.reduce((sum, pp) => sum + pp.amount, 0))} paid
-                        </Tag>
-                      )}
-                    </Text>
-                  </div>
-                </Space>
-                {stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() && (
-                  <Tag color="error">Action Required</Tag>
-                )}
+                  </p>
+                  <p className={`text-xl font-bold mb-1 ${
+                    stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? 
+                      'text-red-600' : 'text-green-600'
+                  }`}>
+                    {formatAmount(stats.upcomingRentPayment.amount)} {stats.upcomingRentPayment?.lease?.unit?.property?.country ? getCurrencyFromCountry(stats.upcomingRentPayment.lease.unit.property.country) : ''}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Due: {new Date(stats.upcomingRentPayment.dueDate).toLocaleDateString()}
+                    {stats.upcomingRentPayment.status === 'Partial' && stats.upcomingRentPayment.partialPayments.length > 0 && (
+                      <Badge color="warning" className="ml-2">
+                        Partial: {formatAmount(stats.upcomingRentPayment.partialPayments.reduce((sum, pp) => sum + pp.amount, 0))} paid
+                      </Badge>
+                    )}
+                  </p>
+                </div>
               </div>
-            }
-            type={stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() ? "error" : "success"}
-            showIcon={false}
-            style={{ borderRadius: 8 }}
-          />
+              {stats.upcomingRentPayment.status === 'Unpaid' && new Date(stats.upcomingRentPayment.dueDate) < new Date() && (
+                <Badge color="failure">Action Required</Badge>
+              )}
+            </div>
+          </Alert>
         </div>
       )}
 
       {/* More Details - Collapsible */}
-      <Collapse 
-        ghost
-        style={{ marginBottom: 32 }}
-        items={[
-          {
-            key: 'details',
-            label: (
-              <Title level={4} style={{ margin: 0 }}>
-                More Details & History
-              </Title>
-            ),
-            children: (
-              <div>
-                <Row gutter={[16, 16]}>
-                  {/* Recent Payments */}
-                  {stats.paymentHistory && stats.paymentHistory.length > 0 && (
-                    <Col xs={24} lg={12}>
-                      <ProCard title="Recent Payments">
-                        <List
-                          dataSource={stats.paymentHistory.slice(0, 5)}
-                          renderItem={(payment) => (
-                            <List.Item
-                              onClick={() => router.push('/payments')}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <List.Item.Meta
-                                avatar={
-                                  <Avatar style={{ backgroundColor: '#52c41a' }} icon={<CheckCircleOutlined />} />
-                                }
-                                title={
-                                  <Text strong>
-                                    {formatAmount(payment.amount)} {payment?.lease?.unit?.property?.country ? getCurrencyFromCountry(payment.lease.unit.property.country) : ''}
-                                  </Text>
-                                }
-                                description={
-                                  <Text type="secondary" style={{ fontSize: 12 }}>
-                                    {payment.paidDate ? new Date(payment.paidDate).toLocaleDateString() : 'N/A'}
-                                    {payment.receiptNumber && ` • Receipt #${payment.receiptNumber}`}
-                                  </Text>
-                                }
-                              />
-                            </List.Item>
-                          )}
-                        />
-                        <Button 
-                          block
-                          style={{ marginTop: 16 }}
+      <Accordion className="mb-8">
+        <Accordion.Panel>
+          <Accordion.Title className="text-xl font-semibold">
+            More Details & History
+          </Accordion.Title>
+          <Accordion.Content>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Payments */}
+                {stats.paymentHistory && stats.paymentHistory.length > 0 && (
+                  <Card>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Payments</h3>
+                    <div className="space-y-3">
+                      {stats.paymentHistory.slice(0, 5).map((payment, index) => (
+                        <div
+                          key={index}
                           onClick={() => router.push('/payments')}
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
                         >
-                          View All Receipts
-                        </Button>
-                      </ProCard>
-                    </Col>
-                  )}
-
-                  {/* Lease Information */}
-                  {activeLease && (
-                    <Col xs={24} lg={12}>
-                      <ProCard title="Lease Information">
-                        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Start Date</Text>
-                            <div><Text strong>{new Date(activeLease.leaseStart).toLocaleDateString()}</Text></div>
+                          <Avatar className="bg-green-500">
+                            <HiCheckCircle className="h-5 w-5 text-white" />
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">
+                              {formatAmount(payment.amount)} {payment?.lease?.unit?.property?.country ? getCurrencyFromCountry(payment.lease.unit.property.country) : ''}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {payment.paidDate ? new Date(payment.paidDate).toLocaleDateString() : 'N/A'}
+                              {payment.receiptNumber && ` • Receipt #${payment.receiptNumber}`}
+                            </p>
                           </div>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>End Date</Text>
-                            <div><Text strong>{new Date(activeLease.leaseEnd).toLocaleDateString()}</Text></div>
-                          </div>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Progress</Text>
-                            <Progress 
-                              percent={stats.leaseProgress ? parseFloat(stats.leaseProgress) : 0} 
-                              strokeColor="#1890ff"
-                            />
-                          </div>
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Days Remaining</Text>
-                            <div><Text strong>{stats.daysUntilLeaseEnd || 'N/A'} days</Text></div>
-                          </div>
-                        </Space>
-                      </ProCard>
-                    </Col>
-                  )}
-                </Row>
-
-                {/* Payment History Chart */}
-                {paymentHistoryConfig && (
-                  <ProCard title="Payment History (Last 6 Months)" style={{ marginTop: 16 }}>
-                    <Bar {...paymentHistoryConfig} height={250} />
-                  </ProCard>
+                        </div>
+                      ))}
+                    </div>
+                    <Button 
+                      color="gray"
+                      className="w-full mt-4"
+                      onClick={() => router.push('/payments')}
+                    >
+                      View All Receipts
+                    </Button>
+                  </Card>
                 )}
 
-                {/* Recent Maintenance */}
-                {stats.recentMaintenanceUpdates && stats.recentMaintenanceUpdates.length > 0 && (
-                  <ProCard title="Recent Maintenance Updates" style={{ marginTop: 16 }}>
-                    <List
-                      dataSource={stats.recentMaintenanceUpdates}
-                      renderItem={(req) => (
-                        <List.Item
-                          onClick={() => router.push('/operations?tab=maintenance')}
-                          style={{ cursor: 'pointer' }}
-                          extra={<Tag color={getStatusColor(req.status)}>{req.status}</Tag>}
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              <Avatar 
-                                style={{ 
-                                  backgroundColor: req.status === 'Completed' ? '#52c41a' : req.status === 'In Progress' ? '#1890ff' : '#faad14'
-                                }}
-                              >
-                                <ToolOutlined />
-                              </Avatar>
-                            }
-                            title={<Text strong>{req.title}</Text>}
-                            description={
-                              <div>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  Status: {req.status} • {req.priority} Priority
-                                </Text>
-                                <br />
-                                <Text type="secondary" style={{ fontSize: 11 }}>
-                                  {formatRelativeTime(req.updatedAt)}
-                                </Text>
-                              </div>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                    <Button 
-                      block
-                      style={{ marginTop: 16 }}
-                      onClick={() => router.push('/operations?tab=maintenance')}
-                    >
-                      View All Requests
-                    </Button>
-                  </ProCard>
+                {/* Lease Information */}
+                {activeLease && (
+                  <Card>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Lease Information</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Start Date</p>
+                        <p className="font-semibold text-gray-900">{new Date(activeLease.leaseStart).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">End Date</p>
+                        <p className="font-semibold text-gray-900">{new Date(activeLease.leaseEnd).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Progress</p>
+                        <Progress 
+                          progress={stats.leaseProgress ? parseFloat(stats.leaseProgress) : 0} 
+                          color="blue"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Days Remaining</p>
+                        <p className="font-semibold text-gray-900">{stats.daysUntilLeaseEnd || 'N/A'} days</p>
+                      </div>
+                    </div>
+                  </Card>
                 )}
               </div>
-            ),
-          },
-        ]}
-      />
+
+              {/* Payment History Chart */}
+              {paymentHistoryData && (
+                <Card>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment History (Last 6 Months)</h3>
+                  <PaymentHistoryChart data={paymentHistoryData} />
+                </Card>
+              )}
+
+              {/* Recent Maintenance */}
+              {stats.recentMaintenanceUpdates && stats.recentMaintenanceUpdates.length > 0 && (
+                <Card>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Maintenance Updates</h3>
+                  <div className="space-y-3">
+                    {stats.recentMaintenanceUpdates.map((req, index) => (
+                      <div
+                        key={index}
+                        onClick={() => router.push('/operations?tab=maintenance')}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+                      >
+                        <Avatar 
+                          className={
+                            req.status === 'Completed' ? 'bg-green-500' : 
+                            req.status === 'In Progress' ? 'bg-blue-500' : 
+                            'bg-yellow-500'
+                          }
+                        >
+                          <HiCog className="h-5 w-5 text-white" />
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-gray-900">{req.title}</p>
+                            <Badge color={getStatusColor(req.status)}>
+                              {req.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Status: {req.status} • {req.priority} Priority
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatRelativeTime(req.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button 
+                    color="gray"
+                    className="w-full mt-4"
+                    onClick={() => router.push('/operations?tab=maintenance')}
+                  >
+                    View All Requests
+                  </Button>
+                </Card>
+              )}
+            </div>
+          </Accordion.Content>
+        </Accordion.Panel>
+      </Accordion>
     </div>
   );
 }

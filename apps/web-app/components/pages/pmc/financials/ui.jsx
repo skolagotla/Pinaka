@@ -2,19 +2,22 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Typography, Table, Tag, Space, Row, Col,
-  Statistic, Card, Tooltip, Select
-} from 'antd';
+  Card, Select, Badge, Tooltip, Table
+} from 'flowbite-react';
 import { 
-  DollarOutlined, ArrowUpOutlined, ArrowDownOutlined,
-  WalletOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined
-} from '@ant-design/icons';
+  HiCurrencyDollar, 
+  HiArrowUp, 
+  HiArrowDown,
+  HiClock, 
+  HiCheckCircle, 
+  HiXCircle
+} from 'react-icons/hi';
 import { PageLayout, TableWrapper } from '@/components/shared';
-import { renderStatus } from '@/components/shared/TableRenderers';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
+import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { formatCurrency } from '@/lib/currency-utils.js';
-
-const { Text } = Typography;
 
 export default function PMCFinancialsClient({ pmc, financialData = null }) {
   const [approvalFilter, setApprovalFilter] = useState('all');
@@ -62,6 +65,7 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
     }
     return safeFinancialData.expenses;
   }, [safeFinancialData.expenses, approvalFilter]);
+  
   const expenseColumns = [
     {
       title: 'Date',
@@ -78,9 +82,9 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
       title: 'Property',
       key: 'property',
       render: (_, record) => (
-        <Text>
+        <span>
           {record.property?.addressLine1 || record.property?.propertyName || 'N/A'}
-        </Text>
+        </span>
       ),
     },
     {
@@ -93,21 +97,21 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      render: (cat) => <Tag>{cat || 'N/A'}</Tag>,
+      render: (cat) => <Badge color="gray">{cat || 'N/A'}</Badge>,
     },
     customizeColumn(STANDARD_COLUMNS.STATUS, {
       title: 'Approval Status',
       render: (_, record) => {
         if (!record.pmcApprovalRequest) {
-          return <Tag>No Approval Needed</Tag>;
+          return <Badge color="gray">No Approval Needed</Badge>;
         }
         const status = record.pmcApprovalRequest.status;
         return renderStatus(status, {
           customColors: {
-            'PENDING': 'orange',
-            'APPROVED': 'green',
-            'REJECTED': 'red',
-            'CANCELLED': 'default'
+            'PENDING': 'warning',
+            'APPROVED': 'success',
+            'REJECTED': 'failure',
+            'CANCELLED': 'gray'
           }
         });
       },
@@ -119,9 +123,9 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
       title: 'Property',
       key: 'property',
       render: (_, record) => (
-        <Text>
+        <span>
           {record.lease?.unit?.property?.addressLine1 || record.lease?.unit?.property?.propertyName || 'N/A'}
-        </Text>
+        </span>
       ),
     },
     {
@@ -136,12 +140,12 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
       key: 'status',
       render: (status) => {
         const colors = {
-          Paid: 'green',
-          Partial: 'orange',
-          Unpaid: 'red',
-          Overdue: 'red',
+          Paid: 'success',
+          Partial: 'warning',
+          Unpaid: 'failure',
+          Overdue: 'failure',
         };
-        return <Tag color={colors[status] || 'default'}>{status}</Tag>;
+        return <Badge color={colors[status] || 'gray'}>{status}</Badge>;
       },
     },
     {
@@ -158,19 +162,19 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
         {
           title: 'Total Rent Collected',
           value: formatCurrency(safeFinancialData.totalRent, 'CAD'),
-          prefix: <DollarOutlined />,
+          prefix: <HiCurrencyDollar className="h-5 w-5" />,
           valueStyle: { color: '#52c41a' },
         },
         {
           title: 'Total Expenses',
           value: formatCurrency(safeFinancialData.totalExpenses, 'CAD'),
-          prefix: <ArrowDownOutlined />,
+          prefix: <HiArrowDown className="h-5 w-5" />,
           valueStyle: { color: '#ff4d4f' },
         },
         {
           title: 'Net Income',
           value: formatCurrency(safeFinancialData.netIncome, 'CAD'),
-          prefix: <ArrowUpOutlined />,
+          prefix: <HiArrowUp className="h-5 w-5" />,
           valueStyle: { color: safeFinancialData.netIncome >= 0 ? '#52c41a' : '#ff4d4f' },
         },
       ];
@@ -182,20 +186,26 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
 
   return (
     <PageLayout
-      headerTitle={<><WalletOutlined /> Financials</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiCurrencyDollar className="h-5 w-5" />
+          <span>Financials</span>
+        </div>
+      }
       stats={statsData}
       statsCols={3}
       contentStyle={{ maxWidth: 1400, margin: '0 auto' }}
     >
       {/* Rent Payments */}
-      <Card title="Rent Payments (This Month)" style={{ marginBottom: 24 }}>
+      <Card className="mb-6">
+        <h3 className="text-lg font-semibold mb-4">Rent Payments (This Month)</h3>
         {safeFinancialData.rentPayments.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Text type="secondary">No rent payments this month</Text>
+          <div className="text-center py-10">
+            <span className="text-gray-500">No rent payments this month</span>
           </div>
         ) : (
           <TableWrapper>
-            <Table
+            <FlowbiteTable
               dataSource={safeFinancialData.rentPayments}
               columns={paymentColumns}
               rowKey={(record) => record?.id || record?.leaseId || Math.random()}
@@ -206,30 +216,30 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
       </Card>
 
       {/* Expenses */}
-      <Card 
-        title="Expenses (This Month)"
-        extra={
+      <Card>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Expenses (This Month)</h3>
           <Select
             value={approvalFilter}
-            onChange={setApprovalFilter}
-            style={{ width: 200 }}
-            options={[
-              { value: 'all', label: 'All Expenses' },
-              { value: 'pending', label: 'Pending Approval' },
-              { value: 'approved', label: 'Approved' },
-              { value: 'rejected', label: 'Rejected' },
-              { value: 'no-approval', label: 'No Approval Needed' },
-            ]}
-          />
-        }
-      >
+            onChange={(e) => setApprovalFilter(e.target.value)}
+            className="w-48"
+          >
+            <option value="all">All Expenses</option>
+            <option value="pending">Pending Approval</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="no-approval">No Approval Needed</option>
+          </Select>
+        </div>
         {filteredExpenses.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Text type="secondary">No expenses {approvalFilter !== 'all' ? 'matching filter' : 'this month'}</Text>
+          <div className="text-center py-10">
+            <span className="text-gray-500">
+              No expenses {approvalFilter !== 'all' ? 'matching filter' : 'this month'}
+            </span>
           </div>
         ) : (
           <TableWrapper>
-            <Table
+            <FlowbiteTable
               dataSource={filteredExpenses}
               columns={expenseColumns}
               rowKey={(record) => record?.id || Math.random()}
@@ -241,4 +251,3 @@ export default function PMCFinancialsClient({ pmc, financialData = null }) {
     </PageLayout>
   );
 }
-

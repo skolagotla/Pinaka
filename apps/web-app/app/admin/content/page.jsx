@@ -1,38 +1,26 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Card, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Button, Modal, TextInput, Select, Textarea, Label, Badge, Spinner, Alert } from 'flowbite-react';
 import {
-  Card,
-  Table,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Switch,
-  Space,
-  Tag,
-  message,
-  Typography,
-} from 'antd';
-import { StandardModal, FormTextInput, FormSelect } from '@/components/shared';
-import { ActionButton } from '@/components/shared/buttons';
-import {
-  FileTextOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
-
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
+  HiDocumentText,
+  HiPlus,
+  HiPencil,
+  HiTrash,
+} from 'react-icons/hi';
+import { StandardModal } from '@/components/shared';
 
 export default function AdminContentPage() {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingContent, setEditingContent] = useState(null);
-  const [form] = Form.useForm();
+  const [formData, setFormData] = useState({
+    type: '',
+    title: '',
+    content: '',
+    isActive: true,
+  });
 
   useEffect(() => {
     fetchContent();
@@ -55,156 +43,177 @@ export default function AdminContentPage() {
 
   const handleCreate = () => {
     setEditingContent(null);
-    form.resetFields();
+    setFormData({ type: '', title: '', content: '', isActive: true });
     setModalVisible(true);
   };
 
   const handleEdit = (item) => {
     setEditingContent(item);
-    form.setFieldsValue(item);
+    setFormData({
+      type: item.type || '',
+      title: item.title || '',
+      content: item.content || '',
+      isActive: item.isActive !== undefined ? item.isActive : true,
+    });
     setModalVisible(true);
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async () => {
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
-      const data = await adminApi.saveContent(values, editingContent?.id);
+      const data = await adminApi.saveContent(formData, editingContent?.id);
 
       if (data.success) {
-        message.success(editingContent ? 'Content updated' : 'Content created');
+        alert(editingContent ? 'Content updated' : 'Content created');
         setModalVisible(false);
         fetchContent();
       } else {
-        message.error(data.error || 'Failed to save content');
+        alert(data.error || 'Failed to save content');
       }
     } catch (err) {
-      message.error(err?.message || 'Failed to save content');
+      alert(err?.message || 'Failed to save content');
     }
   };
 
   const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this content?')) return;
+
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.deleteContent(id);
       if (data.success) {
-        message.success('Content deleted');
+        alert('Content deleted');
         fetchContent();
       } else {
-        message.error(data.error || 'Failed to delete content');
+        alert(data.error || 'Failed to delete content');
       }
     } catch (err) {
-      message.error(err?.message || 'Failed to delete content');
+      alert(err?.message || 'Failed to delete content');
     }
   };
 
-  const columns = [
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => <Tag>{type}</Tag>,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'isPublished',
-      key: 'isPublished',
-      render: (published) => <Tag color={published ? 'green' : 'default'}>{published ? 'Published' : 'Draft'}</Tag>,
-    },
-    {
-      title: 'Version',
-      dataIndex: 'version',
-      key: 'version',
-    },
-    {
-      title: 'Updated',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (date) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <ActionButton
-            action="edit"
-            onClick={() => handleEdit(record)}
-            tooltip="Edit"
-            showText={true}
-            text="Edit"
-          />
-          <ActionButton
-            action="delete"
-            onClick={() => handleDelete(record.id)}
-            tooltip="Delete"
-            showText={true}
-            text="Delete"
-          />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <FileTextOutlined /> Content Management
-        </Title>
-        <ActionButton action="add" onClick={handleCreate} tooltip="Create Content" showText={true} text="Create Content" />
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <HiDocumentText className="h-6 w-6" />
+          Content Management
+        </h1>
+        <Button color="blue" onClick={handleCreate}>
+          <HiPlus className="h-4 w-4 mr-2" />
+          Create Content
+        </Button>
       </div>
 
       <Card>
-        <Table
-          columns={columns}
-          dataSource={content}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 50 }}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
+        ) : content.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <HiDocumentText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No content found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableHeadCell>Type</TableHeadCell>
+                <TableHeadCell>Title</TableHeadCell>
+                <TableHeadCell>Status</TableHeadCell>
+                <TableHeadCell>Actions</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
+                {content.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Badge color="blue">{item.type}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{item.title}</TableCell>
+                    <TableCell>
+                      <Badge color={item.isActive ? 'success' : 'gray'}>
+                        {item.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" color="gray" onClick={() => handleEdit(item)}>
+                          <HiPencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" color="failure" onClick={() => handleDelete(item.id)}>
+                          <HiTrash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </Card>
 
       <StandardModal
         title={editingContent ? 'Edit Content' : 'Create Content'}
         open={modalVisible}
-        form={form}
-        loading={false}
-        submitText={editingContent ? 'Save' : 'Create'}
         onCancel={() => setModalVisible(false)}
         onFinish={handleSubmit}
-        width={800}
+        submitText={editingContent ? 'Save' : 'Create'}
       >
-          <Form.Item name="type" label="Type" rules={[{ required: true }]}>
-            <Select>
-              <Option value="FAQ">FAQ</Option>
-              <Option value="HELP_ARTICLE">Help Article</Option>
-              <Option value="TERMS_OF_SERVICE">Terms of Service</Option>
-              <Option value="PRIVACY_POLICY">Privacy Policy</Option>
-              <Option value="EMAIL_TEMPLATE">Email Template</Option>
-              <Option value="DOCUMENT_TEMPLATE">Document Template</Option>
-              <Option value="FORM_TEMPLATE">Form Template</Option>
-              <Option value="ANNOUNCEMENT">Announcement</Option>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="type" className="mb-2 block">
+              Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              id="type"
+              required
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            >
+              <option value="">Select type</option>
+              <option value="announcement">Announcement</option>
+              <option value="help">Help</option>
+              <option value="terms">Terms</option>
+              <option value="privacy">Privacy</option>
             </Select>
-          </Form.Item>
-          <Form.Item name="title" label="Title" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="slug" label="Slug">
-            <Input placeholder="Auto-generated from title if empty" />
-          </Form.Item>
-          <Form.Item name="content" label="Content" rules={[{ required: true }]}>
-            <TextArea rows={10} />
-          </Form.Item>
-          <Form.Item name="isPublished" valuePropName="checked" initialValue={false}>
-            <Switch checkedChildren="Published" unCheckedChildren="Draft" />
-          </Form.Item>
+          </div>
+          <div>
+            <Label htmlFor="title" className="mb-2 block">
+              Title <span className="text-red-500">*</span>
+            </Label>
+            <TextInput
+              id="title"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="content" className="mb-2 block">
+              Content <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="content"
+              required
+              rows={6}
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              className="rounded"
+            />
+            <Label htmlFor="isActive">Active</Label>
+          </div>
+        </div>
       </StandardModal>
     </div>
   );
 }
-

@@ -2,53 +2,31 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useDebounce } from '@/lib/hooks';
+import { Card, Button, Badge, Modal, Tabs, TextInput, Select, Textarea, Spinner, Alert, Label, Checkbox } from 'flowbite-react';
 import {
-  Card,
-  Table,
-  Input,
-  Select,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  message,
-  Button,
-  Typography,
-  Tabs,
-  Badge,
-  Descriptions,
-  Spin,
-  Row,
-  Col,
-  Divider,
-  Alert,
-} from 'antd';
-import {
-  UserOutlined,
-  PlusOutlined,
-  EditOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  LockOutlined,
-  InfoCircleOutlined,
-  SafetyOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+  HiUser,
+  HiPlus,
+  HiPencil,
+  HiRefresh,
+  HiSearch,
+  HiCheckCircle,
+  HiXCircle,
+  HiClock,
+  HiLockClosed,
+  HiInformationCircle,
+  HiShieldCheck,
+  HiMail,
+  HiPhone,
+  HiUserGroup,
+} from 'react-icons/hi';
 import { PhoneDisplay, PageLayout, StandardModal, FormTextInput, FormSelect } from '@/components/shared';
 import { FormPhoneInput } from '@/components/shared/FormFields';
 import { formatPhoneNumber } from '@/lib/utils/formatters';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import { useFormState } from '@/lib/hooks/useFormState';
 import { useGridActions } from '@/lib/hooks/useGridActions';
-import { createGridActionsColumn } from '@/lib/utils/grid-actions-column';
 import RoleAssignmentModal from '@/components/rbac/RoleAssignmentModal';
 import { getRoleLabel } from '@/lib/rbac/resourceLabels';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
 
 export default function AdminUsersPage() {
   // Tab state: 'active', 'pending', 'rejected', 'archive'
@@ -76,8 +54,16 @@ export default function AdminUsersPage() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   
   // Forms
-  const [invitationForm] = Form.useForm();
-  const [rejectForm] = Form.useForm();
+  const invitationFormState = useFormState({
+    email: '',
+    type: 'landlord',
+    companyName: '',
+    firstName: '',
+    lastName: '',
+  });
+  const rejectFormState = useFormState({ reason: '' });
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
   
   // RBAC Role Assignment state
   const [rbacRoleModalVisible, setRbacRoleModalVisible] = useState(false);
@@ -134,7 +120,8 @@ export default function AdminUsersPage() {
         }
       } catch (error) {
         console.error('Error fetching PMCs:', error);
-        message.error('Failed to load PMCs list');
+        setErrorMessage('Failed to load PMCs list');
+        setSuccessMessage(null);
         setPmcs([]);
       } finally {
         setLoadingPmcs(false);
@@ -259,7 +246,8 @@ export default function AdminUsersPage() {
         }
       } else {
         console.error('[Admin Users] API returned error:', data.error);
-        message.error(data.error || 'Failed to fetch users');
+        setErrorMessage(data.error || 'Failed to fetch users');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -271,7 +259,8 @@ export default function AdminUsersPage() {
         fullError: err,
       };
       console.error('[Admin Users] Fetch Error Details:', errorInfo);
-      message.error(err?.message || 'Failed to fetch users');
+      setErrorMessage(err?.message || 'Failed to fetch users');
+      setSuccessMessage(null);
     } finally {
       setUserLoading(false);
     }
@@ -295,7 +284,8 @@ export default function AdminUsersPage() {
   }, [debouncedSearch, userFilters.role, userFilters.status, fetchUsers]);
 
   // Invitation handlers
-  const handleSendInvitation = async (values) => {
+  const handleSendInvitation = async () => {
+    const values = invitationFormState.values;
     try {
       // Use v1Api for invitations (business domain API)
       const { v1Api } = await import('@/lib/api/v1-client');
@@ -313,15 +303,19 @@ export default function AdminUsersPage() {
         },
       });
       if (data.success) {
-        message.success('Invitation sent successfully');
+        setSuccessMessage('Invitation sent successfully');
+        setErrorMessage(null);
         setInvitationModalVisible(false);
-        invitationForm.resetFields();
+        invitationFormState.resetFields();
         fetchInvitations(activeTab);
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        message.error(data.error || 'Failed to send invitation');
+        setErrorMessage(data.error || 'Failed to send invitation');
+        setSuccessMessage(null);
       }
     } catch (err) {
-      message.error('Failed to send invitation');
+      setErrorMessage('Failed to send invitation');
+      setSuccessMessage(null);
     }
   };
 
@@ -329,7 +323,8 @@ export default function AdminUsersPage() {
     try {
       const invitation = invitations.find((inv) => inv.id === invitationId);
       if (!invitation || invitation.status !== 'completed') {
-        message.warning('Only completed invitations can be approved');
+        setErrorMessage('Only completed invitations can be approved');
+        setSuccessMessage(null);
         return;
       }
 
@@ -338,18 +333,22 @@ export default function AdminUsersPage() {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Application approved successfully');
+        setSuccessMessage('Application approved successfully');
+        setErrorMessage(null);
         // Refresh invitations list (approved invitation will move to Archive tab)
         await fetchInvitations(activeTab);
         // Always refresh active users list so newly approved user appears
         // This ensures the user shows up in Active tab even if we're on a different tab
         await fetchUsers();
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        message.error(data.error || 'Failed to approve application');
+        setErrorMessage(data.error || 'Failed to approve application');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('[handleApprove] Error:', err);
-      message.error('Failed to approve application');
+      setErrorMessage('Failed to approve application');
+      setSuccessMessage(null);
     }
   }, [invitations, activeTab, fetchInvitations, fetchUsers]);
 
@@ -357,7 +356,8 @@ export default function AdminUsersPage() {
     try {
       const invitation = invitations.find((inv) => inv.id === invitationId);
       if (!invitation || invitation.status !== 'completed') {
-        message.warning('Only completed invitations can be rejected');
+        setErrorMessage('Only completed invitations can be rejected');
+        setSuccessMessage(null);
         return;
       }
 
@@ -368,13 +368,17 @@ export default function AdminUsersPage() {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Application rejected');
+        setSuccessMessage('Application rejected');
+        setErrorMessage(null);
         fetchInvitations(activeTab);
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        message.error(data.error || 'Failed to reject application');
+        setErrorMessage(data.error || 'Failed to reject application');
+        setSuccessMessage(null);
       }
     } catch (err) {
-      message.error('Failed to reject application');
+      setErrorMessage('Failed to reject application');
+      setSuccessMessage(null);
     }
   }, [invitations, activeTab, fetchInvitations]);
 
@@ -416,11 +420,13 @@ export default function AdminUsersPage() {
         setApplicationDetails(data.data);
       } else {
         console.error('[handleViewDetails] API error:', data.error);
-        message.error(data.error || 'Failed to fetch application details');
+        setErrorMessage(data.error || 'Failed to fetch application details');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('[handleViewDetails] Fetch error:', err);
-      message.error('Failed to fetch application details');
+      setErrorMessage('Failed to fetch application details');
+      setSuccessMessage(null);
     } finally {
       setLoadingDetails(false);
     }
@@ -434,14 +440,18 @@ export default function AdminUsersPage() {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Invitation resent successfully');
+        setSuccessMessage('Invitation resent successfully');
+        setErrorMessage(null);
         fetchInvitations(activeTab);
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        message.error(data.error || 'Failed to resend invitation');
+        setErrorMessage(data.error || 'Failed to resend invitation');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('[handleResendInvitation] Error:', err);
-      message.error('Failed to resend invitation');
+      setErrorMessage('Failed to resend invitation');
+      setSuccessMessage(null);
     }
   }, [activeTab, fetchInvitations]);
 
@@ -449,7 +459,8 @@ export default function AdminUsersPage() {
     console.log('[handleDeleteInvitation] Called with:', invitationId);
     if (!invitationId) {
       console.error('[handleDeleteInvitation] No invitation ID provided');
-      message.error('Invalid invitation ID');
+      setErrorMessage('Invalid invitation ID');
+      setSuccessMessage(null);
       return;
     }
     try {
@@ -460,16 +471,20 @@ export default function AdminUsersPage() {
       const data = await response.json();
       console.log('[handleDeleteInvitation] API response:', { ok: response.ok, success: data.success, data });
       if (response.ok && data.success) {
-        message.success('Invitation deleted successfully');
+        setSuccessMessage('Invitation deleted successfully');
+        setErrorMessage(null);
         // Refresh the list
         await fetchInvitations(activeTab);
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         console.error('[handleDeleteInvitation] API error:', data.error);
-        message.error(data.error || 'Failed to delete invitation');
+        setErrorMessage(data.error || 'Failed to delete invitation');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('[handleDeleteInvitation] Fetch error:', err);
-      message.error('Failed to delete invitation');
+      setErrorMessage('Failed to delete invitation');
+      setSuccessMessage(null);
     }
   }, [activeTab, fetchInvitations]);
 
@@ -571,7 +586,18 @@ export default function AdminUsersPage() {
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm] = Form.useForm();
+  const editFormState = useFormState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    role: '',
+    status: '',
+    adminRole: '',
+    companyName: '',
+    rbacRoles: undefined,
+    selectedPMC: null,
+  });
   const [saving, setSaving] = useState(false);
 
   // Load user RBAC roles
@@ -594,7 +620,7 @@ export default function AdminUsersPage() {
         setUserRBACRoles([]);
         setInitialRBACRoles([]);
         // Clear form value if no roles found
-        editForm.setFieldsValue({
+        editFormState.setFieldsValue({
           rbacRoles: undefined,
           selectedPMC: null,
         });
@@ -607,7 +633,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoadingRBACRoles(false);
     }
-  }, [editForm]);
+  }, [editFormState]);
 
   // Effect to set form value when both available roles and user roles are loaded
   useEffect(() => {
@@ -616,7 +642,7 @@ export default function AdminUsersPage() {
     // If available roles are loaded and user has no roles, clear the form
     if (availableRBACRoles.length > 0 && userRBACRoles.length === 0) {
       const timer = setTimeout(() => {
-        editForm.setFieldsValue({
+        editFormState.setFieldsValue({
           rbacRoles: undefined,
           selectedPMC: null,
         });
@@ -653,7 +679,7 @@ export default function AdminUsersPage() {
         const roleExists = availableRBACRoles.some(r => r.id === roleId);
         if (roleExists) {
           console.log('[useEffect] Setting form value with roleId:', roleId, 'roleName:', primaryRole.roleName || primaryRole.role);
-          editForm.setFieldsValue({
+          editFormState.setFieldsValue({
             rbacRoles: roleId,
             selectedPMC: pmcAdminRole?.pmcId || null,
           });
@@ -675,7 +701,7 @@ export default function AdminUsersPage() {
       
       return () => clearTimeout(timer);
     }
-  }, [availableRBACRoles, userRBACRoles, editModalVisible, editForm]);
+  }, [availableRBACRoles, userRBACRoles, editModalVisible, editFormState]);
 
   // State to track current user's role (both base and RBAC)
   const [currentUserIsAdmin, setCurrentUserIsAdmin] = useState(false);
@@ -740,7 +766,7 @@ export default function AdminUsersPage() {
     console.log('[handleEditUser] Called with user:', user);
     try {
       // Reset form first
-      editForm.resetFields();
+      editFormState.resetFields();
       // Clear previous RBAC roles state
       setUserRBACRoles([]);
       setInitialRBACRoles([]);
@@ -804,7 +830,7 @@ export default function AdminUsersPage() {
             const roleExists = loadedAvailableRoles.some(r => r.id === roleId);
             if (roleExists) {
               console.log('[handleEditUser] Setting RBAC role in form:', roleId, primaryRole.roleName);
-              editForm.setFieldsValue({
+              editFormState.setFieldsValue({
                 rbacRoles: roleId,
                 selectedPMC: pmcAdminRole?.pmcId || null,
               });
@@ -828,7 +854,7 @@ export default function AdminUsersPage() {
           
           // Set other form values
           if (data.data.role === 'pmc') {
-            editForm.setFieldsValue({
+            editFormState.setFieldsValue({
               companyName: data.data.companyName || '',
               phone: data.data.phone ? formatPhoneNumber(data.data.phone) : '',
               email: data.data.email || '',
@@ -836,7 +862,7 @@ export default function AdminUsersPage() {
               status: data.data.status || (data.data.approvalStatus === 'APPROVED' ? 'active' : data.data.approvalStatus === 'PENDING' ? 'pending' : 'inactive'),
             });
           } else if (data.data.role === 'admin') {
-            editForm.setFieldsValue({
+            editFormState.setFieldsValue({
               firstName: data.data.firstName || '',
               lastName: data.data.lastName || '',
               phone: data.data.phone ? formatPhoneNumber(data.data.phone) : '',
@@ -846,7 +872,7 @@ export default function AdminUsersPage() {
               status: data.data.status || (data.data.isActive && !data.data.isLocked ? 'active' : data.data.isLocked ? 'locked' : 'inactive'),
             });
           } else {
-            editForm.setFieldsValue({
+            editFormState.setFieldsValue({
               firstName: data.data.firstName || '',
               lastName: data.data.lastName || '',
               phone: data.data.phone ? formatPhoneNumber(data.data.phone) : '',
@@ -857,24 +883,27 @@ export default function AdminUsersPage() {
           }
         }, 100);
       } else {
-        message.error(data.error || 'Failed to fetch user details');
+        setErrorMessage(data.error || 'Failed to fetch user details');
+        setSuccessMessage(null);
       }
     } catch (err) {
       console.error('[handleEditUser] Error:', err);
-      message.error('Failed to fetch user details');
+      setErrorMessage('Failed to fetch user details');
+      setSuccessMessage(null);
     }
-  }, [editForm, loadUserRBACRoles, loadAvailableRBACRoles]);
+  }, [editFormState, loadUserRBACRoles, loadAvailableRBACRoles]);
 
   // Handle save user edits
   const handleSaveUser = useCallback(async () => {
     if (!editingUser) {
-      message.error('No user selected for editing');
+      setErrorMessage('No user selected for editing');
+      setSuccessMessage(null);
       return false;
     }
     
     setSaving(true);
     try {
-      const values = await editForm.validateFields();
+      const values = editFormState.values;
       console.log('[handleSaveUser] Form values:', values);
 
       // Determine user role for API (this identifies which table to update)
@@ -987,13 +1016,16 @@ export default function AdminUsersPage() {
               // Wait a bit for the database transaction to commit
               await new Promise(resolve => setTimeout(resolve, 500));
               
-              message.success('Role updated successfully');
+              setSuccessMessage('Role updated successfully');
+              setErrorMessage(null);
+              setTimeout(() => setSuccessMessage(null), 5000);
             } else {
               console.warn('[RBAC Update] No new role ID provided, skipping role assignment');
             }
         } catch (rbacError) {
           console.error('Error updating RBAC role:', rbacError);
-          message.warning('User updated but role may not have been updated: ' + rbacError.message);
+          setErrorMessage('User updated but role may not have been updated: ' + rbacError.message);
+          setSuccessMessage(null);
         }
       } else if (newRoleId && newRoleId === currentRoleId) {
         // Role didn't change, but check if PMC changed for PMC_ADMIN
@@ -1034,12 +1066,15 @@ export default function AdminUsersPage() {
                   }),
                 });
                 
-                message.success('PMC company updated successfully');
+                setSuccessMessage('PMC company updated successfully');
+                setErrorMessage(null);
+                setTimeout(() => setSuccessMessage(null), 5000);
               }
             }
         } catch (rbacError) {
           console.error('Error updating PMC for role:', rbacError);
-          message.warning('User updated but PMC may not have been updated: ' + rbacError.message);
+          setErrorMessage('User updated but PMC may not have been updated: ' + rbacError.message);
+          setSuccessMessage(null);
         }
       }
       
@@ -1132,7 +1167,8 @@ export default function AdminUsersPage() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('User updated successfully');
+        setSuccessMessage('User updated successfully');
+        setErrorMessage(null);
         
         // Refresh RBAC roles if they were changed
         if (hasRBACChanges && editingUser) {
@@ -1150,27 +1186,30 @@ export default function AdminUsersPage() {
         
         setEditModalVisible(false);
         setEditingUser(null);
-        editForm.resetFields();
+        editFormState.resetFields();
         // Refresh the users list
         await fetchUsers();
+        setTimeout(() => setSuccessMessage(null), 5000);
         return true;
       } else {
-        message.error(data.error || 'Failed to update user');
+        setErrorMessage(data.error || 'Failed to update user');
+        setSuccessMessage(null);
         return false;
       }
     } catch (err) {
       if (err.errorFields) {
-        // Form validation errors - Ant Design will show these automatically
+        // Form validation errors
         console.log('[handleSaveUser] Validation errors:', err.errorFields);
         return false;
       }
       console.error('[handleSaveUser] Error:', err);
-      message.error(err.message || 'Failed to update user');
+      setErrorMessage(err.message || 'Failed to update user');
+      setSuccessMessage(null);
       return false;
     } finally {
       setSaving(false);
     }
-  }, [editingUser, editForm, fetchUsers]);
+  }, [editingUser, editFormState, fetchUsers]);
 
   // View user details handler
   const handleViewUser = useCallback((record) => {
@@ -1219,7 +1258,7 @@ export default function AdminUsersPage() {
       key: 'type',
       render: (type) => {
         const colors = { landlord: 'blue', pmc: 'green', vendor: 'orange', contractor: 'purple' };
-        return <Tag color={colors[type] || 'default'}>{type?.toUpperCase()}</Tag>;
+        return <Badge color={colors[type] || 'gray'}>{type?.toUpperCase()}</Badge>;
       },
     },
     {
@@ -1227,16 +1266,16 @@ export default function AdminUsersPage() {
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        if (!status) return <Tag>N/A</Tag>;
+        if (!status) return <Badge color="gray">N/A</Badge>;
         const colors = {
-          pending: 'orange',
-          sent: 'blue',
-          opened: 'cyan',
-          completed: 'green',
-          expired: 'default',
-          cancelled: 'red',
+          pending: 'warning',
+          sent: 'info',
+          opened: 'info',
+          completed: 'success',
+          expired: 'gray',
+          cancelled: 'failure',
         };
-        return <Tag color={colors[status] || 'default'}>{status.toUpperCase()}</Tag>;
+        return <Badge color={colors[status] || 'gray'}>{status.toUpperCase()}</Badge>;
       },
     },
     {
@@ -1244,19 +1283,19 @@ export default function AdminUsersPage() {
       key: 'approvalStatus',
       render: (_, record) => {
         if (record?.status !== 'completed') {
-          return <Tag>N/A</Tag>;
+          return <Badge color="gray">N/A</Badge>;
         }
         const approvalStatus = record?.approvalStatus;
         if (!approvalStatus || approvalStatus === 'PENDING') {
-          return <Tag color="orange" icon={<ClockCircleOutlined />}>Pending Approval</Tag>;
+          return <Badge color="warning" icon={HiClock}>Pending Approval</Badge>;
         }
         if (approvalStatus === 'APPROVED') {
-          return <Tag color="green" icon={<CheckCircleOutlined />}>Approved</Tag>;
+          return <Badge color="success" icon={HiCheckCircle}>Approved</Badge>;
         }
         if (approvalStatus === 'REJECTED') {
-          return <Tag color="red" icon={<CloseCircleOutlined />}>Rejected</Tag>;
+          return <Badge color="failure" icon={HiXCircle}>Rejected</Badge>;
         }
-        return <Tag>{approvalStatus}</Tag>;
+        return <Badge color="gray">{approvalStatus}</Badge>;
       },
     },
     {
@@ -1288,22 +1327,22 @@ export default function AdminUsersPage() {
           const isRejected = record?.approvalStatus === 'REJECTED';
           
           return (
-            <Space>
+            <div className="flex items-center gap-2">
               {renderOtherActions(record)}
               {isApproved && (
-                <Tag color="green" icon={<CheckCircleOutlined />}>
+                <Badge color="success" icon={HiCheckCircle}>
                   Approved
-                </Tag>
+                </Badge>
               )}
               {isRejected && (
-                <Tag color="red" icon={<CloseCircleOutlined />}>
+                <Badge color="failure" icon={HiXCircle}>
                   Rejected
-                </Tag>
+                </Badge>
               )}
-            </Space>
+            </div>
           );
         }
-        return <span style={{ color: '#999' }}>-</span>;
+        return <span className="text-gray-400">-</span>;
       },
     },
   ];
@@ -1348,21 +1387,21 @@ export default function AdminUsersPage() {
               if (displayRole?.role) {
                 const roleLabel = getRoleLabel(displayRole.role.name) || displayRole.role.displayName || displayRole.role.name;
                 return (
-                  <Tag color="purple">
+                  <Badge color="purple">
                     {roleLabel}
-                  </Tag>
+                  </Badge>
                 );
               }
             }
             // Fall back to base admin role if no RBAC role
             return (
-              <Tag color="purple">
+              <Badge color="purple">
                 ADMIN {record.adminRole ? `(${record.adminRole.replace('_', ' ')})` : ''}
-              </Tag>
+              </Badge>
             );
           }
-          const colors = { landlord: 'blue', pmc: 'green', vendor: 'orange', contractor: 'purple', tenant: 'cyan' };
-          return <Tag color={colors[role] || 'default'}>{role?.toUpperCase()}</Tag>;
+          const colors = { landlord: 'info', pmc: 'success', vendor: 'warning', contractor: 'purple', tenant: 'info' };
+          return <Badge color={colors[role] || 'gray'}>{role?.toUpperCase()}</Badge>;
         },
       },
       {
@@ -1370,11 +1409,11 @@ export default function AdminUsersPage() {
         dataIndex: 'status',
         key: 'status',
         render: (status) => {
-          if (status === 'active') return <Tag color="success">Active</Tag>;
-          if (status === 'pending') return <Tag color="warning">Pending</Tag>;
-          if (status === 'inactive') return <Tag color="error">Inactive</Tag>;
-          if (status === 'locked') return <Tag color="red">Locked</Tag>;
-          return <Tag>N/A</Tag>;
+          if (status === 'active') return <Badge color="success">Active</Badge>;
+          if (status === 'pending') return <Badge color="warning">Pending</Badge>;
+          if (status === 'inactive') return <Badge color="failure">Inactive</Badge>;
+          if (status === 'locked') return <Badge color="failure">Locked</Badge>;
+          return <Badge color="gray">N/A</Badge>;
         },
       },
       {
@@ -1400,54 +1439,57 @@ export default function AdminUsersPage() {
     if (activeTab === 'active') {
       return (
         <>
-          <Space wrap style={{ marginBottom: 16 }}>
-            <Input
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <TextInput
               placeholder="Search by name, email, or role"
-              prefix={<SearchOutlined />}
-              style={{ width: 300 }}
+              icon={HiSearch}
+              className="w-full sm:w-64"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onPressEnter={fetchUsers}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  fetchUsers();
+                }
+              }}
             />
             <Select
-              style={{ width: 150 }}
+              className="w-full sm:w-40"
               value={userFilters.role}
-              onChange={(value) => {
-                setUserFilters({ ...userFilters, role: value });
+              onChange={(e) => {
+                setUserFilters({ ...userFilters, role: e.target.value });
                 // Reset to page 1 when filter changes
                 setUserPagination(prev => ({ ...prev, page: 1 }));
               }}
             >
-              <Option value="all">All Roles</Option>
-              <Option value="admin">Admins</Option>
-              <Option value="landlord">Landlords</Option>
-              <Option value="pmc">PMCs</Option>
-              <Option value="tenant">Tenants</Option>
+              <option value="all">All Roles</option>
+              <option value="admin">Admins</option>
+              <option value="landlord">Landlords</option>
+              <option value="pmc">PMCs</option>
+              <option value="tenant">Tenants</option>
             </Select>
             <Select
-              style={{ width: 150 }}
+              className="w-full sm:w-40"
               value={userFilters.status}
-              onChange={(value) => {
-                setUserFilters({ ...userFilters, status: value || 'all' });
+              onChange={(e) => {
+                setUserFilters({ ...userFilters, status: e.target.value || 'all' });
                 // Reset to page 1 when filter changes
                 setUserPagination(prev => ({ ...prev, page: 1 }));
               }}
-              placeholder="Status"
             >
-              <Option value="all">All Status</Option>
-              <Option value="active">Active</Option>
-              <Option value="pending">Pending</Option>
-              <Option value="inactive">Inactive</Option>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
             </Select>
             <Button 
-              type="primary" 
-              icon={<SearchOutlined />}
+              color="blue"
               onClick={fetchUsers}
             >
+              <HiSearch className="mr-2 h-4 w-4" />
               Search
             </Button>
-          </Space>
-          <Table
+          </div>
+          <FlowbiteTable
             columns={userColumns}
             dataSource={safeUsers}
             loading={userLoading}
@@ -1464,7 +1506,7 @@ export default function AdminUsersPage() {
     } else {
       // Pending, Rejected, or Archive tab
       return (
-        <Table
+        <FlowbiteTable
           columns={invitationColumns}
           dataSource={safeInvitations}
           loading={invitationLoading}
@@ -1486,203 +1528,353 @@ export default function AdminUsersPage() {
 
   return (
     <PageLayout
-      headerTitle={<><UserOutlined /> Users</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiUser className="h-5 w-5" />
+          <span>Users</span>
+        </div>
+      }
       headerActions={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={handleRefresh} size="small">
+        <Button key="refresh" color="gray" onClick={handleRefresh} size="sm">
+          <HiRefresh className="mr-2 h-4 w-4" />
           Refresh
         </Button>,
-        <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setInvitationModalVisible(true)} size="small">
+        <Button key="add" color="blue" onClick={() => setInvitationModalVisible(true)} size="sm">
+          <HiPlus className="mr-2 h-4 w-4" />
           Send Invitation
         </Button>
       ]}
       contentStyle={{ padding: 0 }}
     >
-      <Tabs
-        activeKey={activeTab}
-        onChange={(key) => {
-          setActiveTab(key);
-        }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={[
-          {
-            key: 'active',
-            label: <span>Active</span>,
-            children: (
-              <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-                {renderTabContent()}
-              </div>
-            ),
-          },
-          {
-            key: 'pending',
-            label: (
-              <Badge count={invitationCounts.pending} offset={[10, 0]}>
-                <span>Pending</span>
-              </Badge>
-            ),
-            children: (
-              <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-                {renderTabContent()}
-              </div>
-            ),
-          },
-          {
-            key: 'rejected',
-            label: (
-              <Badge count={invitationCounts.rejected} offset={[10, 0]}>
-                <span>Rejected</span>
-              </Badge>
-            ),
-            children: (
-              <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-                {renderTabContent()}
-              </div>
-            ),
-          },
-          {
-            key: 'archive',
-            label: (
-              <Badge count={invitationCounts.archive || invitationCounts.approved || 0} offset={[10, 0]}>
-                <span>Archive</span>
-              </Badge>
-            ),
-            children: (
-              <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-                {renderTabContent()}
-              </div>
-            ),
-          },
-        ]}
-      />
+      {successMessage && (
+        <Alert color="success" className="mb-6 mx-6 mt-6" onDismiss={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
+      {errorMessage && (
+        <Alert color="failure" className="mb-6 mx-6 mt-6" onDismiss={() => setErrorMessage(null)}>
+          {errorMessage}
+        </Alert>
+      )}
+
+      <Card className="m-6">
+        <Tabs
+          aria-label="User tabs"
+          style="underline"
+          onActiveTabChange={(tabIndex) => {
+            const tabKeys = ['active', 'pending', 'rejected', 'archive'];
+            const selectedKey = tabKeys[tabIndex];
+            if (selectedKey) {
+              setActiveTab(selectedKey);
+            }
+          }}
+        >
+          <Tabs.Item active={activeTab === 'active'} title="Active">
+            <div className="pt-4 px-4">
+              {renderTabContent()}
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'pending'} title={
+            <div className="flex items-center gap-2">
+              <span>Pending</span>
+              {invitationCounts.pending > 0 && (
+                <Badge color="warning" size="sm">{invitationCounts.pending}</Badge>
+              )}
+            </div>
+          }>
+            <div className="pt-4 px-4">
+              {renderTabContent()}
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'rejected'} title={
+            <div className="flex items-center gap-2">
+              <span>Rejected</span>
+              {invitationCounts.rejected > 0 && (
+                <Badge color="failure" size="sm">{invitationCounts.rejected}</Badge>
+              )}
+            </div>
+          }>
+            <div className="pt-4 px-4">
+              {renderTabContent()}
+            </div>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 'archive'} title={
+            <div className="flex items-center gap-2">
+              <span>Archive</span>
+              {(invitationCounts.archive || invitationCounts.approved || 0) > 0 && (
+                <Badge color="success" size="sm">{invitationCounts.archive || invitationCounts.approved || 0}</Badge>
+              )}
+            </div>
+          }>
+            <div className="pt-4 px-4">
+              {renderTabContent()}
+            </div>
+          </Tabs.Item>
+        </Tabs>
+      </Card>
       {/* Send Invitation Modal */}
       <StandardModal
         title="Send Invitation"
         open={invitationModalVisible}
-        form={invitationForm}
-        loading={false}
-        submitText="Send"
         onCancel={() => {
           setInvitationModalVisible(false);
-          invitationForm.resetFields();
+          invitationFormState.resetFields();
         }}
         onFinish={handleSendInvitation}
-        initialValues={{ type: 'landlord' }}
+        submitText="Send"
       >
-        <FormSelect
-          name="type"
-          label="Invitation Type"
-          required
-          options={[
-            { label: 'Landlord', value: 'landlord' },
-            { label: 'Property Management Company (PMC)', value: 'pmc' },
-            { label: 'Vendor', value: 'vendor' },
-            { label: 'Contractor', value: 'contractor' }
-          ]}
-        />
-        <FormTextInput
-          name="email"
-          label="Email"
-          type="email"
-          required
-          placeholder="email@example.com"
-        />
-        <Form.Item
-          noStyle
-          shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
-        >
-          {({ getFieldValue }) => {
-            const type = getFieldValue('type');
-            if (type === 'pmc') {
-              return (
-                <FormTextInput
-                  name="companyName"
-                  label="Company Name (Optional)"
-                  placeholder="ABC Property Management"
-                />
-              );
-            }
-            if (type === 'vendor' || type === 'contractor') {
-              return (
-                <>
-                  <FormTextInput
-                    name="businessName"
-                    label="Business Name (Optional)"
-                    placeholder="ABC Services"
-                  />
-                  <FormTextInput
-                    name="contactName"
-                    label="Contact Name (Optional)"
-                    placeholder="John Doe"
-                  />
-                </>
-              );
-            }
-            return (
-              <>
-                <FormTextInput
-                  name="firstName"
-                  label="First Name (Optional)"
-                />
-                <FormTextInput
-                  name="lastName"
-                  label="Last Name (Optional)"
-                />
-              </>
-            );
-          }}
-        </Form.Item>
+        <div className="space-y-4">
+          <FormSelect
+            name="type"
+            label="Invitation Type"
+            value={invitationFormState.values.type || 'landlord'}
+            onChange={(e) => invitationFormState.setFieldsValue({ type: e.target.value })}
+            required
+            options={[
+              { label: 'Landlord', value: 'landlord' },
+              { label: 'Property Management Company (PMC)', value: 'pmc' },
+              { label: 'Vendor', value: 'vendor' },
+              { label: 'Contractor', value: 'contractor' }
+            ]}
+          />
+          <FormTextInput
+            name="email"
+            label="Email"
+            type="email"
+            value={invitationFormState.values.email}
+            onChange={(e) => invitationFormState.setFieldsValue({ email: e.target.value })}
+            required
+            placeholder="email@example.com"
+          />
+          {invitationFormState.values.type === 'pmc' ? (
+            <FormTextInput
+              name="companyName"
+              label="Company Name (Optional)"
+              value={invitationFormState.values.companyName}
+              onChange={(e) => invitationFormState.setFieldsValue({ companyName: e.target.value })}
+              placeholder="ABC Property Management"
+            />
+          ) : invitationFormState.values.type === 'vendor' || invitationFormState.values.type === 'contractor' ? (
+            <>
+              <FormTextInput
+                name="businessName"
+                label="Business Name (Optional)"
+                value={invitationFormState.values.businessName}
+                onChange={(e) => invitationFormState.setFieldsValue({ businessName: e.target.value })}
+                placeholder="ABC Services"
+              />
+              <FormTextInput
+                name="contactName"
+                label="Contact Name (Optional)"
+                value={invitationFormState.values.contactName}
+                onChange={(e) => invitationFormState.setFieldsValue({ contactName: e.target.value })}
+                placeholder="John Doe"
+              />
+            </>
+          ) : (
+            <>
+              <FormTextInput
+                name="firstName"
+                label="First Name (Optional)"
+                value={invitationFormState.values.firstName}
+                onChange={(e) => invitationFormState.setFieldsValue({ firstName: e.target.value })}
+              />
+              <FormTextInput
+                name="lastName"
+                label="Last Name (Optional)"
+                value={invitationFormState.values.lastName}
+                onChange={(e) => invitationFormState.setFieldsValue({ lastName: e.target.value })}
+              />
+            </>
+          )}
+        </div>
       </StandardModal>
 
       {/* Reject Modal */}
       <StandardModal
         title="Reject Application"
         open={rejectModalVisible}
-        form={rejectForm}
-        loading={false}
-        submitText="Reject"
         onCancel={() => {
           setRejectModalVisible(false);
-          rejectForm.resetFields();
+          rejectFormState.resetFields();
           setSelectedInvitation(null);
         }}
-        onFinish={(values) => {
+        onFinish={() => {
           if (selectedInvitation) {
-            handleReject(selectedInvitation.id, values.reason);
+            handleReject(selectedInvitation.id, rejectFormState.values.reason);
             setRejectModalVisible(false);
-            rejectForm.resetFields();
+            rejectFormState.resetFields();
             setSelectedInvitation(null);
           }
         }}
+        submitText="Reject"
+        submitColor="failure"
       >
-        <FormTextInput
-          name="reason"
-          label="Rejection Reason"
-          textArea
-          rows={4}
-          required
-          placeholder="Explain why this application is being rejected..."
-        />
+        <div>
+          <Label htmlFor="reason" className="mb-2 block">
+            Rejection Reason
+            <span className="text-red-500 ml-1">*</span>
+          </Label>
+          <Textarea
+            id="reason"
+            name="reason"
+            value={rejectFormState.values.reason}
+            onChange={(e) => rejectFormState.setFieldsValue({ reason: e.target.value })}
+            required
+            rows={4}
+            placeholder="Explain why this application is being rejected..."
+          />
+        </div>
       </StandardModal>
 
       {/* View Details Modal - Used for both invitations and users */}
       <Modal
-        title={
-          editingUser && activeTab === 'active' 
-            ? "User Details" 
-            : selectedInvitation?.status === 'completed' 
-              ? "Application Details" 
-              : "Invitation Details"
-        }
-        open={viewModalVisible}
-        onCancel={() => {
+        show={viewModalVisible}
+        onClose={() => {
           setViewModalVisible(false);
           setApplicationDetails(null);
           setSelectedInvitation(null);
           setEditingUser(null);
           setLoadingDetails(false);
         }}
-        footer={[
-          <Button key="close" onClick={() => {
+        size={editingUser && activeTab === 'active' ? 'md' : (selectedInvitation?.status === 'completed' ? 'xl' : 'md')}
+      >
+        <Modal.Header>
+          {editingUser && activeTab === 'active' 
+            ? "User Details" 
+            : selectedInvitation?.status === 'completed' 
+              ? "Application Details" 
+              : "Invitation Details"}
+        </Modal.Header>
+        <Modal.Body>
+          {editingUser && activeTab === 'active' ? (
+            // Show user details for Active tab
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">
+                  {editingUser.displayName || `${editingUser.firstName || ''} ${editingUser.lastName || ''}`.trim() || editingUser.companyName || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{editingUser.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{editingUser.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Role</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">
+                  {editingUser.role?.toUpperCase()}{editingUser.adminRole ? ` (${editingUser.adminRole.replace('_', ' ')})` : ''}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{editingUser.status}</p>
+              </div>
+              {editingUser.role !== 'admin' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Properties</label>
+                  <p className="text-sm text-gray-900 dark:text-white mt-1">{editingUser.propertiesCount || 0}</p>
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">
+                  {editingUser.createdAt ? new Date(editingUser.createdAt).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          ) : loadingDetails ? (
+            <div className="flex justify-center items-center py-12">
+              <Spinner size="xl" />
+            </div>
+          ) : selectedInvitation?.status !== 'completed' ? (
+            // Show basic info for non-completed invitations
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{selectedInvitation?.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{selectedInvitation?.type?.toUpperCase()}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{selectedInvitation?.status?.toUpperCase()}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">
+                  {selectedInvitation?.createdAt ? new Date(selectedInvitation.createdAt).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          ) : applicationDetails ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.invitation?.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.invitation?.type?.toUpperCase()}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.invitation?.status}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Approval Status</label>
+                <div className="mt-1">
+                  {applicationDetails.approvalStatus === 'APPROVED' ? (
+                    <Badge color="success">Approved</Badge>
+                  ) : applicationDetails.approvalStatus === 'REJECTED' ? (
+                    <Badge color="failure">Rejected</Badge>
+                  ) : (
+                    <Badge color="warning">Pending</Badge>
+                  )}
+                </div>
+              </div>
+              {applicationDetails.user && (
+                <>
+                  {applicationDetails.user.firstName && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">First Name</label>
+                      <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.user.firstName}</p>
+                    </div>
+                  )}
+                  {applicationDetails.user.lastName && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Last Name</label>
+                      <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.user.lastName}</p>
+                    </div>
+                  )}
+                  {applicationDetails.user.companyName && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Company Name</label>
+                      <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.user.companyName}</p>
+                    </div>
+                  )}
+                  {applicationDetails.user.phone && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</label>
+                      <p className="text-sm text-gray-900 dark:text-white mt-1">{applicationDetails.user.phone}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No details available</div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={() => {
             setViewModalVisible(false);
             setApplicationDetails(null);
             setSelectedInvitation(null);
@@ -1690,120 +1882,62 @@ export default function AdminUsersPage() {
             setLoadingDetails(false);
           }}>
             Close
-          </Button>,
-        ]}
-        width={editingUser && activeTab === 'active' ? 500 : (selectedInvitation?.status === 'completed' ? 800 : 500)}
-      >
-        {editingUser && activeTab === 'active' ? (
-          // Show user details for Active tab
-          <div>
-            <p><strong>Name:</strong> {editingUser.displayName || `${editingUser.firstName || ''} ${editingUser.lastName || ''}`.trim() || editingUser.companyName || 'N/A'}</p>
-            <p><strong>Email:</strong> {editingUser.email}</p>
-            <p><strong>Phone:</strong> {editingUser.phone || 'N/A'}</p>
-            <p><strong>Role:</strong> {editingUser.role?.toUpperCase()}{editingUser.adminRole ? ` (${editingUser.adminRole.replace('_', ' ')})` : ''}</p>
-            <p><strong>Status:</strong> {editingUser.status}</p>
-            {editingUser.role !== 'admin' && (
-              <p><strong>Properties:</strong> {editingUser.propertiesCount || 0}</p>
-            )}
-            <p><strong>Created:</strong> {editingUser.createdAt ? new Date(editingUser.createdAt).toLocaleDateString() : 'N/A'}</p>
-          </div>
-        ) : loadingDetails ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Spin />
-          </div>
-        ) : selectedInvitation?.status !== 'completed' ? (
-          // Show basic info for non-completed invitations
-          <div>
-            <p><strong>Email:</strong> {selectedInvitation?.email}</p>
-            <p><strong>Type:</strong> {selectedInvitation?.type?.toUpperCase()}</p>
-            <p><strong>Status:</strong> {selectedInvitation?.status?.toUpperCase()}</p>
-            <p><strong>Created:</strong> {selectedInvitation?.createdAt ? new Date(selectedInvitation.createdAt).toLocaleDateString() : 'N/A'}</p>
-          </div>
-        ) : applicationDetails ? (
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Email">{applicationDetails.invitation?.email}</Descriptions.Item>
-            <Descriptions.Item label="Type">{applicationDetails.invitation?.type?.toUpperCase()}</Descriptions.Item>
-            <Descriptions.Item label="Status">{applicationDetails.invitation?.status}</Descriptions.Item>
-            <Descriptions.Item label="Approval Status">
-              {applicationDetails.approvalStatus === 'APPROVED' ? (
-                <Tag color="green">Approved</Tag>
-              ) : applicationDetails.approvalStatus === 'REJECTED' ? (
-                <Tag color="red">Rejected</Tag>
-              ) : (
-                <Tag color="orange">Pending</Tag>
-              )}
-            </Descriptions.Item>
-            {applicationDetails.user && (
-              <>
-                {applicationDetails.user.firstName && (
-                  <Descriptions.Item label="First Name">{applicationDetails.user.firstName}</Descriptions.Item>
-                )}
-                {applicationDetails.user.lastName && (
-                  <Descriptions.Item label="Last Name">{applicationDetails.user.lastName}</Descriptions.Item>
-                )}
-                {applicationDetails.user.companyName && (
-                  <Descriptions.Item label="Company Name">{applicationDetails.user.companyName}</Descriptions.Item>
-                )}
-                {applicationDetails.user.phone && (
-                  <Descriptions.Item label="Phone">{applicationDetails.user.phone}</Descriptions.Item>
-                )}
-              </>
-            )}
-          </Descriptions>
-        ) : (
-          <div>No details available</div>
-        )}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Edit User Modal */}
       <StandardModal
         title={
-          <Space>
-            <UserOutlined />
+          <div className="flex items-center gap-2">
+            <HiUser className="h-5 w-5" />
             <span>Edit {editingUser?.role === 'admin' ? 'Admin' : editingUser?.role === 'pmc' ? 'PMC' : editingUser?.role?.charAt(0).toUpperCase() + editingUser?.role?.slice(1)}</span>
-          </Space>
+          </div>
         }
         open={editModalVisible}
-        form={editForm}
-        loading={saving}
-        submitText="Save Changes"
         onCancel={() => {
           setEditModalVisible(false);
           setEditingUser(null);
-          editForm.resetFields();
+          editFormState.resetFields();
         }}
-        onFinish={async (values) => {
+        onFinish={async () => {
           const success = await handleSaveUser();
           if (success) {
             setEditModalVisible(false);
             setEditingUser(null);
-            editForm.resetFields();
+            editFormState.resetFields();
           }
         }}
+        submitText="Save Changes"
+        loading={saving}
         width={650}
-        destroyOnClose={false}
-        preserve={false}
       >
-        {/* Role and Status on same row */}
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="role"
-              label="Role"
-              rules={[{ required: true, message: 'Please select a role' }]}
-            >
-              <Select placeholder="Select Role" disabled={editingUser?.role === 'admin'}>
-                <Select.Option value="landlord">Landlord</Select.Option>
-                <Select.Option value="pmc">PMC</Select.Option>
-                <Select.Option value="tenant">Tenant</Select.Option>
-                <Select.Option value="admin" disabled>Admin (cannot be changed)</Select.Option>
+        <div className="space-y-4">
+          {/* Role and Status on same row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="role" className="mb-2 block">
+                Role
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Select
+                id="role"
+                value={editFormState.values.role}
+                onChange={(e) => editFormState.setFieldsValue({ role: e.target.value })}
+                disabled={editingUser?.role === 'admin'}
+                required
+              >
+                <option value="landlord">Landlord</option>
+                <option value="pmc">PMC</option>
+                <option value="tenant">Tenant</option>
+                <option value="admin" disabled>Admin (cannot be changed)</option>
               </Select>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
+            </div>
             <FormSelect
               name="status"
               label="Status"
+              value={editFormState.values.status}
+              onChange={(e) => editFormState.setFieldsValue({ status: e.target.value })}
               required
               options={[
                 { label: 'Active', value: 'active' },
@@ -1812,132 +1946,126 @@ export default function AdminUsersPage() {
                 ...(editingUser?.role === 'admin' ? [{ label: 'Locked', value: 'locked' }] : [])
               ]}
             />
-          </Col>
-        </Row>
-        
-        {editingUser?.role === 'pmc' ? (
-          <>
-            <FormTextInput
-              name="companyName"
-              label="Company Name"
-              required
-              placeholder="Company Name"
-            />
-            <Row gutter={16}>
-              <Col span={12}>
+          </div>
+          
+          {editingUser?.role === 'pmc' ? (
+            <>
+              <FormTextInput
+                name="companyName"
+                label="Company Name"
+                value={editFormState.values.companyName}
+                onChange={(e) => editFormState.setFieldsValue({ companyName: e.target.value })}
+                required
+                placeholder="Company Name"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormPhoneInput
                   name="phone"
                   label="Phone"
+                  value={editFormState.values.phone}
+                  onChange={(e) => editFormState.setFieldsValue({ phone: e.target.value })}
                   placeholder="(XXX) XXX-XXXX"
                 />
-              </Col>
-              <Col span={12}>
                 <FormTextInput
                   name="email"
                   label="Email"
                   type="email"
+                  value={editFormState.values.email}
+                  onChange={(e) => editFormState.setFieldsValue({ email: e.target.value })}
                   required
                   placeholder="email@example.com"
                 />
-              </Col>
-            </Row>
-          </>
-        ) : (
-          <>
-            {/* First Name and Last Name on same row */}
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* First Name and Last Name on same row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormTextInput
                   name="firstName"
                   label="First Name"
+                  value={editFormState.values.firstName}
+                  onChange={(e) => editFormState.setFieldsValue({ firstName: e.target.value })}
                   required
                   placeholder="First Name"
                 />
-              </Col>
-              <Col span={12}>
                 <FormTextInput
                   name="lastName"
                   label="Last Name"
+                  value={editFormState.values.lastName}
+                  onChange={(e) => editFormState.setFieldsValue({ lastName: e.target.value })}
                   required
                   placeholder="Last Name"
                 />
-              </Col>
-            </Row>
-            
-            {/* Phone and Email on same row */}
-            <Row gutter={16}>
-              <Col span={12}>
+              </div>
+              
+              {/* Phone and Email on same row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormPhoneInput
                   name="phone"
                   label="Phone"
+                  value={editFormState.values.phone}
+                  onChange={(e) => editFormState.setFieldsValue({ phone: e.target.value })}
                   placeholder="(XXX) XXX-XXXX"
                 />
-              </Col>
-              <Col span={12}>
                 <FormTextInput
                   name="email"
                   label="Email"
                   type="email"
+                  value={editFormState.values.email}
+                  onChange={(e) => editFormState.setFieldsValue({ email: e.target.value })}
                   required
                   placeholder="email@example.com"
                 />
-              </Col>
-            </Row>
-            
-          </>
-        )}
-        
-        {/* User Role - Single Role Selection */}
-        <Form.Item
-          name="rbacRoles"
-          label="Role"
-          tooltip="Select the role for this user. This determines what they can do in the system."
-          rules={[{ required: true, message: 'Please select a role' }]}
-        >
-          <Select
-            placeholder="Select a role..."
-            loading={loadingAvailableRoles || loadingRBACRoles}
-            style={{ width: '100%' }}
-            showSearch
-            filterOption={(input, option) => {
-              const label = option?.label || option?.children || '';
-              return String(label).toLowerCase().includes(input.toLowerCase());
-            }}
-            notFoundContent={loadingAvailableRoles || loadingRBACRoles ? <Spin size="small" /> : 'No roles available'}
-            onChange={(selectedRoleId) => {
-              // Check if PMC_ADMIN is selected
-              const selectedRole = availableRBACRoles.find(r => r.id === selectedRoleId);
-              const hasPMCAdmin = selectedRole?.name === 'PMC_ADMIN';
-              
-              // If PMC_ADMIN is not selected, clear PMC selection
-              if (!hasPMCAdmin) {
-                setSelectedPMCId(null);
-                editForm.setFieldsValue({ selectedPMC: null });
-              }
-            }}
-          >
-            {availableRBACRoles.map((role) => {
-              const displayName = role.displayName || getRoleLabel(role.name) || role.name;
-              return (
-                <Select.Option key={role.id} value={role.id} label={displayName}>
-                  {displayName}
-                </Select.Option>
-              );
-            })}
-          </Select>
-        </Form.Item>
-        
-        {/* PMC Company - Show when PMC_ADMIN role is selected */}
-        <Form.Item
-          noStyle
-          shouldUpdate={(prevValues, currentValues) => {
-            const prevRole = prevValues.rbacRoles;
-            const currentRole = currentValues.rbacRoles;
-            return prevRole !== currentRole;
-          }}
-        >
-          {({ getFieldValue }) => {
-            const selectedRoleId = getFieldValue('rbacRoles');
+              </div>
+            </>
+          )}
+          
+          {/* User Role - Single Role Selection */}
+          <div>
+            <Label htmlFor="rbacRoles" className="mb-2 block">
+              Role
+              <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Select
+              id="rbacRoles"
+              value={editFormState.values.rbacRoles}
+              onChange={(e) => {
+                const selectedRoleId = e.target.value;
+                editFormState.setFieldsValue({ rbacRoles: selectedRoleId });
+                // Check if PMC_ADMIN is selected
+                const selectedRole = availableRBACRoles.find(r => r.id === selectedRoleId);
+                const hasPMCAdmin = selectedRole?.name === 'PMC_ADMIN';
+                
+                // If PMC_ADMIN is not selected, clear PMC selection
+                if (!hasPMCAdmin) {
+                  setSelectedPMCId(null);
+                  editFormState.setFieldsValue({ selectedPMC: null });
+                }
+              }}
+              required
+              disabled={loadingAvailableRoles || loadingRBACRoles}
+            >
+              <option value="">Select a role...</option>
+              {availableRBACRoles.map((role) => {
+                const displayName = role.displayName || getRoleLabel(role.name) || role.name;
+                return (
+                  <option key={role.id} value={role.id}>
+                    {displayName}
+                  </option>
+                );
+              })}
+            </Select>
+            {loadingAvailableRoles || loadingRBACRoles && (
+              <div className="mt-2">
+                <Spinner size="sm" />
+              </div>
+            )}
+          </div>
+          
+          {/* PMC Company - Show when PMC_ADMIN role is selected */}
+          {(() => {
+            const selectedRoleId = editFormState.values.rbacRoles;
             const selectedRole = availableRBACRoles.find(r => r.id === selectedRoleId);
             const hasPMCAdmin = selectedRole?.name === 'PMC_ADMIN';
             
@@ -1951,42 +2079,41 @@ export default function AdminUsersPage() {
             
             // Get current PMC name if available
             const currentPMCAdminRole = userRBACRoles.find(r => r.roleName === 'PMC_ADMIN');
-            const currentPMCId = currentPMCAdminRole?.pmcId || selectedPMCId || getFieldValue('selectedPMC');
+            const currentPMCId = currentPMCAdminRole?.pmcId || selectedPMCId || editFormState.values.selectedPMC;
             
             return (
-              <Form.Item
-                name="selectedPMC"
-                label="PMC Company"
-                tooltip="Select the Property Management Company this admin will manage"
-                rules={[
-                  {
-                    required: true,
-                    message: 'Please select a PMC company',
-                  },
-                ]}
-              >
+              <div>
+                <Label htmlFor="selectedPMC" className="mb-2 block">
+                  PMC Company
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
                 <Select
-                  placeholder="Select a PMC company..."
-                  loading={loadingPmcs}
-                  style={{ width: '100%' }}
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.children || '').toLowerCase().includes(input.toLowerCase())
-                  }
-                  onChange={(value) => {
+                  id="selectedPMC"
+                  value={currentPMCId || editFormState.values.selectedPMC || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
                     setSelectedPMCId(value);
+                    editFormState.setFieldsValue({ selectedPMC: value });
                   }}
+                  required
+                  disabled={loadingPmcs}
                 >
+                  <option value="">Select a PMC company...</option>
                   {pmcs.map((pmc) => (
-                    <Select.Option key={pmc.id} value={pmc.id}>
+                    <option key={pmc.id} value={pmc.id}>
                       {pmc.companyName} ({pmc.email})
-                    </Select.Option>
+                    </option>
                   ))}
                 </Select>
-              </Form.Item>
+                {loadingPmcs && (
+                  <div className="mt-2">
+                    <Spinner size="sm" />
+                  </div>
+                )}
+              </div>
             );
-          }}
-        </Form.Item>
+          })()}
+        </div>
       </StandardModal>
       
       {/* RBAC Role Assignment Modal */}
@@ -2007,7 +2134,9 @@ export default function AdminUsersPage() {
             if (editingUser) {
               await loadUserRBACRoles(editingUser.id, editingUser.role);
             }
-            message.success('RBAC roles updated successfully');
+            setSuccessMessage('RBAC roles updated successfully');
+            setErrorMessage(null);
+            setTimeout(() => setSuccessMessage(null), 5000);
           }}
           assignedBy={currentAdminId}
           assignedByType="admin"

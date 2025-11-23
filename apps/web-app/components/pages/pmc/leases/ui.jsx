@@ -2,18 +2,29 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
-  Typography, Button, Table, Tag, Space, Modal, Form, Input, 
-  Select, DatePicker, Popconfirm, Empty, Row, Col, InputNumber, Tooltip, Radio, Alert
-} from 'antd';
+  Button, Modal, Select, TextInput, Label, Textarea, Badge, Tooltip, Radio, Alert
+} from 'flowbite-react';
+import { 
+  HiPlus, 
+  HiPencil, 
+  HiTrash, 
+  HiDocumentText, 
+  HiSave, 
+  HiX, 
+  HiCheckCircle, 
+  HiClock, 
+  HiRefresh
+} from 'react-icons/hi';
 import { PageLayout, EmptyState, TableWrapper, StandardModal, FormTextInput, FormSelect, FormDatePicker, FormPhoneInput, renderDate, DeleteConfirmButton } from '@/components/shared';
-import { renderStatus } from '@/components/shared/TableRenderers';
-import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined, SaveOutlined, CloseOutlined, CheckCircleOutlined, ClockCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
 import dayjs from 'dayjs';
 import { formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 
 // Custom Hooks
 import { usePinakaCRUD } from '@/lib/hooks/usePinakaCRUD';
 import { useResizableTable, withSorter, sortFunctions, configureTableColumns } from '@/lib/hooks';
+import { useFormState } from '@/lib/hooks/useFormState';
 
 // Constants
 import { LEASE_STATUSES } from '@/lib/constants/statuses';
@@ -24,11 +35,9 @@ import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
 import { STANDARD_COLUMNS, COLUMN_NAMES, customizeColumn } from '@/lib/constants/standard-columns';
 import { rules } from '@/lib/utils/validation-rules';
 
-const { Text } = Typography;
-
 export default function PMCLeasesClient({ units, tenants, initialLeases }) {
   const searchParams = useSearchParams();
-  const [form] = Form.useForm();
+  const form = useFormState();
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [selectedTenantIds, setSelectedTenantIds] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -97,18 +106,18 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
     {
       title: 'Leases',
       value: pinaka.data.length,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
     },
     {
       title: 'Active',
       value: pinaka.data.filter(l => l.status === 'Active').length,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Expired',
       value: pinaka.data.filter(l => l.status === 'Expired').length,
-      prefix: <ClockCircleOutlined />,
+      prefix: <HiClock className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
   ];
@@ -133,24 +142,22 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
     setSelectedTenantIds(tenantIds);
     setIsEditing(true);
     
+    const leaseStartDate = lease.leaseStart ? (() => {
+      const date = new Date(lease.leaseStart);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    })() : '';
+    
+    const leaseEndDate = lease.leaseEnd ? (() => {
+      const date = new Date(lease.leaseEnd);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    })() : '';
+    
     form.setFieldsValue({
       unitId: lease.unitId,
       tenantIds: tenantIds,
       primaryTenantId: primaryTenant?.tenantId || tenantIds[0] || null,
-      leaseStart: lease.leaseStart ? (() => {
-        const date = new Date(lease.leaseStart);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return dayjs(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
-      })() : undefined,
-      leaseEnd: lease.leaseEnd ? (() => {
-        const date = new Date(lease.leaseEnd);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return dayjs(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
-      })() : undefined,
+      leaseStart: leaseStartDate,
+      leaseEnd: leaseEndDate,
       rentAmount: lease.rentAmount,
       rentDueDay: lease.rentDueDay,
       securityDeposit: lease.securityDeposit,
@@ -201,15 +208,6 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
       .join(", ");
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Active": return "success";
-      case "Expired": return "warning";
-      case "Terminated": return "error";
-      default: return "default";
-    }
-  };
-
   const columns = [
     customizeColumn(STANDARD_COLUMNS.UNIT_NAME, {
       key: 'unit',
@@ -217,21 +215,21 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
         const unit = safeUnits.find(u => u.id === lease.unitId);
         const property = unit?.property;
         
-        if (!property) return <Text>—</Text>;
+        if (!property) return <span>—</span>;
         
         const propertyName = property.propertyName || property.addressLine1;
         
         if (property.unitCount === 1) {
-          return <Text>{propertyName}</Text>;
+          return <span>{propertyName}</span>;
         }
         
         const unitName = unit?.unitName || '';
-        return <Text>{unitName} - {propertyName}</Text>;
+        return <span>{unitName} - {propertyName}</span>;
       },
     }),
     customizeColumn(STANDARD_COLUMNS.TENANT_NAME, {
       key: 'tenants',
-      render: (_, lease) => <Text>{getTenantNames(lease.leaseTenants)}</Text>,
+      render: (_, lease) => <span>{getTenantNames(lease.leaseTenants)}</span>,
     }),
     withSorter(
       customizeColumn(STANDARD_COLUMNS.START_DATE, {
@@ -240,7 +238,7 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
       sortFunctions.date('leaseStart')
     ),
     customizeColumn(STANDARD_COLUMNS.END_DATE, {
-      render: (_, lease) => lease.leaseEnd ? renderDate(lease.leaseEnd) : <Text type="secondary">Month-to-month</Text>,
+      render: (_, lease) => lease.leaseEnd ? renderDate(lease.leaseEnd) : <span className="text-gray-400">Month-to-month</span>,
     }),
     withSorter(
       customizeColumn(STANDARD_COLUMNS.MONTHLY_RENT, {
@@ -260,12 +258,12 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
       customizeColumn(STANDARD_COLUMNS.DUE_DATE, {
         dataIndex: 'rentDueDay',
         render: (day) => {
-          if (!day) return <Text type="secondary">-</Text>;
+          if (!day) return <span className="text-gray-400">-</span>;
           const suffix = 
             day === 1 || day === 21 || day === 31 ? 'st' :
             day === 2 || day === 22 ? 'nd' :
             day === 3 || day === 23 ? 'rd' : 'th';
-          return <Text>{day}{suffix} of the Month</Text>;
+          return <span>{day}{suffix} of the Month</span>;
         },
       }),
       sortFunctions.number('rentDueDay')
@@ -275,30 +273,31 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
         customColors: {
           'Active': 'success',
           'Expired': 'warning',
-          'Terminated': 'error',
-          'MonthToMonth': 'processing'
+          'Terminated': 'failure',
+          'MonthToMonth': 'info'
         }
       }),
-      filters: LEASE_STATUSES.map(s => ({ text: s, value: s })),
-      onFilter: (value, lease) => lease.status === value,
     }),
     customizeColumn(STANDARD_COLUMNS.ACTIONS, {
       render: (_, lease) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEditClick(lease)}
-            title="Edit Lease"
-          />
+        <div className="flex items-center gap-2">
+          <Tooltip content="Edit Lease">
+            <Button
+              color="gray"
+              size="sm"
+              onClick={() => handleEditClick(lease)}
+              title="Edit Lease"
+            >
+              <HiPencil className="h-4 w-4" />
+            </Button>
+          </Tooltip>
           <DeleteConfirmButton
             entityName="lease"
             description="This will also delete all associated rent payments."
             onConfirm={() => handleDelete(lease)}
-            type="link"
             buttonProps={{ title: "Delete Lease" }}
           />
-        </Space>
+        </div>
       ),
     }),
   ];
@@ -314,23 +313,46 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
     storageKey: 'pmc-leases-table',
   });
 
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    const values = form.getFieldsValue();
+    
+    // Convert dates
+    const payload = {
+      ...values,
+      leaseStart: values.leaseStart ? formatDateForAPI(values.leaseStart) : null,
+      leaseEnd: values.leaseEnd ? formatDateForAPI(values.leaseEnd) : null,
+      primaryTenantId: values.primaryTenantId || (values.tenantIds?.[0] || null),
+    };
+    
+    await pinaka.handleSubmit(payload);
+  };
+
   return (
     <PageLayout
-      headerTitle={<><FileTextOutlined /> Leases</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiDocumentText className="h-5 w-5" />
+          <span>Leases</span>
+        </div>
+      }
       headerActions={[
         <Button
           key="add"
-          type="primary"
-          icon={<PlusOutlined />}
+          color="blue"
           onClick={handleAddClick}
+          className="flex items-center gap-2"
         >
+          <HiPlus className="h-4 w-4" />
           Add Lease
         </Button>,
         <Button
           key="refresh"
-          icon={<ReloadOutlined />}
+          color="gray"
           onClick={pinaka.refresh}
+          className="flex items-center gap-2"
         >
+          <HiRefresh className="h-4 w-4" />
           Refresh
         </Button>,
       ]}
@@ -344,52 +366,51 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
     >
       {pinaka.data.length === 0 ? (
         <EmptyState
-          icon={<FileTextOutlined />}
+          icon={<HiDocumentText className="h-8 w-8" />}
           title="No leases yet"
           description="Click 'Add Lease' to create your first lease"
         />
       ) : (
         <TableWrapper>
-          <Table
+          <FlowbiteTable
             {...tableProps}
             dataSource={filteredData}
             rowKey="id"
             loading={pinaka.loading}
             pagination={{
               pageSize: 25,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} leases`,
+              showSizeChanger: true
             }}
-            size="middle"
             onRow={(record) => ({
               onDoubleClick: () => handleEditClick(record),
-              style: { cursor: 'pointer' }
+              className: 'cursor-pointer'
             })}
           />
         </TableWrapper>
       )}
 
-      <StandardModal
-        title={pinaka.isEditing ? "Edit Lease" : "Create Lease"}
-        open={pinaka.isOpen}
-        form={form}
-        loading={pinaka.loading || false}
-        submitText={pinaka.isEditing ? "Save" : "Create"}
-        onCancel={handleClose}
-        onFinish={pinaka.handleSubmit}
-        width={800}
-        showCancel={true}
+      <Modal
+        show={pinaka.isOpen}
+        onClose={handleClose}
+        size="4xl"
       >
-          <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item
-                name="unitId"
-                label="Unit"
-                rules={[rules.required('Unit')]}
-              >
+        <Modal.Header>
+          {pinaka.isEditing ? "Edit Lease" : "Create Lease"}
+        </Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <Label htmlFor="unitId" className="mb-2">
+                  Unit <span className="text-red-500">*</span>
+                </Label>
                 <Select
-                  placeholder="Select unit"
-                  onChange={(value) => {
+                  id="unitId"
+                  name="unitId"
+                  value={form.values.unitId || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    form.setFieldsValue({ unitId: value });
                     const unit = safeUnits.find(u => u.id === value);
                     setSelectedUnit(unit);
                     form.setFieldsValue({ 
@@ -397,7 +418,9 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
                       securityDeposit: unit?.depositAmount || undefined
                     });
                   }}
+                  required
                 >
+                  <option value="">Select unit</option>
                   {safeUnits.map(unit => {
                     const property = unit.property;
                     const propertyName = property?.propertyName || '';
@@ -406,139 +429,164 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
                       : unit.unitName ? `${unit.unitName} - ${propertyName}` : propertyName;
                     
                     return (
-                      <Select.Option key={unit.id} value={unit.id}>
+                      <option key={unit.id} value={unit.id}>
                         {displayText}
-                      </Select.Option>
+                      </option>
                     );
                   })}
                 </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="status" label="Status">
-                <Select>
+              </div>
+              <div>
+                <Label htmlFor="status" className="mb-2">Status</Label>
+                <Select
+                  id="status"
+                  name="status"
+                  value={form.values.status || 'Active'}
+                  onChange={(e) => form.setFieldsValue({ status: e.target.value })}
+                >
                   {LEASE_STATUSES.map(status => (
-                    <Select.Option key={status} value={status}>{status}</Select.Option>
+                    <option key={status} value={status}>{status}</option>
                   ))}
                 </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-          <Form.Item
-            name="tenantIds"
-            label="Tenant(s)"
-            rules={[rules.required('Tenant')]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select tenant(s)"
-              disabled={!selectedUnit}
-              onChange={(values) => {
-                setSelectedTenantIds(values);
-                if (values.length === 1) {
-                  form.setFieldsValue({ primaryTenantId: values[0] });
-                } else if (values.length > 1) {
-                  const currentPrimary = form.getFieldValue('primaryTenantId');
-                  if (!values.includes(currentPrimary)) {
+            <div>
+              <Label htmlFor="tenantIds" className="mb-2">
+                Tenant(s) <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="tenantIds"
+                name="tenantIds"
+                multiple
+                value={Array.isArray(form.values.tenantIds) ? form.values.tenantIds : []}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions, option => option.value);
+                  form.setFieldsValue({ tenantIds: values });
+                  setSelectedTenantIds(values);
+                  if (values.length === 1) {
                     form.setFieldsValue({ primaryTenantId: values[0] });
+                  } else if (values.length > 1) {
+                    const currentPrimary = form.values.primaryTenantId;
+                    if (!values.includes(currentPrimary)) {
+                      form.setFieldsValue({ primaryTenantId: values[0] });
+                    }
+                  } else {
+                    form.setFieldsValue({ primaryTenantId: null });
                   }
-                } else {
-                  form.setFieldsValue({ primaryTenantId: null });
-                }
-              }}
-            >
-              {availableTenants.map(tenant => (
-                <Select.Option key={tenant.id} value={tenant.id}>
-                  {tenant.firstName} {tenant.lastName} ({tenant.email})
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+                }}
+                disabled={!selectedUnit}
+                required
+                className="w-full"
+              >
+                {availableTenants.map(tenant => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.firstName} {tenant.lastName} ({tenant.email})
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-          {selectedTenantIds.length > 1 && (
-            <Form.Item
-              name="primaryTenantId"
-              label="Primary Tenant"
-              rules={[rules.required('Primary tenant')]}
-            >
-              <Radio.Group style={{ width: '100%' }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
+            {selectedTenantIds.length > 1 && (
+              <div>
+                <Label htmlFor="primaryTenantId" className="mb-2">
+                  Primary Tenant <span className="text-red-500">*</span>
+                </Label>
+                <div className="space-y-2">
                   {selectedTenantIds.map(tenantId => {
                     const tenant = tenants.find(t => t.id === tenantId);
                     if (!tenant) return null;
                     return (
-                      <Radio key={tenantId} value={tenantId}>
-                        <Text strong>{tenant.firstName} {tenant.lastName}</Text>
-                        <Text type="secondary" style={{ marginLeft: 8 }}>({tenant.email})</Text>
-                      </Radio>
+                      <div key={tenantId} className="flex items-center gap-2">
+                        <Radio
+                          id={`primary-${tenantId}`}
+                          name="primaryTenantId"
+                          value={tenantId}
+                          checked={form.values.primaryTenantId === tenantId}
+                          onChange={() => form.setFieldsValue({ primaryTenantId: tenantId })}
+                        />
+                        <Label htmlFor={`primary-${tenantId}`} className="cursor-pointer">
+                          <span className="font-semibold">{tenant.firstName} {tenant.lastName}</span>
+                          <span className="text-gray-500 ml-2">({tenant.email})</span>
+                        </Label>
+                      </div>
                     );
                   })}
-                </Space>
-              </Radio.Group>
-            </Form.Item>
-          )}
+                </div>
+              </div>
+            )}
 
-          {selectedTenantIds.length === 1 && (
-            <Alert
-              message="Single tenant will be marked as primary by default"
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
+            {selectedTenantIds.length === 1 && (
+              <Alert color="info">
+                <div>
+                  <p className="font-semibold">Single tenant will be marked as primary by default</p>
+                </div>
+              </Alert>
+            )}
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="leaseStart"
-                label="Lease Start Date"
-                rules={[rules.required('Start date')]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item 
-                name="leaseEnd" 
-                label="Lease End Date"
-                rules={[rules.required('End date')]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="rentAmount"
-                label="Monthly Rent"
-                rules={[rules.required('Rent amount')]}
-              >
-                <CurrencyInput
-                  country="CA"
-                  style={{ width: '100%' }}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="leaseStart" className="mb-2">
+                  Lease Start Date <span className="text-red-500">*</span>
+                </Label>
+                <TextInput
+                  id="leaseStart"
+                  name="leaseStart"
+                  type="date"
+                  value={form.values.leaseStart || ''}
+                  onChange={(e) => form.setFieldsValue({ leaseStart: e.target.value })}
+                  required
                 />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="securityDeposit" label="Security Deposit">
-                <CurrencyInput
-                  country="CA"
-                  style={{ width: '100%' }}
+              </div>
+              <div>
+                <Label htmlFor="leaseEnd" className="mb-2">
+                  Lease End Date <span className="text-red-500">*</span>
+                </Label>
+                <TextInput
+                  id="leaseEnd"
+                  name="leaseEnd"
+                  type="date"
+                  value={form.values.leaseEnd || ''}
+                  onChange={(e) => form.setFieldsValue({ leaseEnd: e.target.value })}
+                  required
                 />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item 
-                name="rentDueDay" 
-                label="Due Day (of month)"
-              >
-                <Select 
-                  style={{ width: '100%' }}
-                  placeholder="Select due day"
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="rentAmount" className="mb-2">
+                  Monthly Rent <span className="text-red-500">*</span>
+                </Label>
+                <CurrencyInput
+                  id="rentAmount"
+                  name="rentAmount"
+                  country="CA"
+                  value={form.values.rentAmount}
+                  onChange={(value) => form.setFieldsValue({ rentAmount: value })}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <Label htmlFor="securityDeposit" className="mb-2">Security Deposit</Label>
+                <CurrencyInput
+                  id="securityDeposit"
+                  name="securityDeposit"
+                  country="CA"
+                  value={form.values.securityDeposit}
+                  onChange={(value) => form.setFieldsValue({ securityDeposit: value })}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <Label htmlFor="rentDueDay" className="mb-2">Due Day (of month)</Label>
+                <Select
+                  id="rentDueDay"
+                  name="rentDueDay"
+                  value={form.values.rentDueDay || ''}
+                  onChange={(e) => form.setFieldsValue({ rentDueDay: e.target.value ? parseInt(e.target.value) : null })}
                 >
+                  <option value="">Select due day</option>
                   {[...Array(31)].map((_, index) => {
                     const day = index + 1;
                     const suffix = 
@@ -546,19 +594,41 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
                       day === 2 || day === 22 ? 'nd' :
                       day === 3 || day === 23 ? 'rd' : 'th';
                     return (
-                      <Select.Option key={day} value={day}>
+                      <option key={day} value={day}>
                         {day}{suffix} of every month
-                      </Select.Option>
+                      </option>
                     );
                   })}
                 </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-      </StandardModal>
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+              <Button color="gray" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button
+                color="blue"
+                type="submit"
+                disabled={pinaka.loading}
+                className="flex items-center gap-2"
+              >
+                {pinaka.loading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <HiSave className="h-4 w-4" />
+                    {pinaka.isEditing ? "Save" : "Create"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
     </PageLayout>
   );
 }
-
-

@@ -1,18 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Table, TableBody, TableRow, TableCell, Button, TextInput, Select, Card, Badge, Spinner, Alert } from 'flowbite-react';
 import {
-  Table,
-  Tag,
-  Button,
-  Typography,
-  message,
-} from 'antd';
-import {
-  FileTextOutlined,
-  ReloadOutlined,
-  DownloadOutlined,
-} from '@ant-design/icons';
+  HiDocumentText,
+  HiRefresh,
+  HiDownload,
+} from 'react-icons/hi';
 import { PageLayout, TableWrapper, FilterBar } from '@/components/shared';
 
 export default function AdminAuditLogsPage() {
@@ -58,11 +52,11 @@ export default function AdminAuditLogsPage() {
         setLogs(data.data);
         setPagination(prev => ({ ...prev, total: data.pagination.total }));
       } else {
-        message.error(data.error || 'Failed to fetch audit logs');
+        alert(data.error || 'Failed to fetch audit logs');
       }
     } catch (err) {
       console.error('Error fetching audit logs:', err);
-      message.error('Failed to fetch audit logs');
+      alert('Failed to fetch audit logs');
     } finally {
       setLoading(false);
     }
@@ -91,162 +85,148 @@ export default function AdminAuditLogsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const columns = [
-    {
-      title: 'Timestamp',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => new Date(date).toLocaleString(),
-      width: 180,
-    },
-    {
-      title: 'Admin',
-      key: 'admin',
-      render: (_, record) => {
-        if (record.admin) {
-          // Admin user
-          const name = `${record.admin.firstName || ''} ${record.admin.lastName || ''}`.trim();
-          return name ? `${name} (${record.googleEmail || record.admin.email})` : (record.googleEmail || record.admin.email);
-        }
-        // Non-admin user (landlord, tenant, pmc) - check details
-        if (record.details?.userName || record.details?.userEmail) {
-          return record.details.userName || record.details.userEmail;
-        }
-        // Fallback
-        return record.googleEmail || record.targetUserRole || 'System';
-      },
-    },
-    {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      render: (action) => <Tag color="blue">{action}</Tag>,
-    },
-    {
-      title: 'Resource',
-      dataIndex: 'resource',
-      key: 'resource',
-      render: (resource) => resource || '-',
-    },
-    {
-      title: 'Status',
-      dataIndex: 'success',
-      key: 'success',
-      render: (success) => (
-        <Tag color={success ? 'success' : 'error'}>
-          {success ? 'Success' : 'Failed'}
-        </Tag>
-      ),
-    },
-    {
-      title: 'IP Address',
-      dataIndex: 'ipAddress',
-      key: 'ipAddress',
-      render: (ip) => ip || '-',
-    },
-    {
-      title: 'Details',
-      dataIndex: 'details',
-      key: 'details',
-      render: (details) => (
-        <Typography.Text
-          ellipsis
-          style={{ maxWidth: 200 }}
-          title={JSON.stringify(details, null, 2)}
-        >
-          {details ? JSON.stringify(details).substring(0, 50) : '-'}
-        </Typography.Text>
-      ),
-    },
-  ];
-
-  const filterConfig = [
-    {
-      key: 'action',
-      label: 'Action',
-      type: 'select',
-      options: [
-        { label: 'Login Success', value: 'login_success' },
-        { label: 'Login Failed', value: 'login_failed' },
-        { label: 'Create User', value: 'create_user' },
-        { label: 'Update User', value: 'update_user' },
-        { label: 'Suspend User', value: 'suspend_user' },
-        { label: 'Update Settings', value: 'update_settings' },
-      ],
-    },
-    {
-      key: 'resource',
-      label: 'Resource',
-      type: 'select',
-      options: [
-        { label: 'Landlord', value: 'landlord' },
-        { label: 'Tenant', value: 'tenant' },
-        { label: 'Platform', value: 'platform' },
-      ],
-    },
-    {
-      key: 'success',
-      label: 'Status',
-      type: 'select',
-      options: [
-        { label: 'Success', value: 'true' },
-        { label: 'Failed', value: 'false' },
-      ],
-    },
-    {
-      key: 'dateRange',
-      label: 'Date Range',
-      type: 'dateRange',
-    },
-  ];
-
   return (
-    <PageLayout
-      headerTitle={<><FileTextOutlined /> Audit Logs</>}
-      headerActions={[
-        <Button key="export" icon={<DownloadOutlined />} onClick={handleExport}>
-          Export CSV
-        </Button>,
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchLogs}>
-          Refresh
-        </Button>,
-      ]}
-      contentStyle={{ padding: 0, display: 'flex', flexDirection: 'column' }}
-    >
-      <FilterBar
-        filters={filterConfig}
-        activeFilters={filters}
-        onFilterChange={(newFilters) => setFilters(newFilters)}
-        onReset={() => {
-          setFilters({
-            adminId: '',
-            action: '',
-            resource: '',
-            success: '',
-            search: '',
-            dateRange: null,
-          });
-        }}
-        searchValue={filters.search}
-        onSearchChange={(value) => setFilters({ ...filters, search: value })}
-        searchPlaceholder="Search audit logs..."
-      />
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <HiDocumentText className="h-6 w-6" />
+          Audit Logs
+        </h1>
+        <div className="flex gap-2">
+          <Button color="gray" onClick={fetchLogs} disabled={loading}>
+            <HiRefresh className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button color="blue" onClick={handleExport}>
+            <HiDownload className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <TextInput
+            placeholder="Search..."
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          />
+          <Select
+            value={filters.action}
+            onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+          >
+            <option value="">All Actions</option>
+            <option value="CREATE">Create</option>
+            <option value="UPDATE">Update</option>
+            <option value="DELETE">Delete</option>
+            <option value="LOGIN">Login</option>
+            <option value="LOGOUT">Logout</option>
+          </Select>
+          <Select
+            value={filters.resource}
+            onChange={(e) => setFilters({ ...filters, resource: e.target.value })}
+          >
+            <option value="">All Resources</option>
+            <option value="User">User</option>
+            <option value="Property">Property</option>
+            <option value="Lease">Lease</option>
+            <option value="Payment">Payment</option>
+          </Select>
+          <Select
+            value={filters.success}
+            onChange={(e) => setFilters({ ...filters, success: e.target.value })}
+          >
+            <option value="">All Status</option>
+            <option value="true">Success</option>
+            <option value="false">Failed</option>
+          </Select>
+        </div>
+      </Card>
+
+      {/* Table */}
       <TableWrapper>
-        <Table
-          columns={columns}
-          dataSource={logs}
-          loading={loading}
-          rowKey="id"
-          pagination={{
-            current: pagination.page,
-            pageSize: pagination.limit,
-            total: pagination.total,
-            onChange: (page) => setPagination({ ...pagination, page }),
-          }}
-          scroll={{ x: 1200 }}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <HiDocumentText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No audit logs found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <Table.Head className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+                <Table.HeadCell scope="col">Timestamp</Table.HeadCell>
+                <Table.HeadCell scope="col">Admin</Table.HeadCell>
+                <Table.HeadCell scope="col">Action</Table.HeadCell>
+                <Table.HeadCell scope="col">Resource</Table.HeadCell>
+                <Table.HeadCell scope="col">Status</Table.HeadCell>
+                <Table.HeadCell scope="col">IP Address</Table.HeadCell>
+                <Table.HeadCell scope="col">Details</Table.HeadCell>
+              </Table.Head>
+              <TableBody className="divide-y">
+                {logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {log.admin
+                        ? `${log.admin.firstName || ''} ${log.admin.lastName || ''}`.trim() || log.admin.email
+                        : log.details?.userName || log.details?.userEmail || 'System'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge color="blue">{log.action}</Badge>
+                    </TableCell>
+                    <TableCell>{log.resource || '-'}</TableCell>
+                    <TableCell>
+                      <Badge color={log.success ? 'success' : 'failure'}>
+                        {log.success ? 'Success' : 'Failed'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{log.ipAddress || '-'}</TableCell>
+                    <TableCell>
+                      <span className="text-xs text-gray-500">
+                        {log.details ? JSON.stringify(log.details).substring(0, 50) + '...' : '-'}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination.total > 0 && (
+          <div className="flex justify-between items-center mt-4">
+            <span className="text-sm text-gray-600">
+              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                color="gray"
+                size="sm"
+                disabled={pagination.page === 1}
+                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+              >
+                Previous
+              </Button>
+              <Button
+                color="gray"
+                size="sm"
+                disabled={pagination.page * pagination.limit >= pagination.total}
+                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </TableWrapper>
-    </PageLayout>
+    </div>
   );
 }
-

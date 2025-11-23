@@ -2,20 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, Button, Alert, Typography, Space, Form, Input, Divider } from 'antd';
-import { LockOutlined, UserOutlined, SafetyOutlined, CheckCircleOutlined } from '@ant-design/icons';
-
-const { Title, Text } = Typography;
+import { Button, TextInput, Alert, Card } from 'flowbite-react';
+import { HiLockClosed, HiUser, HiShieldCheck, HiCheckCircle } from 'react-icons/hi';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [form] = Form.useForm();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check for error in URL params
     if (typeof window !== 'undefined') {
       const errorParam = searchParams?.get('error');
       if (errorParam) {
@@ -24,12 +22,12 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
-  const handleLogin = async (values) => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      // Try regular user login first
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -37,14 +35,12 @@ export default function LoginPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          email: values.email,
-          password: values.password,
+          email,
+          password,
         }),
       });
 
-      // Check if response is ok before parsing JSON
       if (!response.ok) {
-        // If regular login failed, try admin login
         const adminResponse = await fetch('/api/admin/auth/login', {
           method: 'POST',
           headers: {
@@ -52,26 +48,24 @@ export default function LoginPage() {
           },
           credentials: 'include',
           body: JSON.stringify({
-            email: values.email,
-            password: values.password,
+            email,
+            password,
           }),
         });
 
         if (adminResponse.ok) {
           const adminData = await adminResponse.json();
           if (adminData.success && adminData.user) {
-            // Admin login successful
             router.push('/admin/dashboard');
             return;
           }
         }
         
-        // Both logins failed
         try {
           const errorData = await response.json();
           setError(errorData.error || 'Invalid email or password');
         } catch {
-          setError('Unable to connect to server. Please check if the API server is running.');
+          setError('Unable to connect to server. Please check if the API server is running on port 3001.');
         }
         return;
       }
@@ -79,19 +73,15 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (data.success && data.user) {
-        // Login successful - redirect based on user role
         const userRole = data.user.role || data.userType;
         const nextUrl = searchParams?.get('next') || '/';
 
         if (userRole === 'admin' || userRole === 'pmc') {
-          // Admin or PMC users go to admin dashboard
           router.push('/admin/dashboard');
         } else {
-          // Regular users (landlord, tenant) go to home
           router.push(nextUrl);
         }
       } else {
-        // If regular login failed, try admin login
         const adminResponse = await fetch('/api/admin/auth/login', {
           method: 'POST',
           headers: {
@@ -99,15 +89,14 @@ export default function LoginPage() {
           },
           credentials: 'include',
           body: JSON.stringify({
-            email: values.email,
-            password: values.password,
+            email,
+            password,
           }),
         });
 
         if (adminResponse.ok) {
           const adminData = await adminResponse.json();
           if (adminData.success && adminData.user) {
-            // Admin login successful
             router.push('/admin/dashboard');
             return;
           }
@@ -129,306 +118,122 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '20px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 p-5 relative overflow-hidden">
       {/* Background decoration */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-50%',
-          right: '-50%',
-          width: '100%',
-          height: '100%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '-30%',
-          left: '-30%',
-          width: '60%',
-          height: '60%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
+      <div className="absolute top-0 right-0 w-full h-full bg-gradient-radial from-white/10 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-3/5 h-3/5 bg-gradient-radial from-white/5 to-transparent pointer-events-none" />
 
-      <Card
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          borderRadius: '16px',
-          border: 'none',
-          overflow: 'hidden',
-          position: 'relative',
-          zIndex: 1,
-        }}
-        bodyStyle={{
-          padding: '48px 40px',
-        }}
-      >
-        {/* Logo/Brand Section */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
-            }}
-          >
-            <LockOutlined style={{ fontSize: 40, color: '#fff' }} />
+      <Card className="w-full max-w-md shadow-2xl rounded-2xl border-0 overflow-hidden relative z-10">
+        <div className="p-12">
+          {/* Logo/Brand Section */}
+          <div className="text-center mb-10">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <HiLockClosed className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">
+              Welcome Back
+            </h2>
+            <p className="text-gray-600 text-base font-normal">
+              Sign in to your Pinaka account
+            </p>
           </div>
-          <Title 
-            level={2} 
-            style={{ 
-              marginBottom: 8, 
-              fontWeight: 700,
-              fontSize: 32,
-              color: '#1a1a1a',
-              letterSpacing: '-0.5px',
-            }}
-          >
-            Welcome Back
-          </Title>
-          <Text 
-            type="secondary" 
-            style={{ 
-              fontSize: 16,
-              color: '#8c8c8c',
-              fontWeight: 400,
-            }}
-          >
-            Sign in to your Pinaka account
-          </Text>
-        </div>
 
-        {error && (
-          <Alert
-            message="Authentication Error"
-            description={error}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            style={{ 
-              marginBottom: 24,
-              borderRadius: '8px',
-            }}
-          />
-        )}
+          {error && (
+            <Alert color="failure" className="mb-6 rounded-lg">
+              <div>
+                <div className="font-medium">Authentication Error</div>
+                <div className="text-sm mt-1">{error}</div>
+              </div>
+            </Alert>
+          )}
 
-        <Form
-          form={form}
-          name="login"
-          onFinish={handleLogin}
-          layout="vertical"
-          autoComplete="off"
-          size="large"
-          requiredMark={false}
-        >
-          <Form.Item
-            name="email"
-            label={
-              <span style={{ fontWeight: 600, color: '#262626', fontSize: 14 }}>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="block mb-2 text-sm font-semibold text-gray-700">
                 Email Address
-              </span>
-            }
-            rules={[
-              { required: true, message: 'Please enter your email address' },
-              { type: 'email', message: 'Please enter a valid email address' },
-            ]}
-            style={{ marginBottom: 20 }}
-          >
-            <Input
-              prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="Enter your email address"
-              autoComplete="username"
-              style={{
-                height: 48,
-                borderRadius: '8px',
-                fontSize: 15,
-              }}
-            />
-          </Form.Item>
+              </label>
+              <TextInput
+                id="email"
+                type="email"
+                icon={HiUser}
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12 text-base"
+                autoComplete="username"
+              />
+            </div>
 
-          <Form.Item
-            name="password"
-            label={
-              <span style={{ fontWeight: 600, color: '#262626', fontSize: 14 }}>
+            <div>
+              <label htmlFor="password" className="block mb-2 text-sm font-semibold text-gray-700">
                 Password
-              </span>
-            }
-            rules={[{ required: true, message: 'Please enter your password' }]}
-            style={{ marginBottom: 8 }}
-          >
-            <Input.Password
-              prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              style={{
-                height: 48,
-                borderRadius: '8px',
-                fontSize: 15,
-              }}
-            />
-          </Form.Item>
+              </label>
+              <TextInput
+                id="password"
+                type="password"
+                icon={HiLockClosed}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-12 text-base"
+                autoComplete="current-password"
+              />
+            </div>
 
-          <Form.Item style={{ marginBottom: 24, marginTop: 8 }}>
             <Button
-              type="primary"
-              htmlType="submit"
-              block
-              loading={loading}
-              style={{
-                height: 52,
-                fontSize: 16,
-                fontWeight: 600,
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-              }}
+              type="submit"
+              className="w-full h-14 text-base font-semibold bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 border-0 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
+              disabled={loading}
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
-          </Form.Item>
-        </Form>
+          </form>
 
-        {/* Security Badge */}
-        <div 
-          style={{ 
-            marginTop: 32, 
-            paddingTop: 24, 
-            borderTop: '1px solid #f0f0f0',
-            textAlign: 'center',
-          }}
-        >
-          <Space size="small">
-            <SafetyOutlined style={{ color: '#52c41a', fontSize: 16 }} />
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Secure authentication with encrypted connection
-            </Text>
-          </Space>
-        </div>
-
-        {/* Test Credentials - Professional Styled */}
-        <div 
-          style={{ 
-            marginTop: 24, 
-            padding: 20, 
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
-            borderRadius: '12px',
-            border: '1px solid #e8e8e8',
-          }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <Text strong style={{ fontSize: 13, color: '#595959', display: 'block', marginBottom: 8 }}>
-              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 6 }} />
-              Test Credentials
-            </Text>
+          {/* Security Badge */}
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <div className="flex items-center justify-center gap-2 text-gray-600 text-sm">
+              <HiShieldCheck className="w-4 h-4 text-green-500" />
+              <span>Secure authentication with encrypted connection</span>
+            </div>
           </div>
-          <Space direction="vertical" size={6} style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Admin:</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                superadmin@admin.local
-              </code>
-              <Text style={{ fontSize: 11, color: '#bfbfbf' }}>/</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                superadmin
-              </code>
+
+          {/* Test Credentials */}
+          <div className="mt-6 p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+            <div className="mb-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <HiCheckCircle className="w-4 h-4 text-green-500" />
+                Test Credentials
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>PMC:</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                pmc1-admin@pmc.local
-              </code>
-              <Text style={{ fontSize: 11, color: '#bfbfbf' }}>/</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                pmcadmin
-              </code>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Admin:</span>
+                <div className="flex items-center gap-1">
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">superadmin@admin.local</code>
+                  <span className="text-gray-400">/</span>
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">superadmin</code>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">PMC:</span>
+                <div className="flex items-center gap-1">
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">pmc1-admin@pmc.local</code>
+                  <span className="text-gray-400">/</span>
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">pmcadmin</code>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Landlord:</span>
+                <div className="flex items-center gap-1">
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">pmc1-lld1@pmc.local</code>
+                  <span className="text-gray-400">/</span>
+                  <code className="bg-white px-2 py-1 rounded text-blue-600 font-medium">testlld</code>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Landlord:</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                pmc1-lld1@pmc.local
-              </code>
-              <Text style={{ fontSize: 11, color: '#bfbfbf' }}>/</Text>
-              <code style={{ 
-                fontSize: 11, 
-                background: '#fff', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                color: '#1890ff',
-                fontWeight: 500,
-              }}>
-                testlld
-              </code>
-            </div>
-          </Space>
+          </div>
         </div>
       </Card>
     </div>

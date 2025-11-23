@@ -1,28 +1,35 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import {
-  Card,
-  Form,
-  Switch,
-  Space,
-  Typography,
-  message,
-  Row,
-  Col,
-  Input,
-} from 'antd';
-import {
-  SettingOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { Card, ToggleSwitch, Button, Alert, Spinner } from 'flowbite-react';
+import { HiCog, HiRefresh } from 'react-icons/hi';
 import { PageLayout, FormTextInput, FormActions } from '@/components/shared';
+import { useFormState } from '@/lib/hooks/useFormState';
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [form] = Form.useForm();
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const initialFormValues = {
+    maintenanceMode: false,
+    featureFlags: {
+      tenantInvitations: false,
+      documentVault: false,
+      maintenanceRequests: false,
+      rentPayments: false,
+    },
+    email: {
+      enabled: false,
+      provider: 'gmail',
+    },
+    notifications: {
+      enabled: false,
+      channels: ['email'],
+    },
+  };
+  const formState = useFormState(initialFormValues);
 
   useEffect(() => {
     fetchSettings();
@@ -30,161 +37,250 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.getSettings();
 
       if (data.success) {
         setSettings(data.data);
-        form.setFieldsValue(data.data);
+        formState.setValues(data.data);
       } else {
-        message.error(data.error || 'Failed to fetch settings');
+        setError(data.error || 'Failed to fetch settings');
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
-      message.error(err?.message || 'Failed to fetch settings');
+      setError(err?.message || 'Failed to fetch settings');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
     try {
-      const values = await form.validateFields();
-      setSaving(true);
+      const values = formState.values;
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.updateSettings(values);
 
       if (data.success) {
-        message.success('Settings saved successfully');
+        setSuccess('Settings saved successfully');
         setSettings(data.data);
+        formState.setValues(data.data);
       } else {
-        message.error(data.error || 'Failed to save settings');
+        setError(data.error || 'Failed to save settings');
       }
     } catch (err) {
-      if (err.errorFields) {
-        // Validation errors
-        return;
-      }
       console.error('Error saving settings:', err);
-      message.error('Failed to save settings');
+      setError('Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div style={{ padding: '24px', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
   }
 
   return (
     <PageLayout
-      headerTitle={<><SettingOutlined /> Platform Configuration</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiCog className="h-5 w-5" />
+          <span>Platform Configuration</span>
+        </div>
+      }
       contentStyle={{ maxWidth: 1000, margin: '0 auto' }}
     >
+      {error && (
+        <Alert color="failure" className="mb-6">
+          <div>
+            <div className="font-medium">Error</div>
+            <div className="text-sm mt-1">{error}</div>
+          </div>
+        </Alert>
+      )}
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSave}
-        initialValues={settings}
-      >
-        <Card title="System Settings" style={{ marginBottom: 24 }}>
-          <Form.Item
-            name={['maintenanceMode']}
-            label="Maintenance Mode"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          <Typography.Text type="secondary">
-            When enabled, the platform will be unavailable to users.
-          </Typography.Text>
+      {success && (
+        <Alert color="success" className="mb-6">
+          <div>
+            <div className="font-medium">Success</div>
+            <div className="text-sm mt-1">{success}</div>
+          </div>
+        </Alert>
+      )}
+
+      <div className="space-y-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Settings</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  Maintenance Mode
+                </label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  When enabled, the platform will be unavailable to users.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={formState.values.maintenanceMode}
+                onChange={(checked) => formState.setFieldsValue({ maintenanceMode: checked })}
+              />
+            </div>
+          </div>
         </Card>
 
-        <Card title="Feature Flags" style={{ marginBottom: 24 }}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name={['featureFlags', 'tenantInvitations']}
-                label="Tenant Invitations"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name={['featureFlags', 'documentVault']}
-                label="Document Vault"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name={['featureFlags', 'maintenanceRequests']}
-                label="Maintenance Requests"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name={['featureFlags', 'rentPayments']}
-                label="Rent Payments"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Feature Flags</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Tenant Invitations
+              </label>
+              <ToggleSwitch
+                checked={formState.values.featureFlags?.tenantInvitations || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  featureFlags: {
+                    ...formState.values.featureFlags,
+                    tenantInvitations: checked
+                  }
+                })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Document Vault
+              </label>
+              <ToggleSwitch
+                checked={formState.values.featureFlags?.documentVault || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  featureFlags: {
+                    ...formState.values.featureFlags,
+                    documentVault: checked
+                  }
+                })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Maintenance Requests
+              </label>
+              <ToggleSwitch
+                checked={formState.values.featureFlags?.maintenanceRequests || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  featureFlags: {
+                    ...formState.values.featureFlags,
+                    maintenanceRequests: checked
+                  }
+                })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Rent Payments
+              </label>
+              <ToggleSwitch
+                checked={formState.values.featureFlags?.rentPayments || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  featureFlags: {
+                    ...formState.values.featureFlags,
+                    rentPayments: checked
+                  }
+                })}
+              />
+            </div>
+          </div>
         </Card>
 
-        <Card title="Email Configuration" style={{ marginBottom: 24 }}>
-          <Form.Item
-            name={['email', 'enabled']}
-            label="Enable Email"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name={['email', 'provider']}
-            label="Email Provider"
-          >
-            <Typography.Text>{settings?.email?.provider || 'gmail'}</Typography.Text>
-          </Form.Item>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Email Configuration</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Enable Email
+              </label>
+              <ToggleSwitch
+                checked={formState.values.email?.enabled || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  email: {
+                    ...formState.values.email,
+                    enabled: checked
+                  }
+                })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+                Email Provider
+              </label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {settings?.email?.provider || 'gmail'}
+              </p>
+            </div>
+          </div>
         </Card>
 
-        <Card title="Notifications" style={{ marginBottom: 24 }}>
-          <Form.Item
-            name={['notifications', 'enabled']}
-            label="Enable Notifications"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name={['notifications', 'channels']}
-            label="Notification Channels"
-          >
-            <Typography.Text>{settings?.notifications?.channels?.join(', ') || 'email'}</Typography.Text>
-          </Form.Item>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notifications</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-900 dark:text-white">
+                Enable Notifications
+              </label>
+              <ToggleSwitch
+                checked={formState.values.notifications?.enabled || false}
+                onChange={(checked) => formState.setFieldsValue({
+                  notifications: {
+                    ...formState.values.notifications,
+                    enabled: checked
+                  }
+                })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+                Notification Channels
+              </label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {settings?.notifications?.channels?.join(', ') || 'email'}
+              </p>
+            </div>
+          </div>
         </Card>
 
-        <FormActions
-          onSave={handleSave}
-          onReset={fetchSettings}
-          loading={saving}
-          saveText="Save Settings"
-          resetText="Reset"
-          showCancel={false}
-          showReset={true}
-        />
-      </Form>
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2"
+          >
+            {saving ? (
+              <>
+                <Spinner size="sm" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </Button>
+          <Button
+            color="gray"
+            onClick={fetchSettings}
+            disabled={loading || saving}
+            className="flex items-center gap-2"
+          >
+            <HiRefresh className="h-4 w-4" />
+            Reset
+          </Button>
+        </div>
+      </div>
     </PageLayout>
   );
 }

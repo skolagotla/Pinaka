@@ -1,40 +1,28 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Card, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Button, Modal, TextInput, Select, Textarea, Label, Badge, Spinner, ToggleSwitch } from 'flowbite-react';
 import {
-  Card,
-  Table,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Switch,
-  DatePicker,
-  Space,
-  Tag,
-  message,
-  Typography,
-} from 'antd';
-import { StandardModal, FormTextInput, FormSelect, FormDatePicker } from '@/components/shared';
-import { ActionButton } from '@/components/shared/buttons';
-import {
-  BellOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
-import dayjs from 'dayjs';
-
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
+  HiBell,
+  HiPlus,
+  HiPencil,
+  HiTrash,
+} from 'react-icons/hi';
+import { StandardModal } from '@/components/shared';
 
 export default function AdminNotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
-  const [form] = Form.useForm();
+  const [formData, setFormData] = useState({
+    title: '',
+    message: '',
+    type: 'info',
+    startDate: '',
+    endDate: '',
+    isActive: true,
+  });
 
   useEffect(() => {
     fetchAnnouncements();
@@ -57,173 +45,218 @@ export default function AdminNotificationsPage() {
 
   const handleCreate = () => {
     setEditingAnnouncement(null);
-    form.resetFields();
+    setFormData({
+      title: '',
+      message: '',
+      type: 'info',
+      startDate: '',
+      endDate: '',
+      isActive: true,
+    });
     setModalVisible(true);
   };
 
   const handleEdit = (announcement) => {
     setEditingAnnouncement(announcement);
-    form.setFieldsValue({
-      ...announcement,
-      startDate: announcement.startDate ? dayjs(announcement.startDate) : null,
-      endDate: announcement.endDate ? dayjs(announcement.endDate) : null,
+    setFormData({
+      title: announcement.title || '',
+      message: announcement.message || '',
+      type: announcement.type || 'info',
+      startDate: announcement.startDate ? announcement.startDate.split('T')[0] : '',
+      endDate: announcement.endDate ? announcement.endDate.split('T')[0] : '',
+      isActive: announcement.isActive !== undefined ? announcement.isActive : true,
     });
     setModalVisible(true);
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async () => {
     try {
       const payload = {
-        ...values,
-        startDate: values.startDate ? values.startDate.toISOString() : null,
-        endDate: values.endDate ? values.endDate.toISOString() : null,
+        ...formData,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
       };
 
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.saveAnnouncement(payload, editingAnnouncement?.id);
 
       if (data.success) {
-        message.success(editingAnnouncement ? 'Announcement updated' : 'Announcement created');
+        alert(editingAnnouncement ? 'Announcement updated' : 'Announcement created');
         setModalVisible(false);
         fetchAnnouncements();
       } else {
-        message.error(data.error || 'Failed to save announcement');
+        alert(data.error || 'Failed to save announcement');
       }
     } catch (err) {
-      message.error('Failed to save announcement');
+      alert('Failed to save announcement');
     }
   };
 
   const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.deleteAnnouncement(id);
       if (data.success) {
-        message.success('Announcement deleted');
+        alert('Announcement deleted');
         fetchAnnouncements();
       } else {
-        message.error(data.error || 'Failed to delete announcement');
+        alert(data.error || 'Failed to delete announcement');
       }
     } catch (err) {
-      message.error(err?.message || 'Failed to delete announcement');
+      alert('Failed to delete announcement');
     }
   };
 
-  const columns = [
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => <Tag>{type}</Tag>,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      render: (active) => <Tag color={active ? 'green' : 'default'}>{active ? 'Active' : 'Inactive'}</Tag>,
-    },
-    {
-      title: 'Target Audience',
-      dataIndex: 'targetAudience',
-      key: 'targetAudience',
-      render: (audience) => audience?.join(', ') || 'All',
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <ActionButton
-            action="edit"
-            onClick={() => handleEdit(record)}
-            tooltip="Edit"
-            showText={true}
-            text="Edit"
-          />
-          <ActionButton
-            action="delete"
-            onClick={() => handleDelete(record.id)}
-            tooltip="Delete"
-            showText={true}
-            text="Delete"
-          />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <BellOutlined /> Notification Management
-        </Title>
-        <ActionButton action="add" onClick={handleCreate} tooltip="Create Announcement" showText={true} text="Create Announcement" />
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <HiBell className="h-6 w-6" />
+          Notifications
+        </h1>
+        <Button color="blue" onClick={handleCreate}>
+          <HiPlus className="h-4 w-4 mr-2" />
+          Create Announcement
+        </Button>
       </div>
 
       <Card>
-        <Table
-          columns={columns}
-          dataSource={announcements}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 50 }}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
+        ) : announcements.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <HiBell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No announcements found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableHeadCell>Title</TableHeadCell>
+                <TableHeadCell>Type</TableHeadCell>
+                <TableHeadCell>Status</TableHeadCell>
+                <TableHeadCell>Start Date</TableHeadCell>
+                <TableHeadCell>End Date</TableHeadCell>
+                <TableHeadCell>Actions</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
+                {announcements.map((announcement) => (
+                  <TableRow key={announcement.id}>
+                    <TableCell className="font-medium">{announcement.title}</TableCell>
+                    <TableCell>
+                      <Badge color={announcement.type === 'error' ? 'failure' : announcement.type === 'warning' ? 'warning' : 'info'}>
+                        {announcement.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge color={announcement.isActive ? 'success' : 'gray'}>
+                        {announcement.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {announcement.startDate ? new Date(announcement.startDate).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {announcement.endDate ? new Date(announcement.endDate).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" color="gray" onClick={() => handleEdit(announcement)}>
+                          <HiPencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" color="failure" onClick={() => handleDelete(announcement.id)}>
+                          <HiTrash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </Card>
 
       <StandardModal
         title={editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
         open={modalVisible}
-        form={form}
-        loading={false}
-        submitText={editingAnnouncement ? 'Save' : 'Create'}
         onCancel={() => setModalVisible(false)}
         onFinish={handleSubmit}
-        width={600}
+        submitText={editingAnnouncement ? 'Save' : 'Create'}
       >
-          <Form.Item name="title" label="Title" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="message" label="Message" rules={[{ required: true }]}>
-            <TextArea rows={4} />
-          </Form.Item>
-          <Form.Item name="type" label="Type" rules={[{ required: true }]}>
-            <Select>
-              <Option value="info">Info</Option>
-              <Option value="warning">Warning</Option>
-              <Option value="error">Error</Option>
-              <Option value="success">Success</Option>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title" className="mb-2 block">
+              Title <span className="text-red-500">*</span>
+            </Label>
+            <TextInput
+              id="title"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="message" className="mb-2 block">
+              Message <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="message"
+              required
+              rows={4}
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="type" className="mb-2 block">
+              Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              id="type"
+              required
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            >
+              <option value="info">Info</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+              <option value="success">Success</option>
             </Select>
-          </Form.Item>
-          <Form.Item name="targetAudience" label="Target Audience">
-            <Select mode="multiple">
-              <Option value="all">All</Option>
-              <Option value="landlord">Landlords</Option>
-              <Option value="tenant">Tenants</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="startDate" label="Start Date">
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="endDate" label="End Date">
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="isActive" valuePropName="checked" initialValue={true}>
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
-          </Form.Item>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startDate" className="mb-2 block">Start Date</Label>
+              <TextInput
+                id="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate" className="mb-2 block">End Date</Label>
+              <TextInput
+                id="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleSwitch
+              checked={formData.isActive}
+              onChange={(checked) => setFormData({ ...formData, isActive: checked })}
+            />
+            <Label htmlFor="isActive">Active</Label>
+          </div>
+        </div>
       </StandardModal>
     </div>
   );
 }
-

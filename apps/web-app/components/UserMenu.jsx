@@ -1,56 +1,64 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, Dropdown, Space, Typography } from 'antd';
+import { Avatar, Dropdown, Button } from 'flowbite-react';
 import {
-  SettingOutlined,
-  LogoutOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+  HiCog,
+  HiLogout,
+  HiUser,
+} from 'react-icons/hi';
 
-const { Text } = Typography;
-
-export default function UserMenu({ firstName, lastName, userRole, collapsed = false }) {
+export default function UserMenu({ 
+  firstName, 
+  lastName, 
+  userRole, 
+  collapsed = false,
+  onLogout,
+  onSettings 
+}) {
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
 
   function handleSettings() {
-    router.push("/settings");
+    if (onSettings) {
+      onSettings();
+    } else if (userRole === 'admin') {
+      router.push("/admin/settings");
+    } else {
+      router.push("/settings");
+    }
+    setIsOpen(false);
   }
 
   async function handleLogout() {
-    // Admin users should use admin logout endpoint
-    if (userRole === 'admin') {
+    if (onLogout) {
+      onLogout();
+    } else if (userRole === 'admin') {
       try {
-        // Call admin logout API and redirect to admin login
         const { adminApi } = await import('@/lib/api/admin-api');
         await adminApi.logout();
         window.location.href = '/admin/login';
       } catch (err) {
         console.error('Admin logout error:', err);
-        // Still redirect even if API call fails
         window.location.href = '/admin/login';
       }
     } else {
-      // Check if user is using email/password login (has auth0_test_email cookie)
-      // or Auth0 login
       const hasTestCookie = document.cookie.includes('auth0_test_email=');
       
       if (hasTestCookie) {
-        // Email/password users - clear cookie and redirect to home
         fetch('/api/auth/logout', { method: 'POST' })
           .then(() => {
             window.location.href = '/';
           })
           .catch((err) => {
             console.error('Logout error:', err);
-            // Still redirect even if API call fails
             window.location.href = '/';
           });
       } else {
-        // Regular users use Auth0 logout endpoint
         window.location.href = '/auth/logout';
       }
     }
+    setIsOpen(false);
   }
 
   if (!firstName && !lastName) {
@@ -58,66 +66,68 @@ export default function UserMenu({ firstName, lastName, userRole, collapsed = fa
   }
 
   const displayName = `${firstName} ${lastName}`;
-  const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`;
-
-  const menuItems = [
-    {
-      key: 'user-info',
-      label: (
-        <div style={{ padding: '4px 0' }}>
-          <Text strong style={{ display: 'block' }}>
-            {displayName}
-          </Text>
-        </div>
-      ),
-      disabled: true,
-      icon: <UserOutlined />,
-    },
-    {
-      type: 'divider',
-    },
-  ];
-
-  if (userRole === 'landlord' || userRole === 'tenant' || userRole === 'pmc') {
-    menuItems.push({
-      key: 'settings',
-      label: 'Settings',
-      icon: <SettingOutlined />,
-      onClick: handleSettings,
-    });
-  }
-
-  menuItems.push({
-    key: 'logout',
-    label: 'Logout',
-    icon: <LogoutOutlined />,
-    danger: true,
-    onClick: handleLogout,
-  });
+  const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
 
   return (
-    <Dropdown
-      menu={{ items: menuItems }}
-      placement={collapsed ? "bottomLeft" : "bottomRight"}
-      arrow
-      trigger={['click']}
-    >
-      <Space 
-        style={{ 
-          cursor: 'pointer',
-          width: '100%',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-        }}
+    <div className="relative">
+      <Button
+        color="gray"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2"
       >
         {!collapsed && (
-          <Text strong style={{ fontSize: '14px', marginRight: 8 }}>
-            {displayName}
-          </Text>
+          <span className="text-sm font-medium text-gray-700">{displayName}</span>
         )}
-        <Avatar style={{ backgroundColor: '#1890ff', cursor: 'pointer' }}>
-          {initials}
-        </Avatar>
-      </Space>
-    </Dropdown>
+        <Avatar
+          placeholderInitials={initials}
+          rounded
+          className="bg-blue-600 text-white"
+        />
+      </Button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-white shadow-lg border border-gray-200 z-50">
+            <div className="p-3 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <Avatar
+                  placeholderInitials={initials}
+                  rounded
+                  className="bg-blue-600 text-white"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">{displayName}</div>
+                  <div className="text-xs text-gray-500 capitalize">{userRole}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="py-1">
+              {(userRole === 'landlord' || userRole === 'tenant' || userRole === 'pmc') && (
+                <button
+                  onClick={handleSettings}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <HiCog className="h-4 w-4" />
+                  Settings
+                </button>
+              )}
+              
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <HiLogout className="h-4 w-4" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

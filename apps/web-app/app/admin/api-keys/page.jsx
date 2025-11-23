@@ -1,35 +1,17 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Card, Button, Badge, Alert, ToggleSwitch, Spinner } from 'flowbite-react';
+import { StandardModal, FormTextInput, FormSelect, PageLayout } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import { useFormState } from '@/lib/hooks/useFormState';
 import {
-  Card,
-  Table,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Switch,
-  Space,
-  Tag,
-  message,
-  Typography,
-  Alert,
-  DatePicker,
-  InputNumber,
-} from 'antd';
-import { StandardModal, FormTextInput, FormSelect, FormDatePicker } from '@/components/shared';
-import { ActionButton } from '@/components/shared/buttons';
-import {
-  KeyOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CopyOutlined,
-} from '@ant-design/icons';
-import dayjs from 'dayjs';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+  HiKey,
+  HiPlus,
+  HiPencil,
+  HiTrash,
+  HiClipboard,
+} from 'react-icons/hi';
 
 export default function AdminApiKeysPage() {
   const [loading, setLoading] = useState(true);
@@ -37,7 +19,15 @@ export default function AdminApiKeysPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [newKey, setNewKey] = useState(null);
-  const [form] = Form.useForm();
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const formState = useFormState({
+    name: '',
+    permissions: [],
+    rateLimit: 100,
+    expiresAt: null,
+    isActive: true,
+  });
 
   useEffect(() => {
     fetchApiKeys();
@@ -61,25 +51,29 @@ export default function AdminApiKeysPage() {
   const handleCreate = () => {
     setEditingKey(null);
     setNewKey(null);
-    form.resetFields();
+    formState.resetFields();
     setModalVisible(true);
   };
 
   const handleEdit = (key) => {
     setEditingKey(key);
     setNewKey(null);
-    form.setFieldsValue({
-      ...key,
-      expiresAt: key.expiresAt ? dayjs(key.expiresAt) : null,
+    formState.setFieldsValue({
+      name: key.name || '',
+      permissions: key.permissions || [],
+      rateLimit: key.rateLimit || 100,
+      expiresAt: key.expiresAt || null,
+      isActive: key.isActive !== undefined ? key.isActive : true,
     });
     setModalVisible(true);
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async () => {
     try {
+      const values = formState.values;
       const payload = {
         ...values,
-        expiresAt: values.expiresAt ? values.expiresAt.toISOString() : null,
+        expiresAt: values.expiresAt ? (typeof values.expiresAt === 'string' ? values.expiresAt : new Date(values.expiresAt).toISOString()) : null,
       };
 
       const { adminApi } = await import('@/lib/api/admin-api');
@@ -88,38 +82,52 @@ export default function AdminApiKeysPage() {
       if (data.success) {
         if (!editingKey && data.data.key) {
           setNewKey(data.data.key);
-          message.warning('Save this API key securely - it will not be shown again!');
+          setSuccessMessage('Save this API key securely - it will not be shown again!');
+          setErrorMessage(null);
         } else {
-          message.success(editingKey ? 'API key updated' : 'API key created');
+          setSuccessMessage(editingKey ? 'API key updated' : 'API key created');
+          setErrorMessage(null);
           setModalVisible(false);
           fetchApiKeys();
+          setTimeout(() => setSuccessMessage(null), 5000);
         }
       } else {
-        message.error(data.error || 'Failed to save API key');
+        setErrorMessage(data.error || 'Failed to save API key');
+        setSuccessMessage(null);
       }
     } catch (err) {
-      message.error('Failed to save API key');
+      setErrorMessage('Failed to save API key');
+      setSuccessMessage(null);
     }
   };
 
   const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this API key?')) {
+      return;
+    }
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
       const data = await adminApi.deleteApiKey(id);
       if (data.success) {
-        message.success('API key deleted');
+        setSuccessMessage('API key deleted');
+        setErrorMessage(null);
         fetchApiKeys();
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        message.error(data.error || 'Failed to delete API key');
+        setErrorMessage(data.error || 'Failed to delete API key');
+        setSuccessMessage(null);
       }
     } catch (err) {
-      message.error(err?.message || 'Failed to delete API key');
+      setErrorMessage(err?.message || 'Failed to delete API key');
+      setSuccessMessage(null);
     }
   };
 
   const handleCopyKey = (key) => {
     navigator.clipboard.writeText(key);
-    message.success('API key copied to clipboard');
+    setSuccessMessage('API key copied to clipboard');
+    setErrorMessage(null);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const columns = [
@@ -132,19 +140,33 @@ export default function AdminApiKeysPage() {
       title: 'Key',
       dataIndex: 'key',
       key: 'key',
-      render: (key) => <Text code>{key}</Text>,
+      render: (key) => (
+        <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono">
+          {key}
+        </code>
+      ),
     },
     {
       title: 'Permissions',
       dataIndex: 'permissions',
       key: 'permissions',
-      render: (perms) => perms?.map((p) => <Tag key={p}>{p}</Tag>),
+      render: (perms) => (
+        <div className="flex flex-wrap gap-1">
+          {perms?.map((p) => (
+            <Badge key={p} color="info">{p}</Badge>
+          ))}
+        </div>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'isActive',
       key: 'isActive',
-      render: (active) => <Tag color={active ? 'green' : 'red'}>{active ? 'Active' : 'Inactive'}</Tag>,
+      render: (active) => (
+        <Badge color={active ? 'success' : 'failure'}>
+          {active ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
     },
     {
       title: 'Last Used',
@@ -162,63 +184,81 @@ export default function AdminApiKeysPage() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
-          <ActionButton
-            action="edit"
+        <div className="flex items-center gap-2">
+          <Button
+            size="xs"
+            color="gray"
             onClick={() => handleEdit(record)}
-            tooltip="Edit"
-            showText={true}
-            text="Edit"
-          />
-          <ActionButton
-            action="delete"
+            title="Edit"
+          >
+            <HiPencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="xs"
+            color="failure"
             onClick={() => handleDelete(record.id)}
-            tooltip="Delete"
-            showText={true}
-            text="Delete"
-          />
-        </Space>
+            title="Delete"
+          >
+            <HiTrash className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <KeyOutlined /> API Key Management
-        </Title>
-        <ActionButton action="add" onClick={handleCreate} tooltip="Create API Key" showText={true} text="Create API Key" />
-      </div>
+    <PageLayout
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiKey className="h-5 w-5" />
+          <span>API Key Management</span>
+        </div>
+      }
+      headerActions={[
+        <Button key="create" color="blue" onClick={handleCreate}>
+          <HiPlus className="mr-2 h-4 w-4" />
+          Create API Key
+        </Button>
+      ]}
+      contentStyle={{ maxWidth: 1400, margin: '0 auto' }}
+    >
+      {successMessage && (
+        <Alert color="success" className="mb-6" onDismiss={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
+      {errorMessage && (
+        <Alert color="failure" className="mb-6" onDismiss={() => setErrorMessage(null)}>
+          {errorMessage}
+        </Alert>
+      )}
 
       {newKey && (
-        <Alert
-          message="New API Key Generated"
-          description={
+        <Alert color="warning" className="mb-6" onDismiss={() => setNewKey(null)}>
+          <div className="space-y-3">
+            <div className="font-semibold">New API Key Generated</div>
             <div>
-              <Text strong>Save this key securely - it will not be shown again!</Text>
-              <br />
-              <Text code style={{ fontSize: 16, marginTop: 8, display: 'block' }}>
+              <p className="text-sm mb-2">Save this key securely - it will not be shown again!</p>
+              <code className="block px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono break-all">
                 {newKey}
-              </Text>
+              </code>
               <Button
-                icon={<CopyOutlined />}
+                color="gray"
+                size="sm"
                 onClick={() => handleCopyKey(newKey)}
-                style={{ marginTop: 8 }}
+                className="mt-2"
               >
+                <HiClipboard className="mr-2 h-4 w-4" />
                 Copy Key
               </Button>
             </div>
-          }
-          type="warning"
-          closable
-          onClose={() => setNewKey(null)}
-          style={{ marginBottom: 24 }}
-        />
+          </div>
+        </Alert>
       )}
 
-      <Card>
-        <Table
+      <Card className="p-6">
+        <FlowbiteTable
           columns={columns}
           dataSource={apiKeys}
           loading={loading}
@@ -230,37 +270,81 @@ export default function AdminApiKeysPage() {
       <StandardModal
         title={editingKey ? 'Edit API Key' : 'Create API Key'}
         open={modalVisible}
-        form={form}
-        loading={false}
-        submitText={editingKey ? 'Save' : 'Create'}
         onCancel={() => {
           setModalVisible(false);
           setNewKey(null);
+          formState.resetFields();
         }}
         onFinish={handleSubmit}
+        submitText={editingKey ? 'Save' : 'Create'}
         width={600}
       >
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-            <Input disabled={!!editingKey} />
-          </Form.Item>
-          <Form.Item name="permissions" label="Permissions" rules={[{ required: true }]}>
-            <Select mode="multiple">
-              <Option value="read">Read</Option>
-              <Option value="write">Write</Option>
-              <Option value="delete">Delete</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="rateLimit" label="Rate Limit (requests per minute)">
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="expiresAt" label="Expires At">
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="isActive" valuePropName="checked" initialValue={true}>
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
-          </Form.Item>
+        <div className="space-y-4">
+          <FormTextInput
+            name="name"
+            label="Name"
+            value={formState.values.name}
+            onChange={(e) => formState.setFieldsValue({ name: e.target.value })}
+            required
+            disabled={!!editingKey}
+            placeholder="API Key Name"
+          />
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+              Permissions
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="space-y-2">
+              {['read', 'write', 'delete'].map((perm) => (
+                <label key={perm} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formState.values.permissions?.includes(perm) || false}
+                    onChange={(e) => {
+                      const currentPerms = formState.values.permissions || [];
+                      if (e.target.checked) {
+                        formState.setFieldsValue({ permissions: [...currentPerms, perm] });
+                      } else {
+                        formState.setFieldsValue({ permissions: currentPerms.filter(p => p !== perm) });
+                      }
+                    }}
+                    className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-900 dark:text-white capitalize">{perm}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <FormTextInput
+            name="rateLimit"
+            label="Rate Limit (requests per minute)"
+            type="number"
+            value={formState.values.rateLimit}
+            onChange={(e) => formState.setFieldsValue({ rateLimit: parseInt(e.target.value) || 100 })}
+            min={1}
+            placeholder="100"
+          />
+          <FormTextInput
+            name="expiresAt"
+            label="Expires At"
+            type="datetime-local"
+            value={formState.values.expiresAt ? new Date(formState.values.expiresAt).toISOString().slice(0, 16) : ''}
+            onChange={(e) => formState.setFieldsValue({ expiresAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
+            placeholder="Select expiration date"
+          />
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-900 dark:text-white">
+              Status
+            </label>
+            <ToggleSwitch
+              checked={formState.values.isActive}
+              onChange={(checked) => formState.setFieldsValue({ isActive: checked })}
+              label={formState.values.isActive ? 'Active' : 'Inactive'}
+            />
+          </div>
+        </div>
       </StandardModal>
-    </div>
+    </PageLayout>
   );
 }
 

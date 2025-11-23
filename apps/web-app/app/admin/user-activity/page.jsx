@@ -1,24 +1,18 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Badge, Card, Button, Spinner } from 'flowbite-react';
 import {
-  Table,
-  Tag,
-  Button,
-} from 'antd';
-import {
-  UserOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-import { PageLayout, TableWrapper, FilterBar } from '@/components/shared';
-import dayjs from 'dayjs';
+  HiUser,
+  HiRefresh,
+} from 'react-icons/hi';
+import { PageLayout, TableWrapper } from '@/components/shared';
 
 export default function AdminUserActivityPage() {
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState([]);
   const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({});
-
 
   const fetchActivity = async () => {
     setLoading(true);
@@ -51,123 +45,87 @@ export default function AdminUserActivityPage() {
     fetchActivity();
   }, [filters]);
 
-  const columns = [
-    {
-      title: 'User',
-      key: 'user',
-      render: (_, record) => record?.userName && record?.userEmail 
-        ? `${record.userName} (${record.userEmail})` 
-        : '-',
-    },
-    {
-      title: 'Role',
-      dataIndex: 'userRole',
-      key: 'userRole',
-      render: (role) => role ? <Tag>{role}</Tag> : '-',
-    },
-    {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      render: (action) => action ? <Tag color="blue">{action}</Tag> : '-',
-    },
-    {
-      title: 'Resource',
-      dataIndex: 'resource',
-      key: 'resource',
-      render: (resource) => resource || '-',
-    },
-    {
-      title: 'IP Address',
-      dataIndex: 'ipAddress',
-      key: 'ipAddress',
-      render: (ip) => ip || '-',
-    },
-    {
-      title: 'Timestamp',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => date ? new Date(date).toLocaleString() : '-',
-    },
-  ];
-
   const statsData = stats ? [
     {
       title: 'Activities (24h)',
       value: stats.last24Hours || 0,
-      prefix: <UserOutlined />,
+      prefix: <HiUser className="h-6 w-6" />,
     },
     {
-      title: 'Top Actions',
-      value: stats.topActions?.length || 0,
-      prefix: <UserOutlined />,
+      title: 'Unique Users',
+      value: stats.uniqueUsers || 0,
+      prefix: <HiUser className="h-6 w-6" />,
     },
     {
-      title: 'By Role',
-      value: stats.byRole?.length || 0,
-      prefix: <UserOutlined />,
+      title: 'Total Activities',
+      value: stats.total || 0,
+      prefix: <HiUser className="h-6 w-6" />,
     },
   ] : [];
 
-  const filterConfig = [
-    {
-      key: 'userRole',
-      label: 'User Role',
-      type: 'select',
-      options: [
-        { label: 'Landlord', value: 'landlord' },
-        { label: 'Tenant', value: 'tenant' },
-      ],
-    },
-    {
-      key: 'action',
-      label: 'Action',
-      type: 'select',
-      options: [
-        { label: 'Login', value: 'login' },
-        { label: 'Logout', value: 'logout' },
-        { label: 'View Property', value: 'view_property' },
-        { label: 'Upload Document', value: 'upload_document' },
-      ],
-    },
-    {
-      key: 'dateRange',
-      label: 'Date Range',
-      type: 'daterange',
-    },
-  ];
-
   return (
     <PageLayout
-      headerTitle={<><UserOutlined /> User Activity Monitoring</>}
-      headerActions={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchActivity}>
-          Refresh
-        </Button>
-      ]}
+      headerTitle="User Activity"
       stats={statsData}
       statsCols={3}
-      contentStyle={{ padding: 0, display: 'flex', flexDirection: 'column' }}
+      headerActions={
+        <Button color="gray" onClick={fetchActivity} disabled={loading}>
+          <HiRefresh className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      }
     >
-      <FilterBar
-        filters={filterConfig}
-        activeFilters={filters}
-        onFilterChange={(newFilters) => setFilters(newFilters)}
-        onReset={() => {
-          setFilters({ userRole: null, action: null, dateRange: null });
-        }}
-        showSearch={false}
-      />
       <TableWrapper>
-        <Table
-          columns={columns}
-          dataSource={activities}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 50 }}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <HiUser className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No activity found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHead>
+                <TableHeadCell>User</TableHeadCell>
+                <TableHeadCell>Role</TableHeadCell>
+                <TableHeadCell>Action</TableHeadCell>
+                <TableHeadCell>Resource</TableHeadCell>
+                <TableHeadCell>IP Address</TableHeadCell>
+                <TableHeadCell>Timestamp</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
+                {activities.map((activity) => (
+                  <TableRow key={activity.id}>
+                    <TableCell>
+                      {activity?.userName && activity?.userEmail
+                        ? `${activity.userName} (${activity.userEmail})`
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {activity.userRole ? (
+                        <Badge color="blue">{activity.userRole}</Badge>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {activity.action ? (
+                        <Badge color="gray">{activity.action}</Badge>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>{activity.resource || '-'}</TableCell>
+                    <TableCell>{activity.ipAddress || '-'}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {activity.createdAt ? new Date(activity.createdAt).toLocaleString() : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </TableWrapper>
     </PageLayout>
   );
 }
-
