@@ -9,13 +9,15 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
-from schemas.work_order import WorkOrder, WorkOrderCreate, WorkOrderUpdate
+from schemas.work_order import WorkOrder, WorkOrderCreate, WorkOrderUpdate, WorkOrderApprovalRequest, WorkOrderMarkViewedRequest, WorkOrderAssignVendorRequest
 from schemas.work_order_comment import WorkOrderComment, WorkOrderCommentCreate
 from db.models_v2 import (
     WorkOrder as WorkOrderModel,
     WorkOrderComment as CommentModel,
     User,
     Property,
+    Tenant,
+    Landlord,
 )
 
 router = APIRouter(prefix="/work-orders", tags=["work-orders"])
@@ -230,4 +232,270 @@ async def create_work_order_comment(
     await db.refresh(comment, ["author"])
     
     return comment
+
+
+@router.post("/{work_order_id}/approve", response_model=WorkOrder)
+async def approve_work_order(
+    work_order_id: UUID,
+    approval_data: WorkOrderApprovalRequest,
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a work order"""
+    user_roles = await get_user_roles(current_user, db)
+    
+    # Get work order
+    result = await db.execute(
+        select(WorkOrderModel).where(WorkOrderModel.id == work_order_id)
+    )
+    work_order = result.scalar_one_or_none()
+    
+    if not work_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work order not found",
+        )
+    
+    # Check access
+    if RoleEnum.SUPER_ADMIN not in user_roles:
+        if work_order.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+        
+        # Landlords can only approve work orders for their properties
+        if RoleEnum.LANDLORD in user_roles:
+            landlord_result = await db.execute(
+                select(Landlord).where(Landlord.user_id == current_user.id)
+            )
+            landlord = landlord_result.scalar_one_or_none()
+            if landlord:
+                # Check if property belongs to landlord
+                prop_result = await db.execute(
+                    select(Property).where(
+                        Property.id == work_order.property_id,
+                        Property.landlord_id == landlord.id
+                    )
+                )
+                if not prop_result.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied",
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied",
+                )
+    
+    # Update work order status to in_progress (approved)
+    work_order.status = 'in_progress'
+    
+    # Store approval metadata if needed (could add approved_amount, approved_by fields to model)
+    # For now, we'll just update the status
+    
+    await db.commit()
+    await db.refresh(work_order)
+    
+    return work_order
+
+
+@router.post("/{work_order_id}/assign-vendor", response_model=WorkOrder)
+async def assign_vendor_to_work_order(
+    work_order_id: UUID,
+    assignment_data: WorkOrderAssignVendorRequest,
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    db: AsyncSession = Depends(get_db)
+):
+    """Assign a vendor to a work order"""
+    from db.models_v2 import WorkOrderAssignment, Vendor
+    
+    user_roles = await get_user_roles(current_user, db)
+    
+    # Get work order
+    wo_result = await db.execute(
+        select(WorkOrderModel).where(WorkOrderModel.id == work_order_id)
+    )
+    work_order = wo_result.scalar_one_or_none()
+    
+    if not work_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work order not found",
+        )
+    
+    # Check access
+    if RoleEnum.SUPER_ADMIN not in user_roles:
+        if work_order.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+    
+    # Verify vendor exists
+    vendor_result = await db.execute(
+        select(Vendor).where(Vendor.id == assignment_data.vendor_id)
+    )
+    vendor = vendor_result.scalar_one_or_none()
+    
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vendor not found",
+        )
+    
+    # Create assignment
+    assignment = WorkOrderAssignment(
+        work_order_id=work_order_id,
+        vendor_id=assignment_data.vendor_id,
+        assigned_by_user_id=current_user.id,
+        status='assigned',
+    )
+    db.add(assignment)
+    
+    # Update work order status if needed
+    if work_order.status == 'new':
+        work_order.status = 'waiting_on_vendor'
+    
+    await db.commit()
+    await db.refresh(work_order)
+    await db.refresh(assignment)
+    
+    return work_order
+
+
+@router.post("/{work_order_id}/mark-viewed", status_code=status.HTTP_200_OK)
+async def mark_work_order_viewed(
+    work_order_id: UUID,
+    view_data: WorkOrderMarkViewedRequest,
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark work order as viewed"""
+    user_roles = await get_user_roles(current_user, db)
+    
+    # Get work order
+    result = await db.execute(
+        select(WorkOrderModel).where(WorkOrderModel.id == work_order_id)
+    )
+    work_order = result.scalar_one_or_none()
+    
+    if not work_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work order not found",
+        )
+    
+    # Check access
+    if RoleEnum.SUPER_ADMIN not in user_roles:
+        if work_order.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+        
+        # Tenants can only mark their own work orders as viewed
+        if RoleEnum.TENANT in user_roles:
+            tenant_result = await db.execute(
+                select(Tenant).where(Tenant.user_id == current_user.id)
+            )
+            tenant = tenant_result.scalar_one_or_none()
+            if not tenant or work_order.tenant_id != tenant.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied",
+                )
+        
+        # Landlords can mark work orders for their properties as viewed
+        if RoleEnum.LANDLORD in user_roles:
+            landlord_result = await db.execute(
+                select(Landlord).where(Landlord.user_id == current_user.id)
+            )
+            landlord = landlord_result.scalar_one_or_none()
+            if landlord:
+                prop_result = await db.execute(
+                    select(Property).where(
+                        Property.id == work_order.property_id,
+                        Property.landlord_id == landlord.id
+                    )
+                )
+                if not prop_result.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied",
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied",
+                )
+    
+    # Note: The v2 schema doesn't have last_viewed_by_landlord or last_viewed_by_tenant fields
+    # This would need to be added to the model if tracking is required
+    # For now, we'll just return success
+    
+    return {"success": True, "message": "Work order marked as viewed"}
+
+
+@router.get("/{work_order_id}/download-pdf")
+async def download_work_order_pdf(
+    work_order_id: UUID,
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    db: AsyncSession = Depends(get_db)
+):
+    """Download work order as PDF"""
+    from fastapi.responses import Response
+    
+    user_roles = await get_user_roles(current_user, db)
+    
+    # Get work order with relationships
+    result = await db.execute(
+        select(WorkOrderModel)
+        .options(
+            selectinload(WorkOrderModel.comments).selectinload(CommentModel.author),
+        )
+        .where(WorkOrderModel.id == work_order_id)
+    )
+    work_order = result.scalar_one_or_none()
+    
+    if not work_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work order not found",
+        )
+    
+    # Check access (same as get_work_order)
+    if RoleEnum.SUPER_ADMIN not in user_roles:
+        if work_order.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+        
+        if RoleEnum.TENANT in user_roles:
+            tenant_result = await db.execute(
+                select(Tenant).where(Tenant.user_id == current_user.id)
+            )
+            tenant = tenant_result.scalar_one_or_none()
+            if not tenant or work_order.tenant_id != tenant.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied",
+                )
+    
+    # TODO: Generate PDF using a PDF library (e.g., reportlab, weasyprint)
+    # For now, return a placeholder response
+    # In production, you would:
+    # 1. Load property, unit, tenant relationships
+    # 2. Generate PDF with work order details
+    # 3. Return PDF as response
+    
+    return Response(
+        content="PDF generation not yet implemented",
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="work-order-{work_order_id}.pdf"'
+        }
+    )
 

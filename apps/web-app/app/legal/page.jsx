@@ -1,73 +1,67 @@
-import { redirect } from 'next/navigation';
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
-import LegalClient from './ui';
-
 /**
- * Legal Page
- * Hosts Generated Forms functionality
- * Works for Landlord and PMC roles
- * Other roles redirect to /library
+ * Legal/Forms Page - Migrated to v2 FastAPI
+ * 
+ * Generated forms page for landlord and PMC roles using v2 FastAPI backend.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
  */
-export default withAuth(async ({ user, userRole, prisma, email }) => {
-  // Redirect non-landlord/pmc users to /library
-  if (userRole !== 'landlord' && userRole !== 'pmc') {
-    redirect('/library');
-  }
+"use client";
 
-  // For landlord/pmc, we need to load user data
-  let legalData = null;
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Spinner, Alert } from 'flowbite-react';
+import dynamic from 'next/dynamic';
 
-  if (userRole === 'landlord') {
-    const { getLandlordWithFullRelations } = require('@/lib/utils/landlord-data-loader');
-    try {
-      const landlord = await getLandlordWithFullRelations(prisma, email, {
-        includeProperties: true,
-        includeUnits: true,
-        includeLeases: true,
-        includeTenants: true,
-        includeDocuments: true,
-        autoCreateUnits: true
-      });
+// Lazy load the legal client component
+const LegalClient = dynamic(() => import('./ui'), {
+  loading: () => <Spinner size="xl" />,
+  ssr: false,
+});
 
-      if (landlord) {
-        legalData = {
-          landlord: serializePrismaData(landlord),
-        };
+export default function LegalPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (!authLoading && user) {
+      // Redirect non-landlord/pmc users to /library
+      if (!hasRole('landlord') && !hasRole('pmc_admin') && !hasRole('pm')) {
+        router.push('/library');
       }
-    } catch (error) {
-      console.error('[Legal Page] Error loading landlord data:', error);
     }
-  } else if (userRole === 'pmc') {
-    // For PMC, we might need PMC data
-    try {
-      const pmc = await prisma.pMC.findUnique({
-        where: { email },
-      });
-      if (pmc) {
-        legalData = {
-          pmc: serializePrismaData(pmc),
-        };
-      }
-    } catch (error) {
-      console.error('[Legal Page] Error loading PMC data:', error);
-    }
+  }, [authLoading, user, router, hasRole]);
+  
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
   }
-
-  // Serialize user data
-  const serializedUser = serializePrismaData({
-    ...user,
-    role: userRole || 'landlord',
-  });
-
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view legal forms.
+      </Alert>
+    );
+  }
+  
+  // Determine user role
+  let userRole = 'landlord';
+  if (hasRole('pmc_admin')) {
+    userRole = 'pmc_admin';
+  } else if (hasRole('pm')) {
+    userRole = 'pm';
+  } else if (hasRole('landlord')) {
+    userRole = 'landlord';
+  }
+  
   return (
     <main className="page">
-      <LegalClient
-        user={serializedUser}
-        userRole={userRole || 'landlord'}
-        legalData={legalData}
-      />
+      <LegalClient userRole={userRole} />
     </main>
   );
-}, { role: ['landlord', 'pmc'], redirectTo: '/library' }); // Allow landlord/pmc, redirect others
-
+}

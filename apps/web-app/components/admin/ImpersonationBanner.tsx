@@ -29,6 +29,22 @@ export default function ImpersonationBanner() {
   const handleStopImpersonation = async () => {
     setLoading(true);
     try {
+      // Use adminApi for impersonation (if endpoint exists)
+      // For now, fallback to fetch if adminApi doesn't have this method
+      try {
+        const { adminApi } = await import('@/lib/api/admin-api');
+        // If adminApi has stopImpersonation method, use it
+        if (adminApi.stopImpersonation) {
+          await adminApi.stopImpersonation();
+          setImpersonation(null);
+          window.location.reload();
+          return;
+        }
+      } catch (apiError) {
+        // Fallback to fetch
+      }
+      
+      // Fallback to fetch for compatibility
       const response = await fetch('/api/admin/impersonate', {
         method: 'DELETE',
         credentials: 'include',
@@ -38,16 +54,13 @@ export default function ImpersonationBanner() {
 
       if (response.ok && data.success) {
         setImpersonation(null);
-        // Reload page to clear impersonation state
         window.location.reload();
       } else {
         console.error('Failed to stop impersonation:', data.error);
-        // Still reload to clear state
         window.location.reload();
       }
     } catch (err) {
       console.error('Failed to stop impersonation:', err);
-      // Still reload to clear state
       window.location.reload();
     } finally {
       setLoading(false);

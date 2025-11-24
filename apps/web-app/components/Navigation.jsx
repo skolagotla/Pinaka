@@ -1,7 +1,15 @@
+/**
+ * Navigation Component - Migrated to v2 FastAPI
+ * 
+ * Role-aware navigation using v2 FastAPI auth roles.
+ * Shows appropriate menu items based on user's roles from v2 backend.
+ */
 "use client";
+
 import { usePathname, useRouter } from "next/navigation";
 import { SidebarItems, SidebarItemGroup, SidebarItem } from 'flowbite-react';
 import Link from 'next/link';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import {
   HiHome,
   HiUser,
@@ -26,9 +34,30 @@ import {
   HiChartBar,
 } from 'react-icons/hi';
 
-export default function Navigation({ show, userRole, collapsed = false }) {
+export default function Navigation({ show, userRole: propUserRole, collapsed = false }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, hasRole } = useV2Auth();
+  
+  // Use v2 auth role if available, fallback to prop
+  let userRole = propUserRole;
+  if (user) {
+    if (hasRole('super_admin')) {
+      userRole = 'super_admin';
+    } else if (hasRole('pmc_admin')) {
+      userRole = 'pmc_admin';
+    } else if (hasRole('pm')) {
+      userRole = 'pm';
+    } else if (hasRole('landlord')) {
+      userRole = 'landlord';
+    } else if (hasRole('tenant')) {
+      userRole = 'tenant';
+    } else if (hasRole('vendor')) {
+      userRole = 'vendor';
+    } else if (hasRole('contractor')) {
+      userRole = 'contractor';
+    }
+  }
   
   if (!show) return null;
   
@@ -40,6 +69,7 @@ export default function Navigation({ show, userRole, collapsed = false }) {
   const isLandlord = userRole === 'landlord';
   const isTenant = userRole === 'tenant';
   const isVendor = userRole === 'vendor';
+  const isContractor = userRole === 'contractor';
 
   // Base navigation items - role-aware visibility
   const baseNavItems = [
@@ -83,7 +113,7 @@ export default function Navigation({ show, userRole, collapsed = false }) {
   
   const handleClick = (path) => {
     if (path !== pathname) {
-      window.location.href = path;
+      router.push(path);
     }
   };
   

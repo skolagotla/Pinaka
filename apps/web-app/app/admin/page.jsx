@@ -18,6 +18,20 @@ export default function AdminRootPage() {
     const checkAuthAndRedirect = async () => {
       try {
         // Use fetch directly instead of apiClient to avoid import issues
+        // Use adminApi instead of fetch
+        const { adminApi } = await import('@/lib/api/admin-api');
+        try {
+          const user = await adminApi.getCurrentUser();
+          if (user && user.user) {
+            router.push('/admin/dashboard');
+            return;
+          }
+        } catch (apiError) {
+          router.push('/admin/login');
+          return;
+        }
+        
+        // Fallback to old API for compatibility
         const response = await fetch('/api/admin/auth/me', {
           method: 'GET',
           credentials: 'include',

@@ -1,138 +1,91 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { Spinner } from 'flowbite-react';
 import dynamic from 'next/dynamic';
 
-// Lazy load landlord detail client (PMC-only for now)
-const PMCLandlordDetailClient = dynamic(() => 
-  import('@/components/pages/pmc/landlords/[id]/ui').then(mod => mod.default)
-);
+// Lazy load landlord detail clients
+const PMCLandlordDetailClient = dynamic(() => import('@/components/pages/pmc/landlords/[id]/ui').then(mod => mod.default));
 
-export default withAuth(async ({ user, userRole, prisma, params }) => {
-  // Handle params - might be a Promise in Next.js 15+
-  const resolvedParams = params instanceof Promise ? await params : (params || {});
-  const landlordId = resolvedParams?.id;
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Landlord Detail Page] Received params:', {
-      params,
-      resolvedParams,
-      landlordId,
-      paramsType: typeof params,
-      isPromise: params instanceof Promise,
-    });
-  }
-  
-  if (!landlordId) {
+export default function LandlordDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const landlordId = params?.id as string;
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      // Use FastAPI v2 auth
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      // Try v2 API first
+      const token = v2Api.getToken();
+      if (token) {
+        try {
+          const currentUser = await v2Api.getCurrentUser();
+          if (currentUser && currentUser.user) {
+            const roles = currentUser.roles || [];
+            const primaryRole = roles[0]?.name || 'tenant';
+            
+            // Only PMC admins and super admins can access landlord details
+            if (primaryRole !== 'pmc_admin' && primaryRole !== 'pm' && primaryRole !== 'super_admin') {
+              router.push('/portfolio');
+              return;
+            }
+            
+            setUser({
+              ...currentUser.user,
+              roles: currentUser.roles,
+            });
+            setUserRole(primaryRole);
+            setLoading(false);
+            return;
+          }
+        } catch (v2Error) {
+          // Token invalid, try admin API
+        }
+      }
+      
+      // Fallback to admin API
+      try {
+        const adminUser = await adminApi.getCurrentUser();
+        if (adminUser && adminUser.user) {
+          setUser(adminUser.user);
+          setUserRole(adminUser.user.role === 'SUPER_ADMIN' || adminUser.user.role === 'super_admin' ? 'super_admin' : 'admin');
+          setLoading(false);
+          return;
+        }
+      } catch (adminError) {
+        // Both failed
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      router.push('/login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Landlord ID is required</h1>
-        <p>Params received: {JSON.stringify(resolvedParams)}</p>
-        <p>Params type: {typeof params}</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }
 
-  // Only PMC users can view landlord details
-  if (userRole !== 'pmc') {
-    return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Access Denied</h1>
-        <p>Only PMC users can view landlord details.</p>
-      </div>
-    );
+  if (!user || !userRole || !landlordId) {
+    return null; // Will redirect
   }
 
-  // For PMC Admin users, use pmcId from user object, otherwise use user.id
-  const pmcId = user.pmcId || user.id;
-
-  // Fetch landlord with all necessary relations
-  const landlord = await prisma.landlord.findUnique({
-    where: { id: landlordId },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      addressLine1: true,
-      addressLine2: true,
-      city: true,
-      provinceState: true,
-      postalZip: true,
-      country: true,
-      countryCode: true,
-      regionCode: true,
-      approvalStatus: true,
-      createdAt: true,
-      updatedAt: true,
-      properties: {
-        select: {
-          id: true,
-          propertyName: true,
-          addressLine1: true,
-          addressLine2: true,
-          city: true,
-          provinceState: true,
-          postalZip: true,
-          propertyType: true,
-          unitCount: true,
-          createdAt: true,
-          units: {
-            select: {
-              id: true,
-              unitName: true,
-              status: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-    },
-  });
-
-  if (!landlord) {
-    return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Landlord not found</h1>
-      </div>
-    );
-  }
-
-  // Verify PMC has an active relationship with this landlord
-  const pmcRelationship = await prisma.pMCLandlord.findFirst({
-    where: {
-      pmcId: pmcId,
-      landlordId: landlordId,
-      status: 'active',
-      OR: [
-        { endedAt: null },
-        { endedAt: { gt: new Date() } },
-      ],
-    },
-    include: {
-      pmc: {
-        select: {
-          id: true,
-          companyName: true,
-        },
-      },
-    },
-  });
-
-  if (!pmcRelationship) {
-    return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Access Denied</h1>
-        <p>You can only view details for landlords you manage.</p>
-      </div>
-    );
-  }
-
-  return (
-    <PMCLandlordDetailClient
-      landlord={serializePrismaData(landlord)}
-      relationship={serializePrismaData(pmcRelationship)}
-    />
-  );
-}, { role: 'pmc' });
-
+  return <PMCLandlordDetailClient landlordId={landlordId} user={user} />;
+}

@@ -29,7 +29,18 @@ export default function AdminLoginPage() {
 
     try {
       // Use FastAPI v2 endpoint (via rewrite to /api/admin/auth/login)
-      const response = await fetch('/api/admin/auth/login', {
+      // Use adminApi instead of fetch
+      const { adminApi } = await import('@/lib/api/admin-api');
+      try {
+        await adminApi.login(email, password);
+        const user = await adminApi.getCurrentUser();
+        if (user && user.user) {
+          router.push('/admin/dashboard');
+          return;
+        }
+      } catch (apiError) {
+        // Fallback to old API for compatibility
+        const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -45,17 +45,14 @@ export default function UserMenu({
     } else {
       const hasTestCookie = document.cookie.includes('auth0_test_email=');
       
-      if (hasTestCookie) {
-        fetch('/api/auth/logout', { method: 'POST' })
-          .then(() => {
-            window.location.href = '/';
-          })
-          .catch((err) => {
-            console.error('Logout error:', err);
-            window.location.href = '/';
-          });
-      } else {
-        window.location.href = '/auth/logout';
+      // Use FastAPI v2 logout
+      try {
+        const { v2Api } = await import('@/lib/api/v2-client');
+        v2Api.logout();
+        window.location.href = '/login';
+      } catch (err) {
+        console.error('Logout error:', err);
+        window.location.href = '/login';
       }
     }
     setIsOpen(false);

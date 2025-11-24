@@ -1,4 +1,11 @@
+/**
+ * ProLayoutWrapper - Migrated to v2 FastAPI
+ * 
+ * Professional layout wrapper using v2 FastAPI auth.
+ * Gets user info from useV2Auth hook instead of props.
+ */
 "use client";
+
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar, Button, Tooltip, Spinner } from 'flowbite-react';
@@ -16,6 +23,7 @@ import NotificationCenter from './shared/NotificationCenter';
 import TestDatabaseBanner from './TestDatabaseBanner';
 import Navigation from './Navigation';
 import QuickActionsFAB from './shared/QuickActionsFAB';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
 
 // Lazy load logger to avoid server-side execution
 let logger;
@@ -29,11 +37,38 @@ if (typeof window !== 'undefined') {
   };
 }
 
-export default function ProLayoutWrapper({ firstName, lastName, userRole, showNav, children }) {
+export default function ProLayoutWrapper({ children }) {
   const pathname = usePathname();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Extract user info from v2 auth
+  const firstName = user?.user?.full_name?.split(' ')[0] || '';
+  const lastName = user?.user?.full_name?.split(' ').slice(1).join(' ') || '';
+  
+  // Determine user role from v2 roles
+  let userRole = null;
+  if (user) {
+    if (hasRole('super_admin')) {
+      userRole = 'super_admin';
+    } else if (hasRole('pmc_admin')) {
+      userRole = 'pmc_admin';
+    } else if (hasRole('pm')) {
+      userRole = 'pm';
+    } else if (hasRole('landlord')) {
+      userRole = 'landlord';
+    } else if (hasRole('tenant')) {
+      userRole = 'tenant';
+    } else if (hasRole('vendor')) {
+      userRole = 'vendor';
+    } else if (hasRole('contractor')) {
+      userRole = 'contractor';
+    }
+  }
+  
+  const showNav = !!user && !authLoading;
 
   useEffect(() => {
     setIsMounted(true);
@@ -47,9 +82,9 @@ export default function ProLayoutWrapper({ firstName, lastName, userRole, showNa
     logger.navigation('Page loaded', {
       path: pathname,
       userRole,
-      hasUser: !!(firstName && lastName)
+      hasUser: !!user
     });
-  }, [pathname, userRole, firstName, lastName]);
+  }, [pathname, userRole, user]);
 
   useEffect(() => {
     if (isMounted && typeof window !== 'undefined') {
@@ -73,8 +108,14 @@ export default function ProLayoutWrapper({ firstName, lastName, userRole, showNa
     return <ErrorBoundary>{children}</ErrorBoundary>;
   }
 
-  if (!isMounted) {
-    return <ErrorBoundary>{children}</ErrorBoundary>;
+  if (!isMounted || authLoading) {
+    return (
+      <ErrorBoundary>
+        <div className="flex justify-center items-center min-h-screen">
+          <Spinner size="xl" />
+        </div>
+      </ErrorBoundary>
+    );
   }
 
   const keyboardShortcut = isMounted && typeof window !== 'undefined' && 

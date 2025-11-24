@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Select, Badge, Spinner, Alert } from 'flowbite-react';
 import { HiLockClosed } from 'react-icons/hi';
-import { RBACRole, ResourceCategory, PermissionAction } from '@prisma/client';
+import { RBACRole, ResourceCategory, PermissionAction } from '../../../../lib/types/rbac';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
 
 interface PermissionMatrixViewerProps {
@@ -120,7 +120,7 @@ export default function PermissionMatrixViewer({
             className="w-48"
           >
             <option value="">Select a role</option>
-            {Object.values(RBACRole).map((role) => (
+            {(['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor', 'contractor'] as RBACRole[]).map((role) => (
               <option key={role} value={role}>
                 {getRoleLabel(role)}
               </option>

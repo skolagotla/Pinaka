@@ -1,179 +1,235 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializeProperty } from '@/lib/utils/serialize-prisma-data';
-import dynamic from 'next/dynamic';
+/**
+ * Property Detail Page - Migrated to v2 FastAPI
+ * 
+ * Shows property details, units, and related information using v2 FastAPI backend.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
+ */
+"use client";
 
-// Lazy load property detail clients
-const LandlordPropertyDetailClient = dynamic(() => 
-  import('@/components/pages/landlord/properties/[id]/ui').then(mod => mod.default)
-);
-const PMCPropertyDetailClient = dynamic(() => 
-  import('@/components/pages/pmc/properties/[id]/ui').then(mod => mod.default)
-);
+import { useParams, useRouter } from 'next/navigation';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useProperty, useUnits, useLeases, useWorkOrders } from '@/lib/hooks/useV2Data';
+import { Card, Table, Badge, Button, Spinner, Alert, Tabs } from 'flowbite-react';
+import { HiHome, HiPencil, HiTrash } from 'react-icons/hi';
+import AttachmentsList from '@/components/shared/AttachmentsList';
+import Link from 'next/link';
 
-export default withAuth(async ({ user, userRole, prisma, params }) => {
-  // Handle params - might be a Promise in Next.js 15+
-  const resolvedParams = params instanceof Promise ? await params : (params || {});
-  const propertyId = resolvedParams?.id;
+export default function PropertyDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const propertyId = params?.id as string;
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Property Detail Page] Received params:', {
-      params,
-      resolvedParams,
-      propertyId,
-      paramsType: typeof params,
-      isPromise: params instanceof Promise,
-    });
-  }
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  const { data: property, isLoading: propertyLoading } = useProperty(propertyId);
+  const { data: units, isLoading: unitsLoading } = useUnits(propertyId);
+  const { data: leases, isLoading: leasesLoading } = useLeases({ organization_id: user?.organization_id });
+  const { data: workOrders, isLoading: workOrdersLoading } = useWorkOrders({ 
+    organization_id: user?.organization_id,
+    property_id: propertyId 
+  });
   
-  if (!propertyId) {
+  if (authLoading || propertyLoading) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Property ID is required</h1>
-        <p>Params received: {JSON.stringify(resolvedParams)}</p>
-        <p>Params type: {typeof params}</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }
-
-  // For PMC Admin users, use pmcId from user object, otherwise use user.id
-  const pmcId = userRole === 'pmc' ? (user.pmcId || user.id) : null;
-
-  // Fetch property with all necessary relations
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: {
-      id: true,
-      propertyId: true,
-      propertyName: true,
-      addressLine1: true,
-      addressLine2: true,
-      city: true,
-      provinceState: true,
-      postalZip: true,
-      country: true,
-      propertyType: true,
-      unitCount: true,
-      yearBuilt: true,
-      rent: true,
-      rented: true,
-      createdAt: true,
-      updatedAt: true,
-      landlordId: true,
-      landlord: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-      units: {
-        select: {
-          id: true,
-          propertyId: true,
-          unitName: true,
-          floorNumber: true,
-          bedrooms: true,
-          bathrooms: true,
-          rentPrice: true,
-          depositAmount: true,
-          status: true,
-          createdAt: true,
-          leases: {
-            where: { status: 'Active' },
-            select: {
-              id: true,
-              leaseStart: true,
-              leaseEnd: true,
-              rentAmount: true,
-              status: true,
-              leaseTenants: {
-                select: {
-                  tenantId: true,
-                  isPrimaryTenant: true,
-                  tenant: {
-                    select: {
-                      id: true,
-                      firstName: true,
-                      lastName: true,
-                      email: true,
-                      phone: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        orderBy: { createdAt: 'asc' },
-      },
-    },
-  });
-
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view property details.
+      </Alert>
+    );
+  }
+  
   if (!property) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <h1>Property not found</h1>
-      </div>
+      <Alert color="failure" className="m-4">
+        Property not found.
+      </Alert>
     );
   }
-
-  // Verify access based on user role
-  if (userRole === 'landlord') {
-    // Landlord can only see their own properties
-    if (property.landlordId !== user.id) {
-      return (
-        <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-          <h1>Access Denied</h1>
-          <p>You can only view your own properties.</p>
-        </div>
-      );
-    }
-
-    return (
-      <LandlordPropertyDetailClient
-        property={serializeProperty(property)}
-        user={user}
-      />
-    );
-  } else if (userRole === 'pmc') {
-    // PMC can see properties for landlords they manage
-    if (pmcId) {
-      const pmcRelationship = await prisma.pMCLandlord.findFirst({
-        where: {
-          pmcId: pmcId,
-          landlordId: property.landlordId,
-          status: 'active',
-          OR: [
-            { endedAt: null },
-            { endedAt: { gt: new Date() } },
-          ],
-        },
-      });
-
-      if (!pmcRelationship) {
-        return (
-          <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-            <h1>Access Denied</h1>
-            <p>You can only view properties for landlords you manage.</p>
-          </div>
-        );
-      }
-    }
-
-    return (
-      <PMCPropertyDetailClient
-        property={serializeProperty(property)}
-      />
-    );
-  }
-
-  // Tenant doesn't have property detail page
+  
+  const canEdit = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm');
+  const canDelete = hasRole('super_admin') || hasRole('pmc_admin');
+  
+  // Filter leases for this property
+  const propertyLeases = leases?.filter((lease: any) => {
+    // Check if lease's unit belongs to this property
+    return units?.some((unit: any) => unit.id === lease.unit_id);
+  }) || [];
+  
   return (
-    <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-      <h1>Access Denied</h1>
-      <p>You don't have permission to view this property.</p>
+    <div className="p-6">
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{property.name || 'Unnamed Property'}</h1>
+          <p className="text-gray-500">{property.address_line1}</p>
+          {property.address_line2 && <p className="text-gray-500">{property.address_line2}</p>}
+          <p className="text-gray-500">
+            {[property.city, property.state, property.postal_code].filter(Boolean).join(', ')}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button color="light" onClick={() => router.push(`/properties/${propertyId}/edit`)}>
+              <HiPencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          )}
+          {canDelete && (
+            <Button color="failure">
+              <HiTrash className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
+        </div>
+      </div>
+      
+      <Tabs>
+        <Tabs.Item active title="Overview" icon={HiHome}>
+          <div className="space-y-6 mt-4">
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Property Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <Badge color={property.status === 'active' ? 'success' : 'gray'}>
+                    {property.status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Country</p>
+                  <p className="font-medium">{property.country || '-'}</p>
+                </div>
+              </div>
+            </Card>
+            
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Units ({units?.length || 0})</h3>
+              {unitsLoading ? (
+                <Spinner />
+              ) : units && units.length > 0 ? (
+                <Table hoverable>
+                  <Table.Head>
+                    <Table.HeadCell>Unit Name</Table.HeadCell>
+                    <Table.HeadCell>Type</Table.HeadCell>
+                    <Table.HeadCell>Status</Table.HeadCell>
+                    <Table.HeadCell>Actions</Table.HeadCell>
+                  </Table.Head>
+                  <Table.Body>
+                    {units.map((unit: any) => (
+                      <Table.Row key={unit.id}>
+                        <Table.Cell className="font-medium">{unit.name}</Table.Cell>
+                        <Table.Cell>{unit.type || '-'}</Table.Cell>
+                        <Table.Cell>
+                          <Badge color={unit.status === 'occupied' ? 'success' : 'gray'}>
+                            {unit.status || 'available'}
+                          </Badge>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Link href={`/units/${unit.id}`}>
+                            <Button size="xs" color="light">View</Button>
+                          </Link>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+              ) : (
+                <p className="text-gray-500">No units found.</p>
+              )}
+            </Card>
+            
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Active Leases ({propertyLeases.length})</h3>
+              {leasesLoading ? (
+                <Spinner />
+              ) : propertyLeases.length > 0 ? (
+                <Table hoverable>
+                  <Table.Head>
+                    <Table.HeadCell>Unit</Table.HeadCell>
+                    <Table.HeadCell>Rent Amount</Table.HeadCell>
+                    <Table.HeadCell>Start Date</Table.HeadCell>
+                    <Table.HeadCell>End Date</Table.HeadCell>
+                    <Table.HeadCell>Status</Table.HeadCell>
+                    <Table.HeadCell>Actions</Table.HeadCell>
+                  </Table.Head>
+                  <Table.Body>
+                    {propertyLeases.map((lease: any) => {
+                      const unit = units?.find((u: any) => u.id === lease.unit_id);
+                      return (
+                        <Table.Row key={lease.id}>
+                          <Table.Cell>{unit?.name || '-'}</Table.Cell>
+                          <Table.Cell>
+                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(lease.rent_amount || 0)}
+                          </Table.Cell>
+                          <Table.Cell>{new Date(lease.start_date).toLocaleDateString()}</Table.Cell>
+                          <Table.Cell>
+                            {lease.end_date ? new Date(lease.end_date).toLocaleDateString() : 'Month-to-Month'}
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Badge color={lease.status === 'active' ? 'success' : 'gray'}>
+                              {lease.status}
+                            </Badge>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Link href={`/leases/${lease.id}`}>
+                              <Button size="xs" color="light">View</Button>
+                            </Link>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
+                  </Table.Body>
+                </Table>
+              ) : (
+                <p className="text-gray-500">No active leases.</p>
+              )}
+            </Card>
+            
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">Work Orders ({workOrders?.length || 0})</h3>
+              {workOrdersLoading ? (
+                <Spinner />
+              ) : workOrders && workOrders.length > 0 ? (
+                <div className="space-y-2">
+                  {workOrders.slice(0, 5).map((wo: any) => (
+                    <div key={wo.id} className="flex justify-between items-center p-3 border border-gray-200 rounded">
+                      <div>
+                        <p className="font-medium">{wo.title}</p>
+                        <p className="text-sm text-gray-500">{wo.status}</p>
+                      </div>
+                      <Link href={`/operations/kanban`}>
+                        <Button size="xs" color="light">View</Button>
+                      </Link>
+                    </div>
+                  ))}
+                  {workOrders.length > 5 && (
+                    <Link href={`/operations/kanban?property=${propertyId}`}>
+                      <Button color="light" className="w-full">View All Work Orders</Button>
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500">No work orders.</p>
+              )}
+            </Card>
+          </div>
+        </Tabs.Item>
+        
+        <Tabs.Item title="Attachments">
+          <div className="mt-4">
+            <AttachmentsList
+              entityType="property"
+              entityId={propertyId}
+              showUpload={canEdit}
+            />
+          </div>
+        </Tabs.Item>
+      </Tabs>
     </div>
   );
-}, { role: ['landlord', 'pmc'] });
-
+}

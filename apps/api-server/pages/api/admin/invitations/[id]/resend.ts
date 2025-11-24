@@ -5,7 +5,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '@/lib/middleware/adminAuth';
-import { sendLandlordInvitation, sendPMCInvitation } from '@/lib/email';
+import { sendLandlordInvitation, sendPMCInvitation, sendVendorInvitation, sendContractorInvitation } from '@/lib/email';
 const { prisma } = require('@/lib/prisma');
 const config = require('@/lib/config/app-config').default || require('@/lib/config/app-config');
 
@@ -70,12 +70,19 @@ async function resendInvitation(req: NextApiRequest, res: NextApiResponse, admin
         invitationToken: invitation.token,
         inviterName: admin.firstName && admin.lastName ? `${admin.firstName} ${admin.lastName}` : 'Admin',
       });
-    } else if (invitation.type === 'vendor' || invitation.type === 'contractor') {
-      // Use generic invitation template (fallback to landlord template)
-      const businessName = invitation.metadata?.businessName || invitation.metadata?.companyName || 'Business';
-      emailResult = await sendLandlordInvitation({
-        landlordEmail: invitation.email,
-        landlordName: businessName,
+    } else if (invitation.type === 'vendor') {
+      const businessName = invitation.metadata?.businessName || invitation.metadata?.companyName || 'Vendor';
+      emailResult = await sendVendorInvitation({
+        vendorEmail: invitation.email,
+        vendorName: businessName,
+        invitationToken: invitation.token,
+        inviterName: admin.firstName && admin.lastName ? `${admin.firstName} ${admin.lastName}` : 'Admin',
+      });
+    } else if (invitation.type === 'contractor') {
+      const businessName = invitation.metadata?.businessName || invitation.metadata?.companyName || 'Contractor';
+      emailResult = await sendContractorInvitation({
+        contractorEmail: invitation.email,
+        contractorName: businessName,
         invitationToken: invitation.token,
         inviterName: admin.firstName && admin.lastName ? `${admin.firstName} ${admin.lastName}` : 'Admin',
       });

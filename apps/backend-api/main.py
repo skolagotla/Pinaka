@@ -12,6 +12,8 @@ from core.config import settings
 from core.database import engine, Base
 from routers import health, vendors, auth
 from routers import auth_v2, organizations, properties, work_orders, attachments
+from routers import landlords, tenants, leases, units, notifications, audit_logs, users
+from routers import vendors_v2, search
 from core.exceptions import setup_exception_handlers
 
 
@@ -63,6 +65,15 @@ app.include_router(organizations.router, prefix="/api/v2")
 app.include_router(properties.router, prefix="/api/v2")
 app.include_router(work_orders.router, prefix="/api/v2")
 app.include_router(attachments.router, prefix="/api/v2")
+app.include_router(landlords.router, prefix="/api/v2")
+app.include_router(tenants.router, prefix="/api/v2")
+app.include_router(leases.router, prefix="/api/v2")
+app.include_router(units.router, prefix="/api/v2")
+app.include_router(notifications.router, prefix="/api/v2")
+app.include_router(audit_logs.router, prefix="/api/v2")
+app.include_router(users.router, prefix="/api/v2")
+app.include_router(vendors_v2.router, prefix="/api/v2")
+app.include_router(search.router, prefix="/api/v2")
 
 
 @app.get("/")

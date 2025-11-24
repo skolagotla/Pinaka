@@ -1,147 +1,68 @@
-import { redirect } from 'next/navigation';
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
-import DocumentsClient from './ui';
-
 /**
- * Unified Documents Page
- * Consolidates Library and Forms functionality
- * Works for all roles: Admin, PMC, Landlord, Tenant
- * Admin users are redirected to /admin/library for consistency
- * PMC users use same approach as admin - no props, loads internally
+ * Library/Documents Page - Migrated to v2 FastAPI
+ * 
+ * Unified documents page for all roles using v2 FastAPI backend.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
  */
-export default withAuth(async ({ user, userRole, prisma, email }) => {
+"use client";
+
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Spinner, Alert } from 'flowbite-react';
+import dynamic from 'next/dynamic';
+
+// Lazy load the documents client component
+const DocumentsClient = dynamic(() => import('./ui'), {
+  loading: () => <Spinner size="xl" />,
+  ssr: false,
+});
+
+export default function LibraryPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
+  
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view documents.
+      </Alert>
+    );
+  }
+  
   // Redirect admin users to /admin/library for consistency
-  if (userRole === 'admin') {
-    redirect('/admin/library');
+  if (hasRole('super_admin')) {
+    router.push('/admin/library');
+    return null;
   }
   
-  // For PMC, use same approach as admin - no data loading needed
-  // UnifiedLibraryComponent will load user internally
-  if (userRole === 'pmc' || userRole === 'pm') {
-    return <DocumentsClient userRole={userRole} />;
+  // Determine user role
+  let userRole = 'tenant';
+  if (hasRole('super_admin')) {
+    userRole = 'super_admin';
+  } else if (hasRole('pmc_admin')) {
+    userRole = 'pmc_admin';
+  } else if (hasRole('pm')) {
+    userRole = 'pm';
+  } else if (hasRole('landlord')) {
+    userRole = 'landlord';
+  } else if (hasRole('tenant')) {
+    userRole = 'tenant';
   }
   
-  // For landlord/tenant, we need to load library data
-  let libraryData = null;
-  
-  if (userRole === 'landlord') {
-    const { getLandlordWithFullRelations } = require('@/lib/utils/landlord-data-loader');
-    try {
-      const landlord = await getLandlordWithFullRelations(prisma, email, {
-        includeProperties: true,
-        includeUnits: true,
-        includeLeases: true,
-        includeTenants: true,
-        includeDocuments: true,
-        autoCreateUnits: true
-      });
-      
-      if (landlord && landlord.properties) {
-        // Extract all unique tenants with their documents
-        const tenantsMap = new Map();
-        
-        landlord.properties.forEach(property => {
-          (property.units || []).forEach(unit => {
-            (unit.leases || []).forEach(lease => {
-              (lease.leaseTenants || []).forEach(lt => {
-                if (lt.tenant && !tenantsMap.has(lt.tenant.id)) {
-                  tenantsMap.set(lt.tenant.id, {
-                    ...lt.tenant,
-                    lease: {
-                      id: lease.id,
-                      status: lease.status,
-                      leaseStart: lease.leaseStart?.toISOString() || null,
-                      leaseEnd: lease.leaseEnd?.toISOString() || null,
-                      property: {
-                        propertyName: property.propertyName,
-                        addressLine1: property.addressLine1,
-                      },
-                      unit: {
-                        unitNumber: unit.unitNumber || unit.unitName,
-                      },
-                    },
-                  });
-                }
-              });
-            });
-          });
-        });
-        
-        libraryData = {
-          landlord: serializePrismaData(landlord),
-          tenants: Array.from(tenantsMap.values()).map(t => serializePrismaData(t)),
-        };
-      }
-    } catch (error) {
-      console.error('[Documents Page] Error loading landlord data:', error);
-    }
-  } else if (userRole === 'tenant') {
-    try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { email },
-        include: {
-          documents: {
-            where: { isDeleted: false },
-            orderBy: [
-              { isRequired: 'desc' },
-              { category: 'asc' },
-              { uploadedAt: 'desc' },
-            ],
-          },
-          leaseTenants: {
-            include: {
-              lease: {
-                include: {
-                  leaseDocuments: {
-                    orderBy: { uploadedAt: 'desc' },
-                  },
-                  unit: {
-                    include: {
-                      property: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-      
-      if (tenant) {
-        const leaseDocuments = tenant.leaseTenants.flatMap((lt) =>
-          (lt.lease?.leaseDocuments || []).map((doc) => ({
-            ...doc,
-            leaseInfo: {
-              property: lt.lease.unit?.property?.propertyName || lt.lease.unit?.property?.addressLine1,
-              unit: lt.lease.unit?.unitName,
-            },
-          }))
-        );
-        
-        libraryData = {
-          tenant: serializePrismaData(tenant),
-          initialDocuments: tenant.documents.map(d => serializePrismaData(d)),
-          leaseDocuments: leaseDocuments.map(d => serializePrismaData(d)),
-        };
-      }
-    } catch (error) {
-      console.error('[Documents Page] Error loading tenant data:', error);
-    }
-  }
-
-  // Serialize user data
-  const serializedUser = serializePrismaData({
-    ...user,
-    role: userRole || 'landlord',
-  });
-
-  return (
-    <DocumentsClient
-      user={serializedUser}
-      userRole={userRole || 'landlord'}
-      libraryData={libraryData}
-    />
-  );
-}, { role: 'both' }); // Allow all roles
-
+  return <DocumentsClient userRole={userRole} />;
+}

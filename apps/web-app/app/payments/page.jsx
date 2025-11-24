@@ -1,122 +1,88 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData, serializeRentPayment } from '@/lib/utils/serialize-prisma-data';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Spinner } from 'flowbite-react';
 import dynamic from 'next/dynamic';
 
 // Lazy load payments client (tenant-only)
 const TenantPaymentsClient = dynamic(() => import('@/components/pages/tenant/payments/ui').then(mod => mod.default));
 
-export default withAuth(async ({ user, userRole, prisma, email }) => {
-  if (userRole === 'tenant') {
-    // OPTIMIZED: Use select instead of include for better performance
-    const tenant = await prisma.tenant.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        leaseTenants: {
-          select: {
-            id: true,
-            lease: {
-              select: {
-                id: true,
-                unit: {
-                  select: {
-                    id: true,
-                    unitName: true,
-                    property: {
-                      select: {
-                        id: true,
-                        propertyName: true,
-                        addressLine1: true,
-                        addressLine2: true,
-                        city: true,
-                        provinceState: true,
-                        postalZip: true,
-                        country: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+export default function PaymentsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    if (!tenant) {
-      return null;
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      // Use FastAPI v2 auth
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      // Try v2 API first
+      const token = v2Api.getToken();
+      if (token) {
+        try {
+          const currentUser = await v2Api.getCurrentUser();
+          if (currentUser && currentUser.user) {
+            const roles = currentUser.roles || [];
+            const primaryRole = roles[0]?.name || 'tenant';
+            
+            // Only tenants can access payments page
+            if (primaryRole !== 'tenant') {
+              router.push('/portfolio');
+              return;
+            }
+            
+            setUser({
+              ...currentUser.user,
+              roles: currentUser.roles,
+            });
+            setUserRole(primaryRole);
+            setLoading(false);
+            return;
+          }
+        } catch (v2Error) {
+          // Token invalid
+        }
+      }
+      
+      // Fallback to admin API
+      try {
+        const adminUser = await adminApi.getCurrentUser();
+        if (adminUser && adminUser.user) {
+          // Admin users shouldn't access tenant payments page
+          router.push('/admin/dashboard');
+          return;
+        }
+      } catch (adminError) {
+        // Not authenticated
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      router.push('/login');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Get rent payments for this tenant
-    // OPTIMIZED: Use select instead of include for better performance
-    const rentPayments = await prisma.rentPayment.findMany({
-      where: {
-        lease: {
-          leaseTenants: {
-            some: {
-              tenantId: tenant.id,
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        amount: true,
-        status: true,
-        dueDate: true,
-        paidDate: true,
-        receiptNumber: true,
-        createdAt: true,
-        updatedAt: true,
-        lease: {
-          select: {
-            id: true,
-            status: true,
-            rentAmount: true,
-            unit: {
-              select: {
-                id: true,
-                unitName: true,
-                property: {
-                  select: {
-                    id: true,
-                    propertyName: true,
-                    addressLine1: true,
-                    addressLine2: true,
-                    city: true,
-                    provinceState: true,
-                    postalZip: true,
-                    country: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        partialPayments: {
-          select: {
-            id: true,
-            amount: true,
-            paidDate: true,
-          },
-        },
-      },
-      orderBy: {
-        dueDate: 'desc',
-      },
-    });
-
+  if (loading) {
     return (
-      <TenantPaymentsClient
-        tenant={serializePrismaData(tenant)}
-        initialPayments={rentPayments.map(p => serializeRentPayment(p))}
-      />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
     );
   }
 
-  return null;
-}, { role: 'tenant' });
+  if (!user || userRole !== 'tenant') {
+    return null; // Will redirect
+  }
+
+  return <TenantPaymentsClient tenant={user} initialPayments={[]} />;
+}

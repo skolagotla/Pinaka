@@ -18,30 +18,48 @@ export default function SignInCard() {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        message.success('Login successful!');
-        // Redirect to appropriate dashboard
-        if (data.redirect) {
-          router.push(data.redirect);
-        } else {
-          router.push('/dashboard');
+      // Use FastAPI v2 for login
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      try {
+        // Try v2 login first
+        await v2Api.login(values.email, values.password);
+        const currentUser = await v2Api.getCurrentUser();
+        
+        if (currentUser && currentUser.user) {
+          const roles = currentUser.roles || [];
+          const isSuperAdmin = roles.some(r => r.name === 'super_admin');
+          const isPmcAdmin = roles.some(r => r.name === 'pmc_admin');
+          
+          message.success('Login successful!');
+          
+          if (isSuperAdmin) {
+            router.push('/admin/dashboard');
+          } else if (isPmcAdmin) {
+            router.push('/admin/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
+          return;
         }
-      } else {
-        setError(data.error || 'Login failed');
-        message.error(data.error || 'Login failed');
+      } catch (v2Error) {
+        // Fallback to admin API for admin users
+        try {
+          await adminApi.login(values.email, values.password);
+          const adminUser = await adminApi.getCurrentUser();
+          
+          if (adminUser && adminUser.user) {
+            message.success('Login successful!');
+            router.push('/admin/dashboard');
+            return;
+          }
+        } catch (adminError) {
+          // Both failed
+          setError('Invalid email or password');
+          message.error('Invalid email or password');
+          return;
+        }
       }
     } catch (err) {
       console.error('Login error:', err);

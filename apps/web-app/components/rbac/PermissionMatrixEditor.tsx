@@ -37,7 +37,7 @@ import {
   HiPlus,
   HiSearch,
 } from 'react-icons/hi';
-import { RBACRole, ResourceCategory, PermissionAction } from '@prisma/client';
+import { RBACRole, ResourceCategory, PermissionAction } from '../../../../lib/types/rbac';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
 import { notify } from '@/lib/utils/notification-helper';
 import { ModalHelper } from '@/lib/utils/flowbite-modal-helper';
@@ -398,7 +398,7 @@ export default function PermissionMatrixEditor({
               className="w-48"
             >
               <option value="">Select a role</option>
-              {Object.values(RBACRole).map((role) => (
+              {(['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor', 'contractor'] as RBACRole[]).map((role) => (
                 <option key={role} value={role}>
                   {getRoleLabel(role)}
                 </option>

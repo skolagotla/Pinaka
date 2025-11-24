@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
+import { serializeV2Data } from '@/lib/utils/serialize-v2-data';
 import VerificationsClient from '../../verifications/ui';
 import { Spinner } from 'flowbite-react';
 import { adminApi } from '@/lib/api/admin-api';
@@ -76,7 +76,7 @@ export default function AdminVerificationsPage() {
   }
 
   // Serialize admin data
-  const serializedUser = serializePrismaData({
+  const serializedUser = serializeV2Data({
     id: admin.id,
     email: admin.email,
     firstName: admin.firstName,

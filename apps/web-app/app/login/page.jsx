@@ -28,81 +28,46 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      if (!response.ok) {
-        const adminResponse = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        });
-
-        if (adminResponse.ok) {
-          const adminData = await adminResponse.json();
-          if (adminData.success && adminData.user) {
-            router.push('/admin/dashboard');
-            return;
-          }
-        }
+      // Use FastAPI v2 for login
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      try {
+        // Try FastAPI v2 login first
+        await v2Api.login(email, password);
+        const currentUser = await v2Api.getCurrentUser();
         
+        if (currentUser && currentUser.user) {
+          const roles = currentUser.roles || [];
+          const isSuperAdmin = roles.some(r => r.name === 'super_admin');
+          const isPmcAdmin = roles.some(r => r.name === 'pmc_admin');
+          
+          const nextUrl = searchParams?.get('next') || '/';
+          
+          if (isSuperAdmin) {
+            router.push('/admin/dashboard');
+          } else if (isPmcAdmin) {
+            router.push('/admin/dashboard');
+          } else {
+            router.push(nextUrl);
+          }
+          return;
+        }
+      } catch (v2Error) {
+        // Fallback to admin API for admin users
         try {
-          const errorData = await response.json();
-          setError(errorData.error || 'Invalid email or password');
-        } catch {
-          setError('Unable to connect to server. Please check if the API server is running on port 3001.');
-        }
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.user) {
-        const userRole = data.user.role || data.userType;
-        const nextUrl = searchParams?.get('next') || '/';
-
-        if (userRole === 'admin' || userRole === 'pmc') {
-          router.push('/admin/dashboard');
-        } else {
-          router.push(nextUrl);
-        }
-      } else {
-        const adminResponse = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        });
-
-        if (adminResponse.ok) {
-          const adminData = await adminResponse.json();
-          if (adminData.success && adminData.user) {
+          await adminApi.login(email, password);
+          const adminUser = await adminApi.getCurrentUser();
+          
+          if (adminUser && adminUser.user) {
             router.push('/admin/dashboard');
             return;
           }
+        } catch (adminError) {
+          // Both failed
+          setError('Invalid email or password');
+          return;
         }
-        
-        setError(data.error || 'Invalid email or password');
       }
     } catch (err) {
       console.error('Login error:', err);

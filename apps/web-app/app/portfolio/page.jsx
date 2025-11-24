@@ -17,42 +17,43 @@ export default function PortfolioPage() {
 
   const fetchUser = async () => {
     try {
-      // Try admin session first
-      const adminResponse = await fetch('/api/admin/auth/me', {
-        credentials: 'include',
-      });
-
-      if (adminResponse.ok) {
-        const adminData = await adminResponse.json();
-        if (adminData.success && adminData.user) {
-          setUser(adminData.user);
-          // Map admin role to super_admin
-          setUserRole(adminData.user.role === 'SUPER_ADMIN' || adminData.user.role === 'super_admin' ? 'super_admin' : 'admin');
+      // Use FastAPI v2 auth
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      // Try v2 API first
+      const token = v2Api.getToken();
+      if (token) {
+        try {
+          const currentUser = await v2Api.getCurrentUser();
+          if (currentUser && currentUser.user) {
+            const roles = currentUser.roles || [];
+            const primaryRole = roles[0]?.name || 'tenant';
+            
+            setUser({
+              ...currentUser.user,
+              roles: currentUser.roles,
+            });
+            setUserRole(primaryRole);
+            setLoading(false);
+            return;
+          }
+        } catch (v2Error) {
+          // Token invalid, try admin API
+        }
+      }
+      
+      // Fallback to admin API
+      try {
+        const adminUser = await adminApi.getCurrentUser();
+        if (adminUser && adminUser.user) {
+          setUser(adminUser.user);
+          setUserRole(adminUser.user.role === 'SUPER_ADMIN' || adminUser.user.role === 'super_admin' ? 'super_admin' : 'admin');
           setLoading(false);
           return;
         }
-      }
-
-      // Try regular user session
-      const response = await fetch('/api/user/current', {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.user) {
-          setUser(data.user);
-          // Map roles to new role system
-          const role = data.user.role || 
-                      (data.user.userType === 'admin' ? 'super_admin' : 
-                       data.user.userType === 'pmc' ? 'pmc_admin' :
-                       data.user.userType === 'tenant' ? 'tenant' : 
-                       data.user.userType === 'landlord' ? 'landlord' : 'landlord');
-          setUserRole(role);
-        } else {
-          router.push('/login');
-        }
-      } else {
+      } catch (adminError) {
+        // Both failed
         router.push('/login');
       }
     } catch (error) {

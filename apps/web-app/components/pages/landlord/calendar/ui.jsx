@@ -42,11 +42,20 @@ export default function CalendarClient({ initialProperties = [] }) {
 
   const loadProperties = async () => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.properties.list({ page: 1, limit: 1000 });
-      const propertiesData = response.data?.data || response.data || [];
-      setProperties(Array.isArray(propertiesData) ? propertiesData : []);
+      // Use v2Api client
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const token = localStorage.getItem('v2_access_token');
+      if (token) {
+        v2Api.setToken(token);
+        const properties = await v2Api.listProperties();
+        setProperties(Array.isArray(properties) ? properties : []);
+      } else {
+        // Fallback to v1Api if no token
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const response = await v1Api.properties.list({ page: 1, limit: 1000 });
+        const propertiesData = response.data?.data || response.data || [];
+        setProperties(Array.isArray(propertiesData) ? propertiesData : []);
+      }
     } catch (error) {
       console.error('Error loading properties:', error);
       setProperties([]);

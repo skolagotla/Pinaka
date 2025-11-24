@@ -73,11 +73,11 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   // Properties are loaded from server component
   const safeLandlordData = landlordData || { country: 'CA' };
 
-  // 🎯 PINAKA UNIFIED HOOK WITH ADDRESS - For Properties (v1 API)
+  // 🎯 PINAKA UNIFIED HOOK WITH ADDRESS - For Properties (v2 API)
   const pinaka = usePinakaCRUDWithAddress({
-    apiEndpoint: '/api/v1/properties',
+    apiEndpoint: '/api/v2/properties',
     domain: 'properties',
-    useV1Api: true,
+    useV1Api: false, // Use v2 API
     initialData: initialProperties,
     entityName: 'Property',
     initialCountry: safeLandlordData.country || 'CA',

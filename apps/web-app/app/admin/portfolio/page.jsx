@@ -16,25 +16,43 @@ export default function AdminPortfolioPage() {
 
   const fetchUser = async () => {
     try {
-      // Try to get user from session
-      const response = await fetch('/api/user/current', {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.user) {
-          setUser(data.user);
-          // Determine role from user data
-          const role = data.user.role || 
-                      (data.user.userType === 'admin' ? 'admin' : 
-                       data.user.userType === 'pmc' ? 'pmc' :
-                       data.user.userType === 'tenant' ? 'tenant' : 'landlord');
-          setUserRole(role);
-        } else {
-          router.push('/admin/login');
+      // Use FastAPI v2 auth
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const { adminApi } = await import('@/lib/api/admin-api');
+      
+      // Try v2 API first
+      const token = v2Api.getToken();
+      if (token) {
+        try {
+          const currentUser = await v2Api.getCurrentUser();
+          if (currentUser && currentUser.user) {
+            const roles = currentUser.roles || [];
+            const primaryRole = roles[0]?.name || 'admin';
+            
+            setUser({
+              ...currentUser.user,
+              roles: currentUser.roles,
+            });
+            setUserRole(primaryRole);
+            setLoading(false);
+            return;
+          }
+        } catch (v2Error) {
+          // Token invalid, try admin API
         }
-      } else {
+      }
+      
+      // Fallback to admin API
+      try {
+        const adminUser = await adminApi.getCurrentUser();
+        if (adminUser && adminUser.user) {
+          setUser(adminUser.user);
+          setUserRole(adminUser.user.role === 'SUPER_ADMIN' || adminUser.user.role === 'super_admin' ? 'super_admin' : 'admin');
+          setLoading(false);
+          return;
+        }
+      } catch (adminError) {
+        // Both failed
         router.push('/admin/login');
       }
     } catch (error) {

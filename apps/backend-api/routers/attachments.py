@@ -171,7 +171,9 @@ async def delete_attachment(
         file_path.unlink()
     
     # Delete record
-    await db.delete(attachment)
+    from sqlalchemy import delete
+    from db.models_v2 import Attachment as AttachmentModel
+    await db.execute(delete(AttachmentModel).where(AttachmentModel.id == attachment_id))
     await db.commit()
     
     return None

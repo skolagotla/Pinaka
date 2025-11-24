@@ -184,6 +184,41 @@ class ApiClient {
     }>(`/properties/${propertyId}`);
   }
 
+  async updateProperty(propertyId: string, data: {
+    name?: string;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+    status?: string;
+  }) {
+    return this.request<{
+      id: string;
+      organization_id: string;
+      landlord_id: string | null;
+      name: string | null;
+      address_line1: string;
+      address_line2: string | null;
+      city: string | null;
+      state: string | null;
+      postal_code: string | null;
+      country: string | null;
+      status: string;
+      created_at: string;
+    }>(`/properties/${propertyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProperty(propertyId: string) {
+    return this.request<void>(`/properties/${propertyId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async createProperty(data: {
     organization_id: string;
     landlord_id?: string;
@@ -383,6 +418,50 @@ class ApiClient {
     });
   }
 
+  async approveWorkOrder(workOrderId: string, data?: {
+    approved_amount?: number;
+    notes?: string;
+  }) {
+    return this.request<any>(`/work-orders/${workOrderId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    });
+  }
+
+  async assignVendorToWorkOrder(workOrderId: string, vendorId: string) {
+    return this.request<any>(`/work-orders/${workOrderId}/assign-vendor`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_id: vendorId }),
+    });
+  }
+
+  async markWorkOrderViewed(workOrderId: string, role: 'landlord' | 'tenant') {
+    return this.request<{ success: boolean; message: string }>(`/work-orders/${workOrderId}/mark-viewed`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async downloadWorkOrderPDF(workOrderId: string): Promise<Blob> {
+    const url = `${API_BASE_URL}/work-orders/${workOrderId}/download-pdf`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      headers,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF: ${response.statusText}`);
+    }
+
+    return response.blob();
+  }
+
   // Attachment endpoints
   async listAttachments(entityType: string, entityId: string) {
     return this.request<Array<{
@@ -457,6 +536,259 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // Landlord endpoints
+  async listLandlords(organizationId?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    return this.request<Array<any>>(`/landlords${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getLandlord(landlordId: string) {
+    return this.request<any>(`/landlords/${landlordId}`);
+  }
+
+  async createLandlord(data: any) {
+    return this.request<any>('/landlords', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateLandlord(landlordId: string, data: any) {
+    return this.request<any>(`/landlords/${landlordId}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  // Tenant endpoints
+  async listTenants(organizationId?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    return this.request<Array<any>>(`/tenants${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getTenant(tenantId: string) {
+    return this.request<any>(`/tenants/${tenantId}`);
+  }
+
+  async createTenant(data: any) {
+    return this.request<any>('/tenants', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateTenant(tenantId: string, data: any) {
+    return this.request<any>(`/tenants/${tenantId}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async approveTenant(tenantId: string) {
+    return this.request<any>(`/tenants/${tenantId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  async rejectTenant(tenantId: string, reason?: string) {
+    return this.request<any>(`/tenants/${tenantId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getTenantRentData(tenantId: string) {
+    return this.request<{
+      lease: {
+        id: string;
+        rent_amount: number;
+        start_date: string;
+        end_date: string | null;
+      };
+      property: {
+        id: string;
+        name: string;
+        address_line1: string;
+      } | null;
+      unit: {
+        id: string;
+        name: string;
+      } | null;
+      rent_payments: Array<any>;
+    }>(`/tenants/${tenantId}/rent-data`);
+  }
+
+  async getTenantsWithOutstandingBalance() {
+    return this.request<{
+      success: boolean;
+      tenants: Array<any>;
+    }>('/tenants/with-outstanding-balance');
+  }
+
+  // Lease endpoints
+  async listLeases(filters?: { organization_id?: string; unit_id?: string; tenant_id?: string; landlord_id?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.organization_id) params.append('organization_id', filters.organization_id);
+    if (filters?.unit_id) params.append('unit_id', filters.unit_id);
+    if (filters?.tenant_id) params.append('tenant_id', filters.tenant_id);
+    if (filters?.landlord_id) params.append('landlord_id', filters.landlord_id);
+    return this.request<Array<any>>(`/leases${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getLease(leaseId: string) {
+    return this.request<any>(`/leases/${leaseId}`);
+  }
+
+  async createLease(data: any) {
+    return this.request<any>('/leases', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateLease(leaseId: string, data: any) {
+    return this.request<any>(`/leases/${leaseId}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async renewLease(leaseId: string, data: {
+    decision: 'renew' | 'month-to-month' | 'terminate';
+    new_lease_end?: string;
+    new_rent_amount?: number;
+  }) {
+    return this.request<any>(`/leases/${leaseId}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async terminateLease(leaseId: string, data: {
+    termination_date: string;
+    reason?: string;
+    actual_loss?: number;
+  }) {
+    return this.request<any>(`/leases/${leaseId}/terminate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Unit endpoints
+  async listUnits(propertyId?: string) {
+    const params = new URLSearchParams();
+    if (propertyId) params.append('property_id', propertyId);
+    return this.request<Array<any>>(`/units${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getUnit(unitId: string) {
+    return this.request<any>(`/units/${unitId}`);
+  }
+
+  async createUnit(data: any) {
+    return this.request<any>('/units', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateUnit(unitId: string, data: any) {
+    return this.request<any>(`/units/${unitId}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async deleteUnit(unitId: string) {
+    return this.request<void>(`/units/${unitId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Notification endpoints
+  async listNotifications(isRead?: boolean) {
+    const params = new URLSearchParams();
+    if (isRead !== undefined) params.append('is_read', String(isRead));
+    return this.request<Array<any>>(`/notifications${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async markNotificationRead(notificationId: string) {
+    return this.request<any>(`/notifications/${notificationId}/read`, { method: 'PATCH' });
+  }
+
+  async markAllNotificationsRead() {
+    return this.request<void>('/notifications/mark-all-read', { method: 'POST' });
+  }
+
+  // User endpoints
+  async listUsers(organizationId?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    return this.request<Array<any>>(`/users${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getUser(userId: string) {
+    return this.request<any>(`/users/${userId}`);
+  }
+
+  async assignRole(userId: string, roleName: string, organizationId?: string) {
+    return this.request<any>(`/users/${userId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({
+        role_name: roleName,
+        organization_id: organizationId,
+      }),
+    });
+  }
+
+  // Vendor endpoints
+  async listVendors(organizationId?: string, search?: string, status?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (search) params.append('search', search);
+    if (status) params.append('status_filter', status);
+    return this.request<Array<any>>(`/vendors${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getVendor(vendorId: string) {
+    return this.request<any>(`/vendors/${vendorId}`);
+  }
+
+  async createVendor(data: {
+    organization_id: string;
+    user_id?: string;
+    company_name: string;
+    contact_name?: string;
+    email?: string;
+    phone?: string;
+    service_categories?: string[];
+    status?: string;
+  }) {
+    return this.request<any>('/vendors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateVendor(vendorId: string, data: {
+    company_name?: string;
+    contact_name?: string;
+    email?: string;
+    phone?: string;
+    service_categories?: string[];
+    status?: string;
+  }) {
+    return this.request<any>(`/vendors/${vendorId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteVendor(vendorId: string) {
+    return this.request<void>(`/vendors/${vendorId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Search endpoint
+  async search(query: string, type?: string, limit?: number) {
+    const params = new URLSearchParams();
+    params.append('q', query);
+    if (type) params.append('type', type);
+    if (limit) params.append('limit', String(limit));
+    return this.request<{
+      success: boolean;
+      query: string;
+      results: {
+        properties?: Array<any>;
+        tenants?: Array<any>;
+        landlords?: Array<any>;
+        leases?: Array<any>;
+        work_orders?: Array<any>;
+      };
+    }>(`/search?${params}`);
   }
 }
 

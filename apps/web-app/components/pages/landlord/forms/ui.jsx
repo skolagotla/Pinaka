@@ -355,13 +355,20 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       
       let landlordName = 'the landlord';
       try {
-        const settingsRes = await fetch('/api/settings');
-        const settingsData = await settingsRes.json();
-        if (settingsData.landlord?.firstName && settingsData.landlord?.lastName) {
-          landlordName = `${settingsData.landlord.firstName} ${settingsData.landlord.lastName}`;
+        // Try to get landlord name from current user or v2 API
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const currentUser = await v2Api.getCurrentUser();
+        
+        if (currentUser && currentUser.user && currentUser.user.full_name) {
+          landlordName = currentUser.user.full_name;
+        } else if (user && user.firstName && user.lastName) {
+          landlordName = `${user.firstName} ${user.lastName}`;
         }
       } catch (e) {
-        // Error handling
+        // Fallback: use user prop if available
+        if (user && user.firstName && user.lastName) {
+          landlordName = `${user.firstName} ${user.lastName}`;
+        }
       }
       
       let notes = '';

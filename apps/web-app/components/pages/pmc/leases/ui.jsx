@@ -46,11 +46,11 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
   const safeUnits = Array.isArray(units) ? units : [];
   const safeTenants = Array.isArray(tenants) ? tenants : [];
 
-  // 🎯 PINAKA UNIFIED HOOK (v1 API)
+  // 🎯 PINAKA UNIFIED HOOK (v2 API)
   const pinaka = usePinakaCRUD({
-    apiEndpoint: '/api/v1/leases', // v1 endpoint
-    domain: 'leases', // Domain name for v1Api
-    useV1Api: true, // Use v1Api client
+    apiEndpoint: '/api/v2/leases', // v2 endpoint
+    domain: 'leases', // Domain name
+    useV1Api: false, // Use v2 API
     initialData: initialLeases,
     entityName: 'Lease',
     messages: {

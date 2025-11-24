@@ -1,23 +1,68 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
+/**
+ * Estimator Page - Migrated to v2 FastAPI
+ * 
+ * Tenant estimator page using v2 FastAPI backend.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
+ */
+"use client";
+
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useTenant } from '@/lib/hooks/useV2Data';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Spinner, Alert } from 'flowbite-react';
 import dynamic from 'next/dynamic';
 
 // Lazy load estimator client (tenant-only)
 const TenantEstimatorClient = dynamic(() => import('@/components/pages/tenant/estimator/ui').then(mod => mod.default));
 
-export default withAuth(async ({ user, userRole, prisma, email }) => {
-  if (userRole === 'tenant') {
-    const tenant = await prisma.tenant.findUnique({
-      where: { email },
-    });
-
+export default function EstimatorPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  
+  // Get tenant ID from user
+  const tenantId = user?.user_id || user?.id;
+  const { data: tenant, isLoading: tenantLoading } = useTenant(tenantId || '');
+  
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (!authLoading && user && !hasRole('tenant')) {
+      router.push('/portfolio');
+    }
+  }, [authLoading, user, router, hasRole]);
+  
+  if (authLoading || tenantLoading) {
     return (
-      <TenantEstimatorClient
-        tenant={serializePrismaData(tenant)}
-      />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
     );
   }
-
-  return null;
-}, { role: 'tenant' });
-
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view estimator.
+      </Alert>
+    );
+  }
+  
+  if (!hasRole('tenant')) {
+    return (
+      <Alert color="failure" className="m-4">
+        Estimator is only available for tenants.
+      </Alert>
+    );
+  }
+  
+  if (!tenant) {
+    return (
+      <Alert color="failure" className="m-4">
+        Tenant information not found.
+      </Alert>
+    );
+  }
+  
+  return <TenantEstimatorClient tenant={tenant} />;
+}

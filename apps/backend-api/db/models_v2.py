@@ -410,7 +410,7 @@ class AuditLog(Base):
     action = Column(Text, nullable=False)  # 'ROLE_CHANGED', 'USER_IMPERSONATED', 'LEASE_CREATED', etc.
     entity_type = Column(Text, nullable=True)
     entity_id = Column(UUID(as_uuid=True), nullable=True)
-    metadata_json = Column('metadata', JSONB, nullable=True)  # Renamed to avoid SQLAlchemy reserved word conflict
+    extra_metadata = Column(JSONB, nullable=True)  # Using extra_metadata to avoid SQLAlchemy reserved word conflict
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     # Relationships

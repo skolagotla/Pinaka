@@ -1,69 +1,60 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData } from '@/lib/utils/serialize-prisma-data';
-import dynamicImport from 'next/dynamic';
+/**
+ * Invitations Page - Migrated to v2 FastAPI
+ * 
+ * PMC invitations page using v2 FastAPI backend.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
+ */
+"use client";
+
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Spinner, Alert } from 'flowbite-react';
+import dynamic from 'next/dynamic';
 
 // Lazy load invitations client (PMC-only)
-const PMCInvitationsClient = dynamicImport(() => import('@/components/pages/pmc/invitations/ui').then(mod => mod.default));
+const PMCInvitationsClient = dynamic(() => import('@/components/pages/pmc/invitations/ui').then(mod => mod.default));
 
-// Force dynamic rendering to prevent caching
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
-export const runtime = 'nodejs';
-
-export default withAuth(async ({ user, userRole, prisma }) => {
-  if (userRole === 'pmc') {
-    // PMC invitations logic - reuse existing page logic
-    let serializedInvitations = [];
-    
-    try {
-      if (!user || !user.id) {
-        return (
-          <main className="page">
-            <PMCInvitationsClient initialInvitations={[]} />
-          </main>
-        );
-      }
-
-      // Fetch invitations sent by this PMC
-      const invitations = await prisma.invitation.findMany({
-        where: {
-          invitedByPMCId: user.id,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      // Serialize dates for client component
-      serializedInvitations = invitations.map(inv => ({
-        id: inv.id,
-        email: inv.email,
-        token: inv.token,
-        type: inv.type,
-        status: inv.status,
-        expiresAt: inv.expiresAt ? inv.expiresAt.toISOString() : null,
-        openedAt: inv.openedAt ? inv.openedAt.toISOString() : null,
-        completedAt: inv.completedAt ? inv.completedAt.toISOString() : null,
-        createdAt: inv.createdAt ? inv.createdAt.toISOString() : null,
-        updatedAt: inv.updatedAt ? inv.updatedAt.toISOString() : null,
-        invitedBy: inv.invitedBy,
-        invitedByRole: inv.invitedByRole,
-        invitedByName: inv.invitedByName,
-        invitedByEmail: inv.invitedByEmail,
-        metadata: inv.metadata,
-      }));
-    } catch (error) {
-      console.error('[Invitations Page] Error:', error);
-      serializedInvitations = [];
+export default function InvitationsPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (!authLoading && user && !hasRole('pmc_admin') && !hasRole('pm')) {
+      router.push('/portfolio');
     }
-
+  }, [authLoading, user, router, hasRole]);
+  
+  if (authLoading) {
     return (
-      <main className="page">
-        <PMCInvitationsClient initialInvitations={serializedInvitations} />
-      </main>
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
     );
   }
-
-  // Not a PMC, redirect to dashboard
-  return null;
-}, { role: 'pmc' });
-
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view invitations.
+      </Alert>
+    );
+  }
+  
+  if (!hasRole('pmc_admin') && !hasRole('pm')) {
+    return (
+      <Alert color="failure" className="m-4">
+        Invitations are only available for PMC admins.
+      </Alert>
+    );
+  }
+  
+  // Component will handle data fetching internally via v2 API
+  return (
+    <main className="page">
+      <PMCInvitationsClient initialInvitations={[]} />
+    </main>
+  );
+}

@@ -9,6 +9,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import GlobalSearch from '@/components/GlobalSearch';
 import ProLayoutWrapper from '@/components/ProLayoutWrapper';
 import { registerServiceWorker } from '@/lib/utils/service-worker-register';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
 
 // Lazy load logger to avoid server-side execution
 let logger;
@@ -26,8 +27,15 @@ if (typeof window !== 'undefined') {
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
 
-export default function LayoutClient({ firstName, lastName, userRole, showNav, children }) {
+/**
+ * LayoutClient - Migrated to v2 FastAPI Auth
+ * 
+ * Uses useV2Auth hook to get current user and roles from FastAPI v2 backend.
+ * No longer depends on Prisma or Next.js API routes.
+ */
+export default function LayoutClient({ children }) {
   const pathname = usePathname();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
   
   // Check if we're on an admin route - admin has its own layout
   const isAdminRoute = pathname?.startsWith('/admin');
@@ -38,6 +46,32 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
   const [isMounted, setIsMounted] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Extract user info from v2 auth
+  const firstName = user?.user?.full_name?.split(' ')[0] || '';
+  const lastName = user?.user?.full_name?.split(' ').slice(1).join(' ') || '';
+  
+  // Determine user role from v2 roles
+  let userRole = null;
+  if (user) {
+    if (hasRole('super_admin')) {
+      userRole = 'super_admin';
+    } else if (hasRole('pmc_admin')) {
+      userRole = 'pmc_admin';
+    } else if (hasRole('pm')) {
+      userRole = 'pm';
+    } else if (hasRole('landlord')) {
+      userRole = 'landlord';
+    } else if (hasRole('tenant')) {
+      userRole = 'tenant';
+    } else if (hasRole('vendor')) {
+      userRole = 'vendor';
+    } else if (hasRole('contractor')) {
+      userRole = 'contractor';
+    }
+  }
+  
+  const showNav = !!user && !authLoading;
   
   // Wait for client-side mount to avoid hydration mismatch
   useEffect(() => {
@@ -61,9 +95,9 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
     logger.navigation('Page loaded', {
       path: pathname,
       userRole,
-      hasUser: !!(firstName && lastName)
+      hasUser: !!user
     });
-  }, [pathname, userRole, firstName, lastName]);
+  }, [pathname, userRole, user]);
 
   // Save collapsed state to localStorage whenever it changes (only after mount)
   useEffect(() => {
@@ -86,9 +120,6 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setSearchOpen]);
-  
-  // Don't show navigation if showNav is false
-  const shouldShowNav = showNav;
   
   // Use ProLayout for better UI/UX
   const useProLayout = process.env.NEXT_PUBLIC_USE_PRO_LAYOUT === 'true' || true; // Enable by default
@@ -121,14 +152,14 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
     );
   }
 
-  if (useProLayout && shouldShowNav) {
+  if (useProLayout && showNav) {
     return (
       <ErrorBoundary>
         <ProLayoutWrapper
           firstName={firstName}
           lastName={lastName}
           userRole={userRole}
-          showNav={shouldShowNav}
+          showNav={showNav}
         >
           {children}
         </ProLayoutWrapper>
@@ -139,7 +170,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
   return (
     <ErrorBoundary>
       <Layout style={{ minHeight: '100vh' }}>
-        {shouldShowNav && (
+        {showNav && (
           <Sider
             width={240}
             collapsedWidth={80}
@@ -209,7 +240,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
               overflow: 'auto',
               paddingBottom: '80px', // Space for user menu at bottom
             }}>
-              <Navigation show={shouldShowNav} userRole={userRole} collapsed={sidebarCollapsed} />
+              <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
             </div>
             
             {/* User Menu at bottom of sidebar */}
@@ -232,7 +263,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
           </Sider>
         )}
         
-        <Layout style={{ marginLeft: shouldShowNav ? (sidebarCollapsed ? 80 : 240) : 0 }}>
+        <Layout style={{ marginLeft: showNav ? (sidebarCollapsed ? 80 : 240) : 0 }}>
           {/* Top Header Bar (for search and other actions) */}
           <Header
             style={{
@@ -250,7 +281,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
               height: 64,
             }}
           >
-            {shouldShowNav && (
+            {showNav && (
               <Button
                 type="text"
                 icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -266,7 +297,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
               />
             )}
             <div style={{ flex: 1 }} /> {/* Spacer to push items to the right */}
-            {shouldShowNav && (
+            {showNav && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Tooltip title={
                   <span>
@@ -312,7 +343,7 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
           </Header>
           
           {/* Global Search Modal */}
-          {shouldShowNav && (
+          {showNav && (
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
           )}
           
@@ -329,4 +360,3 @@ export default function LayoutClient({ firstName, lastName, userRole, showNav, c
     </ErrorBoundary>
   );
 }
-

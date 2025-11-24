@@ -306,27 +306,22 @@ async function createInvitation(req: NextApiRequest, res: NextApiResponse, admin
           invitationToken: token,
           inviterName: `${admin.firstName} ${admin.lastName}`,
         });
-      } else if (type === 'vendor' || type === 'contractor') {
-        // For vendor/contractor, use a generic invitation email
-        // TODO: Create dedicated sendVendorInvitation and sendContractorInvitation functions
-        const { sendGenericInvitation } = require('@/lib/email');
-        if (sendGenericInvitation) {
-          await sendGenericInvitation({
-            email,
-            name: metadata?.businessName || metadata?.contactName || (type === 'vendor' ? 'Vendor' : 'Contractor'),
-            invitationToken: token,
-            inviterName: `${admin.firstName} ${admin.lastName}`,
-            roleType: type,
-          });
-        } else {
-          // Fallback: Use landlord invitation template for now
-          await sendLandlordInvitation({
-            landlordEmail: email,
-            landlordName: metadata?.businessName || metadata?.contactName || (type === 'vendor' ? 'Vendor' : 'Contractor'),
-            invitationToken: token,
-            inviterName: `${admin.firstName} ${admin.lastName}`,
-          });
-        }
+      } else if (type === 'vendor') {
+        const { sendVendorInvitation } = require('@/lib/email');
+        await sendVendorInvitation({
+          vendorEmail: email,
+          vendorName: metadata?.businessName || metadata?.contactName || 'Vendor',
+          invitationToken: token,
+          inviterName: `${admin.firstName} ${admin.lastName}`,
+        });
+      } else if (type === 'contractor') {
+        const { sendContractorInvitation } = require('@/lib/email');
+        await sendContractorInvitation({
+          contractorEmail: email,
+          contractorName: metadata?.businessName || metadata?.contactName || 'Contractor',
+          invitationToken: token,
+          inviterName: `${admin.firstName} ${admin.lastName}`,
+        });
       }
 
       // Update status to 'sent'

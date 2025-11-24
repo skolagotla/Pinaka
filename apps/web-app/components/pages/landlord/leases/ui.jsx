@@ -57,11 +57,11 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
   // Check permissions (PMC-managed landlords cannot create leases)
   const permissions = usePermissions(user || { role: 'landlord' });
 
-  // 🎯 PINAKA UNIFIED HOOK (v1 API)
+  // 🎯 PINAKA UNIFIED HOOK (v2 API)
   const pinaka = usePinakaCRUD({
-    apiEndpoint: '/api/v1/leases',
+    apiEndpoint: '/api/v2/leases',
     domain: 'leases',
-    useV1Api: true,
+    useV1Api: false, // Use v2 API
     initialData: initialLeases,
     entityName: 'Lease',
     messages: {

@@ -83,13 +83,27 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
 
   const loadLandlords = async () => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.landlords.list({ page: 1, limit: 1000 });
-      const landlords = response.data?.data || response.data || [];
-      if (Array.isArray(landlords)) {
-        setLandlords(landlords);
-        if (landlords.length > 0 && !selectedLandlord) {
-          setSelectedLandlord(landlords[0].id);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const token = localStorage.getItem('v2_access_token');
+      if (token) {
+        v2Api.setToken(token);
+        const landlords = await v2Api.listLandlords();
+        if (Array.isArray(landlords)) {
+          setLandlords(landlords);
+          if (landlords.length > 0 && !selectedLandlord) {
+            setSelectedLandlord(landlords[0].id);
+          }
+        }
+      } else {
+        // Fallback to v1Api
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const response = await v1Api.landlords.list({ page: 1, limit: 1000 });
+        const landlords = response.data?.data || response.data || [];
+        if (Array.isArray(landlords)) {
+          setLandlords(landlords);
+          if (landlords.length > 0 && !selectedLandlord) {
+            setSelectedLandlord(landlords[0].id);
+          }
         }
       }
     } catch (error) {
@@ -100,14 +114,25 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
   const loadProperties = async () => {
     if (!selectedLandlord) return;
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.properties.list({ 
-        page: 1, 
-        limit: 1000,
-        landlordId: selectedLandlord,
-      });
-      const props = response.data?.data || response.data || [];
-      setProperties(props);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const token = localStorage.getItem('v2_access_token');
+      if (token) {
+        v2Api.setToken(token);
+        const properties = await v2Api.listProperties();
+        // Filter by landlord_id if needed
+        const filtered = properties.filter(p => p.landlord_id === selectedLandlord);
+        setProperties(filtered);
+      } else {
+        // Fallback to v1Api
+        const { v1Api } = await import('@/lib/api/v1-client');
+        const response = await v1Api.properties.list({ 
+          page: 1, 
+          limit: 1000,
+          landlordId: selectedLandlord,
+        });
+        const props = response.data?.data || response.data || [];
+        setProperties(props);
+      }
     } catch (error) {
       // Error handled
     }

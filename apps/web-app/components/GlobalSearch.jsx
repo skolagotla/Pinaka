@@ -1,18 +1,15 @@
 /**
- * GlobalSearch - Command Palette Style Global Search
+ * GlobalSearch - Command Palette Style Global Search - Migrated to v2 FastAPI
  * 
- * Features:
- * - Cmd/Ctrl+K to open
- * - Real-time search across all entities
- * - Keyboard navigation
- * - Quick navigation to results
- * - Beautiful UI with icons
+ * Searches across all entities using v2 FastAPI endpoints.
+ * No longer uses Next.js API routes - searches directly via v2 API.
  */
-
 "use client";
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, TextInput, Spinner } from 'flowbite-react';
+import { v2Api } from '@/lib/api/v2-client';
 import {
   HiSearch,
   HiHome,
@@ -46,10 +43,8 @@ const SEARCH_CATEGORIES = {
   tenants: { label: 'Tenants', icon: HiUser, color: 'green' },
   landlords: { label: 'Landlords', icon: HiUser, color: 'purple' },
   leases: { label: 'Leases', icon: HiDocumentText, color: 'yellow' },
-  maintenance: { label: 'Maintenance', icon: HiClipboard, color: 'red' },
-  payments: { label: 'Payments', icon: HiCurrencyDollar, color: 'green' },
-  documents: { label: 'Documents', icon: HiDocument, color: 'gray' },
-  messages: { label: 'Messages', icon: HiChat, color: 'blue' },
+  maintenance: { label: 'Work Orders', icon: HiClipboard, color: 'red' },
+  units: { label: 'Units', icon: HiHome, color: 'blue' },
 };
 
 export default function GlobalSearch({ open, onClose }) {
@@ -77,7 +72,7 @@ export default function GlobalSearch({ open, onClose }) {
     }
   }, [open]);
 
-  // Debounced search function
+  // Debounced search function - uses v2 search endpoint
   const performSearch = useCallback(
     debounce(async (searchQuery) => {
       if (!searchQuery.trim()) {
@@ -88,33 +83,30 @@ export default function GlobalSearch({ open, onClose }) {
 
       setLoading(true);
       try {
-        // Search API endpoint
-        const response = await fetch(`/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=all&limit=10`);
-        const data = await response.json();
-
-        if (data.success || data.properties || data.tenants || data.leases || data.maintenance) {
-          // Transform API response to search results format
-          const results = [];
+        const allResults = [];
+        
+        // Use v2 search endpoint
+        try {
+          const searchResults = await v2Api.search(searchQuery, undefined, 10);
           
-          // Properties
-          if (data.properties) {
-            data.properties.forEach((item) => {
-              results.push({
+          // Transform search results to match expected format
+          if (searchResults.results.properties) {
+            searchResults.results.properties.forEach((item: any) => {
+              allResults.push({
                 id: item.id,
-                title: item.propertyName || item.addressLine1,
-                subtitle: `${item.addressLine1 || ''} ${item.city || ''}`.trim(),
+                title: item.name || item.address,
+                subtitle: item.address,
                 category: 'properties',
                 path: `/properties/${item.id}`,
               });
             });
           }
           
-          // Tenants
-          if (data.tenants) {
-            data.tenants.forEach((item) => {
-              results.push({
+          if (searchResults.results.tenants) {
+            searchResults.results.tenants.forEach((item: any) => {
+              allResults.push({
                 id: item.id,
-                title: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.email,
+                title: item.name,
                 subtitle: item.email,
                 category: 'tenants',
                 path: `/tenants/${item.id}`,
@@ -122,36 +114,46 @@ export default function GlobalSearch({ open, onClose }) {
             });
           }
           
-          // Leases
-          if (data.leases) {
-            data.leases.forEach((item) => {
-              results.push({
+          if (searchResults.results.landlords) {
+            searchResults.results.landlords.forEach((item: any) => {
+              allResults.push({
                 id: item.id,
-                title: `Lease #${item.leaseNumber || item.id}`,
-                subtitle: item.propertyName || item.property?.propertyName,
+                title: item.name,
+                subtitle: item.email,
+                category: 'landlords',
+                path: `/landlords/${item.id}`,
+              });
+            });
+          }
+          
+          if (searchResults.results.leases) {
+            searchResults.results.leases.forEach((item: any) => {
+              allResults.push({
+                id: item.id,
+                title: `Lease #${item.id.substring(0, 8)}`,
+                subtitle: `Rent: $${item.rent_amount || 0}`,
                 category: 'leases',
                 path: `/leases/${item.id}`,
               });
             });
           }
           
-          // Work Orders (Maintenance)
-          if (data.maintenance) {
-            data.maintenance.forEach((item) => {
-              results.push({
+          if (searchResults.results.work_orders) {
+            searchResults.results.work_orders.forEach((item: any) => {
+              allResults.push({
                 id: item.id,
-                title: item.title || item.description?.substring(0, 50) || 'Work Order',
-                subtitle: item.propertyName || item.property?.propertyName,
+                title: item.title || 'Work Order',
+                subtitle: item.status || 'No status',
                 category: 'maintenance',
-                path: `/operations/${item.id}`,
+                path: `/operations/kanban`,
               });
             });
           }
-          
-          setResults(results);
-        } else {
-          setResults([]);
+        } catch (err) {
+          console.error('Error searching:', err);
         }
+        
+        setResults(allResults);
       } catch (error) {
         console.error('Search error:', error);
         setResults([]);

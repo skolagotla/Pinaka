@@ -77,7 +77,7 @@ const nextConfig = {
   },
   
   serverExternalPackages: [
-    '@prisma/client',
+    // '@prisma/client', // Removed - using FastAPI v2 backend
     'bcryptjs',
     'better-sqlite3',
     'pg',
@@ -201,20 +201,53 @@ const nextConfig = {
     },
   },
   
-  async rewrites() {
-    return [
-      // Map admin auth endpoints to FastAPI v2
-      {
-        source: '/api/admin/auth/:path*',
-        destination: 'http://localhost:8000/api/v2/auth/:path*',
+      async rewrites() {
+        return [
+          // Map admin auth endpoints to FastAPI v2
+          {
+            source: '/api/admin/auth/:path*',
+            destination: 'http://localhost:8000/api/v2/auth/:path*',
+          },
+          // Map v2 API endpoints to FastAPI
+          {
+            source: '/api/v2/:path*',
+            destination: 'http://localhost:8000/api/v2/:path*',
+          },
+          // Map v1 API endpoints that have been migrated to FastAPI v2
+          {
+            source: '/api/v1/properties/:path*',
+            destination: 'http://localhost:8000/api/v2/properties/:path*',
+          },
+          {
+            source: '/api/v1/tenants/:path*',
+            destination: 'http://localhost:8000/api/v2/tenants/:path*',
+          },
+          {
+            source: '/api/v1/landlords/:path*',
+            destination: 'http://localhost:8000/api/v2/landlords/:path*',
+          },
+          {
+            source: '/api/v1/leases/:path*',
+            destination: 'http://localhost:8000/api/v2/leases/:path*',
+          },
+          {
+            source: '/api/v1/units/:path*',
+            destination: 'http://localhost:8000/api/v2/units/:path*',
+          },
+          {
+            source: '/api/v1/maintenance/:path*',
+            destination: 'http://localhost:8000/api/v2/work-orders/:path*',
+          },
+          {
+            source: '/api/v1/notifications/:path*',
+            destination: 'http://localhost:8000/api/v2/notifications/:path*',
+          },
+          {
+            source: '/api/v1/documents/:path*',
+            destination: 'http://localhost:8000/api/v2/attachments/:path*',
+          },
+        ];
       },
-      // Map all other API endpoints to FastAPI v2
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/v2/:path*',
-      },
-    ];
-  },
   
   async headers() {
     return [

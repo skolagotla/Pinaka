@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Tabs } from 'antd';
+import { Tabs } from 'flowbite-react';
 import { Button } from 'flowbite-react';
 import { useRouter } from 'next/navigation';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
-  ToolOutlined,
-  FileSearchOutlined,
-} from '@ant-design/icons';
-import { HiViewGrid } from 'react-icons/hi';
+  HiWrench,
+  HiDocumentSearch,
+  HiViewGrid,
+} from 'react-icons/hi';
 import dynamic from 'next/dynamic';
 
 // Lazy load components for better performance
@@ -87,8 +87,8 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
     {
       key: 'maintenance',
       label: (
-        <span>
-          <ToolOutlined /> Maintenance
+        <span className="flex items-center gap-2">
+          <HiWrench className="h-4 w-4" /> Maintenance
         </span>
       ),
       component: (
@@ -109,8 +109,8 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
     {
       key: 'inspections',
       label: (
-        <span>
-          <FileSearchOutlined /> Inspections
+        <span className="flex items-center gap-2">
+          <HiDocumentSearch className="h-4 w-4" /> Inspections
         </span>
       ),
       component: userRole === 'pmc' ? (
@@ -122,10 +122,10 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
   ];
 
   return (
-    <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="p-3 h-full flex flex-col">
       {/* Header with Kanban view button */}
       {activeTab === 'maintenance' && (
-        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="mb-3 flex justify-end">
           <Button
             color="blue"
             size="sm"
@@ -138,20 +138,15 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
         </div>
       )}
       
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={availableTabs.map(tab => ({
-          key: tab.key,
-          label: tab.label,
-          children: (
-            <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
+      <Tabs activeTab={activeTab} onActiveTabChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
+        {availableTabs.map(tab => (
+          <Tabs.Item key={tab.key} title={tab.label}>
+            <div className="flex-1 overflow-auto pt-3">
               {tab.component}
             </div>
-          ),
-        }))}
-      />
+          </Tabs.Item>
+        ))}
+      </Tabs>
     </div>
   );
 }

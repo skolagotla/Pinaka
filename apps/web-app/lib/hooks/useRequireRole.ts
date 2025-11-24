@@ -46,6 +46,23 @@ export function useRequireRole(options: UseRequireRoleOptions) {
         userData = await fetchUser();
       } else {
         // Default: fetch from admin API
+        // Use adminApi instead of fetch
+        const { adminApi } = await import('@/lib/api/admin-api');
+        try {
+          const user = await adminApi.getCurrentUser();
+          if (user && user.user) {
+            const roles = user.user.role ? [user.user.role] : [];
+            if (allowedRoles.some(role => roles.includes(role.toUpperCase()) || roles.includes(role))) {
+              setUser(user.user);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (apiError) {
+          // Not authorized
+        }
+        
+        // Fallback to old API for compatibility
         const response = await fetch('/api/admin/auth/me', {
           method: 'GET',
           credentials: 'include',

@@ -66,26 +66,37 @@ export default function UnifiedLibraryComponent({
 
       // Otherwise, try to load from API (works for all roles: admin, pmc, landlord, tenant)
       try {
-        // First try the universal user API (works for all roles)
-        const userResponse = await fetch('/api/user/current');
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          
-          if (userData.success && userData.user) {
-            setUser(userData.user);
-            const baseRole = userData.user.role || 'admin';
-            setUserRole(baseRole);
-            setMounted(true);
-            return;
+        // Use FastAPI v2 auth
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const { adminApi } = await import('@/lib/api/admin-api');
+        
+        // Try v2 API first
+        const token = v2Api.getToken();
+        if (token) {
+          try {
+            const currentUser = await v2Api.getCurrentUser();
+            if (currentUser && currentUser.user) {
+              const roles = currentUser.roles || [];
+              const primaryRole = roles[0]?.name || 'admin';
+              
+              setUser({
+                ...currentUser.user,
+                roles: currentUser.roles,
+              });
+              setUserRole(primaryRole);
+              setMounted(true);
+              return;
+            }
+          } catch (v2Error) {
+            // Token invalid, try admin API
           }
         }
         
         // Fallback: Try admin API (for admin users only)
         try {
-          const { adminApi } = await import('@/lib/api/admin-api');
           const data = await adminApi.getCurrentUser();
           
-          if (data.success && data.user) {
+          if (data && data.user) {
             setUser(data.user);
             const baseRole = data.user.role || 'admin';
             setUserRole(baseRole);

@@ -109,6 +109,21 @@ export default function ImpersonationSelector({ users = [] }: ImpersonationSelec
     setError(null);
 
     try {
+      // Use adminApi for impersonation (if endpoint exists)
+      // For now, fallback to fetch if adminApi doesn't have this method
+      try {
+        const { adminApi } = await import('@/lib/api/admin-api');
+        // If adminApi has impersonate method, use it
+        if (adminApi.impersonate) {
+          await adminApi.impersonate(selectedUserId, selectedUserType);
+          window.location.reload();
+          return;
+        }
+      } catch (apiError) {
+        // Fallback to fetch
+      }
+      
+      // Fallback to fetch for compatibility
       const response = await fetch('/api/admin/impersonate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +137,6 @@ export default function ImpersonationSelector({ users = [] }: ImpersonationSelec
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Reload page to start impersonation
         window.location.reload();
       } else {
         setError(data.error || 'Failed to start impersonation');

@@ -1,216 +1,130 @@
-import { withAuth } from '@/lib/utils/page-wrapper';
-import { serializePrismaData, serializeTenant } from '@/lib/utils/serialize-prisma-data';
-import dynamic from 'next/dynamic';
+/**
+ * Tenants Page - Migrated to v2 FastAPI
+ * 
+ * Lists tenants using v2 FastAPI backend with role-based filtering.
+ * All data comes from FastAPI v2 endpoints - no Next.js API routes or Prisma.
+ */
+"use client";
 
-// Lazy load tenant clients
-const LandlordTenantsClient = dynamic(() => import('@/components/pages/landlord/tenants/ui').then(mod => mod.default));
-const PMCTenantsClient = dynamic(() => import('@/components/pages/pmc/tenants/ui').then(mod => mod.default));
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useTenants, useLeases } from '@/lib/hooks/useV2Data';
+import { Card, Table, Badge, Button, Spinner, Alert } from 'flowbite-react';
+import { HiPlus, HiUser } from 'react-icons/hi';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-export default withAuth(async ({ user, userRole, prisma, email }) => {
-  if (userRole === 'landlord') {
-    // Landlord tenants logic
-    const landlord = await prisma.landlord.findUnique({
-      where: { email },
-      select: { id: true }
-    });
-    
-    if (!landlord) {
-      return (
-        <main className="page">
-          <LandlordTenantsClient initialTenants={[]} user={null} />
-        </main>
-      );
+export default function TenantsPage() {
+  const router = useRouter();
+  const { user, loading: authLoading, hasRole } = useV2Auth();
+  
+  const organizationId = user?.organization_id || undefined;
+  const { data: tenants, isLoading } = useTenants(organizationId);
+  const { data: leases } = useLeases({ organization_id: organizationId });
+  
+  // Count active leases per tenant
+  const tenantLeaseCounts = leases?.reduce((acc: Record<string, number>, lease: any) => {
+    if (lease.status === 'active') {
+      acc[lease.tenant_id] = (acc[lease.tenant_id] || 0) + 1;
     }
-
-    const serializedUser = user ? serializePrismaData(user) : null;
-    
-    // Get all tenants associated with landlord's properties through leases
-    // OPTIMIZED: Use select instead of include for better performance
-    const tenants = await prisma.tenant.findMany({
-      where: {
-        leaseTenants: {
-          some: {
-            lease: {
-              unit: {
-                property: {
-                  landlordId: landlord.id,
-                },
-              },
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        dateOfBirth: true,
-        currentAddress: true,
-        city: true,
-        provinceState: true,
-        postalZip: true,
-        country: true,
-        numberOfAdults: true,
-        numberOfChildren: true,
-        hasAccess: true,
-        createdAt: true,
-        updatedAt: true,
-        leaseTenants: {
-          select: {
-            leaseId: true,
-            tenantId: true,
-            isPrimaryTenant: true,
-            addedAt: true,
-            lease: {
-              select: {
-                id: true,
-                status: true,
-                leaseStart: true,
-                leaseEnd: true,
-                rentAmount: true,
-                unit: {
-                  select: {
-                    id: true,
-                    unitName: true,
-                    property: {
-                      select: {
-                        id: true,
-                        propertyName: true,
-                        addressLine1: true,
-                        addressLine2: true,
-                        city: true,
-                        provinceState: true,
-                        postalZip: true,
-                        country: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
+    return acc;
+  }, {}) || {};
+  
+  if (authLoading || isLoading) {
     return (
-      <LandlordTenantsClient 
-        initialTenants={tenants.map(t => serializeTenant(t))} 
-        user={serializedUser} 
-      />
-    );
-  } else if (userRole === 'pmc') {
-    // PMC tenants logic
-    const pmcRelationships = await prisma.pMCLandlord.findMany({
-      where: {
-        pmcId: user.id,
-        status: 'active',
-      },
-      select: {
-        landlordId: true,
-      },
-    });
-
-    const landlordIds = pmcRelationships.map(rel => rel.landlordId);
-
-    if (landlordIds.length === 0) {
-      return (
-        <PMCTenantsClient
-          pmc={serializePrismaData(user)}
-          tenants={[]}
-        />
-      );
-    }
-
-    const properties = await prisma.property.findMany({
-      where: {
-        landlordId: {
-          in: landlordIds,
-        },
-      },
-      select: {
-        id: true,
-        addressLine1: true,
-      },
-    });
-
-    const propertyIds = properties.map(p => p.id);
-
-    // OPTIMIZED: Use select instead of include for better performance
-    const tenants = await prisma.tenant.findMany({
-      where: {
-        leaseTenants: {
-          some: {
-            lease: {
-              unit: {
-                propertyId: {
-                  in: propertyIds,
-                },
-              },
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        dateOfBirth: true,
-        currentAddress: true,
-        city: true,
-        provinceState: true,
-        postalZip: true,
-        country: true,
-        numberOfAdults: true,
-        numberOfChildren: true,
-        hasAccess: true,
-        createdAt: true,
-        updatedAt: true,
-        leaseTenants: {
-          select: {
-            leaseId: true,
-            tenantId: true,
-            isPrimaryTenant: true,
-            addedAt: true,
-            lease: {
-              select: {
-                id: true,
-                status: true,
-                leaseStart: true,
-                leaseEnd: true,
-                rentAmount: true,
-                unit: {
-                  select: {
-                    id: true,
-                    unitName: true,
-                    property: {
-                      select: {
-                        id: true,
-                        addressLine1: true,
-                        propertyName: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return (
-      <PMCTenantsClient
-        pmc={serializePrismaData(user)}
-        tenants={tenants.map(t => serializeTenant(t))}
-      />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
     );
   }
-
-  return null;
-}, { role: 'both' }); // 'both' allows landlord and PMC
-
+  
+  if (!user) {
+    return (
+      <Alert color="warning" className="m-4">
+        Please log in to view tenants.
+      </Alert>
+    );
+  }
+  
+  const canViewTenants = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm') || hasRole('landlord');
+  
+  if (!canViewTenants) {
+    return (
+      <Alert color="failure" className="m-4">
+        You don't have permission to view tenants.
+      </Alert>
+    );
+  }
+  
+  const canCreateTenants = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm');
+  
+  return (
+    <div className="p-6">
+      <div className="mb-6 flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Tenants</h1>
+        {canCreateTenants && (
+          <Button color="blue" onClick={() => router.push('/tenants/new')}>
+            <HiPlus className="mr-2 h-4 w-4" />
+            New Tenant
+          </Button>
+        )}
+      </div>
+      
+      {tenants && tenants.length > 0 ? (
+        <Card>
+          <Table hoverable>
+            <Table.Head>
+              <Table.HeadCell>Name</Table.HeadCell>
+              <Table.HeadCell>Email</Table.HeadCell>
+              <Table.HeadCell>Phone</Table.HeadCell>
+              <Table.HeadCell>Active Leases</Table.HeadCell>
+              <Table.HeadCell>Status</Table.HeadCell>
+              <Table.HeadCell>Actions</Table.HeadCell>
+            </Table.Head>
+            <Table.Body className="divide-y">
+              {tenants.map((tenant: any) => (
+                <Table.Row key={tenant.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                    {tenant.first_name && tenant.last_name
+                      ? `${tenant.first_name} ${tenant.last_name}`
+                      : tenant.email}
+                  </Table.Cell>
+                  <Table.Cell>{tenant.email || '-'}</Table.Cell>
+                  <Table.Cell>{tenant.phone || '-'}</Table.Cell>
+                  <Table.Cell>{tenantLeaseCounts[tenant.id] || 0}</Table.Cell>
+                  <Table.Cell>
+                    <Badge color={
+                      tenant.approval_status === 'approved' ? 'success' :
+                      tenant.approval_status === 'pending' ? 'warning' :
+                      tenant.approval_status === 'rejected' ? 'failure' :
+                      'gray'
+                    }>
+                      {tenant.approval_status || 'pending'}
+                    </Badge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Link href={`/tenants/${tenant.id}`}>
+                      <Button size="xs" color="light">View</Button>
+                    </Link>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </Card>
+      ) : (
+        <Card>
+          <div className="text-center py-8">
+            <HiUser className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-gray-500">No tenants found.</p>
+            {canCreateTenants && (
+              <Button color="blue" className="mt-4" onClick={() => router.push('/tenants/new')}>
+                <HiPlus className="mr-2 h-4 w-4" />
+                Add Your First Tenant
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}

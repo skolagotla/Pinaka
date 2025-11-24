@@ -87,18 +87,34 @@ export default function SettingsForm({ landlord }) {
     
     setLoading(true);
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.landlords.update(landlord.id, formData);
+      const { v2Api } = await import('@/lib/api/v2-client');
       
-      if (data.success || data) {
-        // Redirect to properties page after successful update
-        router.push("/dashboard");
-      } else {
-        alert(data.error || 'Failed to update settings');
+      // Get landlord ID from props or find it via user
+      let landlordId = landlord?.id;
+      if (!landlordId) {
+        // Try to get from user context
+        const { useV2Auth } = await import('@/lib/hooks/useV2Auth');
+        // Note: This won't work in a non-hook context, so we need landlord.id from props
+        throw new Error('Landlord ID is required');
       }
+      
+      await v2Api.updateLandlord(landlordId, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address_line1: formData.addressLine1,
+        city: formData.city,
+        state: formData.provinceState,
+        postal_code: formData.postalZip,
+        country: formData.country,
+      });
+      
+      // Redirect to dashboard after successful update
+      router.push("/dashboard");
     } catch (error) {
       console.error('[Settings] Error:', error);
-      alert('Failed to update settings');
+      alert(error.message || 'Failed to update settings');
     } finally {
       setLoading(false);
     }

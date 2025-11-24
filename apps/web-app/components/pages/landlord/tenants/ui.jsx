@@ -125,7 +125,7 @@ function TenantsClient({ initialTenants, user }) {
   const safeInitialTenants = Array.isArray(initialTenants) ? initialTenants : [];
   
   const pinaka = usePinakaCRUDWithAddress({
-    apiEndpoint: '/api/v1/tenants', // v1 endpoint
+    apiEndpoint: '/api/v2/tenants', // v2 endpoint
     domain: 'tenants', // Domain name for v1Api
     useV1Api: true, // Use v1Api client
     initialData: safeInitialTenants,

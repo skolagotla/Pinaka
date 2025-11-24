@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime, date
 from uuid import UUID
 from schemas.work_order_comment import WorkOrderComment
-from schemas.attachment import Attachment
+# from schemas.attachment import Attachment  # Not used yet
 
 
 class WorkOrderBase(BaseModel):
@@ -39,10 +39,10 @@ class WorkOrder(WorkOrderBase):
     tenant_id: Optional[UUID] = None
     created_by_user_id: UUID
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     comments: Optional[List[WorkOrderComment]] = []
-    attachments: Optional[List[Attachment]] = []
+    # attachments: Optional[List[Attachment]] = []  # Removed - not loaded in queries yet
     
     class Config:
         from_attributes = True
@@ -54,4 +54,20 @@ class WorkOrderCommentCreate(BaseModel):
 
 class WorkOrderCommentUpdate(BaseModel):
     body: Optional[str] = None
+
+
+class WorkOrderApprovalRequest(BaseModel):
+    """Work order approval request"""
+    approved_amount: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class WorkOrderMarkViewedRequest(BaseModel):
+    """Mark work order as viewed"""
+    role: str  # 'landlord' or 'tenant'
+
+
+class WorkOrderAssignVendorRequest(BaseModel):
+    """Assign vendor to work order"""
+    vendor_id: UUID
 

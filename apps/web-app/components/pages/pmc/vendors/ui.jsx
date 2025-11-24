@@ -13,6 +13,8 @@ import { useModalState, useFormSubmission, useDataLoader, useResizableTable, con
 import { MAINTENANCE_CATEGORIES } from '@/lib/constants/statuses';
 import { VENDOR_COLUMNS, createActionColumn } from '@/lib/constants/column-definitions';
 import { rules } from '@/lib/utils/validation-rules';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useVendors, useCreateVendor, useUpdateVendor, useDeleteVendor } from '@/lib/hooks/useV2Data';
 
 export default function PMCVendorsClient({ vendorsData }) {
   const { fetch } = useUnifiedApi({ showUserMessage: true });
@@ -21,19 +23,26 @@ export default function PMCVendorsClient({ vendorsData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('CA');
 
-  // Load vendors data - use server-provided data if available, otherwise fetch from API (v1)
+  // Load vendors data - use v2 API
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
+  const { data: vendorsData_v2, isLoading: vendorsLoading, refetch: refetchVendors } = useVendors(organizationId, searchTerm);
+  
+  // Legacy data loader for fallback (if needed)
   const { data, loading, refetch } = useDataLoader({
     endpoints: {
-      vendors: '/api/v1/vendors' // v1 endpoint
+      vendors: '/api/v1/vendors' // Fallback only
     },
     showUserMessages: false,
-    autoLoad: !vendorsData // Only auto-load if we don't have server data
+    autoLoad: false // Don't auto-load, use v2 instead
   });
 
-  // Use server-provided data if available, otherwise use API data
-  const vendors = vendorsData?.vendors 
-    ? Array.isArray(vendorsData.vendors) ? vendorsData.vendors : []
-    : Array.isArray(data.vendors) ? data.vendors : [];
+  // Use v2 API data first, then server-provided, then fallback to v1
+  const vendors = vendorsData_v2 && Array.isArray(vendorsData_v2)
+    ? vendorsData_v2
+    : vendorsData?.vendors 
+      ? Array.isArray(vendorsData.vendors) ? vendorsData.vendors : []
+      : Array.isArray(data.vendors) ? data.vendors : [];
   
   // Filter vendors based on search (including category keywords)
   const filteredVendors = vendors.filter(vendor => {
@@ -72,20 +81,50 @@ export default function PMCVendorsClient({ vendorsData }) {
     );
   });
 
-  // Form submission for add/edit (v1 API)
-  const { submit: submitVendor, submitting: submittingVendor } = useFormSubmission({
-    endpoint: editingVendor ? `/api/v1/vendors/${editingVendor.id}` : '/api/v1/vendors', // v1 endpoints
-    method: editingVendor ? 'PATCH' : 'POST',
-    successMessage: `Vendor ${editingVendor ? 'updated' : 'added'} successfully`,
-    onSuccess: () => {
+  // Use v2 hooks for vendor mutations
+  const createVendor = useCreateVendor();
+  const updateVendor = useUpdateVendor();
+  
+  // Form submission for add/edit (v2 API)
+  const handleSubmitVendor = async (values) => {
+    try {
+      if (editingVendor) {
+        await updateVendor.mutateAsync({
+          id: editingVendor.id,
+          data: {
+            company_name: values.name || values.businessName || values.company_name,
+            contact_name: values.contactName || values.contact_name,
+            email: values.email,
+            phone: values.phone,
+            service_categories: values.specialties || values.service_categories || [],
+            status: values.isActive === false ? 'inactive' : 'active',
+          },
+        });
+      } else {
+        await createVendor.mutateAsync({
+          organization_id: organizationId!,
+          company_name: values.name || values.businessName || values.company_name,
+          contact_name: values.contactName || values.contact_name,
+          email: values.email,
+          phone: values.phone,
+          service_categories: values.specialties || values.service_categories || [],
+          status: 'active',
+        });
+      }
+      notify.success(`Vendor ${editingVendor ? 'updated' : 'added'} successfully`);
       closeModal();
       form.resetFields();
-      refetch();
+      refetchVendors();
+    } catch (error) {
+      console.error('Error saving vendor:', error);
+      notify.error(error.message || 'Failed to save vendor');
     }
-  });
+  };
+  
+  const submittingVendor = createVendor.isPending || updateVendor.isPending;
 
   const handleAddVendor = async (values) => {
-    await submitVendor(values);
+    await handleSubmitVendor(values);
   };
 
   const handleEditVendor = (vendor) => {
@@ -99,13 +138,13 @@ export default function PMCVendorsClient({ vendorsData }) {
     });
   };
 
+  const deleteVendor = useDeleteVendor();
+  
   const handleDeleteVendor = async (vendorId) => {
     try {
-      // Use v1Api for vendor deletion
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.vendors.delete(vendorId);
+      await deleteVendor.mutateAsync(vendorId);
       notify.success('Vendor deleted successfully');
-      refetch();
+      refetchVendors();
     } catch (error) {
       console.error('Error deleting vendor:', error);
       notify.error(error.message || 'Failed to delete vendor');
