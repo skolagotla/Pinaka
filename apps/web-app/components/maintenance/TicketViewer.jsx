@@ -118,20 +118,20 @@ export default function TicketViewer({
 
       {/* Status Bar */}
       <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-        <Row gutter={[16, 8]} align="middle">
+        <Row gutter={[16, 8} align="middle">
           <Col>
             <Text type="secondary" style={{ fontSize: 12 }}>Opened by:</Text>{' '}
             <Tag color="default" style={{ margin: 0, fontSize: 11 }}>
               {ticket.initiatedBy === 'landlord' ? 'Landlord' : 'Tenant'}
             </Tag>{' '}
-            <Text strong style={{ fontSize: 13 }}>{openerName}</Text>
+            <Text strong style={{ fontSize: 13 }}openerName}</Text>
           </Col>
           
           <Divider type="vertical" style={{ height: 24, margin: '0 12px' }} />
           
           <Col>
             <Text type="secondary" style={{ fontSize: 12 }}>Category:</Text>{' '}
-            <Text strong style={{ fontSize: 13 }}>{ticket.category}</Text>
+            <Text strong style={{ fontSize: 13 }}ticket.category}</Text>
           </Col>
           
           <Divider type="vertical" style={{ height: 24, margin: '0 12px' }} />

@@ -7,7 +7,7 @@ export default function Error({ error, reset }) {
 
   return (
     <div style={{ padding: '50px', textAlign: 'center' }}>
-      <h1>Something went wrong!</h1>
+      <h1>Something went wrong</h1>
       <p style={{ color: 'red' }}>{error?.message || 'Unknown error'}</p>
       <details style={{ marginTop: '20px', textAlign: 'left', maxWidth: '800px', margin: '20px auto' }}>
         <summary>Error Details</summary>

@@ -1,0 +1,80 @@
+{
+  "name": "Phone Number Formatting Rules",
+  "description": "Rules for formatting phone numbers in North American format",
+  "rules": [
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "phone"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-phone",
+        "params": {
+          "format": "(XXX)XXX-XXXX",
+          "pattern": "^\\d{10}$",
+          "example": "(416) 555-1234",
+          "description": "North American phone number format: (Area Code) Exchange-Number",
+          "validationRegex": "^\\d{10}$",
+          "formatFunction": "formatPhoneNumber",
+          "digitsOnly": true,
+          "maxLength": 10,
+          "displayFormat": "(XXX) XXX-XXXX",
+          "storageFormat": "digits-only"
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "phone-input"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-phone-input",
+        "params": {
+          "format": "(XXX)XXX-XXXX",
+          "autoFormat": true,
+          "digitsOnly": true,
+          "maxLength": 10,
+          "displayFormat": "(XXX) XXX-XXXX",
+          "storageFormat": "digits-only",
+          "pattern": "^\\d{10}$",
+          "placeholder": "(XXX) XXX-XXXX"
+        }
+      },
+      "priority": 100
+    },
+    {
+      "conditions": {
+        "all": [
+          {
+            "fact": "fieldType",
+            "operator": "equal",
+            "value": "phone-display"
+          }
+        ]
+      },
+      "event": {
+        "type": "format-phone-display",
+        "params": {
+          "format": "(XXX) XXX-XXXX",
+          "description": "Display format with space after area code",
+          "example": "(416) 555-1234",
+          "formatFunction": "formatPhoneNumberDisplay"
+        }
+      },
+      "priority": 200
+    }
+  ]
+}
+

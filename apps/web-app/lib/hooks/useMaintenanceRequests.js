@@ -1,78 +1,95 @@
 /**
- * Hook for managing maintenance requests (work orders) using v2 FastAPI
+ * useMaintenanceRequests Hook
  * 
- * This hook provides a simple interface for fetching and managing work orders
- * using the v2 FastAPI backend. It replaces the old v1 API calls.
+ * Handles data fetching and state management for maintenance requests
+ * Extracted from MaintenanceClient for better code organization
+ * 
+ * @param {Object} options
+ * @param {'landlord'|'tenant'} options.userRole - User role
+ * @param {Array} options.initialRequests - Initial requests
+ * @returns {Object} Maintenance requests state and actions
  */
-"use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useWorkOrders, useCreateWorkOrder, useUpdateWorkOrder } from './useV2Data';
-import { useV2Auth } from './useV2Auth';
 
-export function useMaintenanceRequests({ userRole, initialRequests = [] }) {
-  const { user } = useV2Auth();
-  const organizationId = user?.organization_id;
-  
-  // Build filters based on role
-  const filters: any = {};
-  if (organizationId) {
-    filters.organization_id = organizationId;
-  }
-  
-  // Tenants only see their own work orders - backend handles this via RBAC
-  // Landlords see work orders for their properties - backend handles this
-  // PM/PMC see all org work orders - backend handles this
-  
-  const { data: workOrders, isLoading, refetch } = useWorkOrders(filters);
-  const createWorkOrder = useCreateWorkOrder();
-  const updateWorkOrder = useUpdateWorkOrder();
-  
-  const [requests, setRequests] = useState(initialRequests);
+export function useMaintenanceRequests({ 
+  userRole, 
+  initialRequests = []
+}) {
+  const [requests, setRequests] = useState(initialRequests || []);
+  const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  
-  // Update requests when workOrders data changes
-  useEffect(() => {
-    if (workOrders && Array.isArray(workOrders)) {
-      setRequests(workOrders);
-    } else if (initialRequests.length > 0) {
-      setRequests(initialRequests);
+
+  /**
+   * Fetch maintenance requests from API (v1)
+   */
+  const fetchRequests = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.maintenance.list({ page: 1, limit: 1000 });
+      // v1 API returns { success: true, data: { data: [...], pagination: {...} } }
+      const requestsData = response.data?.data || response.data || [];
+      setRequests(Array.isArray(requestsData) ? requestsData : []);
+    } catch (error) {
+      console.error('[useMaintenanceRequests] Error fetching requests:', error);
+      setRequests([]); // Set empty array on error to prevent filter errors
+    } finally {
+      setLoading(false);
     }
-  }, [workOrders, initialRequests]);
-  
-  const fetchRequests = useCallback(() => {
-    refetch();
-  }, [refetch]);
-  
+  }, []);
+
+  /**
+   * Refresh requests
+   */
+  const refresh = useCallback(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  /**
+   * Update a request in the list
+   */
+  const updateRequest = useCallback((updatedRequest) => {
+    setRequests(prev => 
+      prev.map(req => req.id === updatedRequest.id ? updatedRequest : req)
+    );
+  }, []);
+
+  /**
+   * Add a new request to the list
+   */
   const addRequest = useCallback((newRequest) => {
-    setRequests(prev => [...prev, newRequest]);
+    setRequests(prev => [newRequest, ...prev]);
   }, []);
-  
+
+  /**
+   * Remove a request from the list
+   */
   const removeRequest = useCallback((requestId) => {
-    setRequests(prev => prev.filter(r => r.id !== requestId));
+    setRequests(prev => prev.filter(req => req.id !== requestId));
   }, []);
-  
-  const updateRequest = useCallback((requestId, updates) => {
-    setRequests(prev => prev.map(r => 
-      r.id === requestId ? { ...r, ...updates } : r
-    ));
-    if (selectedRequest?.id === requestId) {
-      setSelectedRequest(prev => ({ ...prev, ...updates }));
+
+  // Initial fetch if no initial requests
+  useEffect(() => {
+    if (!initialRequests || initialRequests.length === 0) {
+      fetchRequests();
     }
-  }, [selectedRequest]);
-  
+  }, []); // Only run once on mount
+
   return {
     requests,
-    loading: isLoading,
+    loading,
     selectedRequest,
     setSelectedRequest,
     setRequests,
     fetchRequests,
+    refresh,
     updateRequest,
     addRequest,
     removeRequest,
-    createWorkOrder,
-    updateWorkOrder,
   };
 }
+
+export default useMaintenanceRequests;
 

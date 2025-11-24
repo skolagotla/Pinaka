@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
   const handleSendInvitation = async () => {
     const values = invitationFormState.values;
     try {
-      // Use v1Api for invitations (business domain API)
+      // TODO: Implement v2 endpoint for admin invitations
       const { v1Api } = await import('@/lib/api/v1-client');
       const data = await v1Api.invitations.create({
         email: values.email,
@@ -1710,12 +1710,12 @@ export default function AdminUsersPage() {
             value={invitationFormState.values.type || 'landlord'}
             onChange={(e) => invitationFormState.setFieldsValue({ type: e.target.value })}
             required
-            options={[
+            options={
               { label: 'Landlord', value: 'landlord' },
               { label: 'Property Management Company (PMC)', value: 'pmc' },
               { label: 'Vendor', value: 'vendor' },
               { label: 'Contractor', value: 'contractor' }
-            ]}
+            }
           />
           <FormTextInput
             name="email"

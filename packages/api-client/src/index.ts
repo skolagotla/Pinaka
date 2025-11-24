@@ -1,8 +1,9 @@
 /**
  * @pinaka/api-client - Type-safe API Client
  * 
- * Generated from @pinaka/schema
+ * V2: Uses openapi-fetch with types from FastAPI OpenAPI spec
  */
 
-export { v1Api, default } from './generated-client';
+export { api, authenticatedApi, getAuthHeaders } from './api-client';
+export type { paths, components } from '@pinaka/shared-types/v2-api';
 

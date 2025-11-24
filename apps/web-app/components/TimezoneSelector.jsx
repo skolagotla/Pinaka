@@ -49,7 +49,7 @@ export default function TimezoneSelector({ currentTimezone, userId, userRole }) 
       setTimezone(newTimezone);
 
       message.success({
-        content: 'Timezone updated successfully! All dates will now display in your selected timezone.',
+        content: 'Timezone updated successfully All dates will now display in your selected timezone.',
         icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
         duration: 3,
       });

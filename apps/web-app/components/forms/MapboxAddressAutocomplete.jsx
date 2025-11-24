@@ -49,7 +49,7 @@ export default function MapboxAddressAutocomplete({
     }
 
     if (!apiKey) {
-      console.error('[MapboxAddressAutocomplete] ❌ Mapbox access token not found!');
+      console.error('[MapboxAddressAutocomplete] ❌ Mapbox access token not found');
       console.error('[MapboxAddressAutocomplete] Please provide an access token via the apiKey prop');
       setSuggestions([]);
       return;

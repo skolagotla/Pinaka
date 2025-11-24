@@ -1,0 +1,29 @@
+{
+  "name": "@pinaka/shared-types",
+  "version": "2.0.0",
+  "description": "TypeScript types generated from FastAPI OpenAPI spec",
+  "main": "v2-api.d.ts",
+  "types": "v2-api.d.ts",
+  "files": [
+    "v2-api.d.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "generate:types": "openapi-typescript http://localhost:8000/openapi.json -o v2-api.d.ts"
+  },
+  "keywords": [
+    "pinaka",
+    "types",
+    "openapi",
+    "fastapi"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "openapi-typescript": "^7.0.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
+

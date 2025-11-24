@@ -176,7 +176,7 @@ export default function PMCOrganizationSettings({ pmcData }) {
 
       {statusAlerts}
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16}>
         {/* Organization Info */}
         <Col xs={24} lg={12}>
           <Card title="Organization Information">
@@ -268,7 +268,7 @@ export default function PMCOrganizationSettings({ pmcData }) {
 
             {/* Management Overview */}
             <Card title="Management Overview">
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 16}>
                 <Col xs={24} sm={12} md={8}>
                   <Statistic
                     title="Properties Managed"

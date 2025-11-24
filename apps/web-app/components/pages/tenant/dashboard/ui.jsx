@@ -45,7 +45,7 @@ export default function TenantDashboardClient({ tenant, landlord, stats, loading
           priority: 0, // Highest priority
           type: 'info',
           title: 'Upload Required Documents',
-          description: 'Your application has been approved! Please upload required documents such as credit report, identification, and employment letters.',
+          description: 'Your application has been approved Please upload required documents such as credit report, identification, and employment letters.',
           action: {
             label: 'Upload Documents',
             onClick: () => router.push('/library'),

@@ -12,103 +12,71 @@ import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { rules } from '@/lib/utils/validation-rules';
 import { useFormState } from '@/lib/hooks/useFormState';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useConversations, useConversation, useCreateConversation, useCreateMessage, useTenants } from '@/lib/hooks/useV2Data';
+import { useLandlords } from '@/lib/hooks/useV2Data';
 
 /**
  * PMC Messages Component
  * Direct messaging between PMC and both landlords and tenants
  */
 export default function PMCMessagesClient() {
-  const [conversations, setConversations] = useState([]);
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const { loading, withLoading } = useLoading(true);
-  const { loading: loadingContacts, withLoading: withLoadingContacts } = useLoading(true);
   const { isOpen: createModalVisible, open: openCreateModal, close: closeCreateModal, openForCreate: openCreateModalForCreate } = useModalState();
   const createForm = useFormState();
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'landlords', 'tenants'
-  const [landlords, setLandlords] = useState([]);
-  const [tenants, setTenants] = useState([]);
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  
+  // v2 API hooks
+  const { data: conversationsData, isLoading: conversationsLoading, refetch: refetchConversations } = useConversations(organizationId);
+  const { data: conversationData, refetch: refetchConversation } = useConversation(selectedConversation?.id);
+  const createConversation = useCreateConversation();
+  const createMessage = useCreateMessage();
+  const { data: landlordsData } = useLandlords(organizationId);
+  const { data: tenantsData } = useTenants(organizationId);
+  
+  const conversations = conversationsData || [];
+  const landlords = landlordsData || [];
+  const tenants = tenantsData || [];
+  const messages = conversationData?.messages || [];
 
   useEffect(() => {
-    fetchConversations();
-    fetchContacts();
-  }, [activeTab]);
+    refetchConversations();
+  }, [activeTab, refetchConversations]);
 
   useEffect(() => {
     if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
+      refetchConversation();
     }
-  }, [selectedConversation]);
-
-  const fetchContacts = async () => {
-    await withLoadingContacts(async () => {
-      try {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const [landlordsData, tenantsData] = await Promise.all([
-          v1Api.landlords.list({ page: 1, limit: 1000 }).then(response => {
-            const landlords = response.data?.data || response.data || [];
-            return { landlords: Array.isArray(landlords) ? landlords : [], data: Array.isArray(landlords) ? landlords : [] };
-          }).catch(() => ({ landlords: [], data: [] })),
-          v1Api.tenants.list({ page: 1, limit: 1000 }).then(response => {
-            const tenants = response.data?.data || response.data || [];
-            return Array.isArray(tenants) ? tenants : [];
-          }).catch(() => []),
-        ]);
-
-        const landlordsArray = landlordsData.landlords || landlordsData.data || (Array.isArray(landlordsData) ? landlordsData : []);
-        setLandlords(Array.isArray(landlordsArray) ? landlordsArray : []);
-        setTenants(Array.isArray(tenantsData) ? tenantsData : []);
-      } catch (error) {
-        console.error('[PMC Messages] Error loading contacts:', error);
-      }
-    });
-  };
-
-  const fetchConversations = async () => {
-    await withLoading(async () => {
-      try {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.conversations.list({ 
-          page: 1, 
-          limit: 1000,
-          ...(activeTab === 'landlords' && { type: 'LANDLORD_PMC' }),
-          ...(activeTab === 'tenants' && { type: 'PMC_TENANT' })
-        });
-        const conversationsData = response.data?.data || response.data || [];
-        setConversations(Array.isArray(conversationsData) ? conversationsData : []);
-        if (conversationsData.length > 0 && !selectedConversation) {
-          setSelectedConversation(conversationsData[0]);
-        }
-      } catch (error) {
-        console.error('[PMC Messages] Error:', error);
-      }
-    });
-  };
-
-  const fetchMessages = async (conversationId) => {
-    try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.get(conversationId);
-      const conversation = response.data || response;
-      if (conversation && conversation.messages) {
-        setMessages(Array.isArray(conversation.messages) ? conversation.messages : []);
-      }
-    } catch (error) {
-      console.error('[PMC Messages] Error fetching messages:', error);
+  }, [selectedConversation, refetchConversation]);
+  
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      setSelectedConversation(conversations[0]);
     }
-  };
+  }, [conversations, selectedConversation]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
+      if (!organizationId) {
+        notify.error('Organization ID is required');
+        return;
+      }
+      
+      await createMessage.mutateAsync({
+        conversation_id: selectedConversation.id,
+        content: newMessage.trim(),
+        sender_id: user.id,
+      });
       setNewMessage('');
-      fetchMessages(selectedConversation.id);
-      fetchConversations();
+      refetchConversation();
+      refetchConversations();
     } catch (error) {
       console.error('[PMC Messages] Error sending message:', error);
       notify.error(error.message || 'Failed to send message');
@@ -122,20 +90,32 @@ export default function PMCMessagesClient() {
     const contactId = values.contactType === 'landlord' ? values.landlordId : values.tenantId;
 
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.create({
-        contactType: values.contactType,
-        contactId: contactId,
-        propertyId: values.propertyId,
-        subject: values.subject,
-        initialMessage: values.initialMessage,
+      if (!organizationId) {
+        notify.error('Organization ID is required');
+        return;
+      }
+      
+      const conversation = await createConversation.mutateAsync({
+        organization_id: organizationId,
+        conversation_type: conversationType,
+        participant_ids: [contactId],
+        property_id: values.propertyId || null,
+        subject: values.subject || null,
       });
-      const conversation = response.data || response;
+      
+      // If there's an initial message, send it
+      if (values.initialMessage) {
+        await createMessage.mutateAsync({
+          conversation_id: conversation.id,
+          content: values.initialMessage,
+          sender_id: user.id,
+        });
+      }
       
       notify.success('Conversation created');
       closeCreateModal();
       createForm.resetFields();
-      fetchConversations();
+      refetchConversations();
       if (conversation) {
         setSelectedConversation(conversation);
       }
@@ -362,7 +342,7 @@ export default function PMCMessagesClient() {
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <HiChat className="h-16 w-16 text-gray-300 mb-4" />
-                      <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                      <p className="text-gray-500">No messages yet. Start the conversation</p>
                     </div>
                   ) : (
                     <div className="space-y-4">

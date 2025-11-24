@@ -1,91 +1,142 @@
 /**
- * Hook for maintenance request actions using v2 FastAPI
+ * useMaintenanceActions Hook
  * 
- * Provides actions for CRUD operations on work orders using v2 backend.
+ * Handles CRUD operations for maintenance requests
+ * Extracted from MaintenanceClient for better code organization
+ * 
+ * @param {Object} options
+ * @param {'landlord'|'tenant'} options.userRole - User role
+ * @param {Function} options.updateRequest - Update request in state
+ * @param {Function} options.addRequest - Add request to state
+ * @param {Function} options.removeRequest - Remove request from state
+ * @param {Function} options.message - Ant Design message instance
+ * @returns {Object} Maintenance action handlers
  */
-"use client";
 
 import { useCallback } from 'react';
-import { useCreateWorkOrder, useUpdateWorkOrder, useAddWorkOrderComment, useApproveWorkOrder } from './useV2Data';
 
-export function useMaintenanceActions({ userRole, updateRequest, addRequest, removeRequest, message }) {
-  const createWorkOrder = useCreateWorkOrder();
-  const updateWorkOrder = useUpdateWorkOrder();
-  const addComment = useAddWorkOrderComment();
-  const approveWorkOrder = useApproveWorkOrder();
-  
-  const handleCreate = useCallback(async (workOrderData) => {
+export function useMaintenanceActions({
+  userRole,
+  updateRequest,
+  addRequest,
+  removeRequest,
+  message,
+}) {
+  /**
+   * Create a new maintenance request (v1 API)
+   */
+  const createRequest = useCallback(async (formData) => {
     try {
-      const result = await createWorkOrder.mutateAsync(workOrderData);
-      addRequest(result);
-      if (message) {
-        message.success('Work order created successfully');
-      }
-      return result;
-    } catch (error) {
-      if (message) {
-        message.error(error.message || 'Failed to create work order');
-      }
-      throw error;
-    }
-  }, [createWorkOrder, addRequest, message]);
-  
-  const handleUpdate = useCallback(async (workOrderId, updates) => {
-    try {
-      const result = await updateWorkOrder.mutateAsync({
-        id: workOrderId,
-        data: updates,
-      });
-      updateRequest(workOrderId, result);
-      if (message) {
-        message.success('Work order updated successfully');
-      }
-      return result;
-    } catch (error) {
-      if (message) {
-        message.error(error.message || 'Failed to update work order');
-      }
-      throw error;
-    }
-  }, [updateWorkOrder, updateRequest, message]);
-  
-  const handleAddComment = useCallback(async (workOrderId, commentBody) => {
-    try {
-      await addComment.mutateAsync({
-        workOrderId,
-        body: commentBody,
-      });
-      if (message) {
-        message.success('Comment added successfully');
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.maintenance.create(formData);
+      const request = response.data || response;
+      if (request) {
+        addRequest(request);
+        message.success('Maintenance request created successfully');
+        return request;
       }
     } catch (error) {
-      if (message) {
-        message.error(error.message || 'Failed to add comment');
-      }
+      console.error('[useMaintenanceActions] Error creating request:', error);
       throw error;
     }
-  }, [addComment, message]);
-  
-  const handleApprove = useCallback(async (workOrderId) => {
+  }, [addRequest, message]);
+
+  /**
+   * Update an existing maintenance request (v1 API)
+   */
+  const handleUpdate = useCallback(async (requestId, updates) => {
     try {
-      await approveWorkOrder.mutateAsync(workOrderId);
-      updateRequest(workOrderId, { status: 'approved' });
-      if (message) {
-        message.success('Work order approved');
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const response = await v1Api.maintenance.update(requestId, updates);
+      const request = response.data || response;
+      if (request) {
+        updateRequest(request);
+        message.success('Maintenance request updated successfully');
+        return request;
       }
     } catch (error) {
-      if (message) {
-        message.error(error.message || 'Failed to approve work order');
-      }
+      console.error('[useMaintenanceActions] Error updating request:', error);
       throw error;
     }
-  }, [approveWorkOrder, updateRequest, message]);
-  
+  }, [updateRequest, message]);
+
+  /**
+   * Delete a maintenance request (v1 API)
+   */
+  const handleDelete = useCallback(async (requestId) => {
+    try {
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      await v1Api.maintenance.delete(requestId);
+      
+      removeRequest(requestId);
+      message.success('Maintenance request deleted successfully');
+    } catch (error) {
+      console.error('[useMaintenanceActions] Error deleting request:', error);
+      throw error;
+    }
+  }, [removeRequest, message]);
+
+  /**
+   * Approve a maintenance request
+   */
+  const handleApprove = useCallback(async (requestId) => {
+    return handleUpdate(requestId, {
+      [userRole === 'landlord' ? 'landlordApproved' : 'tenantApproved']: true,
+    });
+  }, [handleUpdate, userRole]);
+
+  /**
+   * Reject a maintenance request
+   */
+  const handleReject = useCallback(async (requestId, reason = null) => {
+    const updates = {
+      [userRole === 'landlord' ? 'landlordApproved' : 'tenantApproved']: false,
+    };
+    if (reason) {
+      updates.rejectionReason = reason;
+    }
+    return handleUpdate(requestId, updates);
+  }, [handleUpdate, userRole]);
+
+  /**
+   * Update request status
+   */
+  const handleStatusUpdate = useCallback(async (requestId, status) => {
+    return handleUpdate(requestId, { status });
+  }, [handleUpdate]);
+
+  /**
+   * Add a comment to a maintenance request (v1 API)
+   */
+  const handleAddComment = useCallback(async (requestId, comment) => {
+    try {
+      // Use v1Api client
+      const { v1Api } = await import('@/lib/api/v1-client');
+      const data = await v1Api.specialized.addMaintenanceComment(requestId, comment);
+      const request = data.request || data.data || data;
+      if (request) {
+        updateRequest(request);
+        return request;
+      }
+    } catch (error) {
+      console.error('[useMaintenanceActions] Error adding comment:', error);
+      throw error;
+    }
+  }, [updateRequest]);
+
   return {
-    handleCreate,
+    createRequest,
     handleUpdate,
-    handleAddComment,
+    handleDelete,
     handleApprove,
+    handleReject,
+    handleStatusUpdate,
+    handleAddComment,
   };
 }
+
+export default useMaintenanceActions;
 

@@ -23,20 +23,20 @@
  * 
  * Tab configuration:
  * {
- *   key: string,              // Unique tab key
- *   label: string,            // Tab label
+ *   key,              // Unique tab key
+ *   label,            // Tab label
  *   children: ReactNode,      // Tab content
- *   badge?: number,           // Badge count
+ *   badge?,           // Badge count
  *   disabled?: boolean,       // Disable tab
  *   icon?: ReactNode,         // Tab icon
  * }
  * 
  * @example
  * <TabbedContent
- *   tabs={[
+ *   tabs={
  *     { key: 'all', label: 'All', children: <Table />, badge: 25 },
  *     { key: 'pending', label: 'Pending', children: <Table />, badge: 5 }
- *   ]}
+ *   }
  *   activeKey={activeTab}
  *   onChange={setActiveTab}
  * />

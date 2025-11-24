@@ -25,8 +25,8 @@ export default function DocumentsClient({ user, userRole, libraryData }) {
       userRole={userRole}
       user={user}
       tenants={libraryData?.tenants || []}
-      initialDocuments={libraryData?.initialDocuments || []}
-      leaseDocuments={libraryData?.leaseDocuments || []}
+      initialDocuments={libraryData?.initialDocuments || [}
+      leaseDocuments={libraryData?.leaseDocuments || [}
     />
   );
 }

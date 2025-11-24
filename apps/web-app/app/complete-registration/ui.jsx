@@ -1,13 +1,12 @@
 "use client";
 import { useState, useMemo } from "react";
-import { useMessage } from '@/lib/hooks/useMessage';
-import { useCountryRegion } from '@/lib/hooks/useCountryRegion';
 import { useRouter } from "next/navigation";
-import { Card, Form, Input, Button, Select, Typography, Row, Col} from 'antd';
-import { UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Label, TextInput, Select, Textarea, Spinner, Alert } from 'flowbite-react';
+import { HiUser, HiMail, HiPhone, HiHome, HiCheckCircle } from 'react-icons/hi';
+import { formatPhoneNumber, formatPostalCode, formatZipCode, isValidPhoneNumber, isValidPostalCode, isValidZipCode } from '@/lib/utils/formatters';
+import { ALL_TIMEZONES, DEFAULT_TIMEZONE } from '@/lib/constants/timezones';
+import { useCountryRegion } from '@/lib/hooks';
 import { PhoneNumberInput, PostalCodeInput, AddressAutocomplete } from '@/components/forms';
-
-const { Title, Text } = Typography;
 
 const US_STATES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
@@ -23,27 +22,98 @@ const CA_PROVINCES = [
 
 export default function CompleteRegistrationForm({ firstName, middleName, lastName, email }) {
   const router = useRouter();
-  const message = useMessage();
-  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [country, setCountry] = useState("CA");
   const countryRegion = useCountryRegion(country);
+  
+  const [formData, setFormData] = useState({
+    firstName: firstName || "",
+    middleName: middleName || "",
+    lastName: lastName || "",
+    email: email || "",
+    phone: "",
+    addressLine1: "",
+    city: "",
+    country: "CA",
+    provinceState: "",
+    postalZip: "",
+    timezone: DEFAULT_TIMEZONE,
+  });
 
-  async function handleSubmit(values) {
+  function handlePhoneChange(e) {
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormData({ ...formData, phone: formatted });
+  }
+
+  function handlePostalZipChange(e) {
+    const value = e.target.value;
+    const formatted = country === "CA" ? formatPostalCode(value) : formatZipCode(value);
+    setFormData({ ...formData, postalZip: formatted });
+  }
+
+  function handleCountryChange(e) {
+    const newCountry = e.target.value;
+    setCountry(newCountry);
+    countryRegion.setCountry(newCountry);
+    setFormData({
+      ...formData,
+      country: newCountry,
+      provinceState: "",
+      postalZip: "",
+    });
+  }
+
+  // Validation
+  const isValid = useMemo(() => {
+    const hasValidPhone = isValidPhoneNumber(formData.phone);
+    const hasValidPostalZip = country === "CA"
+      ? isValidPostalCode(formData.postalZip)
+      : isValidZipCode(formData.postalZip);
+    
+    return (
+      formData.firstName.trim() &&
+      formData.lastName.trim() &&
+      formData.email.trim() &&
+      hasValidPhone &&
+      formData.addressLine1.trim() &&
+      formData.city.trim() &&
+      formData.provinceState.trim() &&
+      hasValidPostalZip
+    );
+  }, [formData, country]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!isValid || loading) return;
+    
     setLoading(true);
+    setError(null);
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.landlords.create(values);
+      const { v2Api } = await import('@/lib/api/v2-client');
       
-      if (data.success || data) {
-        message.success('Registration completed successfully!');
-        router.push("/dashboard");
-      } else {
-        message.error(data.error || 'Failed to complete registration');
-      }
+      // Create landlord via v2 API
+      // Note: This requires an organization_id - in a real flow, this would come from invitation
+      // For now, we'll need to handle this differently or create a registration endpoint
+      // TODO: Create a proper registration endpoint that handles organization assignment
+      
+      // For now, show error that registration needs to be done via invitation
+      setError('Registration is currently only available through invitation links. Please contact your administrator.');
+      setLoading(false);
+      return;
+      
+      // When registration endpoint is available:
+      // const response = await v2Api.createLandlord({
+      //   organization_id: invitationData.organization_id,
+      //   name: `${formData.firstName} ${formData.lastName}`,
+      //   email: formData.email,
+      //   phone: formData.phone,
+      //   // ... other fields
+      // });
+      
     } catch (error) {
       console.error('[Complete Registration] Error:', error);
-      message.error('Failed to complete registration');
+      setError(error.message || 'Failed to complete registration');
     } finally {
       setLoading(false);
     }
@@ -56,159 +126,212 @@ export default function CompleteRegistrationForm({ firstName, middleName, lastNa
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 16px' }}>
-      <Card style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+      <Card>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 16 }} />
-          <Title level={2} style={{ marginBottom: 8 }}>Complete Your Registration</Title>
-          <Text type="secondary">
+          <HiCheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Complete Your Registration</h1>
+          <p className="text-gray-600">
             Please provide your contact information to complete your account setup.
-          </Text>
+          </p>
         </div>
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{
-            firstName: firstName || "",
-            middleName: middleName || "",
-            lastName: lastName || "",
-            email: email || "",
-            country: "CA",
-          }}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="firstName"
-                label="First Name"
-                rules={[{ required: true, message: 'Please enter first name' }]}
-              >
-                <Input prefix={<UserOutlined />} placeholder="First name" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="lastName"
-                label="Last Name"
-                rules={[{ required: true, message: 'Please enter last name' }]}
-              >
-                <Input prefix={<UserOutlined />} placeholder="Last name" />
-              </Form.Item>
-            </Col>
-          </Row>
+        {error && (
+          <Alert color="failure" className="mb-4">
+            {error}
+          </Alert>
+        )}
 
-          <Form.Item name="middleName" label="Middle Name (Optional)">
-            <Input prefix={<UserOutlined />} placeholder="Middle name" />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: 'Please enter email' },
-              { type: 'email', message: 'Please enter valid email' }
-            ]}
-          >
-            <Input prefix={<MailOutlined />} disabled />
-          </Form.Item>
-
-          <Form.Item
-            name="phone"
-            label="Phone"
-            rules={[{ required: true, message: 'Please enter phone number' }]}
-          >
-            <PhoneNumberInput country={country} />
-          </Form.Item>
-
-          <Form.Item
-            name="addressLine1"
-            label="Address Line 1"
-            rules={[{ required: true, message: 'Please enter address' }]}
-            tooltip="Start typing an address to see autocomplete suggestions"
-          >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="firstName">First Name *</Label>
+              <TextInput
+                id="firstName"
+                type="text"
+                placeholder="First name"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+                icon={HiUser}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="lastName">Last Name *</Label>
+              <TextInput
+                id="lastName"
+                type="text"
+                placeholder="Last name"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+                icon={HiUser}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="middleName">Middle Name (Optional)</Label>
+            <TextInput
+              id="middleName"
+              type="text"
+              placeholder="Middle name"
+              value={formData.middleName}
+              onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+              icon={HiUser}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="email">Email *</Label>
+            <TextInput
+              id="email"
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              disabled
+              className="bg-gray-100 cursor-not-allowed"
+              icon={HiMail}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="phone">Phone Number *</Label>
+            <PhoneNumberInput
+              id="phone"
+              value={formData.phone}
+              onChange={handlePhoneChange}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="country">Country *</Label>
+            <Select
+              id="country"
+              value={formData.country}
+              onChange={handleCountryChange}
+              required
+            >
+              <option value="CA">Canada</option>
+              <option value="US">United States</option>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="addressLine1">Address *</Label>
             <AddressAutocomplete
               placeholder="Type an address (e.g., 123 Main St, Toronto)"
               country={country === 'CA' ? 'CA,US' : country === 'US' ? 'CA,US' : 'CA,US'}
               onSelect={(addressData) => {
-                form.setFieldsValue({
+                setFormData({
+                  ...formData,
                   addressLine1: addressData.addressLine1,
                   city: addressData.city,
                   provinceState: addressData.provinceState,
                   postalZip: addressData.postalZip,
-                  country: addressData.country,
+                  country: addressData.country || formData.country,
                 });
                 if (addressData.country) {
                   setCountry(addressData.country);
                 }
               }}
             />
-          </Form.Item>
-
-          <Form.Item name="addressLine2" label="Address Line 2 (Optional)">
-            <Input placeholder="Apt, suite, unit, etc." />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="city"
-                label="City"
-                rules={[{ required: true, message: 'Please enter city' }]}
-              >
-                <Input placeholder="City" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="country"
-                label="Country"
-                rules={[{ required: true, message: 'Please select country' }]}
-              >
-                <Select
-                  onChange={(value) => {
-                    setCountry(value);
-                    form.setFieldsValue({ provinceState: undefined, postalZip: undefined });
-                  }}
-                >
-                  <Select.Option value="CA">Canada</Select.Option>
-                  <Select.Option value="US">United States</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="provinceState"
-                label={regionLabel}
-                rules={[{ required: true, message: `Please select ${regionLabel.toLowerCase()}` }]}
-              >
-                <Select placeholder={`Select ${regionLabel}`} showSearch>
-                  {regionOptions.map((region) => (
-                    <Select.Option key={region} value={region}>{region}</Select.Option>
+          </div>
+          
+          <div>
+            <Label htmlFor="city">City *</Label>
+            <TextInput
+              id="city"
+              type="text"
+              placeholder="City"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              required
+              icon={HiHome}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="provinceState">{regionLabel} *</Label>
+            <Select
+              id="provinceState"
+              value={formData.provinceState}
+              onChange={(e) => setFormData({ ...formData, provinceState: e.target.value })}
+              required
+            >
+              <option value="">Select {regionLabel}</option>
+              {regionOptions.map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="postalZip">{postalLabel} *</Label>
+            <PostalCodeInput
+              id="postalZip"
+              country={country}
+              value={formData.postalZip}
+              onChange={handlePostalZipChange}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="timezone">
+              Timezone * 
+              <span className="text-sm text-gray-500 ml-2">
+                (All dates and times will display in your selected timezone)
+              </span>
+            </Label>
+            <Select
+              id="timezone"
+              value={formData.timezone}
+              onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+              required
+              className="font-mono text-sm"
+            >
+              {ALL_TIMEZONES.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label} ({tz.offset})
+                    </option>
                   ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="postalZip"
-                label={postalLabel}
-                rules={[{ required: true, message: `Please enter ${postalLabel.toLowerCase()}` }]}
-              >
-                <PostalCodeInput country={country} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
-            <Button type="primary" htmlType="submit" loading={loading} size="large" block>
-              Complete Registration
+                </optgroup>
+              ))}
+            </Select>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              color="gray"
+              onClick={() => router.push("/")}
+              className="flex-1"
+            >
+              Cancel
             </Button>
-          </Form.Item>
-        </Form>
+            <Button
+              type="submit"
+              color="blue"
+              disabled={!isValid || loading}
+              className="flex-1"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Completing Registration...
+                </>
+              ) : (
+                'Complete Registration'
+              )}
+            </Button>
+          </div>
+        </form>
       </Card>
     </div>
   );

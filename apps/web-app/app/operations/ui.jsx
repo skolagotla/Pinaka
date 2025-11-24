@@ -95,7 +95,7 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
         <MaintenanceClient
           userRole={userRole}
           user={user}
-          initialRequests={maintenanceData?.requests || []}
+          initialRequests={maintenanceData?.requests || [}
           userEmail={user.email}
           userName={userRole === 'tenant' 
             ? `${user.firstName} ${user.lastName}`
@@ -114,9 +114,9 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
         </span>
       ),
       component: userRole === 'pmc' ? (
-        <PMCInspectionsClient initialChecklists={inspectionsData?.checklists || []} />
+        <PMCInspectionsClient initialChecklists={inspectionsData?.checklists || [} />
       ) : (
-        <LandlordInspectionsClient initialChecklists={inspectionsData?.checklists || []} />
+        <LandlordInspectionsClient initialChecklists={inspectionsData?.checklists || [} />
       ),
     },
   ];

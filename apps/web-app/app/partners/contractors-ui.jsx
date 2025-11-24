@@ -1,527 +1,376 @@
+/**
+ * Contractors UI - Migrated to v2 FastAPI + Flowbite
+ * 
+ * Contractors are vendors with specific service categories.
+ * Uses v2 vendors API and Flowbite UI components.
+ */
 "use client";
 
-import { useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, message, Tag, Space, Rate, Tooltip, Popconfirm, Empty } from 'antd';
-import { ProTable, ProForm } from '@/components/shared/LazyProComponents';
-import { PlusOutlined, PhoneOutlined, MailOutlined, TeamOutlined, EditOutlined, DeleteOutlined, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
+import { useState, useMemo } from 'react';
+import { Card, Table, Button, Modal, Label, TextInput, Select, Textarea, Badge, Spinner, Alert, Tooltip } from 'flowbite-react';
+import { HiPlus, HiPhone, HiMail, HiPencil, HiTrash, HiSearch, HiGlobe } from 'react-icons/hi';
 import AddressAutocomplete from '@/components/forms/AddressAutocomplete';
-import { PageLayout, TableWrapper, EmptyState, StandardModal, FormTextInput, FormSelect, FormPhoneInput } from '@/components/shared';
-import { useModalState, useFormSubmission, useDataLoader, useResizableTable, configureTableColumns } from '@/lib/hooks';
-import { MAINTENANCE_CATEGORIES } from '@/lib/constants/statuses';
+import { PageLayout } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useVendors, useCreateVendor, useUpdateVendor, useDeleteVendor } from '@/lib/hooks/useV2Data';
+import { notify } from '@/lib/utils/notification-helper';
+
+// Contractor specialties map to vendor service_categories
+const CONTRACTOR_SPECIALTIES = [
+  'plumbing', 'electrical', 'hvac', 'roofing', 'painting', 'flooring',
+  'carpentry', 'drywall', 'landscaping', 'general-contracting'
+];
 
 export default function ContractorsClient({ userRole, contractorsData }) {
-  const { isOpen: modalOpen, open: openModal, close: closeModal, editingItem: editingContractor, openForEdit, openForCreate, reset: resetModal } = useModalState();
-  const [form] = Form.useForm();
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState('CA');
-  
-  // Form submission for add/edit using v1Api.vendors
-  const [submittingContractor, setSubmittingContractor] = useState(false);
-  const submitContractor = async (values) => {
-    setSubmittingContractor(true);
-    try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      if (editingContractor) {
-        await v1Api.vendors.update(editingContractor.id, { ...values, type: 'contractor' });
-        message.success('Contractor updated successfully');
-      } else {
-        await v1Api.vendors.create({ ...values, type: 'contractor' });
-        message.success('Contractor created successfully');
-      }
-      closeModal();
-      form.resetFields();
-      refetch();
-    } catch (error) {
-      console.error('[Contractors] Error submitting:', error);
-      message.error(`Failed to ${editingContractor ? 'update' : 'create'} contractor`);
-    } finally {
-      setSubmittingContractor(false);
-    }
-  };
-
-  // Load contractors data - use v1Api.vendors with type='contractor'
-  const [contractorsLoading, setContractorsLoading] = useState(false);
-  const [contractorsList, setContractorsList] = useState(contractorsData?.contractors || []);
-  
-  const refetch = async () => {
-    if (contractorsData?.contractors) return; // Use server data if available
-    setContractorsLoading(true);
-    try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.vendors.list({ type: 'contractor', page: 1, limit: 1000 });
-      const vendors = response.data?.data || response.data || [];
-      setContractorsList(Array.isArray(vendors) ? vendors : []);
-    } catch (error) {
-      console.error('[Contractors] Error loading contractors:', error);
-    } finally {
-      setContractorsLoading(false);
-    }
-  };
-  
-  const loading = contractorsLoading;
-
-  // Use server-provided data if available, otherwise use API data
-  const contractors = contractorsData?.contractors 
-    ? Array.isArray(contractorsData.contractors) ? contractorsData.contractors : []
-    : contractorsList;
-  
-  // Filter contractors based on search (including specialties)
-  const filteredContractors = contractors.filter(contractor => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    const specialties = Array.isArray(contractor.specialties) 
-      ? contractor.specialties.map(s => s.toLowerCase())
-      : [];
-    
-    // Check if search matches common specialty keywords
-    const specialtyKeywords = {
-      'plumbing': ['plumbing', 'plumber', 'pipe', 'drain', 'water'],
-      'electrical': ['electrical', 'electrician', 'electric', 'wiring'],
-      'hvac': ['hvac', 'heating', 'cooling', 'air conditioning', 'furnace', 'ac', 'ventilation'],
-      'roofing': ['roofing', 'roofer', 'roof', 'shingle'],
-      'painting': ['painting', 'painter', 'paint'],
-      'flooring': ['flooring', 'floor', 'carpet', 'tile'],
-      'carpentry': ['carpentry', 'carpenter', 'woodwork', 'cabinetry'],
-      'drywall': ['drywall', 'sheetrock', 'gypsum'],
-      'landscaping': ['landscaping', 'landscape', 'lawn', 'garden', 'yard'],
-      'general contracting': ['general', 'contracting', 'contractor', 'construction', 'renovation'],
-    };
-    
-    // Check if search term matches any specialty keywords
-    const matchesSpecialty = Object.entries(specialtyKeywords).some(([specialty, keywords]) => {
-      const hasSpecialty = specialties.some(s => s.includes(specialty));
-      if (hasSpecialty) {
-        return keywords.some(keyword => search.includes(keyword));
-      }
-      return false;
-    });
-    
-    return (
-      contractor.companyName?.toLowerCase().includes(search) ||
-      contractor.contactName?.toLowerCase().includes(search) ||
-      contractor.licenseNumber?.toLowerCase().includes(search) ||
-      contractor.email?.toLowerCase().includes(search) ||
-      contractor.phone?.toLowerCase().includes(search) ||
-      specialties.some(spec => spec.includes(search)) ||
-      matchesSpecialty
-    );
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingContractor, setEditingContractor] = useState(null);
+  const [formData, setFormData] = useState({
+    company_name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    service_categories: [],
+    license_number: '',
+    hourly_rate: '',
+    address_line1: '',
+    city: '',
+    province_state: '',
+    postal_code: '',
+    country: 'CA',
   });
 
-  const handleAddGlobalContractor = async () => {
+  // Fetch vendors (contractors are vendors with contractor specialties)
+  const { data: vendorsData, isLoading: vendorsLoading, refetch: refetchVendors } = useVendors(
+    organizationId,
+    searchTerm,
+    'active' // status filter
+  );
+
+  const vendors = vendorsData?.data || [];
+  
+  // Filter to show only contractors (vendors with contractor specialties)
+  const contractors = useMemo(() => {
+    return vendors.filter(vendor => {
+      const categories = vendor.service_categories || [];
+      return categories.some(cat => CONTRACTOR_SPECIALTIES.includes(cat.toLowerCase()));
+    });
+  }, [vendors]);
+
+  // Filter by search term
+  const filteredContractors = useMemo(() => {
+    if (!searchTerm) return contractors;
+    const search = searchTerm.toLowerCase();
+    return contractors.filter(contractor => {
+      const categories = (contractor.service_categories || []).join(' ').toLowerCase();
+      return (
+        contractor.company_name?.toLowerCase().includes(search) ||
+        contractor.contact_name?.toLowerCase().includes(search) ||
+        contractor.email?.toLowerCase().includes(search) ||
+        contractor.phone?.toLowerCase().includes(search) ||
+        categories.includes(search)
+      );
+    });
+  }, [contractors, searchTerm]);
+
+  const createVendor = useCreateVendor();
+  const updateVendor = useUpdateVendor();
+  const deleteVendor = useDeleteVendor();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      // Search for contractors using v1Api.vendors with type filter
-      const response = await v1Api.vendors.list({ type: 'contractor', page: 1, limit: 100 });
-      // Open a modal to search and add global contractors
-      message.info('Global contractor search functionality coming soon');
+      const payload = {
+        organization_id: organizationId,
+        company_name: formData.company_name,
+        contact_name: formData.contact_name,
+        email: formData.email,
+        phone: formData.phone,
+        service_categories: formData.service_categories,
+        status: 'active',
+      };
+
+      if (editingContractor) {
+        await updateVendor.mutateAsync({ vendorId: editingContractor.id, data: payload });
+        notify.success('Contractor updated successfully');
+      } else {
+        await createVendor.mutateAsync(payload);
+        notify.success('Contractor created successfully');
+      }
+      
+      setModalOpen(false);
+      resetForm();
+      refetchVendors();
     } catch (error) {
-      console.error('[Contractors] Search global error:', error);
-      message.error('Failed to search global contractors');
+      console.error('[Contractors] Error:', error);
+      notify.error(error.message || 'Failed to save contractor');
     }
   };
 
-  const handleAddToMyList = async (contractorId) => {
+  const handleEdit = (contractor) => {
+    setEditingContractor(contractor);
+    setFormData({
+      company_name: contractor.company_name || '',
+      contact_name: contractor.contact_name || '',
+      email: contractor.email || '',
+      phone: contractor.phone || '',
+      service_categories: contractor.service_categories || [],
+      license_number: contractor.license_number || '',
+      hourly_rate: contractor.hourly_rate || '',
+      address_line1: contractor.address_line1 || '',
+      city: contractor.city || '',
+      province_state: contractor.province_state || '',
+      postal_code: contractor.postal_code || '',
+      country: contractor.country || 'CA',
+    });
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (contractorId) => {
+    if (!confirm('Are you sure you want to delete this contractor?')) return;
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      // Get current user's landlord ID - this might need to come from context
-      const landlordId = null; // TODO: Get from user context
-      // Use v1Api.vendors to add contractor to landlord (this would need a specialized endpoint)
-      // For now, this is a placeholder - the actual implementation would need a specialized endpoint
-      message.info('Adding contractor to landlord list - specialized endpoint needed');
-      refetch();
+      await deleteVendor.mutateAsync(contractorId);
+      notify.success('Contractor deleted successfully');
+      refetchVendors();
     } catch (error) {
-      console.error('[Contractors] Add to list error:', error);
-      message.error('Failed to add contractor');
+      console.error('[Contractors] Error:', error);
+      notify.error(error.message || 'Failed to delete contractor');
     }
   };
 
-  const handleRemoveFromList = async (contractorId) => {
-    try {
-      // Remove from landlord's list (soft delete) using v1Api.vendors
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.vendors.delete(contractorId);
-      message.success('Contractor removed from your list');
-      refetch();
-    } catch (error) {
-      console.error('[Contractors] Remove from list error:', error);
-      message.error('Failed to remove contractor');
-    }
-  };
-
-  const handleAddContractor = async (values) => {
-    // Convert specialties string to array if needed
-    const specialties = Array.isArray(values.specialties) 
-      ? values.specialties 
-      : values.specialties 
-        ? values.specialties.split(',').map(s => s.trim()).filter(s => s)
-        : [];
-    
-    await submitContractor({
-      ...values,
-      specialties,
+  const resetForm = () => {
+    setEditingContractor(null);
+    setFormData({
+      company_name: '',
+      contact_name: '',
+      email: '',
+      phone: '',
+      service_categories: [],
+      license_number: '',
+      hourly_rate: '',
+      address_line1: '',
+      city: '',
+      province_state: '',
+      postal_code: '',
+      country: 'CA',
     });
   };
 
-  const handleEditContractor = (contractor) => {
-    openForEdit(contractor);
-    const countryCode = contractor.countryCode || contractor.country || 'CA';
-    setSelectedCountry(countryCode);
-    form.setFieldsValue({
-      ...contractor,
-      specialties: Array.isArray(contractor.specialties) ? contractor.specialties : [],
-      country: countryCode,
-      countryCode: countryCode,
-    });
-  };
-
-  const columns = [
+  const tableColumns = [
+    { header: 'Company Name', accessor: 'company_name' },
+    { header: 'Contact Name', accessor: 'contact_name' },
     {
-      title: 'Company Name',
-      dataIndex: 'companyName',
-      key: 'companyName',
-      sorter: true,
-      render: (text, record) => (
-        <Space>
-          {text}
-          {record.isGlobal && (
-            <Tooltip title="Global Contractor">
-              <GlobalOutlined style={{ color: '#1890ff' }} />
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: 'Contact Name',
-      dataIndex: 'contactName',
-      key: 'contactName',
-      sorter: true,
-    },
-    {
-      title: 'License Number',
-      dataIndex: 'licenseNumber',
-      key: 'licenseNumber',
-      render: (text) => text || <Tag color="default">N/A</Tag>,
-    },
-    {
-      title: 'Specialties',
-      dataIndex: 'specialties',
-      key: 'specialties',
-      render: (specialties) => (
-        <Space wrap>
-          {Array.isArray(specialties) && specialties.length > 0 ? (
-            specialties.map((spec, idx) => (
-              <Tag key={idx} color="blue">{spec}</Tag>
+      header: 'Specialties',
+      accessor: 'service_categories',
+      render: (categories) => (
+        <div className="flex flex-wrap gap-1">
+          {categories && categories.length > 0 ? (
+            categories.map((cat, idx) => (
+              <Badge key={idx} color="blue">{cat}</Badge>
             ))
           ) : (
-            <Tag color="default">N/A</Tag>
+            <Badge color="gray">N/A</Badge>
           )}
-        </Space>
+        </div>
       ),
     },
     {
-      title: 'Phone',
-      dataIndex: 'phone',
-      key: 'phone',
-      render: (text) => (
-        <Space>
-          <PhoneOutlined />
-          {text}
-        </Space>
+      header: 'Phone',
+      accessor: 'phone',
+      render: (phone) => (
+        <div className="flex items-center gap-2">
+          <HiPhone className="h-4 w-4" />
+          {phone || '-'}
+        </div>
       ),
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      render: (text) => (
-        <Space>
-          <MailOutlined />
-          {text}
-        </Space>
+      header: 'Email',
+      accessor: 'email',
+      render: (email) => (
+        <div className="flex items-center gap-2">
+          <HiMail className="h-4 w-4" />
+          {email || '-'}
+        </div>
       ),
     },
     {
-      title: 'Rating',
-      dataIndex: 'rating',
-      key: 'rating',
-      sorter: true,
-      render: (rating) => rating ? <Rate disabled defaultValue={rating} allowHalf /> : <Tag>No rating</Tag>,
-    },
-    {
-      title: 'Hourly Rate',
-      dataIndex: 'hourlyRate',
-      key: 'hourlyRate',
-      sorter: true,
-      render: (rate) => rate ? `$${rate.toFixed(2)}` : <Tag color="default">N/A</Tag>,
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: (_, record) => (
-        <Tag color={record.isActive ? 'green' : 'red'}>
-          {record.isActive ? 'Active' : 'Inactive'}
-        </Tag>
+      header: 'Status',
+      accessor: 'status',
+      render: (status) => (
+        <Badge color={status === 'active' ? 'success' : 'gray'}>
+          {status || 'active'}
+        </Badge>
       ),
     },
     {
-      title: 'Actions',
-      key: 'actions',
-      fixed: 'right',
-      render: (_, record) => {
-        const isInMyList = record.addedAt !== null;
-        
-        return (
-          <Space>
-            {!isInMyList && userRole === 'landlord' && (
-              <Tooltip title="Add to my list">
-                <Button
-                  type="link"
-                  icon={<PlusOutlined />}
-                  onClick={() => handleAddToMyList(record.id)}
-                >
-                  Add
-                </Button>
-              </Tooltip>
-            )}
-            {isInMyList && (userRole === 'landlord' || userRole === 'pmc') && !record.isGlobal && (
-              <>
-                <Tooltip title="Edit contractor">
-                  <Button
-                    type="link"
-                    icon={<EditOutlined />}
-                    onClick={() => handleEditContractor(record)}
-                  >
-                    Edit
-                  </Button>
-                </Tooltip>
-                <Popconfirm
-                  title="Remove contractor from your list?"
-                  description="This will remove the contractor from your list but won't delete them."
-                  onConfirm={() => handleRemoveFromList(record.id)}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  <Button
-                    type="link"
-                    danger
-                    icon={<DeleteOutlined />}
-                  >
-                    Remove
-                  </Button>
-                </Popconfirm>
-              </>
-            )}
-            {isInMyList && record.isGlobal && (userRole === 'landlord' || userRole === 'pmc') && (
-              <Popconfirm
-                title="Remove contractor from your list?"
-                description="This will remove the contractor from your list but won't delete them."
-                onConfirm={() => handleRemoveFromList(record.id)}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                >
-                  Remove
-                </Button>
-              </Popconfirm>
-            )}
-          </Space>
-        );
-      },
+      header: 'Actions',
+      accessor: 'id',
+      render: (id, contractor) => (
+        <div className="flex gap-2">
+          <Button size="xs" color="light" onClick={() => handleEdit(contractor)}>
+            <HiPencil className="h-4 w-4" />
+          </Button>
+          <Button size="xs" color="failure" onClick={() => handleDelete(id)}>
+            <HiTrash className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ];
 
-  // Configure columns with standard settings
-  const configuredColumns = configureTableColumns(columns);
-  
-  // Use resizable table hook
-  const { tableProps } = useResizableTable(configuredColumns, {
-    storageKey: 'contractors-table',
-    defaultSort: { field: 'companyName', order: 'ascend' },
-  });
+  if (vendorsLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
 
   return (
-    <PageLayout
-      title="Contractors"
-      actions={[
-        {
-          key: 'add',
-          icon: <PlusOutlined />,
-          label: 'Add Contractor',
-          tooltip: 'Add Contractor',
-          type: 'primary',
-          onClick: () => {
-            openForCreate();
-            form.resetFields();
-          },
-        },
-        {
-          key: 'search-global',
-          icon: <GlobalOutlined />,
-          label: 'Search Global',
-          tooltip: 'Search Global Contractors',
-          type: 'default',
-          onClick: handleAddGlobalContractor,
-        },
-      ]}
-      searchValue={searchTerm}
-      onSearchChange={setSearchTerm}
-      onSearchClear={() => setSearchTerm('')}
-      searchPlaceholder="Search by company, contact, specialty (e.g., plumbing, HVAC, electrical)..."
-    >
-      {filteredContractors.length === 0 ? (
-        <EmptyState
-          description={searchTerm ? 'No contractors found matching your search' : 'No contractors available'}
-          icon={<TeamOutlined />}
-        />
-      ) : (
-        <TableWrapper>
-          <ProTable
-            {...tableProps}
-            dataSource={filteredContractors}
-            rowKey="id"
-            loading={loading}
-            search={false}
-            toolBarRender={false}
-            pagination={{ pageSize: 20 }}
-          />
-        </TableWrapper>
-      )}
-
-      {/* Add/Edit Contractor Modal */}
-      <StandardModal
-        title={editingContractor ? 'Edit Contractor' : 'Add Contractor'}
-        open={modalOpen}
-        form={form}
-        loading={submittingContractor}
-        submitText={editingContractor ? 'Save' : 'Submit'}
-        onCancel={() => {
-          closeModal();
-          form.resetFields();
-          setSelectedCountry('CA');
-        }}
-        onFinish={handleAddContractor}
-        width={700}
+    <div className="p-6">
+      <PageLayout
+        headerTitle="Contractors"
+        headerActions={
+          <Button color="blue" onClick={() => { resetForm(); setModalOpen(true); }}>
+            <HiPlus className="mr-2 h-4 w-4" />
+            Add Contractor
+          </Button>
+        }
       >
-        <FormTextInput
-          name="companyName"
-          label="Company Name"
-          required
-          placeholder="e.g., ABC Plumbing Services"
-        />
-
-        <FormTextInput
-          name="contactName"
-          label="Contact Name"
-          required
-          placeholder="e.g., John Smith"
-        />
-
-        <FormTextInput
-          name="email"
-          label="Email"
-          type="email"
-          required
-          placeholder="contractor@example.com"
-        />
-
-        <FormPhoneInput
-          name="phone"
-          label="Phone Number"
-          required
-          placeholder="(XXX) XXX-XXXX"
-        />
-
-          <Form.Item
-            name="specialties"
-            label="Specialties"
-            rules={[{ required: true, message: 'At least one specialty is required' }]}
-            tooltip="Select or type specialties (e.g., plumbing, electrical, HVAC). You can add custom specialties by typing them."
-          >
-            <Select
-              mode="tags"
-              placeholder="Select or type specialties"
-              tokenSeparators={[',']}
-              options={[
-                {
-                  label: 'Core Trades',
-                  options: [
-                    { label: 'Plumbing', value: 'plumbing' },
-                    { label: 'Electrical', value: 'electrical' },
-                    { label: 'HVAC', value: 'hvac' },
-                    { label: 'General Contracting', value: 'general-contracting' },
-                  ],
-                },
-                {
-                  label: 'Construction & Renovation',
-                  options: [
-                    { label: 'Roofing', value: 'roofing' },
-                    { label: 'Painting', value: 'painting' },
-                    { label: 'Flooring', value: 'flooring' },
-                    { label: 'Carpentry', value: 'carpentry' },
-                    { label: 'Drywall', value: 'drywall' },
-                  ],
-                },
-                {
-                  label: 'Property Services',
-                  options: [
-                    { label: 'Landscaping', value: 'landscaping' },
-                  ],
-                },
-                {
-                  label: 'Other',
-                  options: [
-                    { label: 'Other', value: 'other' },
-                  ],
-                },
-              ]}
+        <Card>
+          <div className="mb-4">
+            <TextInput
+              type="text"
+              placeholder="Search by company, contact, specialty..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              icon={HiSearch}
             />
-          </Form.Item>
+          </div>
 
-          <Form.Item
-            name="addressLine1"
-            label="Billing Address"
-            rules={[{ required: true, message: 'Address is required for billing' }]}
-          >
-            <AddressAutocomplete
-              value={form.getFieldValue('addressLine1') || ''}
-              onChange={(e) => {
-                form.setFieldsValue({ addressLine1: e.target.value });
-              }}
-              onSelect={(addressData) => {
-                form.setFieldsValue({
-                  addressLine1: addressData.addressLine1,
-                  city: addressData.city,
-                  provinceState: addressData.provinceState,
-                  postalZip: addressData.postalZip,
-                  country: addressData.country || 'CA',
-                  countryCode: addressData.countryCode || 'CA',
-                  regionCode: addressData.regionCode,
-                  latitude: addressData.latitude,
-                  longitude: addressData.longitude,
-                });
-                setSelectedCountry(addressData.countryCode || 'CA');
-              }}
-              placeholder="Type an address (e.g., 123 Main St, Toronto)"
-              country="CA,US"
+          {filteredContractors.length === 0 ? (
+            <Alert color="info">
+              {searchTerm ? 'No contractors found matching your search' : 'No contractors available'}
+            </Alert>
+          ) : (
+            <FlowbiteTable
+              data={filteredContractors}
+              columns={tableColumns}
             />
-          </Form.Item>
+          )}
+        </Card>
+      </PageLayout>
 
-        <FormTextInput
-          name="licenseNumber"
-          label="License Number (Optional)"
-          placeholder="e.g., LIC-12345"
-        />
+      {/* Add/Edit Modal */}
+      <Modal show={modalOpen} onClose={() => { setModalOpen(false); resetForm(); }}>
+        <Modal.Header>
+          {editingContractor ? 'Edit Contractor' : 'Add Contractor'}
+        </Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="company_name">Company Name *</Label>
+              <TextInput
+                id="company_name"
+                type="text"
+                value={formData.company_name}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                required
+              />
+            </div>
 
-        <Form.Item name="hourlyRate" label="Hourly Rate (Optional)">
-          <Input prefix="$" type="number" step="0.01" placeholder="0.00" />
-        </Form.Item>
-      </StandardModal>
-    </PageLayout>
+            <div>
+              <Label htmlFor="contact_name">Contact Name *</Label>
+              <TextInput
+                id="contact_name"
+                type="text"
+                value={formData.contact_name}
+                onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <TextInput
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phone">Phone *</Label>
+              <TextInput
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="service_categories">Specialties *</Label>
+              <Select
+                id="service_categories"
+                multiple
+                value={formData.service_categories}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions, option => option.value);
+                  setFormData({ ...formData, service_categories: values });
+                }}
+                required
+              >
+                {CONTRACTOR_SPECIALTIES.map(spec => (
+                  <option key={spec} value={spec}spec}</option>
+                ))}
+              </Select>
+              <p className="text-sm text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+
+            <div>
+              <Label htmlFor="address_line1">Address</Label>
+              <AddressAutocomplete
+                placeholder="Type an address"
+                country="CA,US"
+                onSelect={(addressData) => {
+                  setFormData({
+                    ...formData,
+                    address_line1: addressData.addressLine1,
+                    city: addressData.city,
+                    province_state: addressData.provinceState,
+                    postal_code: addressData.postalZip,
+                    country: addressData.country || 'CA',
+                  });
+                }}
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <Button type="submit" color="blue" disabled={createVendor.isPending || updateVendor.isPending}>
+                {createVendor.isPending || updateVendor.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  editingContractor ? 'Update' : 'Create'
+                )}
+              </Button>
+              <Button color="gray" onClick={() => { setModalOpen(false); resetForm(); }}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
+    </div>
   );
 }
-

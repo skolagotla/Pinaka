@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, Checkbox, Button, Space, Typography, Row, Col, Alert, DatePicker, Input, Upload, Tag, Divider, Collapse, Modal } from 'antd';
+import { useState, useEffect, useRef } from 'react';
+import { Card, Checkbox, Button, TextInput, Textarea, Label, Alert, Badge, Accordion, FileInput, Spinner, Tooltip } from 'flowbite-react';
 import Image from 'next/image';
-import { CheckCircleOutlined, ClockCircleOutlined, CameraOutlined, SaveOutlined, FileTextOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { HiCheckCircle, HiClock, HiCamera, HiSave, HiDocumentText, HiTrash, HiEye } from 'react-icons/hi';
 import { PageLayout } from '@/components/shared';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { notify } from '@/lib/utils/notification-helper';
 import dayjs from 'dayjs';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 const MOVE_IN_CHECKLIST = [
   { id: 'walls', label: 'Walls - Check for holes, cracks, or damage', category: 'Interior' },
@@ -52,13 +49,14 @@ export default function ChecklistClient({ tenant }) {
   const [photos, setPhotos] = useState({});
   const [photoData, setPhotoData] = useState({});
   const [photoComments, setPhotoComments] = useState({});
-  const [inspectionDate, setInspectionDate] = useState(null);
+  const [inspectionDate, setInspectionDate] = useState('');
   const [existingChecklist, setExistingChecklist] = useState(null);
   const [existingItems, setExistingItems] = useState({});
   const [itemUpdateTimestamps, setItemUpdateTimestamps] = useState({});
   const [savingItems, setSavingItems] = useState({});
   const [originalNotes, setOriginalNotes] = useState({});
   const [originalPhotoData, setOriginalPhotoData] = useState({});
+  const fileInputRefs = useRef({});
 
   const checklist = checklistType === 'move-in' ? MOVE_IN_CHECKLIST : MOVE_OUT_CHECKLIST;
 
@@ -95,9 +93,9 @@ export default function ChecklistClient({ tenant }) {
               const year = date.getUTCFullYear();
               const month = date.getUTCMonth();
               const day = date.getUTCDate();
-              setInspectionDate(dayjs(new Date(year, month, day)));
+              setInspectionDate(dayjs(new Date(year, month, day)).format('YYYY-MM-DD'));
             } else {
-              setInspectionDate(null);
+              setInspectionDate('');
             }
 
             const itemsMap = {};
@@ -178,7 +176,7 @@ export default function ChecklistClient({ tenant }) {
             setPhotoComments({});
             setOriginalNotes({});
             setOriginalPhotoData({});
-            setInspectionDate(null);
+            setInspectionDate('');
           }
         }
       } catch (error) {
@@ -529,25 +527,20 @@ export default function ChecklistClient({ tenant }) {
     }
   };
 
-  const handlePhotoUpload = async (id, fileList) => {
+  const handlePhotoUpload = async (id, files) => {
+    if (!files || files.length === 0) return;
+
     const existingPhotos = photoData[id] || [];
     const existingUrls = new Set(existingPhotos.map(p => typeof p === 'string' ? p : (p?.url || p)));
     
     // Filter out files that are already uploaded
-    const newFiles = fileList.filter((file) => {
-      const fileUrl = file.url || file.thumbUrl;
-      return !fileUrl || !existingUrls.has(fileUrl);
+    const newFiles = Array.from(files).filter((file) => {
+      // Create a temporary URL for preview
+      const tempUrl = URL.createObjectURL(file);
+      return !existingUrls.has(tempUrl);
     });
 
     if (newFiles.length === 0) {
-      // Update fileList even if no new files
-      const validFileList = fileList.map((file, index) => ({
-        ...file,
-        uid: file.uid || `upload-${id}-${Date.now()}-${index}`,
-        status: file.status || 'done',
-        name: file.name || (file.originFileObj ? file.originFileObj.name : `photo-${index + 1}.jpg`)
-      })).filter(f => f && f.uid);
-      setPhotos(prev => ({ ...prev, [id]: validFileList }));
       return;
     }
 
@@ -555,9 +548,7 @@ export default function ChecklistClient({ tenant }) {
     try {
       const formData = new FormData();
       newFiles.forEach((file) => {
-        if (file.originFileObj) {
-          formData.append('photos', file.originFileObj);
-        }
+        formData.append('photos', file);
       });
 
       const uploadResponse = await fetch(
@@ -577,31 +568,17 @@ export default function ChecklistClient({ tenant }) {
         const allPhotos = [...existingPhotos, ...uploadedPhotos.map(p => ({ url: p.url, comment: null }))];
 
         // Update fileList with uploaded URLs
-        const validFileList = fileList.map((file, index) => {
-          // If this is a new file, find its uploaded URL
-          if (file.originFileObj && newFiles.includes(file)) {
-            const uploadedIndex = newFiles.indexOf(file);
-            const uploadedPhoto = uploadedPhotos[uploadedIndex];
-            if (uploadedPhoto) {
-              return {
-                ...file,
-                uid: file.uid || `upload-${id}-${Date.now()}-${index}`,
-                status: 'done',
-                name: file.name || uploadedPhoto.filename,
-                url: uploadedPhoto.url,
-                thumbUrl: uploadedPhoto.url
-              };
-            }
-          }
-          return {
-            ...file,
-            uid: file.uid || `upload-${id}-${Date.now()}-${index}`,
-            status: file.status || 'done',
-            name: file.name || (file.originFileObj ? file.originFileObj.name : `photo-${index + 1}.jpg`)
-          };
-        }).filter(f => f && f.uid);
+        const validFileList = uploadedPhotos.map((uploadedPhoto, index) => ({
+          uid: `upload-${id}-${Date.now()}-${index}`,
+          status: 'done',
+          name: uploadedPhoto.filename || `photo-${index + 1}.jpg`,
+          url: uploadedPhoto.url,
+          thumbUrl: uploadedPhoto.url
+        }));
 
-        setPhotos(prev => ({ ...prev, [id]: validFileList }));
+        // Merge with existing photos
+        const existingFileList = photos[id] || [];
+        setPhotos(prev => ({ ...prev, [id]: [...existingFileList, ...validFileList] }));
         setPhotoData(prev => ({ ...prev, [id]: allPhotos }));
 
         // Auto-save if checklist exists
@@ -616,6 +593,11 @@ export default function ChecklistClient({ tenant }) {
 
         if (allPhotos.length > 0 && !checklistData[id]) {
           setChecklistData(prev => ({ ...prev, [id]: true }));
+        }
+
+        // Reset file input
+        if (fileInputRefs.current[id]) {
+          fileInputRefs.current[id].value = '';
         }
       } else {
         notify.error('Failed to upload photos');
@@ -680,7 +662,7 @@ export default function ChecklistClient({ tenant }) {
       const savePromises = itemsToSave.map(item => handleSaveItem(item, true));
       await Promise.all(savePromises);
 
-      notify.success('Checklist saved successfully!');
+      notify.success('Checklist saved successfully');
     }).catch(error => {
       notify.error('Failed to save checklist');
     });
@@ -698,197 +680,183 @@ export default function ChecklistClient({ tenant }) {
     {
       title: 'Completed',
       value: `${completedCount}/${totalCount}`,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: completionPercentage === 100 ? '#52c41a' : '#1890ff' },
     },
     {
       title: 'Progress',
       value: `${completionPercentage}%`,
-      prefix: <ClockCircleOutlined />,
+      prefix: <HiClock className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><FileTextOutlined /> Move-in/out Checklist</>}
+      headerTitle={<><HiDocumentText className="inline mr-2" /> Move-in/out Checklist</>}
       headerActions={[
         <Button
           key="save"
-          type="primary"
-          icon={<SaveOutlined />}
+          color="blue"
           onClick={handleSave}
-          loading={loading}
+          disabled={loading}
         >
+          {loading ? <Spinner size="sm" className="mr-2" /> : <HiSave className="mr-2 h-4 w-4" />}
           Save Checklist
         </Button>,
         <Button
           key="export"
-          icon={<FileTextOutlined />}
+          color="light"
           onClick={handleExportPDF}
         >
+          <HiDocumentText className="mr-2 h-4 w-4" />
           Export PDF
-        </Button>,
+        </Button>
       ]}
       stats={statsData}
       statsCols={2}
     >
-
-      <Card style={{ marginBottom: 24 }}>
-        <Row gutter={16} align="middle">
-          <Col>
-            <Space>
-              <Text strong>Checklist Type:</Text>
-              <Button.Group>
-                <Button
-                  type={checklistType === 'move-in' ? 'primary' : 'default'}
-                  onClick={() => setChecklistType('move-in')}
-                >
-                  Move in
-                </Button>
-                <Button
-                  type={checklistType === 'move-out' ? 'primary' : 'default'}
-                  onClick={() => setChecklistType('move-out')}
-                >
-                  Move out
-                </Button>
-              </Button.Group>
-            </Space>
-          </Col>
-          <Col>
-            <Space>
-              <Text strong>Inspection Date:</Text>
-              <DatePicker
-                value={inspectionDate}
-                onChange={setInspectionDate}
-                format="MMM D, YYYY"
-              />
-            </Space>
-          </Col>
-        </Row>
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">Checklist Type:</span>
+            <div className="inline-flex rounded-lg" role="group">
+              <Button
+                color={checklistType === 'move-in' ? 'blue' : 'light'}
+                onClick={() => setChecklistType('move-in')}
+                className="rounded-r-none"
+              >
+                Move in
+              </Button>
+              <Button
+                color={checklistType === 'move-out' ? 'blue' : 'light'}
+                onClick={() => setChecklistType('move-out')}
+                className="rounded-l-none"
+              >
+                Move out
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="inspectionDate" className="font-semibold">Inspection Date:</Label>
+            <TextInput
+              id="inspectionDate"
+              type="date"
+              value={inspectionDate}
+              onChange={(e) => setInspectionDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+        </div>
         {completionPercentage === 100 && (
-          <Alert
-            message="All items completed!"
-            type="success"
-            showIcon
-            style={{ marginTop: 16 }}
-          />
+          <Alert color="success" className="mt-4">
+            <div className="font-semibold">All items completed</div>
+          </Alert>
         )}
       </Card>
 
-      <Collapse
-        items={Object.entries(groupedChecklist).map(([category, items]) => {
+      <Accordion collapseAll>
+        {Object.entries(groupedChecklist).map(([category, items]) => {
           const categoryCompleted = items.filter(item => checklistData[item.id] || (existingItems[item.id] && existingItems[item.id].isChecked)).length;
           const categoryTotal = items.length;
           
-          return {
-            key: category,
-            label: (
-              <Space>
-                <Text strong>{category}</Text>
-                <Tag color={categoryCompleted === categoryTotal ? 'success' : 'processing'}>
-                  {categoryCompleted}/{categoryTotal}
-                </Tag>
-              </Space>
-            ),
-            children: (
-              <Row gutter={[16, 16]}>
-                {items.map((item) => {
-                  const existingItem = existingItems[item.id];
-                  const hasNotes = existingItem?.notes && typeof existingItem.notes === 'string' && existingItem.notes.trim() !== '';
-                  const hasPhotos = existingItem?.photos && existingItem.photos.length > 0;
-                  const isSubmitted = existingItem && existingItem.isChecked && (hasNotes || hasPhotos);
-                  const updateTimestamp = itemUpdateTimestamps[item.id];
-                  const itemPhotos = photos[item.id] || [];
-                  const itemPhotoData = photoData[item.id] || [];
-                  const itemComments = photoComments[item.id] || {};
-                  
-                  return (
-                    <Col key={item.id} xs={24} sm={24} md={12} lg={8} xl={6}>
+          return (
+            <Accordion.Panel key={category}>
+              <Accordion.Title>
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-semibold">{category}</span>
+                  <Badge color={categoryCompleted === categoryTotal ? 'success' : 'info'}>
+                    {categoryCompleted}/{categoryTotal}
+                  </Badge>
+                </div>
+              </Accordion.Title>
+              <Accordion.Content>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {items.map((item) => {
+                    const existingItem = existingItems[item.id];
+                    const hasNotes = existingItem?.notes && typeof existingItem.notes === 'string' && existingItem.notes.trim() !== '';
+                    const hasPhotos = existingItem?.photos && existingItem.photos.length > 0;
+                    const isSubmitted = existingItem && existingItem.isChecked && (hasNotes || hasPhotos);
+                    const updateTimestamp = itemUpdateTimestamps[item.id];
+                    const itemPhotos = photos[item.id] || [];
+                    const itemPhotoData = photoData[item.id] || [];
+                    const itemComments = photoComments[item.id] || {};
+                    
+                    return (
                       <div
-                        style={{
-                          background: isSubmitted ? '#f6ffed' : checklistData[item.id] ? '#e6f7ff' : '#fafafa',
-                          border: isSubmitted ? '1px solid #52c41a' : checklistData[item.id] ? '1px solid #1890ff' : '1px solid #d9d9d9',
-                          borderRadius: 8,
-                          padding: '12px',
-                          marginBottom: 12,
-                          transition: 'all 0.3s'
-                        }}
+                        key={item.id}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          isSubmitted 
+                            ? 'bg-green-50 border-green-500' 
+                            : checklistData[item.id] 
+                            ? 'bg-blue-50 border-blue-500' 
+                            : 'bg-gray-50 border-gray-300'
+                        }`}
                       >
-                        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                        <div className="space-y-3">
                           {/* Header Row */}
-                          <Row gutter={8} align="middle" justify="space-between">
-                            <Col flex="auto">
-                              <Space>
-                                <Checkbox
-                                  checked={checklistData[item.id] || false}
-                                  onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
-                                />
-                                {isSubmitted ? (
-                                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-                                ) : checklistData[item.id] ? (
-                                  <ClockCircleOutlined style={{ color: '#1890ff', fontSize: 18 }} />
-                                ) : null}
-                                <Text 
-                                  strong={checklistData[item.id] || isSubmitted} 
-                                  style={{ 
-                                    textDecoration: isSubmitted ? 'line-through' : 'none',
-                                    color: isSubmitted ? '#8c8c8c' : 'inherit',
-                                    fontSize: 13
-                                  }}
-                                >
-                                  {item.label.split(' - ')[0]}
-                                </Text>
-                              </Space>
-                            </Col>
-                            <Col>
-                              <Space>
-                                {itemPhotoData.length > 0 && (
-                                  <Tag color="blue" style={{ fontSize: 11 }}>
-                                    {itemPhotoData.length} photo{itemPhotoData.length !== 1 ? 's' : ''}
-                                  </Tag>
-                                )}
-                                {isSubmitted && updateTimestamp && (
-                                  <Tag color="success" style={{ fontSize: 10 }}>
-                                    ✓ Submitted
-                                  </Tag>
-                                )}
-                              </Space>
-                            </Col>
-                          </Row>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <Checkbox
+                                checked={checklistData[item.id] || false}
+                                onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
+                              />
+                              {isSubmitted ? (
+                                <HiCheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                              ) : checklistData[item.id] ? (
+                                <HiClock className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                              ) : null}
+                              <span 
+                                className={`text-sm flex-1 ${
+                                  checklistData[item.id] || isSubmitted ? 'font-semibold' : ''
+                                } ${
+                                  isSubmitted ? 'line-through text-gray-500' : ''
+                                }`}
+                              >
+                                {item.label.split(' - ')[0]
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {itemPhotoData.length > 0 && (
+                                <Badge color="blue" className="text-xs">
+                                  {itemPhotoData.length} photo{itemPhotoData.length !== 1 ? 's' : ''}
+                                </Badge>
+                              )}
+                              {isSubmitted && updateTimestamp && (
+                                <Badge color="success" className="text-xs">
+                                  ✓ Submitted
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* Photo Upload and List */}
+                          {/* Photo Upload */}
                           <div>
-                            <Upload.Dragger
-                              fileList={itemPhotos}
-                              onChange={({ fileList }) => handlePhotoUpload(item.id, fileList)}
-                              beforeUpload={() => false}
-                              accept="image/*"
-                              multiple
-                              showUploadList={false}
-                              style={{ 
-                                marginBottom: 8,
-                                padding: '16px',
-                                background: '#fafafa',
-                                border: '1px dashed #d9d9d9',
-                                borderRadius: 4
-                              }}
+                            <label
+                              htmlFor={`photo-upload-${item.id}`}
+                              className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
                             >
-                              <p className="ant-upload-drag-icon" style={{ margin: 0 }}>
-                                <CameraOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-                              </p>
-                              <p className="ant-upload-text" style={{ margin: '8px 0 4px', fontSize: 12 }}>
-                                Click or drag photos to upload
-                              </p>
-                            </Upload.Dragger>
+                              <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                                <HiCamera className="h-6 w-6 text-blue-600 mb-1" />
+                                <p className="text-xs text-gray-500">Click or drag photos</p>
+                              </div>
+                              <FileInput
+                                id={`photo-upload-${item.id}`}
+                                ref={(el) => { fileInputRefs.current[item.id] = el; }}
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (files && files.length > 0) {
+                                    handlePhotoUpload(item.id, files);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
                             
                             {itemPhotoData.length > 0 && (
-                              <div style={{ 
-                                marginTop: 8,
-                                border: '1px solid #e8e8e8',
-                                borderRadius: 4,
-                                background: '#fff'
-                              }}>
+                              <div className="mt-2 space-y-2 border border-gray-200 rounded-lg bg-white p-2">
                                 {itemPhotoData.map((photoObj, photoIndex) => {
                                   // Handle both old format (base64 string) and new format (object with url)
                                   const photoUrl = typeof photoObj === 'string' 
@@ -898,49 +866,26 @@ export default function ChecklistClient({ tenant }) {
                                   return (
                                     <div 
                                       key={photoIndex} 
-                                      style={{ 
-                                        padding: '8px 12px',
-                                        borderBottom: photoIndex < itemPhotoData.length - 1 ? '1px solid #f0f0f0' : 'none',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12
-                                      }}
+                                      className="flex items-center gap-2 p-2 border-b border-gray-100 last:border-b-0"
                                     >
-                                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                                      <div className="relative flex-shrink-0">
                                         <Image
                                           src={photoUrl}
                                           alt={fileName}
                                           width={50}
                                           height={50}
-                                          style={{ 
-                                            objectFit: 'cover',
-                                            borderRadius: 4
-                                          }}
-                                          preview={{
-                                            mask: <EyeOutlined />
-                                          }}
+                                          className="object-cover rounded"
                                         />
                                       </div>
-                                      <div style={{ flex: 1, minWidth: 0 }}>
-                                        <Text 
-                                          strong 
-                                          style={{ 
-                                            fontSize: 12, 
-                                            display: 'block',
-                                            marginBottom: 4,
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap'
-                                          }}
-                                        >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-semibold truncate mb-1">
                                           {fileName}
-                                        </Text>
-                                        <Input
-                                          placeholder="Add a comment for this photo..."
+                                        </div>
+                                        <TextInput
+                                          placeholder="Add a comment..."
                                           value={itemComments[photoIndex] || ''}
                                           onChange={(e) => handlePhotoCommentChange(item.id, photoIndex, e.target.value)}
-                                          size="small"
-                                          style={{ fontSize: 11 }}
+                                          size="sm"
                                           onBlur={() => {
                                             if (existingChecklist?.id && inspectionDate) {
                                               const itemObj = checklist.find(i => i.id === item.id);
@@ -954,32 +899,57 @@ export default function ChecklistClient({ tenant }) {
                                         />
                                       </div>
                                       <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        size="small"
+                                        color="failure"
+                                        size="sm"
                                         onClick={() => handleDeletePhoto(item.id, photoIndex)}
-                                        style={{ flexShrink: 0 }}
-                                        title="Delete photo"
-                                      />
+                                        className="flex-shrink-0"
+                                      >
+                                        <HiTrash className="h-4 w-4" />
+                                      </Button>
                                     </div>
                                   );
                                 })}
                               </div>
                             )}
                           </div>
-                        </Space>
+
+                          {/* Notes */}
+                          <div>
+                            <Textarea
+                              placeholder="Add notes..."
+                              rows={2}
+                              value={notes[item.id] || ''}
+                              onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                              onBlur={() => {
+                                if (existingChecklist?.id && inspectionDate) {
+                                  const itemObj = checklist.find(i => i.id === item.id);
+                                  if (itemObj) {
+                                    handleSaveItem(itemObj, true).catch(err => {
+                                      console.error('Failed to auto-save note:', err);
+                                    });
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+
+                          {/* Saving indicator */}
+                          {savingItems[item.id] && (
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Spinner size="sm" />
+                              <span>Saving...</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </Col>
-                  );
-                })}
-              </Row>
-            )
-          };
+                    );
+                  })}
+                </div>
+              </Accordion.Content>
+            </Accordion.Panel>
+          );
         })}
-        defaultActiveKey={Object.keys(groupedChecklist)}
-        style={{ marginBottom: 16 }}
-      />
+      </Accordion>
     </PageLayout>
   );
 }

@@ -18,6 +18,10 @@ import { useV2Auth } from './useV2Auth';
 export {
   useProperties,
   useProperty,
+  useLeases,
+  useWorkOrders,
+  useTenants,
+  useLandlords,
   useCreateProperty,
   useUpdateProperty,
   useDeleteProperty,
@@ -26,23 +30,19 @@ export {
   useCreateUnit,
   useUpdateUnit,
   useDeleteUnit,
-  useLandlords,
   useLandlord,
   useCreateLandlord,
   useUpdateLandlord,
-  useTenants,
   useTenant,
   useCreateTenant,
   useUpdateTenant,
   useApproveTenant,
   useRejectTenant,
-  useLeases,
   useLease,
   useCreateLease,
   useUpdateLease,
   useRenewLease,
   useTerminateLease,
-  useWorkOrders,
   useWorkOrder,
   useCreateWorkOrder,
   useUpdateWorkOrder,
@@ -79,35 +79,59 @@ export const queryKeys = {
 };
 
 /**
- * Portfolio Hook - Uses v2 API
+ * Portfolio Hook - Uses v2 API with optimized caching
+ * Uses individual hooks to leverage React Query caching instead of Promise.all
  */
 export function usePortfolio(role?: string) {
   const { user } = useV2Auth();
   const organizationId = user?.organization_id || undefined;
   
-  return useQuery({
-    queryKey: queryKeys.portfolio(role, { organizationId }),
-    queryFn: async () => {
-      // Fetch portfolio data from v2 API
-      const [properties, leases, workOrders, tenants, landlords] = await Promise.all([
-        v2Api.listProperties(organizationId).catch(() => []),
-        v2Api.listLeases({ organization_id: organizationId }).catch(() => []),
-        v2Api.listWorkOrders({ organization_id: organizationId }).catch(() => []),
-        v2Api.listTenants(organizationId).catch(() => []),
-        v2Api.listLandlords(organizationId).catch(() => []),
-      ]);
-      
-      return {
-        success: true,
-        data: {
-          properties: properties || [],
-          leases: leases || [],
-          workOrders: workOrders || [],
-          tenants: tenants || [],
-          landlords: landlords || [],
-        }
-      };
+  // Import hooks directly from useV2Data
+  const { 
+    useProperties, 
+    useLeases, 
+    useWorkOrders, 
+    useTenants, 
+    useLandlords 
+  } = require('./useV2Data');
+  
+  // Use individual hooks - React Query will cache each independently
+  // This allows other components to reuse cached data
+  const propertiesQuery = useProperties(organizationId);
+  const leasesQuery = useLeases({ organization_id: organizationId });
+  const workOrdersQuery = useWorkOrders({ organization_id: organizationId });
+  const tenantsQuery = useTenants(organizationId);
+  const landlordsQuery = useLandlords(organizationId);
+  
+  return {
+    data: {
+      properties: propertiesQuery.data || [],
+      leases: leasesQuery.data || [],
+      workOrders: workOrdersQuery.data || [],
+      tenants: tenantsQuery.data || [],
+      landlords: landlordsQuery.data || [],
     },
-    enabled: !!user,
-  });
+    isLoading: propertiesQuery.isLoading || leasesQuery.isLoading || 
+               workOrdersQuery.isLoading || tenantsQuery.isLoading || 
+               landlordsQuery.isLoading,
+    isError: propertiesQuery.isError || leasesQuery.isError || 
+             workOrdersQuery.isError || tenantsQuery.isError || 
+             landlordsQuery.isError,
+    error: propertiesQuery.error || leasesQuery.error || 
+           workOrdersQuery.error || tenantsQuery.error || 
+           landlordsQuery.error,
+    success: !(propertiesQuery.isError || leasesQuery.isError || 
+               workOrdersQuery.isError || tenantsQuery.isError || 
+               landlordsQuery.isError),
+    // Allow refetching individual pieces
+    refetch: async () => {
+      await Promise.all([
+        propertiesQuery.refetch(),
+        leasesQuery.refetch(),
+        workOrdersQuery.refetch(),
+        tenantsQuery.refetch(),
+        landlordsQuery.refetch(),
+      ]);
+    },
+  };
 }

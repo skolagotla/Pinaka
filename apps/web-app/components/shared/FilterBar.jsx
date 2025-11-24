@@ -26,21 +26,21 @@
  * 
  * Filter configuration:
  * {
- *   key: string,           // Filter key
- *   label: string,         // Filter label
+ *   key,           // Filter key
+ *   label,         // Filter label
  *   type: 'select' | 'dateRange' | 'input',
- *   options?: Array<{label: string, value: any}>,  // For select type
- *   placeholder?: string,
+ *   options?: [],  // For select type
+ *   placeholder?,
  *   style?: object,
- *   width?: number | string
+ *   width? | string
  * }
  * 
  * @example
  * <FilterBar
- *   filters={[
+ *   filters={
  *     { key: 'status', label: 'Status', type: 'select', options: statusOptions },
  *     { key: 'type', label: 'Type', type: 'select', options: typeOptions }
- *   ]}
+ *   }
  *   activeFilters={filters}
  *   onFilterChange={setFilters}
  *   onReset={() => setFilters({})}

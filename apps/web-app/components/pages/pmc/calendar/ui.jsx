@@ -1,81 +1,111 @@
+/**
+ * PMC Calendar & Tasks Component - Migrated to Flowbite UI
+ * 
+ * NOTE: Tasks API still uses v1 - v2 backend endpoint needed for full migration
+ * UI converted to Flowbite components
+ */
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Calendar as AntCalendar, Card, Badge, List, Modal, Form, Input, Select, DatePicker, Tag, Space, Checkbox } from 'antd';
-import { PageLayout, StandardModal, FormTextInput, FormSelect, FormDatePicker } from '@/components/shared';
-import { notify } from '@/lib/utils/notification-helper';
+import { 
+  Card, Badge, Modal, Button, TextInput, Label, Select, Textarea, 
+  Checkbox, Spinner, Alert, List
+} from 'flowbite-react';
 import { ActionButton } from '@/components/shared/buttons';
-import { PlusOutlined, CheckCircleOutlined, ClockCircleOutlined, CalendarOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PageLayout } from '@/components/shared';
+import { notify } from '@/lib/utils/notification-helper';
+import { 
+  HiPlus, HiCheckCircle, HiClock, HiCalendar, HiPencil, HiTrash,
+  HiX
+} from 'react-icons/hi';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useModalState } from '@/lib/hooks/useModalState';
-import { rules } from '@/lib/utils/validation-rules';
-import { safeJsonParse } from '@/lib/utils/safe-json-parser';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { v2Api } from '@/lib/api/v2-client';
+import { useProperties, useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/lib/hooks/useV2Data';
 import dayjs from 'dayjs';
 import { formatDateShort } from '@/lib/utils/safe-date-formatter';
 
 export default function PMCCalendarClient({ initialProperties = [] }) {
   const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
-  const [tasks, setTasks] = useState([]);
-  const [properties, setProperties] = useState(initialProperties);
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties(organizationId);
+  
+  // v2 API hooks
+  const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useTasks(organizationId);
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+  
+  const tasks = tasksData || [];
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const { isOpen: taskModalOpen, open: openTaskModal, close: closeTaskModal, editingItem: editingTask, openForEdit: openTaskModalForEdit, openForCreate: openTaskModalForCreate } = useModalState();
-  const [form] = Form.useForm();
+  const { isOpen: taskModalOpen, open: openTaskModal, close: closeTaskModal, editingItem: editingTask, openForEdit, openForCreate } = useModalState();
+  
+  const taskForm = useFormState({
+    title: '',
+    description: '',
+    category: '',
+    dueDate: null,
+    priority: 'medium',
+    propertyId: null,
+  });
 
-  useEffect(() => {
-    loadTasks();
-    if (initialProperties.length === 0) {
-      loadProperties();
-    }
-  }, []);
+  const properties = propertiesData && Array.isArray(propertiesData)
+    ? propertiesData
+    : initialProperties || [];
 
-  const loadTasks = async () => {
+  // Tasks are loaded via v2 hooks above
+
+  const handleSubmitTask = async () => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.tasks.list({ page: 1, limit: 1000 });
-      const tasksData = response.data?.data || response.data || [];
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-      setTasks([]);
-    }
-  };
+      const values = taskForm.getFieldsValue();
+      
+      if (!values.title || !values.category || !values.dueDate) {
+        notify.error('Title, category, and due date are required');
+        return;
+      }
 
-  const loadProperties = async () => {
-    try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.properties.list({ page: 1, limit: 1000 });
-      const propertiesData = response.data?.data || response.data || [];
-      setProperties(Array.isArray(propertiesData) ? propertiesData : []);
-    } catch (error) {
-      console.error('Error loading properties:', error);
-      setProperties([]);
-    }
-  };
-
-  const handleAddTask = async (values) => {
-    try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
       const taskData = {
         ...values,
-        // Format as YYYY-MM-DD for date-only, or include time if showTime is used
         dueDate: dayjs.isDayjs(values.dueDate) 
-          ? (values.dueDate.format('YYYY-MM-DD HH:mm:ss')) 
+          ? values.dueDate.format('YYYY-MM-DD HH:mm:ss')
           : values.dueDate
       };
 
+      if (!organizationId) {
+        notify.error('Organization ID is required');
+        return;
+      }
+      
+      const v2TaskData = {
+        organization_id: organizationId,
+        title: values.title,
+        description: values.description || null,
+        category: values.category || 'general',
+        priority: values.priority || 'medium',
+        property_id: values.propertyId || null,
+        due_date: dayjs.isDayjs(values.dueDate) 
+          ? values.dueDate.format('YYYY-MM-DD')
+          : values.dueDate,
+        status: 'pending',
+      };
+      
       if (editingTask) {
-        await v1Api.tasks.update(editingTask.id, taskData);
+        await updateTask.mutateAsync({
+          id: editingTask.id,
+          data: v2TaskData
+        });
+        notify.success('Task updated successfully');
       } else {
-        await v1Api.tasks.create(taskData);
+        await createTask.mutateAsync(v2TaskData);
+        notify.success('Task created successfully');
       }
 
-      notify.success(`Task ${editingTask ? 'updated' : 'created'} successfully`);
       closeTaskModal();
-      form.resetFields();
-      loadTasks();
+      taskForm.reset();
+      refetchTasks();
     } catch (error) {
       notify.error(error.message || 'Failed to save task');
     }
@@ -83,21 +113,19 @@ export default function PMCCalendarClient({ initialProperties = [] }) {
 
   const handleCompleteTask = async (taskId) => {
     try {
-      // Use v1Api client
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.tasks.update(taskId, {
         isCompleted: true,
         completedAt: new Date().toISOString()
       });
-      notify.success('Task completed!');
+      notify.success('Task completed');
       loadTasks();
     } catch (error) {
       notify.error(error.message || 'Failed to complete task');
     }
   };
 
-  const handleEditTask = async (task) => {
-    // Extract local date components to avoid UTC timezone shift when loading
+  const handleEditTask = (task) => {
     const dueDateObj = new Date(task.dueDate);
     const year = dueDateObj.getFullYear();
     const month = dueDateObj.getMonth() + 1;
@@ -105,43 +133,91 @@ export default function PMCCalendarClient({ initialProperties = [] }) {
     const hours = dueDateObj.getHours();
     const minutes = dueDateObj.getMinutes();
     const seconds = dueDateObj.getSeconds();
-    form.setFieldsValue({
+    
+    taskForm.setFields({
       ...task,
-      // If task has time, include it; otherwise just use date
       dueDate: dayjs(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`)
     });
-    openTaskModalForEdit(task);
+    openForEdit(task);
   };
 
   const handleDeleteTask = async (taskId) => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.tasks.delete(taskId);
+      await deleteTask.mutateAsync(taskId);
       notify.success('Task deleted');
-      loadTasks();
+      refetchTasks();
     } catch (error) {
       notify.error(error.message || 'Failed to delete task');
     }
   };
 
-  const dateCellRender = (value) => {
-    const dayTasks = tasks.filter(t => 
-      dayjs(t.dueDate).isSame(value, 'day')
-    );
-
+  // Simple calendar grid (similar to landlord calendar)
+  const renderCalendarGrid = () => {
+    const startOfMonth = dayjs(selectedDate).startOf('month');
+    const endOfMonth = dayjs(selectedDate).endOf('month');
+    const daysInMonth = endOfMonth.date();
+    const firstDayOfWeek = startOfMonth.day();
+    
+    const days = [];
+    const today = dayjs();
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = startOfMonth.date(day);
+      const dayTasks = tasks.filter(t => 
+        dayjs(t.dueDate).isSame(date, 'day')
+      );
+      days.push({ date, tasks: dayTasks, isToday: date.isSame(today, 'day') });
+    }
+    
     return (
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {dayTasks.map(task => (
-          <li key={task.id}>
-            <Badge 
-              status={task.isCompleted ? 'success' : task.priority === 'urgent' ? 'error' : 'processing'} 
-              text={task.title.substring(0, 20)}
-              style={{ fontSize: 11 }}
-            />
-          </li>
+      <div className="grid grid-cols-7 gap-1">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="p-2 text-center font-semibold text-gray-600 dark:text-gray-400">
+            {day}
+          </div>
         ))}
-      </ul>
+        {days.map((day, idx) => (
+          <div
+            key={idx}
+            className={`min-h-[80px] p-1 border border-gray-200 dark:border-gray-700 ${
+              day?.isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+            }`}
+          >
+            {day && (
+              <>
+                <div className={`text-sm font-medium mb-1 ${
+                  day.isToday ? 'text-blue-600 dark:text-blue-400' : ''
+                }`}>
+                  {day.date.date()}
+                </div>
+                <div className="space-y-1">
+                  {day.tasks.slice(0, 2).map(task => (
+                    <Badge
+                      key={task.id}
+                      color={task.isCompleted ? 'success' : task.priority === 'urgent' ? 'failure' : 'info'}
+                      size="sm"
+                      className="text-xs block truncate"
+                    >
+                      {task.title.substring(0, 15)}
+                    </Badge>
+                  ))}
+                  {day.tasks.length > 2 && (
+                    <Badge color="gray" size="sm" className="text-xs">
+                      +{day.tasks.length - 2}
+                    </Badge>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -155,9 +231,9 @@ export default function PMCCalendarClient({ initialProperties = [] }) {
   );
 
   const statsData = [
-    { label: 'Total Tasks', value: tasks.length, color: '#1890ff' },
-    { label: 'Overdue', value: overdueTasks.length, color: '#ff4d4f' },
-    { label: 'Upcoming', value: upcomingTasks.length, color: '#52c41a' }
+    { label: 'Total Tasks', value: tasks.length, color: 'blue' },
+    { label: 'Overdue', value: overdueTasks.length, color: 'red' },
+    { label: 'Upcoming', value: upcomingTasks.length, color: 'green' }
   ];
 
   return (
@@ -168,157 +244,234 @@ export default function PMCCalendarClient({ initialProperties = [] }) {
       actions={[
         {
           key: 'add-task',
-          icon: <PlusOutlined />,
+          icon: <HiPlus className="h-5 w-5" />,
           label: 'Add Task',
           type: 'primary',
-          onClick: openTaskModalForCreate
+          onClick: () => {
+            taskForm.reset();
+            openForCreate();
+          }
         }
       ]}
     >
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Calendar */}
-        <Card title="Calendar View">
-          <AntCalendar
-            dateCellRender={dateCellRender}
-            onSelect={(date) => setSelectedDate(date)}
-          />
-        </Card>
+        <div className="lg:col-span-2">
+          <Card>
+            <div className="mb-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Calendar View</h3>
+              <div className="flex gap-2">
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={() => setSelectedDate(selectedDate.subtract(1, 'month'))}
+                >
+                  ←
+                </Button>
+                <span className="px-4 py-1 text-sm font-medium">
+                  {selectedDate.format('MMMM YYYY')}
+                </span>
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={() => setSelectedDate(selectedDate.add(1, 'month'))}
+                >
+                  →
+                </Button>
+              </div>
+            </div>
+            {renderCalendarGrid()}
+          </Card>
+        </div>
 
-        {/* Task List */}
-        <div>
+        {/* Task Lists */}
+        <div className="space-y-4">
           {overdueTasks.length > 0 && (
-            <Card title="Overdue" style={{ marginBottom: 16 }} bodyStyle={{ maxHeight: 200, overflow: 'auto' }}>
-              <List
-                size="small"
-                dataSource={overdueTasks}
-                renderItem={task => (
-                  <List.Item
-                    actions={[
-                      <Checkbox key="checkbox" onChange={() => handleCompleteTask(task.id)} />,
-                      <ActionButton key="edit" action="edit" size="small" onClick={() => handleEditTask(task)} />,
-                      <ActionButton key="delete" action="delete" size="small" onClick={() => handleDeleteTask(task.id)} />
-                    ]}
+            <Card>
+              <h3 className="text-lg font-semibold mb-3">Overdue</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {overdueTasks.map(task => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-2 border border-gray-200 dark:border-gray-700 rounded"
                   >
-                    <Space direction="vertical" size="small">
-                      <span>{task.title}</span>
-                      <Tag color="red">{formatDateShort(task.dueDate)}</Tag>
-                    </Space>
-                  </List.Item>
-                )}
-              />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{task.title}</div>
+                      <Badge color="failure" size="sm" className="mt-1">
+                        {formatDateShort(task.dueDate)}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Checkbox
+                        checked={task.isCompleted}
+                        onChange={() => handleCompleteTask(task.id)}
+                      />
+                      <Button size="xs" color="light" onClick={() => handleEditTask(task)}>
+                        <HiPencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="xs" color="failure" onClick={() => handleDeleteTask(task.id)}>
+                        <HiTrash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
-          <Card title="Upcoming Tasks" bodyStyle={{ maxHeight: 400, overflow: 'auto' }}>
-            <List
-              size="small"
-              dataSource={upcomingTasks}
-              renderItem={task => (
-                <List.Item
-                    actions={[
-                      <Checkbox key="checkbox" onChange={() => handleCompleteTask(task.id)} />,
-                      <ActionButton key="edit" action="edit" size="small" onClick={() => handleEditTask(task)} />,
-                      <ActionButton key="delete" action="delete" size="small" onClick={() => handleDeleteTask(task.id)} />
-                    ]}
+          <Card>
+            <h3 className="text-lg font-semibold mb-3">Upcoming Tasks</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {upcomingTasks.map(task => (
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-2 border border-gray-200 dark:border-gray-700 rounded"
                 >
-                  <Space direction="vertical" size="small">
-                    <span>{task.title}</span>
-                    <Space>
-                      <Tag color={task.priority === 'urgent' ? 'red' : 'blue'}>{task.priority}</Tag>
-                      <Tag icon={<CalendarOutlined />}>{formatDateShort(task.dueDate)}</Tag>
-                    </Space>
-                  </Space>
-                </List.Item>
-              )}
-            />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{task.title}</div>
+                    <div className="flex gap-1 mt-1">
+                      <Badge
+                        color={task.priority === 'urgent' ? 'failure' : 'info'}
+                        size="sm"
+                      >
+                        {task.priority}
+                      </Badge>
+                      <Badge color="gray" size="sm">
+                        {formatDateShort(task.dueDate)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Checkbox
+                      checked={task.isCompleted}
+                      onChange={() => handleCompleteTask(task.id)}
+                    />
+                    <Button size="xs" color="light" onClick={() => handleEditTask(task)}>
+                      <HiPencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="xs" color="failure" onClick={() => handleDeleteTask(task.id)}>
+                      <HiTrash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
         </div>
       </div>
 
-      {/* Add Task Modal */}
-      <StandardModal
-        title="Add Task"
-        open={taskModalOpen}
-        form={form}
-        loading={false}
-        submitText="Add"
-        onCancel={() => {
-          closeTaskModal();
-          form.resetFields();
-        }}
-        onFinish={handleAddTask}
-      >
-          <Form.Item
-            name="title"
-            label="Task Title"
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-
-          <Form.Item
-            name="category"
-            label="Category"
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Select.Option value="rent">Rent</Select.Option>
-              <Select.Option value="lease">Lease</Select.Option>
-              <Select.Option value="maintenance">Maintenance</Select.Option>
-              <Select.Option value="legal">Legal</Select.Option>
-              <Select.Option value="inspection">Inspection</Select.Option>
-              <Select.Option value="general">General</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="dueDate"
-            label="Due Date"
-            rules={[{ required: true }]}
-          >
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item
-            name="priority"
-            label="Priority"
-            initialValue="medium"
-          >
-            <Select>
-              <Select.Option value="low">Low</Select.Option>
-              <Select.Option value="medium">Medium</Select.Option>
-              <Select.Option value="high">High</Select.Option>
-              <Select.Option value="urgent">Urgent</Select.Option>
-            </Select>
-          </Form.Item>
-
-          {/* Property-centric: Property selection for tasks */}
-          {properties.length > 0 && (
-            <Form.Item
-              name="propertyId"
-              label="Property (Optional)"
-              tooltip="Link this task to a specific property. If not selected, property will be inferred from linked entity if available."
-            >
-              <Select
-                placeholder="Select property (optional)"
-                allowClear
-                showSearch
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                options={properties.map(p => ({
-                  value: p.id,
-                  label: `${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`
-                }))}
+      {/* Add/Edit Task Modal */}
+      <Modal show={taskModalOpen} onClose={closeTaskModal} size="md">
+        <Modal.Header>
+          {editingTask ? 'Edit Task' : 'Add Task'}
+        </Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title" className="mb-2 block">
+                Task Title <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="title"
+                value={taskForm.getFieldValue('title')}
+                onChange={(e) => taskForm.setField('title', e.target.value)}
+                required
+                placeholder="Enter task title"
               />
-            </Form.Item>
-          )}
-      </StandardModal>
+            </div>
+
+            <div>
+              <Label htmlFor="description" className="mb-2 block">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                rows={3}
+                value={taskForm.getFieldValue('description')}
+                onChange={(e) => taskForm.setField('description', e.target.value)}
+                placeholder="Enter task description"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="category" className="mb-2 block">
+                Category <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="category"
+                value={taskForm.getFieldValue('category')}
+                onChange={(e) => taskForm.setField('category', e.target.value)}
+                required
+              >
+                <option value="">Select category</option>
+                <option value="rent">Rent</option>
+                <option value="lease">Lease</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="legal">Legal</option>
+                <option value="inspection">Inspection</option>
+                <option value="general">General</option>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="dueDate" className="mb-2 block">
+                Due Date <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="dueDate"
+                type="datetime-local"
+                value={taskForm.getFieldValue('dueDate') ? dayjs(taskForm.getFieldValue('dueDate')).format('YYYY-MM-DDTHH:mm') : ''}
+                onChange={(e) => taskForm.setField('dueDate', e.target.value ? dayjs(e.target.value) : null)}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="priority" className="mb-2 block">
+                Priority
+              </Label>
+              <Select
+                id="priority"
+                value={taskForm.getFieldValue('priority')}
+                onChange={(e) => taskForm.setField('priority', e.target.value)}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </Select>
+            </div>
+
+            {properties.length > 0 && (
+              <div>
+                <Label htmlFor="propertyId" className="mb-2 block">
+                  Property (Optional)
+                </Label>
+                <Select
+                  id="propertyId"
+                  value={taskForm.getFieldValue('propertyId') || ''}
+                  onChange={(e) => taskForm.setField('propertyId', e.target.value || null)}
+                >
+                  <option value="">Select property (optional)</option>
+                  {properties.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.property_name || p.address_line1}{p.city ? `, ${p.city}` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={closeTaskModal} color="gray">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmitTask} color="blue">
+            {editingTask ? 'Save' : 'Add Task'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </PageLayout>
   );
 }

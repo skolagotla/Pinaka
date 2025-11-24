@@ -48,36 +48,21 @@ export function useRequireRole(options: UseRequireRoleOptions) {
         // Default: fetch from admin API
         // Use adminApi instead of fetch
         const { adminApi } = await import('@/lib/api/admin-api');
-        try {
-          const user = await adminApi.getCurrentUser();
-          if (user && user.user) {
-            const roles = user.user.role ? [user.user.role] : [];
-            if (allowedRoles.some(role => roles.includes(role.toUpperCase()) || roles.includes(role))) {
-              setUser(user.user);
-              setLoading(false);
-              return;
-            }
+        const user = await adminApi.getCurrentUser();
+        if (user && user.success && user.user) {
+          const roles = user.user.role ? [user.user.role] : [];
+          if (allowedRoles.some(role => roles.includes(role.toUpperCase()) || roles.includes(role))) {
+            setUser(user.user);
+            setHasAccess(true);
+            setLoading(false);
+            return;
           }
-        } catch (apiError) {
-          // Not authorized
+          // User exists but doesn't have required role
+          throw new Error('Not authorized');
         }
         
-        // Fallback to old API for compatibility
-        const response = await fetch('/api/admin/auth/me', {
-          method: 'GET',
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error('Not authenticated');
-        }
-
-        const data = await response.json();
-        if (data.success && data.user) {
-          userData = data.user;
-        } else {
-          throw new Error('Not authenticated');
-        }
+        // Not authenticated
+        throw new Error('Not authenticated');
       }
 
       if (!userData) {

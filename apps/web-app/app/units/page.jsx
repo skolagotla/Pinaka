@@ -26,13 +26,13 @@ export default function UnitsPage() {
   const { data: leases } = useLeases({ organization_id: organizationId });
   
   // Create lookup maps
-  const propertyMap = properties?.reduce((acc: Record<string, any>, prop: any) => {
+  const propertyMap = properties?.reduce((acc, prop) => {
     acc[prop.id] = prop;
     return acc;
   }, {}) || {};
   
   // Count leases per unit
-  const unitLeaseCounts = leases?.reduce((acc: Record<string, number>, lease: any) => {
+  const unitLeaseCounts = leases?.reduce((acc, lease) => {
     if (lease.unit_id && lease.status === 'active') {
       acc[lease.unit_id] = (acc[lease.unit_id] || 0) + 1;
     }
@@ -98,7 +98,7 @@ export default function UnitsPage() {
               <Table.HeadCell>Actions</Table.HeadCell>
             </Table.Head>
             <Table.Body className="divide-y">
-              {units.map((unit: any) => {
+              {units.map((unit) => {
                 const property = propertyMap[unit.property_id];
                 return (
                   <Table.Row key={unit.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">

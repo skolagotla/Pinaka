@@ -5,6 +5,8 @@ import { Card, List, Button, Input, Space, Avatar, Tag, Empty, Modal, Form, Sele
 import { MessageOutlined, SendOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons';
 import { ProCard } from '../shared/LazyProComponents';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useConversations, useConversation, useCreateConversation, useCreateMessage } from '@/lib/hooks/useV2Data';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -14,69 +16,56 @@ const { Option } = Select;
  * Direct messaging between PMC and landlords
  */
 export default function PMCCommunicationChannel({ landlordId, propertyId }) {
-  const [conversations, setConversations] = useState([]);
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createForm] = Form.useForm();
+  
+  // v2 API hooks
+  const { data: conversationsData, isLoading: conversationsLoading, refetch: refetchConversations } = useConversations(organizationId);
+  const { data: conversationData, refetch: refetchConversation } = useConversation(selectedConversation?.id);
+  const createConversation = useCreateConversation();
+  const createMessage = useCreateMessage();
+  
+  const conversations = conversationsData || [];
+  const messages = conversationData?.messages || [];
+  const loading = conversationsLoading;
 
   useEffect(() => {
-    fetchConversations();
-  }, [landlordId, propertyId]);
-
+    refetchConversations();
+  }, [landlordId, propertyId, refetchConversations]);
+  
   useEffect(() => {
     if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
+      refetchConversation();
     }
-  }, [selectedConversation]);
-
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.list({
-        ...(landlordId && { landlordId }),
-        ...(propertyId && { propertyId }),
-      });
-      const conversationsData = response.data?.data || response.data || [];
-      setConversations(Array.isArray(conversationsData) ? conversationsData : []);
-      if (conversationsData.length > 0 && !selectedConversation) {
-        setSelectedConversation(conversationsData[0]);
-      }
-    } catch (error) {
-      console.error('[PMC Communication] Error:', error);
-    } finally {
-      setLoading(false);
+  }, [selectedConversation, refetchConversation]);
+  
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      setSelectedConversation(conversations[0]);
     }
-  };
-
-  const fetchMessages = async (conversationId) => {
-    try {
-      // Use v1Api client - get conversation which includes messages
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.get(conversationId);
-      const conversation = response.data || response;
-      if (conversation && conversation.messages) {
-        setMessages(Array.isArray(conversation.messages) ? conversation.messages : []);
-      }
-    } catch (error) {
-      console.error('[PMC Communication] Error fetching messages:', error);
-    }
-  };
+  }, [conversations, selectedConversation]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
+      if (!organizationId) {
+        message.error('Organization ID is required');
+        return;
+      }
+      
+      await createMessage.mutateAsync({
+        conversation_id: selectedConversation.id,
+        content: newMessage.trim(),
+        sender_id: user.id,
+      });
       setNewMessage('');
-      fetchMessages(selectedConversation.id);
-      fetchConversations();
+      refetchConversation();
+      refetchConversations();
     } catch (error) {
       console.error('[PMC Communication] Error sending message:', error);
       message.error(error.message || 'Failed to send message');
@@ -85,15 +74,27 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
 
   const handleCreateConversation = async (values) => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.create({
-        landlordId: values.landlordId || landlordId,
-        propertyId: values.propertyId || propertyId,
-        subject: values.subject,
-        initialMessage: values.initialMessage,
+      if (!organizationId) {
+        message.error('Organization ID is required');
+        return;
+      }
+      
+      const conversation = await createConversation.mutateAsync({
+        organization_id: organizationId,
+        conversation_type: 'LANDLORD_PMC',
+        participant_ids: [values.landlordId || landlordId],
+        property_id: values.propertyId || propertyId || null,
+        subject: values.subject || null,
       });
-      const conversation = response.data || response;
+      
+      // If there's an initial message, send it
+      if (values.initialMessage) {
+        await createMessage.mutateAsync({
+          conversation_id: conversation.id,
+          content: values.initialMessage,
+          sender_id: user.id,
+        });
+      }
 
       message.success('Conversation created');
       setCreateModalVisible(false);
@@ -261,7 +262,7 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
           <Form.Item
             name="subject"
             label="Subject"
-            rules={[{ required: true, message: 'Please enter a subject' }]}
+            rules={[{ required: true, message: 'Please enter a subject' }}
           >
             <Input placeholder="Conversation subject" />
           </Form.Item>
@@ -280,7 +281,7 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
           <Form.Item
             name="initialMessage"
             label="Initial Message"
-            rules={[{ required: true, message: 'Please enter an initial message' }]}
+            rules={[{ required: true, message: 'Please enter an initial message' }}
           >
             <TextArea rows={4} placeholder="Start the conversation..." />
           </Form.Item>

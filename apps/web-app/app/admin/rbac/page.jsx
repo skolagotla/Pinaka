@@ -170,7 +170,7 @@ export default function AdminRBACPage() {
       const data = await adminApi.initializeRBAC();
       
       if (data.success) {
-        notify.success('RBAC system initialized successfully! All system roles and permissions have been created.');
+        notify.success('RBAC system initialized successfully All system roles and permissions have been created.');
         fetchRoles();
       } else {
         notify.error(data.error || 'Failed to initialize RBAC system');
@@ -403,7 +403,7 @@ export default function AdminRBACPage() {
                 </p>
                 {rolesLoaded && roles.length === 0 && (
                   <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900 rounded">
-                    <p className="font-semibold">⚠️ No roles found!</p>
+                    <p className="font-semibold">⚠️ No roles found</p>
                     <p className="text-sm mt-1">
                       You need to initialize the RBAC system first. Click the "Initialize RBAC System" button above, or run this command in your terminal:
                     </p>

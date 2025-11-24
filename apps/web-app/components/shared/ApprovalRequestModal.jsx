@@ -99,7 +99,7 @@ export default function ApprovalRequestModal({
         <Form.Item
           name="approvalType"
           label="Approval Type"
-          rules={[{ required: true, message: 'Please select an approval type' }]}
+          rules={[{ required: true, message: 'Please select an approval type' }}
         >
           <Select placeholder="Select approval type">
             {approvalTypes.map((type) => (
@@ -113,7 +113,7 @@ export default function ApprovalRequestModal({
         <Form.Item
           name="title"
           label="Title"
-          rules={[{ required: true, message: 'Please enter a title' }]}
+          rules={[{ required: true, message: 'Please enter a title' }}
         >
           <Input placeholder="Brief title for this request" />
         </Form.Item>
@@ -134,7 +134,7 @@ export default function ApprovalRequestModal({
         <Form.Item
           name="description"
           label="Description"
-          rules={[{ required: true, message: 'Please provide a description' }]}
+          rules={[{ required: true, message: 'Please provide a description' }}
         >
           <TextArea
             rows={4}

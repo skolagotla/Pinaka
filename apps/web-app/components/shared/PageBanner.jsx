@@ -15,13 +15,13 @@
  * Usage:
  * <PageBanner
  *   title="Vault"
- *   stats={[
+ *   stats={
  *     { label: 'Tenants', value: 3, color: '#1890ff' },
  *     { label: 'Documents', value: 9, color: '#52c41a' }
- *   ]}
- *   actions={[
+ *   }
+ *   actions={
  *     { icon: <PlusOutlined />, tooltip: 'Add', onClick: handleAdd, type: 'primary' }
- *   ]}
+ *   }
  *   dropdown={<Select ... />}
  *   showStats={true}
  *   searchValue={searchTerm}
@@ -155,7 +155,7 @@ function PageBanner({
                   </Button>
                 );
                 return action.tooltip ? (
-                  <Tooltip key={index} title={action.tooltip}>{button}</Tooltip>
+                  <Tooltip key={index} title={action.tooltip}button}</Tooltip>
                 ) : button;
               }
               

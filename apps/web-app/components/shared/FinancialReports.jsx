@@ -6,6 +6,8 @@ import { DollarOutlined, DownloadOutlined, ReloadOutlined, FilePdfOutlined, File
 import { ProCard } from '../shared/LazyProComponents';
 import dayjs from 'dayjs';
 import { exportToCSV, exportFinancialReportToPDF } from '@/lib/utils/export-utils';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useLandlords, useProperties } from '@/lib/hooks/useV2Data';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -15,6 +17,8 @@ const { Option } = Select;
  * Generate and view financial reports by landlord/property
  */
 export default function FinancialReports() {
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -22,26 +26,19 @@ export default function FinancialReports() {
     propertyId: 'all',
     dateRange: [dayjs().startOf('month'), dayjs().endOf('month')],
   });
-  const [landlords, setLandlords] = useState([]);
-  const [properties, setProperties] = useState([]);
+  
+  // v2 API hooks
+  const { data: landlordsData } = useLandlords(organizationId);
+  const { data: propertiesData } = useProperties(organizationId);
+  
+  const landlords = landlordsData || [];
+  const properties = propertiesData || [];
 
   useEffect(() => {
     fetchReport();
-    fetchLandlords();
   }, [filters]);
-
-  const fetchLandlords = async () => {
-    try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.landlords.list({ page: 1, limit: 1000 });
-      const landlords = response.data?.data || response.data || [];
-      if (Array.isArray(landlords)) {
-        setLandlords(landlords);
-      }
-    } catch (error) {
-      console.error('[Financial Reports] Error fetching landlords:', error);
-    }
-  };
+  
+  // Landlords and properties are loaded via v2 hooks above
 
   const fetchReport = async () => {
     try {
@@ -62,7 +59,7 @@ export default function FinancialReports() {
         queryParams.endDate = filters.dateRange[1].format('YYYY-MM-DD');
       }
       
-      // Fetch report data using v1Api analytics
+      // TODO: Implement v2 endpoint for portfolio performance analytics
       const response = await v1Api.analytics.getPortfolioPerformance(queryParams);
       const reportData = response.data || response;
       setReport(reportData);

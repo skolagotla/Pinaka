@@ -25,9 +25,13 @@ import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { formatDateDisplay } from '@/lib/utils/safe-date-formatter';
 import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useUpdateInspection } from '@/lib/hooks/useV2Data';
 
 export default function InspectionsClient({ initialChecklists = [] }) {
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  const { user } = useV2Auth();
+  const updateInspection = useUpdateInspection();
   const [checklists, setChecklists] = useState(initialChecklists);
   const { editingItem: selectedChecklist, setEditingItem: setSelectedChecklist, openForEdit: openDetailModalForEdit } = useModalState();
   const { isOpen: detailModalOpen, open: openDetailModal, close: closeDetailModal } = useModalState();
@@ -123,12 +127,13 @@ export default function InspectionsClient({ initialChecklists = [] }) {
         landlordApproval: itemApprovals[item.id] || null
       }));
 
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.inspections.update(selectedChecklist.id, {
-        status: 'approved',
-        items
+      const updated = await updateInspection.mutateAsync({
+        id: selectedChecklist.id,
+        data: {
+          status: 'approved',
+          items
+        }
       });
-      const updated = response.data || response;
       setChecklists(prev => prev.map(c => c.id === updated.id ? updated : c));
       notify.success('Checklist approved successfully');
       closeDetailModal();
@@ -150,12 +155,13 @@ export default function InspectionsClient({ initialChecklists = [] }) {
     }
 
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.inspections.update(selectedChecklist.id, {
-        status: 'rejected',
-        rejectionReason: rejectionReasonInput
+      const updated = await updateInspection.mutateAsync({
+        id: selectedChecklist.id,
+        data: {
+          status: 'rejected',
+          rejection_reason: rejectionReasonInput
+        }
       });
-      const updated = response.data || response;
       setChecklists(prev => prev.map(c => c.id === updated.id ? updated : c));
       notify.success('Checklist rejected');
       setRejectionModalOpen(false);

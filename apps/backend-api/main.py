@@ -14,6 +14,7 @@ from routers import health, vendors, auth
 from routers import auth_v2, organizations, properties, work_orders, attachments
 from routers import landlords, tenants, leases, units, notifications, audit_logs, users
 from routers import vendors_v2, search
+from routers import tasks, conversations, invitations, forms, rent_payments, expenses, inspections
 from core.exceptions import setup_exception_handlers
 
 
@@ -74,6 +75,13 @@ app.include_router(audit_logs.router, prefix="/api/v2")
 app.include_router(users.router, prefix="/api/v2")
 app.include_router(vendors_v2.router, prefix="/api/v2")
 app.include_router(search.router, prefix="/api/v2")
+app.include_router(tasks.router, prefix="/api/v2")
+app.include_router(conversations.router, prefix="/api/v2")
+app.include_router(invitations.router, prefix="/api/v2")
+app.include_router(forms.router, prefix="/api/v2")
+app.include_router(rent_payments.router, prefix="/api/v2")
+app.include_router(expenses.router, prefix="/api/v2")
+app.include_router(inspections.router, prefix="/api/v2")
 
 
 @app.get("/")

@@ -62,6 +62,8 @@ import { usePermissions } from '@/lib/hooks/usePermissions';
 import { ValidationHelpers } from '@/lib/utils/unified-validation';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { ModalHelper } from '@/lib/utils/flowbite-modal-helper';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useTenants, useCreateTenant, useUpdateTenant, useDeleteTenant, useInvitations, useCreateInvitation, useUpdateInvitation } from '@/lib/hooks/useV2Data';
 
 // Lazy load logger to avoid server-side execution issues
 let logger;
@@ -99,9 +101,24 @@ function TenantsClient({ initialTenants, user }) {
   const form = useFormState({ country: "CA", provinceState: "ON" });
   const rejectForm = useFormState();
   const { selectedProperty } = useProperty();
+  const { user: v2User } = useV2Auth();
+  const organizationId = v2User?.organization_id;
   
   // Check permissions (PMC-managed landlords cannot create tenants)
   const permissions = usePermissions(user || { role: 'landlord' });
+  
+  // v2 API hooks
+  const { data: tenantsData, isLoading: tenantsLoading, refetch: refetchTenants } = useTenants(organizationId);
+  const createTenant = useCreateTenant();
+  const updateTenant = useUpdateTenant();
+  const deleteTenant = useDeleteTenant();
+  const { data: invitationsData, refetch: refetchInvitations } = useInvitations(organizationId, 'pending');
+  const createInvitation = useCreateInvitation();
+  const updateInvitation = useUpdateInvitation();
+  
+  // Use v2 data if available, otherwise fall back to initialTenants
+  const tenants = tenantsData || initialTenants || [];
+  const invitations = invitationsData || [];
   
   // Approval workflow state
   const { isOpen: approvalModalVisible, open: openApprovalModal, close: closeApprovalModal, editingItem: selectedTenant, openForEdit: openApprovalModalForEdit } = useModalState();
@@ -120,23 +137,102 @@ function TenantsClient({ initialTenants, user }) {
   // Form data sanitizer
   const { sanitizeFormData } = useFormDataSanitizer({ country: 'CA' });
   
-  // 🎯 PINAKA UNIFIED HOOK WITH ADDRESS - Combines CRUD + Country/Region management!
-  // Ensure initialTenants is always an array
-  const safeInitialTenants = Array.isArray(initialTenants) ? initialTenants : [];
+  // Modal state for tenant CRUD
+  const { isOpen: tenantModalVisible, open: openTenantModal, close: closeTenantModal, editingItem: editingTenant, openForEdit: openTenantModalForEdit, openForCreate: openTenantModalForCreate } = useModalState();
+  const [isEditing, setIsEditing] = useState(false);
   
-  const pinaka = usePinakaCRUDWithAddress({
-    apiEndpoint: '/api/v2/tenants', // v2 endpoint
-    domain: 'tenants', // Domain name for v1Api
-    useV1Api: true, // Use v1Api client
-    initialData: safeInitialTenants,
-    entityName: 'Tenant',
-    initialCountry: 'CA',
-    messages: {
-      createSuccess: 'Tenant created successfully',
-      updateSuccess: 'Tenant updated successfully',
-      deleteSuccess: 'Tenant deleted successfully'
+  // Legacy pinaka hook kept for compatibility but using v2 hooks above
+  const pinaka = {
+    data: tenants,
+    loading: tenantsLoading,
+    isEditing,
+    openAdd: () => {
+      setIsEditing(false);
+      openTenantModalForCreate();
+      form.resetFields();
     },
-    defaultFormData: { country: "CA", provinceState: "ON" },
+    openEdit: (tenant) => {
+      setIsEditing(true);
+      openTenantModalForEdit(tenant);
+      // Load tenant data into form
+      form.setFieldsValue({
+        firstName: tenant.first_name || tenant.firstName,
+        lastName: tenant.last_name || tenant.lastName,
+        email: tenant.email,
+        phone: tenant.phone,
+        country: tenant.country || 'CA',
+        provinceState: tenant.province_state || tenant.provinceState || 'ON',
+        currentAddress: tenant.current_address || tenant.currentAddress,
+        dateOfBirth: tenant.date_of_birth || tenant.dateOfBirth ? dayjs(tenant.date_of_birth || tenant.dateOfBirth) : undefined,
+        moveInDate: tenant.move_in_date || tenant.moveInDate ? dayjs(tenant.move_in_date || tenant.moveInDate) : undefined,
+      });
+      // Load tenant form data
+      if (tenant.emergency_contacts || tenant.emergencyContacts) {
+        setEmergencyContacts(tenant.emergency_contacts || tenant.emergencyContacts);
+      }
+      if (tenant.employers) {
+        setEmployers(tenant.employers);
+      }
+    },
+    close: () => {
+      closeTenantModal();
+      setIsEditing(false);
+      form.resetFields();
+      tenantFormData.resetFormData();
+    },
+    refresh: async () => {
+      await refetchTenants();
+    },
+    remove: async (id) => {
+      await deleteTenant.mutateAsync(id);
+      await refetchTenants();
+    },
+    handleSubmit: async (values) => {
+      try {
+        if (!organizationId) {
+          notify.error('Organization ID is required');
+          return;
+        }
+        
+        // Prepare tenant data
+        const tenantData = tenantFormData.prepareTenantData({
+          ...values,
+          phone: typeof values.phone === 'object' ? (values.phone.value || values.phone.phone || values.phone.formatted || null) : values.phone,
+          currentAddress: typeof values.currentAddress === 'object' ? (values.currentAddress.formattedAddress || values.currentAddress.addressLine1 || String(values.currentAddress)) : values.currentAddress,
+        }, {
+          dateOfBirth: values.dateOfBirth ? formatDateForAPI(values.dateOfBirth) : null,
+          moveInDate: values.moveInDate ? formatDateForAPI(values.moveInDate) : null,
+        });
+        
+        // Sanitize form data
+        const sanitizedData = sanitizeFormData(tenantData, { mode: 'storage' });
+        
+        if (isEditing && editingTenant) {
+          await updateTenant.mutateAsync({
+            id: editingTenant.id,
+            data: sanitizedData
+          });
+          notify.success('Tenant updated successfully');
+        } else {
+          await createTenant.mutateAsync({
+            ...sanitizedData,
+            organization_id: organizationId,
+          });
+          notify.success('Tenant created successfully');
+        }
+        
+        await refetchTenants();
+        pinaka.close();
+      } catch (error) {
+        console.error('[Tenant Form] Error:', error);
+        notify.error(error.message || 'Failed to save tenant');
+        throw error;
+      }
+    },
+  };
+  
+  // Default form data
+  const defaultFormData = { country: "CA", provinceState: "ON" };
     // Format dates before sending to API
     onBeforeCreate: (payload) => {
       logger.form('Tenant form submitted', { mode: 'add', values: payload });
@@ -288,11 +384,11 @@ function TenantsClient({ initialTenants, user }) {
     form.resetFields();
     form.setFieldsValue({ country: "CA", provinceState: "ON" });
     // Reset emergency contacts and employers to defaults
-    setEmergencyContacts([
+    setEmergencyContacts(>{
       { contactName: '', email: '', phone: '', isPrimary: true },
       { contactName: '', email: '', phone: '', isPrimary: false }
     ]);
-    setEmployers([
+    setEmployers(>{
       { employerName: '', employerAddress: '', income: null, jobTitle: '', startDate: null, payFrequency: null, isCurrent: true, documents: [] }
     ]);
     pinaka.openAdd();
@@ -304,7 +400,7 @@ function TenantsClient({ initialTenants, user }) {
     }
   }, [searchParams, handleAddClick]);
 
-  // Auto-refresh tenants list every 30 seconds to show newly accepted invitations
+  // Auto-refresh tenants list every 30 seconds to show newly accepted invitations (using v2 hooks)
   const { startPolling, stopPolling } = usePolling({
     callback: async () => {
       try {
@@ -391,7 +487,7 @@ function TenantsClient({ initialTenants, user }) {
       }
       setEmergencyContacts(contacts);
     } else {
-      setEmergencyContacts([
+      setEmergencyContacts(>{
         { 
           contactName: tenant.emergencyContactName || '', 
           email: '', 
@@ -438,7 +534,6 @@ function TenantsClient({ initialTenants, user }) {
 
   const { isOpen: inviteModalVisible, open: openInviteModal, close: closeInviteModal, openForCreate: openInviteModalForCreate } = useModalState();
   const inviteForm = useFormState({ expiresInDays: 14 });
-  const [invitations, setInvitations] = useState([]);
   const { loading: loadingInvitations, withLoading: withLoadingInvitations } = useLoading();
   const [showPendingInvitations, setShowPendingInvitations] = useState(false);
 
@@ -450,13 +545,10 @@ function TenantsClient({ initialTenants, user }) {
 
   async function loadInvitations() {
     return await withLoadingInvitations(async () => {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.listTenantInvitations();
-      const invitationsData = data?.data?.invitations || data?.invitations || [];
-      setInvitations(invitationsData);
-      return invitationsData;
+      await refetchInvitations();
+      return invitations;
     }).catch((error) => {
-      setInvitations([]);
+      console.error('[Load Invitations] Error:', error);
       return [];
     });
   }
@@ -464,52 +556,45 @@ function TenantsClient({ initialTenants, user }) {
   async function sendInvitation(tenant) {
     logger.action('Tenant: Send invitation clicked', { tenantId: tenant.id, tenantEmail: tenant.email });
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.createTenantInvitation({
-        email: tenant.email,
-        prefillData: {
-          firstName: tenant.firstName,
-          lastName: tenant.lastName,
-          phone: tenant.phone,
-          email: tenant.email,
-        },
+      if (!organizationId) {
+        notify.error('Organization ID is required');
+        return;
+      }
+      
+      await createInvitation.mutateAsync({
+        organization_id: organizationId,
+        email: tenant.email || tenant.email,
+        role_name: 'tenant',
+        expires_in_days: 14,
       });
-      logger.apiResponse('POST', '/api/v1/tenants/invitations', 200, data);
-      notify.success(`Invitation sent to ${tenant.firstName} ${tenant.lastName}`);
-      await loadInvitations();
+      
+      notify.success(`Invitation sent to ${tenant.first_name || tenant.firstName} ${tenant.last_name || tenant.lastName}`);
+      await refetchInvitations();
     } catch (error) {
-      logger.apiError('POST', '/api/v1/tenants/invitations', error);
+      logger.apiError('POST', '/api/v2/invitations', error);
       notify.error(error.message || 'Failed to send invitation');
     }
   }
 
   async function inviteNewTenant(values) {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.createTenantInvitation({
-        email: values.email,
-        prefillData: {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          phone: values.phone,
-        },
-        expiresInDays: values.expiresInDays || 14,
-      });
+      if (!organizationId) {
+        notify.error('Organization ID is required');
+        return;
+      }
       
-      const responseData = data?.data || data;
+      const data = await createInvitation.mutateAsync({
+        organization_id: organizationId,
+        email: values.email,
+        role_name: 'tenant',
+        expires_in_days: values.expiresInDays || 14,
+      });
       
       closeInviteModal();
       inviteForm.resetFields();
+      notify.success(`Invitation sent to ${values.email}`);
       
-      if (responseData?.warning) {
-        notify.warning(responseData.warning);
-      } else {
-        notify.success(`Invitation sent to ${values.email}`);
-      }
-      
-      loadInvitations().catch(err => {
-        console.error('[Invite Tenant] Error refreshing invitations:', err);
-      });
+      await refetchInvitations();
     } catch (error) {
       console.error('[Invite Tenant] Error:', error);
       
@@ -575,39 +660,30 @@ function TenantsClient({ initialTenants, user }) {
   async function resendInvitation(invitationId) {
     try {
       console.log('[Resend Invitation] Attempting to resend:', invitationId);
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.resendTenantInvitation(invitationId);
-      console.log('[Resend Invitation] Response:', data);
+      // Update invitation status to 'sent' to resend
+      await updateInvitation.mutateAsync({
+        id: invitationId,
+        data: { status: 'sent' }
+      });
       
-      if (data?.data?.message || data?.success) {
-        notify.success('Invitation resent successfully');
-        await loadInvitations();
-      } else {
-        if (data?.data?.warning) {
-          notify.warning(data.data.warning);
-        } else if (data?.error) {
-          const errorMsg = typeof data.error === 'string' 
-            ? data.error 
-            : (data.error?.message || 'Failed to resend invitation');
-          notify.error(errorMsg);
-        } else {
-          notify.success('Invitation resent successfully');
-        }
-        await loadInvitations();
-      }
+      notify.success('Invitation resent successfully');
+      await refetchInvitations();
     } catch (error) {
       console.error('[Resend Invitation] Error:', error);
       notify.error(error instanceof Error ? error.message : 'Failed to resend invitation');
-      await loadInvitations();
+      await refetchInvitations();
     }
   }
 
   async function cancelInvitation(invitationId) {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.specialized.cancelTenantInvitation(invitationId);
+      // Update invitation status to 'cancelled'
+      await updateInvitation.mutateAsync({
+        id: invitationId,
+        data: { status: 'cancelled' }
+      });
       notify.success('Invitation cancelled');
-      await loadInvitations();
+      await refetchInvitations();
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Failed to cancel invitation');
     }
@@ -639,16 +715,8 @@ function TenantsClient({ initialTenants, user }) {
     if (!selectedTenantForApproval) return;
     
     await withApproving(async () => {
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/tenants/${selectedTenantForApproval.id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to approve tenant');
-      }
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.approveTenant(selectedTenantForApproval.id);
       
       notify.success('Tenant application approved successfully');
       closeApprovalModal();
@@ -660,17 +728,8 @@ function TenantsClient({ initialTenants, user }) {
     if (!selectedTenantForApproval) return;
     
     await withRejecting(async () => {
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/tenants/${selectedTenantForApproval.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: values.reason }),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to reject tenant');
-      }
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.rejectTenant(selectedTenantForApproval.id, values.reason);
       
       notify.success('Tenant application rejected successfully');
       closeRejectModal();
@@ -786,7 +845,7 @@ function TenantsClient({ initialTenants, user }) {
         
         if (parts.length === 0) return <span className="text-gray-400">—</span>;
         const fullAddress = parts.join(', ');
-        return <span title={fullAddress}>{fullAddress}</span>;
+        return <span title={fullAddress}fullAddress}</span>;
       },
     },
     {
@@ -809,7 +868,7 @@ function TenantsClient({ initialTenants, user }) {
           }
         });
       },
-      filters: [
+      filters: >{
         { text: 'Pending', value: 'PENDING' },
         { text: 'Approved', value: 'APPROVED' },
         { text: 'Rejected', value: 'REJECTED' },
@@ -842,7 +901,7 @@ function TenantsClient({ initialTenants, user }) {
           </div>
         );
       },
-      filters: [
+      filters: >{
         { text: 'Active Lease', value: true },
         { text: 'No Active Lease', value: false },
       ],
@@ -967,7 +1026,7 @@ function TenantsClient({ initialTenants, user }) {
             <span>Tenants</span>
           </div>
         }
-        headerActions={[
+        headerActions={
           permissions.canEditTenants && (
             <Button
               key="add"
@@ -999,7 +1058,7 @@ function TenantsClient({ initialTenants, user }) {
             <HiRefresh className="h-4 w-4" />
             Refresh
           </Button>,
-        ]}
+        }
         stats={statsData}
         statsCols={2}
         showSearch={true}
@@ -1307,7 +1366,7 @@ function TenantsClient({ initialTenants, user }) {
                         >
                           <option value="">Select...</option>
                           {pinaka.countryRegion.getRegions().map(region => (
-                            <option key={region.code} value={region.code}>{region.code}</option>
+                            <option key={region.code} value={region.code}region.code}</option>
                           ))}
                         </Select>
                       </div>
@@ -1344,7 +1403,7 @@ function TenantsClient({ initialTenants, user }) {
                           required
                         >
                           {pinaka.countryRegion.getCountries().map(c => (
-                            <option key={c.code} value={c.code}>{c.name}</option>
+                            <option key={c.code} value={c.code}c.name}</option>
                           ))}
                         </Select>
                       </div>

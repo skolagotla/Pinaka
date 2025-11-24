@@ -44,7 +44,7 @@ export default function AdvancedFilters({
           <Select
             style={{ width: '100%' }}
             placeholder={filter.placeholder}
-            value={activeFilters[filter.key]}
+            value={activeFilters[filter.key}
             onChange={(value) => handleFilterChange(filter.key, value)}
             options={filter.options}
             allowClear
@@ -54,7 +54,7 @@ export default function AdvancedFilters({
         return (
           <RangePicker
             style={{ width: '100%' }}
-            value={activeFilters[filter.key]}
+            value={activeFilters[filter.key}
             onChange={(dates) => handleFilterChange(filter.key, dates)}
           />
         );
@@ -62,7 +62,7 @@ export default function AdvancedFilters({
         return (
           <Input
             placeholder={filter.placeholder}
-            value={activeFilters[filter.key]}
+            value={activeFilters[filter.key}
             onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             allowClear
           />
@@ -116,7 +116,7 @@ export default function AdvancedFilters({
         )}
 
         {/* Filter Inputs */}
-        <Row gutter={[16, 16]}>
+        <Row gutter={[16, 16}>
           {filters.map((filter) => (
             <Col xs={24} sm={12} md={8} lg={6} key={filter.key}>
               <div>

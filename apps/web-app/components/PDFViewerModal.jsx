@@ -37,7 +37,7 @@ const { TextArea } = Input;
  * Multiple Documents Usage:
  * <PDFViewerModal
  *   open={isOpen}
- *   documents={[doc1, doc2, doc3]}
+ *   documents={[doc1, doc2, doc3}
  *   currentIndex={0}
  *   onClose={handleClose}
  *   onDownload={handleDownload}
@@ -784,7 +784,7 @@ export default function PDFViewerModal({
         {userRole && userName && currentDoc && (
           <Collapse
             size="small"
-            items={[
+            items={
               {
                 key: 'chat',
                 label: (
@@ -802,7 +802,7 @@ export default function PDFViewerModal({
                   />
                 ),
               },
-            ]}
+            }
           />
         )}
       </Space>
@@ -865,7 +865,7 @@ export default function PDFViewerModal({
       onOk={async () => {
         console.log('[PDFViewerModal] Verify clicked, onVerify:', typeof onVerify);
         if (!onVerify) {
-          console.error('[PDFViewerModal] onVerify is not defined!');
+          console.error('[PDFViewerModal] onVerify is not defined');
           return;
         }
         setVerifying(true);

@@ -247,7 +247,7 @@ export default function AdminAnalyticsPage() {
                   columns={[
                     { title: 'Action', dataIndex: 'action', key: 'action' },
                     { title: 'Count', dataIndex: 'count', key: 'count' },
-                  ]}
+                  }
                   pagination={false}
                   rowKey="action"
                 />
@@ -257,7 +257,7 @@ export default function AdminAnalyticsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
                 <FlowbiteTable
                   columns={recentActivityColumns}
-                  dataSource={analytics.activity.recent || []}
+                  dataSource={analytics.activity.recent || [}
                   pagination={false}
                   rowKey="id"
                 />

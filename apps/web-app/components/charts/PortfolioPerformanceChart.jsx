@@ -41,7 +41,7 @@ export default function PortfolioPerformanceChart({ data }) {
           formatter={(value) => `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         />
         <Legend />
-        <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+        <Bar dataKey="value" radius={[8, 8, 0, 0}>
           {chartData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.color} />
           ))}

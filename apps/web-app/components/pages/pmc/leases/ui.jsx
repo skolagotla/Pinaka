@@ -336,7 +336,7 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
           <span>Leases</span>
         </div>
       }
-      headerActions={[
+      headerActions={
         <Button
           key="add"
           color="blue"
@@ -355,7 +355,7 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
           <HiRefresh className="h-4 w-4" />
           Refresh
         </Button>,
-      ]}
+      }
       stats={statsData}
       statsCols={3}
       showSearch={true}
@@ -445,7 +445,7 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
                   onChange={(e) => form.setFieldsValue({ status: e.target.value })}
                 >
                   {LEASE_STATUSES.map(status => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}status}</option>
                   ))}
                 </Select>
               </div>
@@ -459,7 +459,7 @@ export default function PMCLeasesClient({ units, tenants, initialLeases }) {
                 id="tenantIds"
                 name="tenantIds"
                 multiple
-                value={Array.isArray(form.values.tenantIds) ? form.values.tenantIds : []}
+                value={Array.isArray(form.values.tenantIds) ? form.values.tenantIds : [}
                 onChange={(e) => {
                   const values = Array.from(e.target.selectedOptions, option => option.value);
                   form.setFieldsValue({ tenantIds: values });

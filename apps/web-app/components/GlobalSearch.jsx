@@ -91,7 +91,7 @@ export default function GlobalSearch({ open, onClose }) {
           
           // Transform search results to match expected format
           if (searchResults.results.properties) {
-            searchResults.results.properties.forEach((item: any) => {
+            searchResults.results.properties.forEach((item) => {
               allResults.push({
                 id: item.id,
                 title: item.name || item.address,
@@ -103,7 +103,7 @@ export default function GlobalSearch({ open, onClose }) {
           }
           
           if (searchResults.results.tenants) {
-            searchResults.results.tenants.forEach((item: any) => {
+            searchResults.results.tenants.forEach((item) => {
               allResults.push({
                 id: item.id,
                 title: item.name,
@@ -115,7 +115,7 @@ export default function GlobalSearch({ open, onClose }) {
           }
           
           if (searchResults.results.landlords) {
-            searchResults.results.landlords.forEach((item: any) => {
+            searchResults.results.landlords.forEach((item) => {
               allResults.push({
                 id: item.id,
                 title: item.name,
@@ -127,7 +127,7 @@ export default function GlobalSearch({ open, onClose }) {
           }
           
           if (searchResults.results.leases) {
-            searchResults.results.leases.forEach((item: any) => {
+            searchResults.results.leases.forEach((item) => {
               allResults.push({
                 id: item.id,
                 title: `Lease #${item.id.substring(0, 8)}`,
@@ -139,7 +139,7 @@ export default function GlobalSearch({ open, onClose }) {
           }
           
           if (searchResults.results.work_orders) {
-            searchResults.results.work_orders.forEach((item: any) => {
+            searchResults.results.work_orders.forEach((item) => {
               allResults.push({
                 id: item.id,
                 title: item.title || 'Work Order',

@@ -89,7 +89,7 @@ export default function PropertyMaintenanceTab({ property }) {
       dataIndex: 'priority',
       key: 'priority',
       render: (priority) => (
-        <Tag color={getPriorityColor(priority)}>{priority}</Tag>
+        <Tag color={getPriorityColor(priority)}priority}</Tag>
       ),
     },
     {
@@ -97,7 +97,7 @@ export default function PropertyMaintenanceTab({ property }) {
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
+        <Tag color={getStatusColor(status)}status}</Tag>
       ),
     },
     {

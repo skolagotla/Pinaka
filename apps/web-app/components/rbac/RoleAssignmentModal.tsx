@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Form, Select, Space, Button, message, Alert, Tag } from 'antd';
 import { UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { RBACRole } from '../../../../lib/types/rbac';
+import { RBACRole } from '@/lib/types/rbac';
 
 const { Option } = Select;
 

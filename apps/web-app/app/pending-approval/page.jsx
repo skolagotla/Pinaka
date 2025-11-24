@@ -1,152 +1,111 @@
+/**
+ * Pending Approval Page - Migrated to v2 FastAPI
+ * 
+ * Uses v2 API to check user approval status.
+ * Removed all v1 API dependencies.
+ */
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, Typography, Spin, Alert } from 'antd';
-import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-
-const { Title, Paragraph } = Typography;
+import { useRouter } from 'next/navigation';
+import { Card, Alert, Spinner } from 'flowbite-react';
+import { HiClock, HiCheckCircle, HiXCircle } from 'react-icons/hi';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
 
 export default function PendingApprovalPage() {
-  const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState(null);
+  const router = useRouter();
+  const { user, loading: authLoading } = useV2Auth();
   const [approvalStatus, setApprovalStatus] = useState('PENDING');
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const checkUserStatus = async () => {
-      try {
-        // Fetch user status from API (which handles authentication)
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const data = await v1Api.specialized.getUserStatus();
-        
-        if (!isMounted) return;
-        
-        if (data && data.success) {
-          if (isMounted) {
-            setUserInfo(data);
-            setApprovalStatus(data.approvalStatus || 'PENDING');
-          }
-        } else {
-          console.error('Invalid response format:', data);
-          if (isMounted) {
-            setApprovalStatus('PENDING');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking user status:', error);
-        // Set default status on error
-        if (isMounted) {
-          setApprovalStatus('PENDING');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+    if (!authLoading && user) {
+      // Check user status from v2 API
+      // In v2, approval status is typically handled via user.status or tenant.approval_status
+      // For now, we'll check if user is active
+      if (user.user?.status === 'active') {
+        setApprovalStatus('APPROVED');
+      } else {
+        setApprovalStatus('PENDING');
       }
-    };
-    
-    checkUserStatus();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-
-  // Compute status info without useMemo to avoid React hook issues
-  const getStatusInfo = () => {
-    const status = approvalStatus || 'PENDING';
-    switch (status) {
-      case 'APPROVED':
-        return {
-          title: 'Your Account Has Been Approved!',
-          message: 'You can now access the system. Redirecting you to your dashboard...',
-          type: 'success',
-        };
-      case 'REJECTED':
-        const rejectionReason = (userInfo && typeof userInfo === 'object' && userInfo.rejectionReason) 
-          ? String(userInfo.rejectionReason)
-          : null;
-        return {
-          title: 'Your Application Has Been Rejected',
-          message: rejectionReason
-            ? `Reason: ${rejectionReason}`
-            : 'Your application has been rejected. Please contact support for more information.',
-          type: 'error',
-        };
-      default:
-        return {
-          title: 'Your Application is Pending Approval',
-          message: 'Your account is currently pending approval. You will be notified once your application has been reviewed. Please check back later.',
-          type: 'warning',
-        };
+    } else if (!authLoading && !user) {
+      // Not logged in, redirect to login
+      router.push('/login');
     }
-  };
-
-  const getStatusIcon = () => {
-    const status = approvalStatus || 'PENDING';
-    switch (status) {
-      case 'APPROVED':
-        return <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />;
-      case 'REJECTED':
-        return <CloseCircleOutlined style={{ fontSize: 48, color: '#ff4d4f' }} />;
-      default:
-        return <ClockCircleOutlined style={{ fontSize: 48, color: '#faad14' }} />;
-    }
-  };
+  }, [authLoading, user, router]);
 
   // Auto-redirect if approved
   useEffect(() => {
     if (approvalStatus === 'APPROVED') {
       const timer = setTimeout(() => {
-        window.location.href = '/';
+        router.push('/dashboard');
       }, 3000);
       
       return () => {
         clearTimeout(timer);
       };
     }
-  }, [approvalStatus]);
+  }, [approvalStatus, router]);
 
-  if (loading) {
+  if (authLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
-        <Spin size="large" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }
 
+  const getStatusInfo = () => {
+    const status = approvalStatus || 'PENDING';
+    switch (status) {
+      case 'APPROVED':
+        return {
+          title: 'Your Account Has Been Approved',
+          message: 'You can now access the system. Redirecting you to your dashboard...',
+          type: 'success',
+          icon: <HiCheckCircle className="h-12 w-12 text-green-500" />,
+        };
+      case 'REJECTED':
+        return {
+          title: 'Your Application Has Been Rejected',
+          message: 'Your application has been rejected. Please contact support for more information.',
+          type: 'failure',
+          icon: <HiXCircle className="h-12 w-12 text-red-500" />,
+        };
+      default:
+        return {
+          title: 'Your Application is Pending Approval',
+          message: 'Your account is currently pending approval. You will be notified once your application has been reviewed. Please check back later.',
+          type: 'warning',
+          icon: <HiClock className="h-12 w-12 text-yellow-500" />,
+        };
+    }
+  };
+
   const statusInfo = getStatusInfo();
-  const statusIcon = getStatusIcon();
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '48px 24px' }}>
+    <div className="max-w-2xl mx-auto p-6">
       <Card>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          {statusIcon}
+        <div className="text-center mb-6">
+          {statusInfo.icon}
         </div>
-        <Title level={2} style={{ textAlign: 'center', marginBottom: 16 }}>
+        <h2 className="text-2xl font-bold text-center mb-4">
           {statusInfo.title}
-        </Title>
-        <Alert
-          message={statusInfo.message}
-          type={statusInfo.type}
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
-        {userInfo?.role && (
-          <Paragraph style={{ textAlign: 'center', color: '#666' }}>
-            Role: <strong>{userInfo.role.toUpperCase()}</strong>
-          </Paragraph>
+        </h2>
+        <Alert color={statusInfo.type} className="mb-4">
+          {statusInfo.message}
+        </Alert>
+        {user?.user && (
+          <p className="text-center text-gray-600">
+            Email: <strong>{user.user.email}</strong>
+          </p>
         )}
         {approvalStatus === 'PENDING' && (
-          <Paragraph style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>
+          <p className="text-center text-gray-500 text-sm mt-4">
             This page will automatically refresh when your status changes.
-          </Paragraph>
+          </p>
         )}
       </Card>
     </div>
   );
 }
-

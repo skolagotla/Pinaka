@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Tabs } from 'antd';
+import { Tabs } from 'flowbite-react';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
-  ContactsOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+  HiUserGroup,
+  HiUsers,
+} from 'react-icons/hi';
 import dynamic from 'next/dynamic';
 
 // Lazy load components for better performance
@@ -79,48 +79,24 @@ export default function PartnersClient({ user, userRole, vendorsData, contractor
     trackPageView('partners', activeTab, userRole);
   }, [activeTab, userRole]);
 
-  // Determine which tabs to show based on role
-  const availableTabs = [
-    {
-      key: 'vendors',
-      label: (
-        <span>
-          <ContactsOutlined /> Vendors
-        </span>
-      ),
-      component: userRole === 'pmc' ? (
-        <PMCVendorsClient vendorsData={vendorsData} />
-      ) : (
-        <VendorsClient vendorsData={vendorsData} />
-      ),
-    },
-    {
-      key: 'contractors',
-      label: (
-        <span>
-          <TeamOutlined /> Contractors
-        </span>
-      ),
-      component: <ContractorsClient userRole={userRole} contractorsData={contractorsData} />,
-    },
-  ];
-
   return (
-    <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={availableTabs.map(tab => ({
-          key: tab.key,
-          label: tab.label,
-          children: (
-            <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-              {tab.component}
-            </div>
-          ),
-        }))}
-      />
+    <div className="p-3 h-full flex flex-col">
+      <Tabs aria-label="Partners tabs" style="underline" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs.Item active={activeTab === 'vendors'} title="Vendors" icon={HiUserGroup} onClick={() => handleTabChange('vendors')}>
+          <div className="flex-1 overflow-auto pt-3">
+            {userRole === 'pmc' ? (
+              <PMCVendorsClient vendorsData={vendorsData} />
+            ) : (
+              <VendorsClient vendorsData={vendorsData} />
+            )}
+          </div>
+        </Tabs.Item>
+        <Tabs.Item active={activeTab === 'contractors'} title="Contractors" icon={HiUsers} onClick={() => handleTabChange('contractors')}>
+          <div className="flex-1 overflow-auto pt-3">
+            <ContractorsClient userRole={userRole} contractorsData={contractorsData} />
+          </div>
+        </Tabs.Item>
+      </Tabs>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import Link from 'next/link';
 export default function LeaseDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const leaseId = params?.id as string;
+  const leaseId = params?.id || '';
   
   const { user, loading: authLoading, hasRole } = useV2Auth();
   const { data: lease, isLoading: leaseLoading } = useLease(leaseId);
@@ -30,7 +30,7 @@ export default function LeaseDetailPage() {
   });
   
   // Filter work orders for this lease's unit
-  const leaseWorkOrders = workOrders?.filter((wo: any) => wo.unit_id === lease?.unit_id) || [];
+  const leaseWorkOrders = workOrders?.filter((wo) => wo.unit_id === lease?.unit_id) || [];
   
   if (authLoading || leaseLoading || propertyLoading || unitLoading || tenantLoading) {
     return (
@@ -59,14 +59,14 @@ export default function LeaseDetailPage() {
   const canEdit = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm');
   const canDelete = hasRole('super_admin') || hasRole('pmc_admin');
   
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
   };
   
-  const formatDate = (date: string | null) => {
+  const formatDate = (date) => {
     if (!date) return 'Month-to-Month';
     return new Date(date).toLocaleDateString();
   };
@@ -206,7 +206,7 @@ export default function LeaseDetailPage() {
                 <Spinner />
               ) : leaseWorkOrders.length > 0 ? (
                 <div className="space-y-2">
-                  {leaseWorkOrders.slice(0, 5).map((wo: any) => (
+                  {leaseWorkOrders.slice(0, 5).map((wo) => (
                     <div key={wo.id} className="flex justify-between items-center p-3 border border-gray-200 rounded">
                       <div>
                         <p className="font-medium">{wo.title}</p>

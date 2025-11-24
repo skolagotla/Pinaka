@@ -1,14 +1,13 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Typography, Spin, Tag, Space } from 'antd';
-import { BankOutlined } from '@ant-design/icons';
+import { Card, Table, Spinner, Badge } from 'flowbite-react';
+import { HiBanknotes } from 'react-icons/hi';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { safeJsonParse } from '@/lib/utils/safe-json-parser';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
 import { PageLayout, TableWrapper, EmptyState, LoadingWrapper, renderDate } from '@/components/shared';
+import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import dayjs from 'dayjs';
-
-const { Text } = Typography;
 
 export default function PMCMortgageClient() {
   const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
@@ -42,8 +41,10 @@ export default function PMCMortgageClient() {
 
   if (loading) {
     return (
-      <PageLayout headerTitle={<><BankOutlined /> Mortgage Breakdown</>}>
-        <LoadingWrapper loading={loading} />
+      <PageLayout headerTitle={<><HiBanknotes className="inline mr-2" /> Mortgage Breakdown</>}>
+        <div className="flex justify-center items-center min-h-[400px]">
+          <Spinner size="xl" />
+        </div>
       </PageLayout>
     );
   }
@@ -207,7 +208,7 @@ export default function PMCMortgageClient() {
     },
   ];
 
-  const stats = mortgageData.totals ? [
+  const stats = mortgageData.totals ? {
     {
       title: 'Interest Paid (To Date)',
       value: <CurrencyDisplay value={mortgageData.totals.totalInterest} country="CA" />,

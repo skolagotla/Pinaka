@@ -662,6 +662,10 @@ class ApiClient {
     });
   }
 
+  async deleteLease(leaseId: string) {
+    return this.request<void>(`/leases/${leaseId}`, { method: 'DELETE' });
+  }
+
   // Unit endpoints
   async listUnits(propertyId?: string) {
     const params = new URLSearchParams();
@@ -789,6 +793,301 @@ class ApiClient {
         work_orders?: Array<any>;
       };
     }>(`/search?${params}`);
+  }
+
+  // Task endpoints
+  async listTasks(organizationId?: string, propertyId?: string, statusFilter?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (propertyId) params.append('property_id', propertyId);
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return this.request<Array<any>>(`/tasks${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getTask(taskId: string) {
+    return this.request<any>(`/tasks/${taskId}`);
+  }
+
+  async createTask(data: {
+    organization_id: string;
+    title: string;
+    description?: string;
+    category?: string;
+    due_date: string;
+    priority?: string;
+    property_id?: string;
+  }) {
+    return this.request<any>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTask(taskId: string, data: {
+    title?: string;
+    description?: string;
+    category?: string;
+    due_date?: string;
+    priority?: string;
+    is_completed?: boolean;
+    property_id?: string;
+  }) {
+    return this.request<any>(`/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTask(taskId: string) {
+    return this.request<void>(`/tasks/${taskId}`, { method: 'DELETE' });
+  }
+
+  // Conversation endpoints
+  async listConversations(organizationId?: string, entityType?: string, entityId?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (entityType) params.append('entity_type', entityType);
+    if (entityId) params.append('entity_id', entityId);
+    return this.request<Array<any>>(`/conversations${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getConversation(conversationId: string) {
+    return this.request<any>(`/conversations/${conversationId}`);
+  }
+
+  async createConversation(data: {
+    organization_id: string;
+    subject?: string;
+    entity_type?: string;
+    entity_id?: string;
+    participant_user_ids?: string[];
+  }) {
+    return this.request<any>('/conversations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateConversation(conversationId: string, data: {
+    subject?: string;
+    status?: string;
+  }) {
+    return this.request<any>(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listMessages(conversationId: string) {
+    return this.request<Array<any>>(`/conversations/${conversationId}/messages`);
+  }
+
+  async createMessage(conversationId: string, data: { body: string }) {
+    return this.request<any>(`/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Invitation endpoints
+  async listInvitations(organizationId?: string, statusFilter?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return this.request<Array<any>>(`/invitations${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getInvitation(invitationId: string) {
+    return this.request<any>(`/invitations/${invitationId}`);
+  }
+
+  async createInvitation(data: {
+    organization_id: string;
+    email: string;
+    role_name: string;
+    expires_in_days?: number;
+  }) {
+    return this.request<any>('/invitations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInvitation(invitationId: string, data: { status?: string }) {
+    return this.request<any>(`/invitations/${invitationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async acceptInvitation(token: string) {
+    return this.request<any>(`/invitations/accept/${token}`, {
+      method: 'POST',
+    });
+  }
+
+  // Form endpoints
+  async listForms(organizationId?: string, formType?: string, entityType?: string, entityId?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (formType) params.append('form_type', formType);
+    if (entityType) params.append('entity_type', entityType);
+    if (entityId) params.append('entity_id', entityId);
+    return this.request<Array<any>>(`/forms${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async getForm(formId: string) {
+    return this.request<any>(`/forms/${formId}`);
+  }
+
+  async createForm(data: {
+    organization_id: string;
+    form_type: string;
+    entity_type?: string;
+    entity_id?: string;
+    template_data?: any;
+  }) {
+    return this.request<any>('/forms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateForm(formId: string, data: {
+    template_data?: any;
+    status?: string;
+  }) {
+    return this.request<any>(`/forms/${formId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createFormSignature(formId: string, data: { signature_data?: string }) {
+    return this.request<any>(`/forms/${formId}/signatures`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Rent Payment endpoints
+  async listRentPayments(organizationId?: string, leaseId?: string, tenantId?: string, statusFilter?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (leaseId) params.append('lease_id', leaseId);
+    if (tenantId) params.append('tenant_id', tenantId);
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return this.request<Array<any>>(`/rent-payments${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async createRentPayment(data: {
+    organization_id: string;
+    lease_id: string;
+    tenant_id: string;
+    amount: number;
+    payment_date: string;
+    payment_method?: string;
+    reference_number?: string;
+    notes?: string;
+  }) {
+    return this.request<any>('/rent-payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRentPayment(paymentId: string, data: {
+    amount?: number;
+    payment_date?: string;
+    payment_method?: string;
+    status?: string;
+    reference_number?: string;
+    notes?: string;
+  }) {
+    return this.request<any>(`/rent-payments/${paymentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Expense endpoints
+  async listExpenses(organizationId?: string, propertyId?: string, category?: string, statusFilter?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (propertyId) params.append('property_id', propertyId);
+    if (category) params.append('category', category);
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return this.request<Array<any>>(`/expenses${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async createExpense(data: {
+    organization_id: string;
+    category: string;
+    amount: number;
+    expense_date: string;
+    description?: string;
+    property_id?: string;
+    work_order_id?: string;
+    vendor_id?: string;
+    receipt_attachment_id?: string;
+  }) {
+    return this.request<any>('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateExpense(expenseId: string, data: {
+    category?: string;
+    amount?: number;
+    expense_date?: string;
+    description?: string;
+    receipt_attachment_id?: string;
+    status?: string;
+  }) {
+    return this.request<any>(`/expenses/${expenseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Inspection endpoints
+  async listInspections(organizationId?: string, propertyId?: string, statusFilter?: string) {
+    const params = new URLSearchParams();
+    if (organizationId) params.append('organization_id', organizationId);
+    if (propertyId) params.append('property_id', propertyId);
+    if (statusFilter) params.append('status_filter', statusFilter);
+    return this.request<Array<any>>(`/inspections${params.toString() ? `?${params}` : ''}`);
+  }
+
+  async createInspection(data: {
+    organization_id: string;
+    property_id: string;
+    inspection_type: string;
+    scheduled_date: string;
+    unit_id?: string;
+    lease_id?: string;
+    notes?: string;
+    checklist_data?: any;
+  }) {
+    return this.request<any>('/inspections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInspection(inspectionId: string, data: {
+    inspection_type?: string;
+    scheduled_date?: string;
+    completed_date?: string;
+    status?: string;
+    notes?: string;
+    checklist_data?: any;
+  }) {
+    return this.request<any>(`/inspections/${inspectionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   }
 }
 

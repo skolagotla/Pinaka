@@ -22,7 +22,7 @@ export default function TenantsPage() {
   const { data: leases } = useLeases({ organization_id: organizationId });
   
   // Count active leases per tenant
-  const tenantLeaseCounts = leases?.reduce((acc: Record<string, number>, lease: any) => {
+  const tenantLeaseCounts = leases?.reduce((acc, lease) => {
     if (lease.status === 'active') {
       acc[lease.tenant_id] = (acc[lease.tenant_id] || 0) + 1;
     }
@@ -81,7 +81,7 @@ export default function TenantsPage() {
               <Table.HeadCell>Actions</Table.HeadCell>
             </Table.Head>
             <Table.Body className="divide-y">
-              {tenants.map((tenant: any) => (
+              {tenants.map((tenant) => (
                 <Table.Row key={tenant.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
                   <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                     {tenant.first_name && tenant.last_name

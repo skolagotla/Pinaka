@@ -28,62 +28,25 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
-      // Use FastAPI v2 endpoint (via rewrite to /api/admin/auth/login)
-      // Use adminApi instead of fetch
+      // Use adminApi for authentication
       const { adminApi } = await import('@/lib/api/admin-api');
-      try {
-        await adminApi.login(email, password);
-        const user = await adminApi.getCurrentUser();
-        if (user && user.user) {
-          router.push('/admin/dashboard');
-          return;
-        }
-      } catch (apiError) {
-        // Fallback to old API for compatibility
-        const response = await fetch('/api/admin/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
-        setError(errorData.detail || 'Login failed. Please check your credentials.');
+      const loginResult = await adminApi.login(email, password);
+      
+      // Store token if provided
+      if (loginResult.access_token) {
+        localStorage.setItem('v2_access_token', loginResult.access_token);
+      }
+      
+      // Get user info
+      const user = await adminApi.getCurrentUser();
+      if (user && user.success && user.user) {
+        // Store user data
+        localStorage.setItem('v2_user', JSON.stringify(user.user));
+        router.push('/admin/dashboard');
         return;
       }
-
-      const data = await response.json();
       
-      // FastAPI returns { access_token, token_type }
-      if (data.access_token) {
-        // Store token in localStorage for now (should use httpOnly cookie in production)
-        localStorage.setItem('v2_access_token', data.access_token);
-        
-        // Get user info
-        const meResponse = await fetch('/api/admin/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${data.access_token}`,
-          },
-          credentials: 'include',
-        });
-
-        if (meResponse.ok) {
-          const userData = await meResponse.json();
-          // Store user data
-          localStorage.setItem('v2_user', JSON.stringify(userData));
-          router.push('/admin/dashboard');
-        } else {
-          setError('Failed to get user information');
-        }
-      } else {
-        setError('Login failed. Invalid response from server.');
-      }
+      setError('Login failed. Please check your credentials.');
     } catch (err) {
       console.error('Login error:', err);
       setError(err?.message || 'An error occurred during login. Please try again.');

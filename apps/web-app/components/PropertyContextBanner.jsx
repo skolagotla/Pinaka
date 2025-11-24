@@ -34,7 +34,7 @@ export default function PropertyContextBanner({ userRole, onDismiss }) {
           <HomeOutlined />
           <span>
             <strong>{propertyName}</strong>
-            {propertyAddress && <span style={{ marginLeft: 8, color: '#666' }}>{propertyAddress}</span>}
+            {propertyAddress && <span style={{ marginLeft: 8, color: '#666' }}propertyAddress}</span>}
           </span>
         </Space>
       }

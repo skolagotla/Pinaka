@@ -22,7 +22,7 @@ export default function LandlordsPage() {
   const { data: properties } = useProperties(organizationId);
   
   // Count properties per landlord
-  const landlordPropertyCounts = properties?.reduce((acc: Record<string, number>, prop: any) => {
+  const landlordPropertyCounts = properties?.reduce((acc, prop) => {
     if (prop.landlord_id) {
       acc[prop.landlord_id] = (acc[prop.landlord_id] || 0) + 1;
     }
@@ -81,7 +81,7 @@ export default function LandlordsPage() {
               <Table.HeadCell>Actions</Table.HeadCell>
             </Table.Head>
             <Table.Body className="divide-y">
-              {landlords.map((landlord: any) => (
+              {landlords.map((landlord) => (
                 <Table.Row key={landlord.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
                   <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                     {landlord.first_name && landlord.last_name

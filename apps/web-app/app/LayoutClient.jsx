@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Layout, Typography, Button, Tooltip } from 'antd';
-import { SearchOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Sidebar, Button, Tooltip, Spinner } from 'flowbite-react';
+import { HiSearch, HiMenu, HiX } from 'react-icons/hi';
+import Link from 'next/link';
 import UserMenu from '@/components/UserMenu';
 import Navigation from '@/components/Navigation';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -23,9 +24,6 @@ if (typeof window !== 'undefined') {
     info: () => {},
   };
 }
-
-const { Header, Content, Sider } = Layout;
-const { Title } = Typography;
 
 /**
  * LayoutClient - Migrated to v2 FastAPI Auth
@@ -167,169 +165,81 @@ export default function LayoutClient({ children }) {
     );
   }
 
+  // Fallback layout using Flowbite (when ProLayout is disabled)
+  const keyboardShortcut = isMounted && typeof window !== 'undefined' && 
+    navigator?.platform?.toUpperCase().indexOf('MAC') >= 0 ? '⌘K' : 'Ctrl+K';
+
   return (
     <ErrorBoundary>
-      <Layout style={{ minHeight: '100vh' }}>
+      <div className="flex h-screen bg-gray-50">
         {showNav && (
-          <Sider
-            width={240}
-            collapsedWidth={80}
-            collapsible
+          <Sidebar
+            aria-label="Main sidebar"
             collapsed={sidebarCollapsed}
-            onCollapse={(collapsed) => setSidebarCollapsed(collapsed)}
-            trigger={null}
-            style={{
-              position: 'fixed',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              backgroundColor: '#ffffff',
-              borderRight: '1px solid #f0f0f0',
-              boxShadow: '2px 0 8px rgba(0,0,0,0.08)',
-              overflow: 'hidden',
-              zIndex: 1000,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
+            className="fixed left-0 top-0 z-40 h-screen transition-transform"
           >
-            {/* Logo at top of sidebar */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid #f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: sidebarCollapsed ? 'center' : 'center',
-              minHeight: '64px',
-            }}>
-              {!sidebarCollapsed ? (
-                <Title
-                  level={3}
-                  style={{
-                    margin: 0,
-                    fontWeight: 700,
-                    background: 'linear-gradient(45deg, #1890ff 30%, #52c41a 90%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    whiteSpace: 'nowrap',
-                  }}
+            <div className="flex h-full flex-col">
+              {/* Logo */}
+              <Link
+                href="/dashboard"
+                className="mb-4 flex items-center pl-2 py-4 border-b border-gray-200"
+              >
+                {!sidebarCollapsed ? (
+                  <span className="self-center whitespace-nowrap text-xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                    Pinaka
+                  </span>
+                ) : (
+                  <div className="w-8 h-8 rounded-md bg-gradient-to-r from-blue-600 to-green-600 flex items-center justify-center text-white font-bold text-sm">
+                    P
+                  </div>
+                )}
+              </Link>
+              
+              {/* Navigation Menu */}
+              <div className="flex-1 overflow-y-auto pb-20">
+                <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
+              </div>
+              
+              {/* User Menu at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+                <UserMenu 
+                  firstName={firstName} 
+                  lastName={lastName} 
+                  userRole={userRole}
+                  collapsed={sidebarCollapsed}
+                />
+              </div>
+            </div>
+          </Sidebar>
+        )}
+        
+        {/* Main Content Area */}
+        <div className={`flex-1 transition-all duration-300 ${showNav ? (sidebarCollapsed ? 'ml-16' : 'ml-64') : 'ml-0'}`}>
+          {/* Top Header Bar */}
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              {showNav && (
+                <Button
+                  color="gray"
+                  size="sm"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="p-2"
                 >
-                  Pinaka
-                </Title>
-              ) : (
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '6px',
-                  background: 'linear-gradient(45deg, #1890ff 30%, #52c41a 90%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '16px',
-                }}>
-                  P
-                </div>
+                  {sidebarCollapsed ? <HiMenu className="h-5 w-5" /> : <HiX className="h-5 w-5" />}
+                </Button>
               )}
             </div>
             
-            {/* Navigation Menu */}
-            <div style={{ 
-              padding: '16px 0',
-              flex: 1,
-              overflow: 'auto',
-              paddingBottom: '80px', // Space for user menu at bottom
-            }}>
-              <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
-            </div>
-            
-            {/* User Menu at bottom of sidebar */}
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: '16px',
-              borderTop: '1px solid #f0f0f0',
-              backgroundColor: '#ffffff',
-            }}>
-              <UserMenu 
-                firstName={firstName} 
-                lastName={lastName} 
-                userRole={userRole}
-                collapsed={sidebarCollapsed}
-              />
-            </div>
-          </Sider>
-        )}
-        
-        <Layout style={{ marginLeft: showNav ? (sidebarCollapsed ? 80 : 240) : 0 }}>
-          {/* Top Header Bar (for search and other actions) */}
-          <Header
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 999,
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: '#ffffff',
-              borderBottom: '1px solid #f0f0f0',
-              padding: '0 24px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              height: 64,
-            }}
-          >
             {showNav && (
-              <Button
-                type="text"
-                icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                style={{
-                  fontSize: '16px',
-                  width: 40,
-                  height: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              />
-            )}
-            <div style={{ flex: 1 }} /> {/* Spacer to push items to the right */}
-            {showNav && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Tooltip title={
-                  <span>
-                    Search {' '}
-                    <kbd style={{ 
-                      padding: '2px 4px', 
-                      background: 'rgba(255,255,255,0.2)', 
-                      borderRadius: '3px',
-                      fontSize: '11px',
-                    }}>
-                      {navigator?.platform?.toUpperCase().indexOf('MAC') >= 0 ? '⌘K' : 'Ctrl+K'}
-                    </kbd>
-                  </span>
-                }>
+              <div className="flex items-center gap-4">
+                <Tooltip content={`Search ${keyboardShortcut}`}>
                   <Button
-                    type="text"
-                    icon={<SearchOutlined />}
+                    color="gray"
                     onClick={() => setSearchOpen(true)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '6px 16px',
-                      height: '40px',
-                      borderRadius: '8px',
-                      border: '1px solid #d9d9d9',
-                      color: '#8c8c8c',
-                      fontSize: '14px',
-                      minWidth: '200px',
-                    }}
+                    className="flex items-center gap-2 px-4"
                   >
-                    <span style={{ fontSize: '14px' }}>Search...</span>
+                    <HiSearch className="h-4 w-4" />
+                    <span className="text-sm text-gray-500">Search...</span>
                   </Button>
                 </Tooltip>
                 <UserMenu 
@@ -340,23 +250,19 @@ export default function LayoutClient({ children }) {
                 />
               </div>
             )}
-          </Header>
+          </header>
           
           {/* Global Search Modal */}
           {showNav && (
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
           )}
           
-          <Content
-            style={{
-              padding: '24px',
-              backgroundColor: '#f0f2f5',
-            }}
-          >
+          {/* Page Content */}
+          <main className="h-[calc(100vh-4rem)] overflow-y-auto bg-gray-50 p-6">
             {children}
-          </Content>
-        </Layout>
-      </Layout>
+          </main>
+        </div>
+      </div>
     </ErrorBoundary>
   );
 }

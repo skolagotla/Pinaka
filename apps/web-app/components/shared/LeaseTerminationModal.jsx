@@ -1,15 +1,16 @@
 /**
  * Lease Termination Modal Component
  * Allows landlord or tenant to initiate early lease termination
+ * Migrated to v2 FastAPI + Flowbite
  */
 
 "use client";
 
 import { useState } from 'react';
-import { Modal, Form, Input, DatePicker, Button, message, Space, Alert, Select } from 'antd';
+import { Modal, Label, TextInput, Textarea, Select, Button, Alert, Spinner } from 'flowbite-react';
+import { v2Api } from '@/lib/api/v2-client';
+import { notify } from '@/lib/utils/notification-helper';
 import dayjs from 'dayjs';
-
-const { TextArea } = Input;
 
 export default function LeaseTerminationModal({ 
   visible, 
@@ -18,51 +19,58 @@ export default function LeaseTerminationModal({
   lease,
   userRole 
 }) {
-  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [reason, setReason] = useState('');
+  const [terminationDate, setTerminationDate] = useState('');
+  const [actualLoss, setActualLoss] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
       if (!lease?.id) {
         throw new Error('Lease ID is required');
       }
 
+      if (!reason) {
+        throw new Error('Please provide a termination reason');
+      }
+
+      if (!terminationDate) {
+        throw new Error('Please select termination date');
+      }
+
       const payload = {
-        reason: values.reason,
-        terminationDate: values.terminationDate.toISOString(),
+        reason,
+        termination_date: new Date(terminationDate).toISOString().split('T')[0],
       };
 
-      if (values.actualLoss !== undefined && values.actualLoss !== null) {
-        payload.actualLoss = parseFloat(values.actualLoss);
+      if (actualLoss && actualLoss !== '') {
+        payload.actual_loss = parseFloat(actualLoss);
       }
 
-      // Use v1Api for lease termination
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/leases/${lease.id}/terminate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to terminate lease');
-      }
-      message.success('Termination request submitted successfully');
-      form.resetFields();
+      await v2Api.terminateLease(lease.id, payload);
+      notify.success('Termination request submitted successfully');
+      setReason('');
+      setTerminationDate('');
+      setActualLoss('');
+      setNotes('');
       onSuccess?.();
       onCancel();
     } catch (error) {
       console.error('[LeaseTerminationModal] Error:', error);
-      message.error(error.message || 'Failed to terminate lease');
+      notify.error(error.message || 'Failed to terminate lease');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    form.resetFields();
+    setReason('');
+    setTerminationDate('');
+    setActualLoss('');
+    setNotes('');
     onCancel();
   };
 
@@ -72,78 +80,82 @@ export default function LeaseTerminationModal({
   }
 
   return (
-    <Modal
-      title="Early Lease Termination"
-      open={visible}
-      onCancel={handleCancel}
-      footer={null}
-      width={600}
-    >
-      <Alert
-        message="Ontario-Compliant Termination"
-        description="No flat fees allowed. Only actual losses can be charged. For domestic violence (N15), 28 days notice with no penalty."
-        type="warning"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
+    <Modal show={visible} onClose={handleCancel} size="md">
+      <Modal.Header>Early Lease Termination</Modal.Header>
+      <Modal.Body>
+        <Alert color="warning" className="mb-4">
+          <div>
+            <p className="font-medium">Ontario-Compliant Termination</p>
+            <p className="text-sm">
+              No flat fees allowed. Only actual losses can be charged. For domestic violence (N15), 28 days notice with no penalty.
+            </p>
+          </div>
+        </Alert>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
-        <Form.Item
-          name="reason"
-          label="Termination Reason"
-          rules={[{ required: true, message: 'Please provide a reason' }]}
-        >
-          <Select placeholder="Select reason">
-            <Select.Option value="mutual_agreement">Mutual Agreement (N11)</Select.Option>
-            <Select.Option value="tenant_initiated">Tenant-Initiated (N9)</Select.Option>
-            <Select.Option value="domestic_violence">Domestic Violence (N15 - 28 days, no penalty)</Select.Option>
-            <Select.Option value="other">Other</Select.Option>
-          </Select>
-        </Form.Item>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="reason" value="Termination Reason" className="mb-2 block" />
+            <Select
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+            >
+              <option value="">Select reason</option>
+              <option value="mutual_agreement">Mutual Agreement (N11)</option>
+              <option value="tenant_initiated">Tenant-Initiated (N9)</option>
+              <option value="domestic_violence">Domestic Violence (N15 - 28 days, no penalty)</option>
+              <option value="other">Other</option>
+            </Select>
+          </div>
 
-        <Form.Item
-          name="terminationDate"
-          label="Proposed Termination Date"
-          rules={[{ required: true, message: 'Please select termination date' }]}
-        >
-          <DatePicker
-            style={{ width: '100%' }}
-            disabledDate={(current) => current && current < dayjs().startOf('day')}
-          />
-        </Form.Item>
+          <div>
+            <Label htmlFor="terminationDate" value="Proposed Termination Date" className="mb-2 block" />
+            <TextInput
+              id="terminationDate"
+              type="date"
+              value={terminationDate}
+              onChange={(e) => setTerminationDate(e.target.value)}
+              min={dayjs().format('YYYY-MM-DD')}
+              required
+            />
+          </div>
 
-        <Form.Item
-          name="actualLoss"
-          label="Actual Loss Amount (Optional)"
-          help="Enter actual financial loss. No flat fees allowed per Ontario law."
-        >
-          <Input
-            type="number"
-            prefix="$"
-            placeholder="0.00"
-          />
-        </Form.Item>
+          <div>
+            <Label htmlFor="actualLoss" value="Actual Loss Amount (Optional)" className="mb-2 block" />
+            <p className="text-sm text-gray-500 mb-2">Enter actual financial loss. No flat fees allowed per Ontario law.</p>
+            <TextInput
+              id="actualLoss"
+              type="number"
+              value={actualLoss}
+              onChange={(e) => setActualLoss(e.target.value)}
+              placeholder="0.00"
+              addon="$"
+            />
+          </div>
 
-        <Form.Item
-          name="notes"
-          label="Additional Notes"
-        >
-          <TextArea rows={4} placeholder="Any additional information..." />
-        </Form.Item>
+          <div>
+            <Label htmlFor="notes" value="Additional Notes" className="mb-2 block" />
+            <Textarea
+              id="notes"
+              rows={4}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional information..."
+            />
+          </div>
 
-        <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-          <Space>
-            <Button onClick={handleCancel}>Cancel</Button>
-            <Button type="primary" danger htmlType="submit" loading={loading}>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button color="gray" onClick={handleCancel} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" color="failure" disabled={loading}>
+              {loading ? <Spinner size="sm" className="mr-2" /> : null}
               Submit Termination Request
             </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+          </div>
+        </form>
+      </Modal.Body>
     </Modal>
   );
 }

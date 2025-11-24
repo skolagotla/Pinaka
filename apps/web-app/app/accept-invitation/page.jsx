@@ -63,6 +63,7 @@ export default function AcceptInvitationPage() {
     dedupeRequest(
       `invitation-${token}`,
       async () => {
+        // TODO: Implement v2 endpoint for public invitation by token
         const { v1Api } = await import('@/lib/api/v1-client');
         const data = await v1Api.specialized.getPublicInvitationByToken(token);
         return data;
@@ -190,6 +191,7 @@ export default function AcceptInvitationPage() {
       // Use prepareTenantData to include emergency contacts and employers
       const formData = prepareTenantData(baseFormData);
 
+      // TODO: Implement v2 endpoint for accepting public invitation
       const { v1Api } = await import('@/lib/api/v1-client');
       const data = await v1Api.specialized.acceptPublicInvitation(token, formData);
 
@@ -300,7 +302,7 @@ export default function AcceptInvitationPage() {
               <Text style={{ fontSize: 48, color: '#52c41a' }}>✓</Text>
             </div>
             <Title level={3} style={{ marginBottom: 16 }}>
-              Thank You!
+              Thank You
             </Title>
             <Text style={{ fontSize: 16, display: 'block', marginBottom: 32, color: '#666', lineHeight: 1.6 }}>
               {isTenant 
@@ -391,7 +393,7 @@ export default function AcceptInvitationPage() {
                 <Form.Item
                   name="lastName"
                   label="Last Name"
-                  rules={[{ required: true, message: 'Please enter last name' }]}
+                  rules={[{ required: true, message: 'Please enter last name' }}
                 >
                   <Input prefix={<UserOutlined />} placeholder="Last name" />
                 </Form.Item>
@@ -403,7 +405,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="companyName"
                 label="Company Name"
-                rules={[{ required: true, message: 'Please enter company name' }]}
+                rules={[{ required: true, message: 'Please enter company name' }}
               >
                 <Input prefix={<UserOutlined />} placeholder="Company name" />
               </Form.Item>
@@ -413,7 +415,7 @@ export default function AcceptInvitationPage() {
                 <Form.Item
                   name="contactName"
                   label="Contact Name"
-                  rules={[{ required: true, message: 'Please enter contact name' }]}
+                  rules={[{ required: true, message: 'Please enter contact name' }}
                 >
                   <Input prefix={<UserOutlined />} placeholder="Contact person name" />
                 </Form.Item>
@@ -435,7 +437,7 @@ export default function AcceptInvitationPage() {
           <Form.Item
             name="phone"
             label="Phone Number"
-            rules={[{ required: true, message: 'Please enter phone number' }]}
+            rules={[{ required: true, message: 'Please enter phone number' }}
           >
             <PhoneNumberInput
               prefix={<PhoneOutlined />}
@@ -449,7 +451,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="country"
                 label="Country"
-                rules={[{ required: true, message: 'Please select country' }]}
+                rules={[{ required: true, message: 'Please select country' }}
               >
                 <Select
                   onChange={(value) => {
@@ -470,11 +472,11 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="provinceState"
                 label={regionLabel}
-                rules={[{ required: true, message: `Please select ${regionLabel.toLowerCase()}` }]}
+                rules={[{ required: true, message: `Please select ${regionLabel.toLowerCase()}` }}
               >
                 <Select placeholder={`Select ${regionLabel}`}>
                   {regionOptions.map(region => (
-                    <Select.Option key={region} value={region}>{region}</Select.Option>
+                     <Select.Option key={region} value={region}>{region}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -487,7 +489,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="addressLine1"
                 label="Address"
-                rules={[{ required: true, message: 'Please enter address' }]}
+                rules={[{ required: true, message: 'Please enter address' }}
                 tooltip="Start typing an address to see autocomplete suggestions"
               >
                 <AddressAutocomplete
@@ -554,7 +556,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="city"
                 label="City"
-                rules={isLandlord ? [{ required: true, message: 'Please enter city' }] : []}
+                rules={isLandlord ? [{ required: true, message: 'Please enter city' }] : [}
               >
                 <Input placeholder="City" />
               </Form.Item>
@@ -563,7 +565,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="postalZip"
                 label={postalLabel}
-                rules={isLandlord ? [{ required: true, message: `Please enter ${postalLabel.toLowerCase()}` }] : []}
+                rules={isLandlord ? [{ required: true, message: `Please enter ${postalLabel.toLowerCase()}` }] : [}
               >
                 <PostalCodeInput
                   country={country}
@@ -579,7 +581,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="services"
                 label="Services/Category"
-                rules={[{ required: true, message: 'Please enter services or category' }]}
+                rules={[{ required: true, message: 'Please enter services or category' }}
               >
                 <Input placeholder="e.g., Plumbing, Electrical, General Maintenance" />
               </Form.Item>
@@ -624,7 +626,7 @@ export default function AcceptInvitationPage() {
               <Form.Item
                 name="specialties"
                 label="Specialties"
-                rules={[{ required: true, message: 'Please enter specialties' }]}
+                rules={[{ required: true, message: 'Please enter specialties' }}
               >
                 <Input placeholder="e.g., plumbing, electrical, hvac (comma-separated)" />
               </Form.Item>

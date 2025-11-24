@@ -92,7 +92,7 @@ export default function LogViewer() {
           WARN: 'orange',
           ERROR: 'red',
         };
-        return <Tag color={colors[level] || 'default'}>{level}</Tag>;
+        return <Tag color={colors[level] || 'default'}level}</Tag>;
       },
     },
     {
@@ -116,7 +116,7 @@ export default function LogViewer() {
       render: (data) => {
         const hasData = data && Object.keys(data).length > 0;
         return hasData ? (
-          <Tooltip title={<pre style={{ fontSize: 10 }}>{JSON.stringify(data, null, 2)}</pre>}>
+          <Tooltip title={<pre style={{ fontSize: 10 }}JSON.stringify(data, null, 2)}</pre>}>
             <EyeOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
           </Tooltip>
         ) : null;
@@ -192,19 +192,19 @@ export default function LogViewer() {
               value={levelFilter}
               onChange={handleLevelFilterChange}
               style={{ width: 120 }}
-              options={[
+              options={
                 { label: 'All Levels', value: 'ALL' },
                 { label: 'Info', value: 'INFO' },
                 { label: 'Action', value: 'ACTION' },
                 { label: 'Warning', value: 'WARN' },
                 { label: 'Error', value: 'ERROR' },
-              ]}
+              }
             />
             <Select
               value={categoryFilter}
               onChange={handleCategoryFilterChange}
               style={{ width: 150 }}
-              options={[
+              options={
                 { label: 'All Categories', value: 'ALL' },
                 { label: 'User Actions', value: 'user' },
                 { label: 'Navigation', value: 'navigation' },
@@ -213,7 +213,7 @@ export default function LogViewer() {
                 { label: 'Modals', value: 'modal' },
                 { label: 'State', value: 'state' },
                 { label: 'Errors', value: 'error' },
-              ]}
+              }
             />
             <Search
               placeholder="Search logs..."

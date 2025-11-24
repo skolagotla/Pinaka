@@ -105,7 +105,7 @@ export default function FlowbiteTable({
                     key={colIdx}
                     className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
                   >
-                    {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey]}
+                    {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey}
                   </TableCell>
                 ))}
               </TableRow>

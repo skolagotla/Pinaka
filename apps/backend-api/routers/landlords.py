@@ -8,6 +8,13 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import (
+    apply_organization_filter,
+    check_organization_access,
+    verify_organization_access_for_create,
+    get_entity_or_404,
+    update_entity_fields
+)
 from schemas.landlord import Landlord, LandlordCreate, LandlordUpdate
 from db.models_v2 import Landlord as LandlordModel, User, Organization
 
@@ -24,14 +31,7 @@ async def list_landlords(
     user_roles = await get_user_roles(current_user, db)
     
     query = select(LandlordModel)
-    
-    # Filter by organization
-    if RoleEnum.SUPER_ADMIN in user_roles:
-        if organization_id:
-            query = query.where(LandlordModel.organization_id == organization_id)
-    else:
-        # Non-super users can only see their organization's landlords
-        query = query.where(LandlordModel.organization_id == current_user.organization_id)
+    query = await apply_organization_filter(query, LandlordModel, current_user, user_roles, organization_id)
     
     result = await db.execute(query)
     landlords = result.scalars().all()
@@ -48,24 +48,14 @@ async def create_landlord(
     """Create landlord"""
     user_roles = await get_user_roles(current_user, db)
     
-    # Verify organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if landlord_data.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot create landlord in different organization",
-            )
-    
-    # Verify organization exists
-    org_result = await db.execute(
-        select(Organization).where(Organization.id == landlord_data.organization_id)
+    # Verify organization access and existence
+    await verify_organization_access_for_create(
+        landlord_data.organization_id,
+        current_user,
+        user_roles,
+        db,
+        "Cannot create landlord in different organization"
     )
-    org = org_result.scalar_one_or_none()
-    if not org:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found",
-        )
     
     landlord = LandlordModel(**landlord_data.dict())
     db.add(landlord)
@@ -83,25 +73,8 @@ async def get_landlord(
 ):
     """Get landlord by ID"""
     user_roles = await get_user_roles(current_user, db)
-    
-    result = await db.execute(
-        select(LandlordModel).where(LandlordModel.id == landlord_id)
-    )
-    landlord = result.scalar_one_or_none()
-    
-    if not landlord:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Landlord not found",
-        )
-    
-    # Check organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if landlord.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+    landlord = await get_entity_or_404(LandlordModel, landlord_id, db, "Landlord not found")
+    await check_organization_access(landlord, current_user, user_roles)
     
     return landlord
 
@@ -115,30 +88,12 @@ async def update_landlord(
 ):
     """Update landlord"""
     user_roles = await get_user_roles(current_user, db)
-    
-    result = await db.execute(
-        select(LandlordModel).where(LandlordModel.id == landlord_id)
-    )
-    landlord = result.scalar_one_or_none()
-    
-    if not landlord:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Landlord not found",
-        )
-    
-    # Check organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if landlord.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+    landlord = await get_entity_or_404(LandlordModel, landlord_id, db, "Landlord not found")
+    await check_organization_access(landlord, current_user, user_roles)
     
     # Update fields
     update_data = landlord_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(landlord, field, value)
+    await update_entity_fields(landlord, update_data)
     
     await db.commit()
     await db.refresh(landlord)
@@ -154,27 +109,9 @@ async def delete_landlord(
 ):
     """Delete landlord"""
     user_roles = await get_user_roles(current_user, db)
+    landlord = await get_entity_or_404(LandlordModel, landlord_id, db, "Landlord not found")
+    await check_organization_access(landlord, current_user, user_roles)
     
-    result = await db.execute(
-        select(LandlordModel).where(LandlordModel.id == landlord_id)
-    )
-    landlord = result.scalar_one_or_none()
-    
-    if not landlord:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Landlord not found",
-        )
-    
-    # Check organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if landlord.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
-    
-    from sqlalchemy import delete
     await db.execute(delete(LandlordModel).where(LandlordModel.id == landlord_id))
     await db.commit()
     

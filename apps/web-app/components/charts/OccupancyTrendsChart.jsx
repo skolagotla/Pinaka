@@ -25,7 +25,7 @@ export default function OccupancyTrendsChart({ data }) {
         />
         <YAxis 
           style={{ fontSize: 12 }}
-          domain={[0, 100]}
+          domain={[0, 100}
         />
         <Tooltip 
           formatter={(value) => `${Number(value).toFixed(1)}%`}
@@ -35,7 +35,7 @@ export default function OccupancyTrendsChart({ data }) {
           dataKey="rate" 
           fill="#52c41a" 
           name="Occupancy Rate (%)"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
       </BarChart>
     </ResponsiveContainer>

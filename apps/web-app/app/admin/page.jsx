@@ -20,39 +20,13 @@ export default function AdminRootPage() {
         // Use fetch directly instead of apiClient to avoid import issues
         // Use adminApi instead of fetch
         const { adminApi } = await import('@/lib/api/admin-api');
-        try {
-          const user = await adminApi.getCurrentUser();
-          if (user && user.user) {
-            router.push('/admin/dashboard');
-            return;
-          }
-        } catch (apiError) {
-          router.push('/admin/login');
+        const user = await adminApi.getCurrentUser();
+        if (user && user.success && user.user) {
+          router.push('/admin/dashboard');
           return;
         }
         
-        // Fallback to old API for compatibility
-        const response = await fetch('/api/admin/auth/me', {
-          method: 'GET',
-          credentials: 'include',
-        });
-
-        // Check if response is ok (200-299)
-        if (response && response.ok) {
-          try {
-            const data = await response.json();
-            if (data.success && data.user) {
-              // User is authenticated, redirect to dashboard
-              router.replace('/admin/dashboard');
-              return;
-            }
-          } catch (parseError) {
-            // Failed to parse response, treat as unauthenticated
-          }
-        }
-        
-        // Not authenticated (401 or other error), redirect to login
-        // This is expected behavior when not logged in - no error logging needed
+        // Not authenticated, redirect to login
         router.replace('/admin/login');
       } catch (err) {
         // Only log unexpected errors (not 401 Unauthorized)

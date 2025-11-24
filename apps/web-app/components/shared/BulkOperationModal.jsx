@@ -168,7 +168,7 @@ export default function BulkOperationModal({
             <Form.Item
               name="newValue"
               label="New Rent Amount"
-              rules={[{ required: true, message: 'Please enter new rent amount' }]}
+              rules={[{ required: true, message: 'Please enter new rent amount' }}
             >
               <Input
                 type="number"
@@ -184,7 +184,7 @@ export default function BulkOperationModal({
             <Form.Item
               name="status"
               label="New Status"
-              rules={[{ required: true, message: 'Please select new status' }]}
+              rules={[{ required: true, message: 'Please select new status' }}
             >
               <Select placeholder="Select status">
                 <Option value="Active">Active</Option>
@@ -197,7 +197,7 @@ export default function BulkOperationModal({
           <Form.Item
             name="description"
             label="Description"
-            rules={[{ required: true, message: 'Please provide a description' }]}
+            rules={[{ required: true, message: 'Please provide a description' }}
           >
             <TextArea
               rows={4}

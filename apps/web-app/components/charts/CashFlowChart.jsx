@@ -37,13 +37,13 @@ export default function CashFlowChart({ data }) {
           dataKey="income" 
           fill="#3f8600" 
           name="Projected Income"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
         <Bar 
           dataKey="expenses" 
           fill="#cf1322" 
           name="Projected Expenses"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
         <Line 
           type="monotone" 

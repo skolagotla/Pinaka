@@ -26,134 +26,8 @@ function getUserAgent(req: NextRequest): string {
   return req.headers.get('user-agent') || 'Unknown';
 }
 
-async function validateAdminLogin(googleUser: any, ipAddress: string) {
-  // 1. Check email exists in Admin table
-  const admin = await prisma.admin.findUnique({
-    where: { email: googleUser.email.toLowerCase() },
-  });
-
-  if (!admin) {
-    await prisma.adminAuditLog.create({
-      data: {
-        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        action: 'login_failed',
-        resource: 'admin',
-        details: {
-          email: googleUser.email,
-          reason: 'Admin not found',
-        },
-        ipAddress,
-        success: false,
-        errorMessage: 'Admin not found',
-        googleEmail: googleUser.email,
-      },
-    });
-    throw new Error('Access denied: Admin not found');
-  }
-
-  // 2. Check admin is active
-  if (!admin.isActive) {
-    await prisma.adminAuditLog.create({
-      data: {
-        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        adminId: admin.id,
-        action: 'login_failed',
-        resource: 'admin',
-        resourceId: admin.id,
-        details: {
-          reason: 'Account inactive',
-        },
-        ipAddress,
-        success: false,
-        errorMessage: 'Account is inactive',
-        googleEmail: googleUser.email,
-      },
-    });
-    throw new Error('Account is inactive');
-  }
-
-  // 3. Check account is not locked
-  if (admin.isLocked) {
-    await prisma.adminAuditLog.create({
-      data: {
-        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        adminId: admin.id,
-        action: 'login_failed',
-        resource: 'admin',
-        resourceId: admin.id,
-        details: {
-          reason: 'Account locked',
-        },
-        ipAddress,
-        success: false,
-        errorMessage: 'Account is locked',
-        googleEmail: googleUser.email,
-      },
-    });
-    throw new Error('Account is locked');
-  }
-
-  // 4. Check email domain (if required)
-  if (admin.allowedGoogleDomains.length > 0) {
-    const emailDomain = `@${googleUser.email.split('@')[1]}`;
-    if (!admin.allowedGoogleDomains.includes(emailDomain)) {
-      await prisma.adminAuditLog.create({
-        data: {
-          id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          adminId: admin.id,
-          action: 'login_failed',
-          resource: 'admin',
-          resourceId: admin.id,
-          details: {
-            reason: 'Domain not allowed',
-            emailDomain,
-          },
-          ipAddress,
-          success: false,
-          errorMessage: 'Email domain not allowed',
-          googleEmail: googleUser.email,
-        },
-      });
-      throw new Error('Email domain not allowed');
-    }
-  }
-
-  // 5. Check IP whitelist (if required)
-  if (admin.requireIpWhitelist && admin.ipWhitelist.length > 0) {
-    if (!admin.ipWhitelist.includes(ipAddress)) {
-      await prisma.adminAuditLog.create({
-        data: {
-          id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          adminId: admin.id,
-          action: 'login_failed',
-          resource: 'admin',
-          resourceId: admin.id,
-          details: {
-            reason: 'IP not whitelisted',
-            ipAddress,
-          },
-          ipAddress,
-          success: false,
-          errorMessage: 'IP address not authorized',
-          googleEmail: googleUser.email,
-        },
-      });
-      throw new Error('IP address not authorized');
-    }
-  }
-
-  // 6. Update last login
-  await prisma.admin.update({
-    where: { id: admin.id },
-    data: {
-      lastLoginAt: new Date(),
-      lastLoginIp: ipAddress,
-      googleId: googleUser.googleId,
-    },
-  });
-
-  return admin;
-}
+// NOTE: All Prisma operations have been moved to FastAPI backend
+// This route forwards to /api/admin/auth/callback which handles all authentication
 
 export async function GET(request: NextRequest) {
   // Redirect to API route for Google OAuth callback handling
@@ -164,7 +38,10 @@ export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin || new URL(request.url).origin;
   
   // Build API route URL
-  const apiUrl = new URL('/api/admin/auth/callback', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
+  // In Next.js server routes, process.env is available
+  // @ts-ignore - process.env is available in Next.js server routes
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiUrl = new URL('/api/admin/auth/callback', apiBaseUrl);
   if (code) apiUrl.searchParams.set('code', code);
   if (error) apiUrl.searchParams.set('error', error);
   

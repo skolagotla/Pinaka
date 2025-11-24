@@ -32,7 +32,7 @@ export default function SignInCard() {
           const isSuperAdmin = roles.some(r => r.name === 'super_admin');
           const isPmcAdmin = roles.some(r => r.name === 'pmc_admin');
           
-          message.success('Login successful!');
+          message.success('Login successful');
           
           if (isSuperAdmin) {
             router.push('/admin/dashboard');
@@ -50,7 +50,7 @@ export default function SignInCard() {
           const adminUser = await adminApi.getCurrentUser();
           
           if (adminUser && adminUser.user) {
-            message.success('Login successful!');
+            message.success('Login successful');
             router.push('/admin/dashboard');
             return;
           }
@@ -126,7 +126,7 @@ export default function SignInCard() {
           <Form.Item
             name="password"
             label="Password"
-            rules={[{ required: true, message: 'Please enter your password' }]}
+            rules={[{ required: true, message: 'Please enter your password' }}
           >
             <Input.Password
               prefix={<LockOutlined />}

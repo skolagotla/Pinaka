@@ -239,7 +239,7 @@ export default function MaintenanceClient({
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `maintenance-tickets-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `maintenance-tickets-${new Date().toISOString().split('T')[0].csv`;
         a.click();
         window.URL.revokeObjectURL(url);
         return true;
@@ -1127,9 +1127,9 @@ export default function MaintenanceClient({
       const parts = text.split('Ticket Acknowledged: Pending');
       return (
         <Text>
-          {parts[0]}
+          {parts[0]
           Ticket Acknowledged: <Text strong style={{ color: statusColors['Pending'], fontWeight: 700 }}>Pending</Text>
-          {parts[1]}
+          {parts[1]
         </Text>
       );
     }
@@ -1173,7 +1173,7 @@ export default function MaintenanceClient({
               </Text>
             );
           }
-          return <span key={idx}>{part}</span>;
+          return <span key={idx}part}</span>;
         })}
       </Text>
     );
@@ -1249,7 +1249,7 @@ export default function MaintenanceClient({
   const columns = [
     customizeColumn(MAINTENANCE_COLUMNS.TICKET_NUMBER, {
       render: (ticketNumber, record) => (
-        <Badge dot={hasUnreadUpdates(record)} offset={[5, 0]}>
+        <Badge dot={hasUnreadUpdates(record)} offset={[5, 0}>
           <Text
             strong
             style={{
@@ -1289,18 +1289,18 @@ export default function MaintenanceClient({
       render: (_, request) => {
         if (userRole === 'landlord') {
           if (request.initiatedBy === 'landlord') {
-            return <Text style={{ textAlign: 'center', display: 'block' }}>{userName || '—'}</Text>;
+            return <Text style={{ textAlign: 'center', display: 'block' }}userName || '—'}</Text>;
           } else {
-            return <Text style={{ textAlign: 'center', display: 'block' }}>{request.tenant ? `${request.tenant.firstName} ${request.tenant.lastName}` : '—'}</Text>;
+            return <Text style={{ textAlign: 'center', display: 'block' }}request.tenant ? `${request.tenant.firstName} ${request.tenant.lastName}` : '—'}</Text>;
           }
         } else {
           if (request.initiatedBy === 'landlord') {
             const landlordName = request.property?.landlord 
               ? `${request.property.landlord.firstName} ${request.property.landlord.lastName}`
               : 'Landlord';
-            return <Text style={{ textAlign: 'center', display: 'block' }}>{landlordName}</Text>;
+            return <Text style={{ textAlign: 'center', display: 'block' }}landlordName}</Text>;
           } else {
-            return <Text style={{ textAlign: 'center', display: 'block' }}>{`${user.firstName} ${user.lastName}`}</Text>;
+            return <Text style={{ textAlign: 'center', display: 'block' }}`${user.firstName} ${user.lastName}`}</Text>;
           }
         }
       },
@@ -1315,17 +1315,17 @@ export default function MaintenanceClient({
         
         // Single unit: show property name only
         if (property.unitCount === 1) {
-          return <Text style={{ textAlign: 'center', display: 'block' }}>{propertyName}</Text>;
+          return <Text style={{ textAlign: 'center', display: 'block' }}propertyName}</Text>;
         } else {
           // Multiple units: show "Unit# - Property Name" (e.g., "1801 Aspen")
           const unitName = request.lease?.unit?.unitName || '—';
-          return <Text style={{ textAlign: 'center', display: 'block' }}>{unitName} - {propertyName}</Text>;
+          return <Text style={{ textAlign: 'center', display: 'block' }}unitName} - {propertyName}</Text>;
         }
       },
     }),
     customizeColumn(MAINTENANCE_COLUMNS.CATEGORY, {
       render: (category) => (
-        <Text style={{ textAlign: 'center', display: 'block' }}>{category}</Text>
+        <Text style={{ textAlign: 'center', display: 'block' }}category}</Text>
       ),
       filters: (userRole === 'landlord' ? LANDLORD_CATEGORIES : MAINTENANCE_CATEGORIES).map(c => ({ text: c, value: c })),
       onFilter: (value, request) => request.category === value,
@@ -1334,12 +1334,12 @@ export default function MaintenanceClient({
     customizeColumn(MAINTENANCE_COLUMNS.TITLE, {
       key: 'request',
       render: (_, request) => (
-        <Text strong style={{ textAlign: 'center', display: 'block' }}>{request.title}</Text>
+        <Text strong style={{ textAlign: 'center', display: 'block' }}request.title}</Text>
       ),
     }),
     withSorter(
       customizeColumn(STANDARD_COLUMNS.CREATED_DATE, {
-        render: (date) => <Text style={{ textAlign: 'center', display: 'block' }}>{formatDateDisplay(date)}</Text>,
+        render: (date) => <Text style={{ textAlign: 'center', display: 'block' }}formatDateDisplay(date)}</Text>,
       }),
       sortFunctions.date('createdAt')
     ),
@@ -1386,7 +1386,7 @@ export default function MaintenanceClient({
           </Tag>
         );
       },
-      filters: [
+      filters: >{
         { text: 'All', value: 'all' },
         { text: 'Pending Approval', value: 'pending' },
         { text: 'Approved', value: 'approved' },
@@ -1759,7 +1759,7 @@ export default function MaintenanceClient({
           <BulkActionsToolbar
             selectionCount={maintenanceBulkOps.selectionCount}
             onBulkExport={() => maintenanceBulkOps.handleBulkAction('export')}
-            availableActions={['export']}
+            availableActions={['export'}
           />
           <TableWrapper>
             <ProTable
@@ -2047,7 +2047,7 @@ export default function MaintenanceClient({
                           <Text type="secondary" style={{ fontSize: 12 }}>Rating:</Text>
                           <br />
                           <Rate disabled value={(selectedRequest.assignedToProvider || selectedRequest.assignedToVendor)?.rating} style={{ fontSize: 14 }} />
-                          <Text style={{ marginLeft: 8 }}>{((selectedRequest.assignedToProvider || selectedRequest.assignedToVendor)?.rating).toFixed(1)}</Text>
+                          <Text style={{ marginLeft: 8 }}((selectedRequest.assignedToProvider || selectedRequest.assignedToVendor)?.rating).toFixed(1)}</Text>
                         </div>
                       )}
                     </Space>
@@ -2132,7 +2132,7 @@ export default function MaintenanceClient({
                 style={{ marginBottom: 16 }}
               >
                 <Timeline
-                  items={[
+                  items={
                     {
                       color: 'blue',
                       children: (
@@ -2189,7 +2189,7 @@ export default function MaintenanceClient({
                         </div>
                       )
                     }] : [])
-                  ]}
+                  }
                 />
               </Card>
             )}
@@ -2344,7 +2344,7 @@ export default function MaintenanceClient({
                       size="small"
                       pagination={false}
                       scroll={{ x: 'max-content' }}
-                      columns={[
+                      columns={
                         {
                           title: 'Date',
                           dataIndex: 'date',
@@ -2442,7 +2442,7 @@ export default function MaintenanceClient({
                             );
                           }
                         }
-                      ]}
+                      }
                     />
                   ) : (
                     <Empty 
@@ -2572,7 +2572,7 @@ export default function MaintenanceClient({
           closeInvoiceUploadModal();
           setExistingExpenseInvoiceFileList([]);
         }}
-        footer={[
+        footer={
           <Button
             key="cancel"
             onClick={() => {
@@ -2592,7 +2592,7 @@ export default function MaintenanceClient({
           >
             Upload
           </Button>
-        ]}
+        }
         width={500}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -2627,7 +2627,7 @@ export default function MaintenanceClient({
         onCancel={() => {
           closeInvoiceViewModal();
         }}
-        footer={[
+        footer={
           <Button
             key="close"
             onClick={() => {
@@ -2637,7 +2637,7 @@ export default function MaintenanceClient({
           >
             Close
           </Button>
-        ]}
+        }
         width="90%"
         style={{ top: 20 }}
         styles={{ body: { height: 'calc(100vh - 200px)', padding: 0 } }}

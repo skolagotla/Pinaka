@@ -1,18 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  Typography, Table, Tag, Space, Button
-} from 'antd';
+import { Button, Badge } from 'flowbite-react';
 import { 
-  TeamOutlined, HomeOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, EyeOutlined
-} from '@ant-design/icons';
-import { PageLayout, TableWrapper } from '@/components/shared';
+  HiUserGroup, HiHome, HiCheckCircle,
+  HiXCircle, HiEye
+} from 'react-icons/hi';
+import { PageLayout, TableWrapper, FlowbiteTable } from '@/components/shared';
 import { renderStatus } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
-
-const { Text } = Typography;
 
 export default function PMCLandlordsClient({ pmc, relationships }) {
   const router = useRouter();
@@ -23,30 +19,33 @@ export default function PMCLandlordsClient({ pmc, relationships }) {
 
   const columns = [
     {
-      title: 'Landlord',
-      key: 'landlord',
-      render: (_, record) => (
+      header: 'Landlord',
+      accessorKey: 'landlord',
+      cell: ({ row }) => (
         <div>
-          <Text strong>
-            {record.landlord.firstName} {record.landlord.lastName}
-          </Text>
-          <div style={{ fontSize: '12px', color: '#999' }}>
-            {record.landlord.email}
+          <div className="font-semibold">
+            {row.original.landlord.firstName} {row.original.landlord.lastName}
+          </div>
+          <div className="text-sm text-gray-500">
+            {row.original.landlord.email}
           </div>
         </div>
       ),
     },
     {
-      title: 'Properties',
-      key: 'properties',
-      render: (_, record) => (
-        <Tag icon={<HomeOutlined />} color="blue">
-          {record.landlord.propertyCount || 0}
-        </Tag>
+      header: 'Properties',
+      accessorKey: 'properties',
+      cell: ({ row }) => (
+        <Badge color="blue" icon={HiHome}>
+          {row.original.landlord.propertyCount || 0}
+        </Badge>
       ),
     },
-    customizeColumn(STANDARD_COLUMNS.STATUS, {
-      render: (status) => {
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ row }) => {
+        const status = row.original.status;
         const statusMap = {
           active: 'Active',
           suspended: 'Suspended',
@@ -60,28 +59,26 @@ export default function PMCLandlordsClient({ pmc, relationships }) {
           }
         });
       },
-    }),
-    {
-      title: 'Started',
-      dataIndex: 'startedAt',
-      key: 'startedAt',
-      render: (date) => new Date(date).toLocaleDateString(),
     },
     {
-      title: 'Ended',
-      dataIndex: 'endedAt',
-      key: 'endedAt',
-      render: (date) => date ? new Date(date).toLocaleDateString() : '-',
+      header: 'Started',
+      accessorKey: 'startedAt',
+      cell: ({ row }) => new Date(row.original.startedAt).toLocaleDateString(),
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_, record) => (
+      header: 'Ended',
+      accessorKey: 'endedAt',
+      cell: ({ row }) => row.original.endedAt ? new Date(row.original.endedAt).toLocaleDateString() : '-',
+    },
+    {
+      header: 'Action',
+      accessorKey: 'action',
+      cell: ({ row }) => (
         <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/landlords/${record.landlordId}`)}
+          color="light"
+          onClick={() => router.push(`/landlords/${row.original.landlordId}`)}
         >
+          <HiEye className="mr-2 h-4 w-4" />
           View Details
         </Button>
       ),
@@ -92,43 +89,41 @@ export default function PMCLandlordsClient({ pmc, relationships }) {
     {
       title: 'Total Relationships',
       value: relationships.length,
-      prefix: <TeamOutlined />,
+      prefix: <HiUserGroup className="h-5 w-5" />,
     },
     {
       title: 'Active',
       value: activeRelationships.length,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Suspended',
       value: suspendedRelationships.length,
-      prefix: <CloseCircleOutlined />,
+      prefix: <HiXCircle className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
     {
       title: 'Total Properties',
       value: relationships.reduce((sum, r) => sum + (r.landlord.propertyCount || 0), 0),
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><TeamOutlined /> Managed Landlords</>}
+      headerTitle={<><HiUserGroup className="inline mr-2" /> Managed Landlords</>}
       stats={stats}
       statsCols={4}
     >
       <TableWrapper>
-        <Table
-          dataSource={relationships}
+        <FlowbiteTable
+          data={relationships}
           columns={columns}
-          rowKey="id"
+          keyField="id"
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} relationships` }}
-          size="middle"
         />
       </TableWrapper>
     </PageLayout>
   );
 }
-

@@ -1,22 +1,29 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { Card, Form, Input, DatePicker, Select, Button, Space, Typography, Row, Col, Divider, Alert, Statistic, Table } from 'antd';
-import { CalculatorOutlined, DollarOutlined, CalendarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { PageLayout } from '@/components/shared';
+import { Card, Button, Select, Label, TextInput, Alert, Spinner } from 'flowbite-react';
+import { HiCalculator, HiCurrencyDollar, HiCalendar, HiCheckCircle, HiXCircle } from 'react-icons/hi';
+import { PageLayout, FlowbiteTable } from '@/components/shared';
 import CurrencyInput from '@/components/rules/CurrencyInput';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
-import { rules } from '@/lib/utils/validation-rules';
+import { useFormState } from '@/lib/hooks/useFormState';
 import dayjs from 'dayjs';
 
-const { Text } = Typography;
-const { Option } = Select;
-
 export default function EstimatorClient({ tenant }) {
-  const [form] = Form.useForm();
-  const [results, setResults] = useState(null);
-
   const activeLease = tenant?.leaseTenants?.find(lt => lt.lease?.status === 'Active')?.lease;
+  
+  const { formData, updateField, resetForm } = useFormState({
+    calculationType: 'prorated',
+    monthlyRent: activeLease?.rentAmount || 0,
+    rentDueDay: activeLease?.rentDueDay || 1,
+    securityDeposit: activeLease?.securityDeposit || 0,
+    moveInDate: '',
+    moveOutDate: '',
+    cleaningFee: 0,
+    repairFee: 0,
+    otherDeduction: 0,
+  });
+  const [results, setResults] = useState(null);
 
   const calculateProratedRent = (monthlyRent, moveInDate, moveOutDate, rentDueDay) => {
     if (!moveInDate || !moveOutDate) return null;
@@ -44,28 +51,29 @@ export default function EstimatorClient({ tenant }) {
     };
   };
 
-  const handleCalculate = (values) => {
+  const handleCalculate = (e) => {
+    e.preventDefault();
     const calculations = {};
 
     // Prorated Rent
-    if (values.calculationType === 'prorated' && values.monthlyRent && values.moveInDate && values.moveOutDate) {
+    if (formData.calculationType === 'prorated' && formData.monthlyRent && formData.moveInDate && formData.moveOutDate) {
       calculations.proratedRent = calculateProratedRent(
-        values.monthlyRent,
-        values.moveInDate,
-        values.moveOutDate,
-        values.rentDueDay || 1
+        formData.monthlyRent,
+        formData.moveInDate,
+        formData.moveOutDate,
+        formData.rentDueDay || 1
       );
     }
 
     // Security Deposit Return
-    if (values.calculationType === 'deposit' && values.securityDeposit) {
+    if (formData.calculationType === 'deposit' && formData.securityDeposit) {
       const deductions = [
-        { description: 'Cleaning', amount: values.cleaningFee || 0 },
-        { description: 'Repairs', amount: values.repairFee || 0 },
-        { description: 'Other', amount: values.otherDeduction || 0 }
+        { description: 'Cleaning', amount: parseFloat(formData.cleaningFee) || 0 },
+        { description: 'Repairs', amount: parseFloat(formData.repairFee) || 0 },
+        { description: 'Other', amount: parseFloat(formData.otherDeduction) || 0 }
       ].filter(d => d.amount > 0);
       
-      calculations.depositReturn = calculateSecurityDepositReturn(values.securityDeposit, deductions);
+      calculations.depositReturn = calculateSecurityDepositReturn(formData.securityDeposit, deductions);
       calculations.depositReturn.deductions = deductions;
     }
 
@@ -74,16 +82,13 @@ export default function EstimatorClient({ tenant }) {
 
   const depositColumns = [
     {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
+      header: 'Description',
+      accessorKey: 'description',
     },
     {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount) => <CurrencyDisplay value={amount} country="CA" />,
-      align: 'right',
+      header: 'Amount',
+      accessorKey: 'amount',
+      cell: ({ row }) => <CurrencyDisplay value={row.original.amount} country="CA" />,
     },
   ];
 
@@ -91,236 +96,249 @@ export default function EstimatorClient({ tenant }) {
     {
       title: 'Active Lease',
       value: activeLease ? 'Yes' : 'No',
-      prefix: activeLease ? <CheckCircleOutlined /> : <CloseCircleOutlined />,
+      prefix: activeLease ? <HiCheckCircle className="h-5 w-5" /> : <HiXCircle className="h-5 w-5" />,
       valueStyle: { color: activeLease ? '#52c41a' : '#ff4d4f' },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><CalculatorOutlined /> Payment Estimator</>}
+      headerTitle={<><HiCalculator className="inline mr-2" /> Payment Estimator</>}
       headerDescription="Calculate prorated rent, security deposit returns, and more"
       stats={statsData}
       statsCols={1}
     >
-
-      <Card style={{ marginBottom: 24 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCalculate}
-          initialValues={{
-            calculationType: 'prorated',
-            monthlyRent: activeLease?.rentAmount || 0,
-            rentDueDay: activeLease?.rentDueDay || 1,
-            securityDeposit: activeLease?.securityDeposit || 0,
-          }}
-        >
-          <Form.Item
-            name="calculationType"
-            label="Calculation Type"
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Option value="prorated">Prorated Rent</Option>
-              <Option value="deposit">Security Deposit Return</Option>
+      <Card className="mb-6">
+        <form onSubmit={handleCalculate} className="space-y-4">
+          <div>
+            <Label htmlFor="calculationType" className="mb-2 block">
+              Calculation Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              id="calculationType"
+              value={formData.calculationType}
+              onChange={(e) => updateField('calculationType', e.target.value)}
+              required
+            >
+              <option value="prorated">Prorated Rent</option>
+              <option value="deposit">Security Deposit Return</option>
             </Select>
-          </Form.Item>
+          </div>
 
-          {Form.useWatch('calculationType', form) === 'prorated' && (
+          {formData.calculationType === 'prorated' && (
             <>
-              <Form.Item
-                name="monthlyRent"
-                label="Monthly Rent"
-                rules={[rules.required('Monthly rent')]}
-              >
-                <CurrencyInput country="CA" placeholder="0.00" min={0.01} />
-              </Form.Item>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="moveInDate"
-                    label="Move-in Date"
-                    rules={[rules.required('Move-in date')]}
-                  >
-                    <DatePicker style={{ width: '100%' }} format="MMM D, YYYY" />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="moveOutDate"
-                    label="Move-out Date"
-                    rules={[rules.required('Move-out date')]}
-                  >
-                    <DatePicker style={{ width: '100%' }} format="MMM D, YYYY" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item
-                name="rentDueDay"
-                label="Rent Due Day (of month)"
-              >
-                <Input type="number" min={1} max={31} />
-              </Form.Item>
+              <div>
+                <Label htmlFor="monthlyRent" className="mb-2 block">
+                  Monthly Rent <span className="text-red-500">*</span>
+                </Label>
+                <CurrencyInput
+                  id="monthlyRent"
+                  country="CA"
+                  placeholder="0.00"
+                  min={0.01}
+                  value={formData.monthlyRent}
+                  onChange={(value) => updateField('monthlyRent', value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="moveInDate" className="mb-2 block">
+                    Move-in Date <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="moveInDate"
+                    type="date"
+                    value={formData.moveInDate}
+                    onChange={(e) => updateField('moveInDate', e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="moveOutDate" className="mb-2 block">
+                    Move-out Date <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="moveOutDate"
+                    type="date"
+                    value={formData.moveOutDate}
+                    onChange={(e) => updateField('moveOutDate', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="rentDueDay" className="mb-2 block">Rent Due Day (of month)</Label>
+                <TextInput
+                  id="rentDueDay"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={formData.rentDueDay}
+                  onChange={(e) => updateField('rentDueDay', e.target.value)}
+                />
+              </div>
             </>
           )}
 
-          {Form.useWatch('calculationType', form) === 'deposit' && (
+          {formData.calculationType === 'deposit' && (
             <>
-              <Form.Item
-                name="securityDeposit"
-                label="Security Deposit Amount"
-                rules={[{ required: true, message: 'Please enter security deposit' }]}
-              >
-                <CurrencyInput country="CA" placeholder="0.00" min={0} />
-              </Form.Item>
-              <Title level={5}>Deductions (if any)</Title>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item
-                    name="cleaningFee"
-                    label="Cleaning Fee"
-                  >
-                    <CurrencyInput country="CA" placeholder="0.00" min={0} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name="repairFee"
-                    label="Repair Fee"
-                  >
-                    <CurrencyInput country="CA" placeholder="0.00" min={0} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name="otherDeduction"
-                    label="Other Deduction"
-                  >
-                    <CurrencyInput country="CA" placeholder="0.00" min={0} />
-                  </Form.Item>
-                </Col>
-              </Row>
+              <div>
+                <Label htmlFor="securityDeposit" className="mb-2 block">
+                  Security Deposit Amount <span className="text-red-500">*</span>
+                </Label>
+                <CurrencyInput
+                  id="securityDeposit"
+                  country="CA"
+                  placeholder="0.00"
+                  min={0}
+                  value={formData.securityDeposit}
+                  onChange={(value) => updateField('securityDeposit', value)}
+                />
+              </div>
+              <div>
+                <h5 className="text-lg font-semibold mb-3">Deductions (if any)</h5>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="cleaningFee" className="mb-2 block">Cleaning Fee</Label>
+                    <CurrencyInput
+                      id="cleaningFee"
+                      country="CA"
+                      placeholder="0.00"
+                      min={0}
+                      value={formData.cleaningFee}
+                      onChange={(value) => updateField('cleaningFee', value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="repairFee" className="mb-2 block">Repair Fee</Label>
+                    <CurrencyInput
+                      id="repairFee"
+                      country="CA"
+                      placeholder="0.00"
+                      min={0}
+                      value={formData.repairFee}
+                      onChange={(value) => updateField('repairFee', value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="otherDeduction" className="mb-2 block">Other Deduction</Label>
+                    <CurrencyInput
+                      id="otherDeduction"
+                      country="CA"
+                      placeholder="0.00"
+                      min={0}
+                      value={formData.otherDeduction}
+                      onChange={(value) => updateField('otherDeduction', value)}
+                    />
+                  </div>
+                </div>
+              </div>
             </>
           )}
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<CalculatorOutlined />} size="large">
+          <div>
+            <Button type="submit" color="blue" size="lg">
+              <HiCalculator className="mr-2 h-5 w-5" />
               Calculate
             </Button>
-          </Form.Item>
-        </Form>
+          </div>
+        </form>
       </Card>
 
       {results && (
         <>
           {results.proratedRent && (
-            <Card title="Prorated Rent Calculation" style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Statistic
-                    title="Days Rented"
-                    value={results.proratedRent.daysRented}
-                    suffix="days"
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Days in Month"
-                    value={results.proratedRent.daysInMonth}
-                    suffix="days"
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Prorated Amount"
-                    value={results.proratedRent.proratedAmount}
-                    prefix="$"
-                    precision={2}
-                  />
-                </Col>
-              </Row>
-              <Divider />
-              <Alert
-                message={
-                  <div>
-                    <Text>Full Month Rent: </Text>
-                    <Text strong><CurrencyDisplay value={results.proratedRent.fullMonthAmount} country="CA" /></Text>
-                    <br />
-                    <Text>Prorated Rent ({results.proratedRent.daysRented} days): </Text>
-                    <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
-                      <CurrencyDisplay value={results.proratedRent.proratedAmount} country="CA" />
-                    </Text>
+            <Card className="mb-4">
+              <h5 className="text-xl font-semibold mb-4">Prorated Rent Calculation</h5>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Days Rented</div>
+                  <div className="text-2xl font-semibold">{results.proratedRent.daysRented} days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Days in Month</div>
+                  <div className="text-2xl font-semibold">{results.proratedRent.daysInMonth} days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Prorated Amount</div>
+                  <div className="text-2xl font-semibold">
+                    <CurrencyDisplay value={results.proratedRent.proratedAmount} country="CA" />
                   </div>
-                }
-                type="info"
-                showIcon
-              />
+                </div>
+              </div>
+              <hr className="my-4" />
+              <Alert color="info">
+                <div>
+                  <div className="mb-2">
+                    <span className="font-semibold">Full Month Rent: </span>
+                    <span className="font-bold"><CurrencyDisplay value={results.proratedRent.fullMonthAmount} country="CA" /></span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Prorated Rent ({results.proratedRent.daysRented} days): </span>
+                    <span className="font-bold text-green-600 text-lg">
+                      <CurrencyDisplay value={results.proratedRent.proratedAmount} country="CA" />
+                    </span>
+                  </div>
+                </div>
+              </Alert>
             </Card>
           )}
 
           {results.depositReturn && (
-            <Card title="Security Deposit Return Calculation" style={{ marginBottom: 16 }}>
-              <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={8}>
-                  <Statistic
-                    title="Original Deposit"
-                    value={results.depositReturn.originalDeposit}
-                    prefix="$"
-                    precision={2}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Total Deductions"
-                    value={results.depositReturn.totalDeductions}
-                    prefix="$"
-                    precision={2}
-                    valueStyle={{ color: '#ff4d4f' }}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Return Amount"
-                    value={results.depositReturn.returnAmount}
-                    prefix="$"
-                    precision={2}
-                    valueStyle={{ color: '#52c41a' }}
-                  />
-                </Col>
-              </Row>
+            <Card className="mb-4">
+              <h5 className="text-xl font-semibold mb-4">Security Deposit Return Calculation</h5>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Original Deposit</div>
+                  <div className="text-2xl font-semibold">
+                    <CurrencyDisplay value={results.depositReturn.originalDeposit} country="CA" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Total Deductions</div>
+                  <div className="text-2xl font-semibold text-red-600">
+                    <CurrencyDisplay value={results.depositReturn.totalDeductions} country="CA" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-1">Return Amount</div>
+                  <div className="text-2xl font-semibold text-green-600">
+                    <CurrencyDisplay value={results.depositReturn.returnAmount} country="CA" />
+                  </div>
+                </div>
+              </div>
               {results.depositReturn.deductions.length > 0 && (
                 <>
-                  <Divider />
-                  <Table
-                    dataSource={results.depositReturn.deductions}
+                  <hr className="my-4" />
+                  <FlowbiteTable
+                    data={results.depositReturn.deductions}
                     columns={depositColumns}
+                    keyField="description"
                     pagination={false}
-                    size="small"
                   />
                 </>
               )}
-              <Divider />
-              <Alert
-                message={
-                  <div>
-                    <Text>Security Deposit: </Text>
-                    <Text strong><CurrencyDisplay value={results.depositReturn.originalDeposit} country="CA" /></Text>
-                    <br />
-                    <Text>Less Deductions: </Text>
-                    <Text strong style={{ color: '#ff4d4f' }}>
-                      <CurrencyDisplay value={results.depositReturn.totalDeductions} country="CA" />
-                    </Text>
-                    <br />
-                    <Text>Return Amount: </Text>
-                    <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
-                      <CurrencyDisplay value={results.depositReturn.returnAmount} country="CA" />
-                    </Text>
+              <hr className="my-4" />
+              <Alert color={results.depositReturn.returnAmount >= 0 ? 'success' : 'failure'}>
+                <div>
+                  <div className="mb-2">
+                    <span className="font-semibold">Security Deposit: </span>
+                    <span className="font-bold"><CurrencyDisplay value={results.depositReturn.originalDeposit} country="CA" /></span>
                   </div>
-                }
-                type={results.depositReturn.returnAmount >= 0 ? 'success' : 'error'}
-                showIcon
-              />
+                  <div className="mb-2">
+                    <span className="font-semibold">Less Deductions: </span>
+                    <span className="font-bold text-red-600">
+                      <CurrencyDisplay value={results.depositReturn.totalDeductions} country="CA" />
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Return Amount: </span>
+                    <span className="font-bold text-green-600 text-lg">
+                      <CurrencyDisplay value={results.depositReturn.returnAmount} country="CA" />
+                    </span>
+                  </div>
+                </div>
+              </Alert>
             </Card>
           )}
         </>
@@ -328,4 +346,3 @@ export default function EstimatorClient({ tenant }) {
     </PageLayout>
   );
 }
-

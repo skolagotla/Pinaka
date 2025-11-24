@@ -2,16 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Typography, Table, Tag, Space, Button, Select
-} from 'antd';
+  Button, Badge, Select
+} from 'flowbite-react';
 import { 
-  HomeOutlined, TeamOutlined, FileTextOutlined,
-  EyeOutlined
-} from '@ant-design/icons';
+  HiHome, HiUserGroup, HiDocumentText,
+  HiEye
+} from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
-import { PageLayout, EmptyState, TableWrapper } from '@/components/shared';
-
-const { Text } = Typography;
+import { PageLayout, EmptyState, TableWrapper, FlowbiteTable } from '@/components/shared';
 
 export default function PMCPropertiesClient({ pmcId, initialProperties, pmcRelationships }) {
   const router = useRouter();
@@ -45,73 +43,74 @@ export default function PMCPropertiesClient({ pmcId, initialProperties, pmcRelat
 
   const columns = [
     {
-      title: 'Property',
-      key: 'property',
-      render: (_, record) => (
+      header: 'Property',
+      accessorKey: 'property',
+      cell: ({ row }) => (
         <div>
-          <Text strong>{record.addressLine1 || record.propertyName}</Text>
-          {record.propertyName && record.addressLine1 && (
-            <div style={{ fontSize: '12px', color: '#999' }}>
-              {record.propertyName}
+          <div className="font-semibold">{row.original.addressLine1 || row.original.propertyName}</div>
+          {row.original.propertyName && row.original.addressLine1 && (
+            <div className="text-sm text-gray-500">
+              {row.original.propertyName}
             </div>
           )}
-          <div style={{ fontSize: '12px', color: '#999' }}>
-            {record.city}, {record.provinceState} {record.postalZip}
+          <div className="text-sm text-gray-500">
+            {row.original.city}, {row.original.provinceState} {row.original.postalZip}
           </div>
         </div>
       ),
     },
     {
-      title: 'Owned By',
-      key: 'landlord',
-      render: (_, record) => (
+      header: 'Owned By',
+      accessorKey: 'landlord',
+      cell: ({ row }) => (
         <div>
-          <Text strong>
-            {record.landlord ? `${record.landlord.firstName} ${record.landlord.lastName}` : 'N/A'}
-          </Text>
-          {record.landlord?.email && (
-            <div style={{ fontSize: '12px', color: '#999' }}>
-              {record.landlord.email}
+          <div className="font-semibold">
+            {row.original.landlord ? `${row.original.landlord.firstName} ${row.original.landlord.lastName}` : 'N/A'}
+          </div>
+          {row.original.landlord?.email && (
+            <div className="text-sm text-gray-500">
+              {row.original.landlord.email}
             </div>
           )}
         </div>
       ),
     },
     {
-      title: 'Type',
-      dataIndex: 'propertyType',
-      key: 'propertyType',
-      render: (type) => <Tag>{type || 'N/A'}</Tag>,
+      header: 'Type',
+      accessorKey: 'propertyType',
+      cell: ({ row }) => <Badge>{row.original.propertyType || 'N/A'}</Badge>,
     },
     {
-      title: 'Units',
-      key: 'units',
-      render: (_, record) => (
-        <Space>
-          <Tag icon={<HomeOutlined />}>{record.units?.length || 0}</Tag>
-          <Text type="secondary">
-            {record.units?.filter(u => u.leases?.length > 0).length || 0} occupied
-          </Text>
-        </Space>
+      header: 'Units',
+      accessorKey: 'units',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Badge color="blue" icon={HiHome}>
+            {row.original.units?.length || 0}
+          </Badge>
+          <span className="text-sm text-gray-500">
+            {row.original.units?.filter(u => u.leases?.length > 0).length || 0} occupied
+          </span>
+        </div>
       ),
     },
     {
-      title: 'Active Leases',
-      key: 'leases',
-      render: (_, record) => {
-        const leaseCount = record.units?.reduce((sum, unit) => sum + (unit.leases?.length || 0), 0) || 0;
-        return <Tag color="green">{leaseCount}</Tag>;
+      header: 'Active Leases',
+      accessorKey: 'leases',
+      cell: ({ row }) => {
+        const leaseCount = row.original.units?.reduce((sum, unit) => sum + (unit.leases?.length || 0), 0) || 0;
+        return <Badge color="green">{leaseCount}</Badge>;
       },
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_, record) => (
+      header: 'Action',
+      accessorKey: 'action',
+      cell: ({ row }) => (
         <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/properties/${record.id}`)}
+          color="light"
+          onClick={() => router.push(`/properties/${row.original.id}`)}
         >
+          <HiEye className="mr-2 h-4 w-4" />
           View Details
         </Button>
       ),
@@ -131,25 +130,25 @@ export default function PMCPropertiesClient({ pmcId, initialProperties, pmcRelat
     {
       title: 'Properties',
       value: filteredProperties.length,
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
       valueStyle: { color: '#1890ff' },
     },
     {
       title: 'Total Units',
       value: totalUnits,
-      prefix: <HomeOutlined />,
+      prefix: <HiHome className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Active Leases',
       value: totalLeases,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
       valueStyle: { color: '#722ed1' },
     },
     {
       title: 'Landlords',
       value: landlords.length,
-      prefix: <TeamOutlined />,
+      prefix: <HiUserGroup className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
   ];
@@ -157,90 +156,50 @@ export default function PMCPropertiesClient({ pmcId, initialProperties, pmcRelat
   // Prepare header actions - Searchable Landlord Filter (Always show for PMC users)
   // Only render after mount to prevent hydration mismatch
   const headerActions = mounted ? (
-    <Space>
-      <TeamOutlined style={{ color: '#1890ff' }} />
+    <div className="flex items-center gap-2">
+      <HiUserGroup className="h-5 w-5 text-blue-600" />
       <Select
         value={selectedLandlord}
         onChange={setSelectedLandlord}
-        style={{ minWidth: 300 }}
-        placeholder={landlords.length > 0 ? "Search and filter by Landlord..." : "No landlords available"}
-        showSearch={landlords.length > 0}
-        allowClear={landlords.length > 0}
-        disabled={landlords.length === 0}
-        filterOption={landlords.length > 0 ? (input, option) => {
-          const searchText = input.toLowerCase();
-          // Get the landlord data from the option value
-          const optionValue = option?.value;
-          if (optionValue === 'all') {
-            return 'all landlords'.includes(searchText);
-          }
-          const landlord = landlords.find(l => l.id === optionValue);
-          if (!landlord) return false;
-          // Search in name and email
-          return (
-            landlord.name.toLowerCase().includes(searchText) ||
-            landlord.email.toLowerCase().includes(searchText)
-          );
-        } : false}
-        optionLabelProp="label"
-        notFoundContent={landlords.length > 0 ? "No landlords found" : "No landlords available"}
+        className="min-w-[300px]"
       >
-        <Select.Option value="all" label="All Landlords">
-          <Space>
-            <TeamOutlined />
-            <span>All Landlords</span>
-            {landlords.length > 0 && (
-              <Tag color="blue" style={{ marginLeft: 8 }}>{landlords.length}</Tag>
-            )}
-          </Space>
-        </Select.Option>
+        <option value="all">All Landlords {landlords.length > 0 && `(${landlords.length})`}</option>
         {landlords.length > 0 ? (
           landlords.map(landlord => (
-            <Select.Option 
-              key={landlord.id} 
-              value={landlord.id}
-              label={`${landlord.name} (${landlord.email})`}
-            >
-              <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                <Text strong>{landlord.name}</Text>
-                <Text type="secondary" style={{ fontSize: '12px' }}>{landlord.email}</Text>
-              </Space>
-            </Select.Option>
+            <option key={landlord.id} value={landlord.id}>
+              {landlord.name} ({landlord.email})
+            </option>
           ))
         ) : (
-          <Select.Option value="none" disabled>
-            <Text type="secondary">No landlords available</Text>
-          </Select.Option>
+          <option value="none" disabled>No landlords available</option>
         )}
       </Select>
-    </Space>
+    </div>
   ) : null;
 
   return (
     <PageLayout
-      headerTitle={<><HomeOutlined /> Managed Properties</>}
+      headerTitle={<><HiHome className="inline mr-2" /> Managed Properties</>}
       headerActions={headerActions}
       stats={stats}
       statsCols={4}
     >
       {filteredProperties.length === 0 ? (
         <EmptyState
-          icon={<HomeOutlined />}
+          icon={<HiHome className="h-12 w-12 text-gray-400" />}
           title="No properties found"
           description="No properties are currently managed"
         />
       ) : (
         <TableWrapper>
-          <Table
-            dataSource={filteredProperties}
+          <FlowbiteTable
+            data={filteredProperties}
             columns={columns}
-            rowKey="id"
+            keyField="id"
             pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} properties` }}
-            size="middle"
           />
         </TableWrapper>
       )}
     </PageLayout>
   );
 }
-

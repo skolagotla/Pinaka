@@ -7,13 +7,38 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { v2Api } from '../../../../lib/api/v2-client';
+import { v2Api } from '@/lib/api/v2-client';
+
+// StaleTime constants (in milliseconds) - controls how long data is considered fresh
+// Longer staleTime = fewer refetches, better performance
+const STALE_TIMES = {
+  organizations: 5 * 60 * 1000,    // 5 minutes (rarely changes)
+  properties: 2 * 60 * 1000,        // 2 minutes
+  units: 2 * 60 * 1000,             // 2 minutes
+  landlords: 2 * 60 * 1000,         // 2 minutes
+  tenants: 1 * 60 * 1000,           // 1 minute
+  leases: 1 * 60 * 1000,            // 1 minute
+  workOrders: 30 * 1000,            // 30 seconds (changes frequently)
+  notifications: 10 * 1000,         // 10 seconds (real-time)
+  attachments: 2 * 60 * 1000,       // 2 minutes
+  users: 2 * 60 * 1000,             // 2 minutes
+  vendors: 2 * 60 * 1000,           // 2 minutes
+  tasks: 1 * 60 * 1000,             // 1 minute
+  conversations: 30 * 1000,         // 30 seconds
+  messages: 10 * 1000,               // 10 seconds (real-time)
+  invitations: 1 * 60 * 1000,       // 1 minute
+  forms: 2 * 60 * 1000,             // 2 minutes
+  rentPayments: 1 * 60 * 1000,       // 1 minute
+  expenses: 1 * 60 * 1000,          // 1 minute
+  inspections: 1 * 60 * 1000,       // 1 minute
+};
 
 // Organizations
 export function useOrganizations() {
   return useQuery({
     queryKey: ['v2', 'organizations'],
     queryFn: () => v2Api.listOrganizations(),
+    staleTime: STALE_TIMES.organizations,
   });
 }
 
@@ -22,6 +47,7 @@ export function useOrganization(orgId: string) {
     queryKey: ['v2', 'organizations', orgId],
     queryFn: () => v2Api.getOrganization(orgId),
     enabled: !!orgId,
+    staleTime: STALE_TIMES.organizations,
   });
 }
 
@@ -31,6 +57,7 @@ export function useProperties(organizationId?: string) {
     queryKey: ['v2', 'properties', organizationId],
     queryFn: () => v2Api.listProperties(organizationId),
     enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.properties,
   });
 }
 
@@ -39,6 +66,7 @@ export function useProperty(propertyId: string) {
     queryKey: ['v2', 'properties', propertyId],
     queryFn: () => v2Api.getProperty(propertyId),
     enabled: !!propertyId,
+    staleTime: STALE_TIMES.properties,
   });
 }
 
@@ -79,6 +107,7 @@ export function useUnits(propertyId?: string) {
   return useQuery({
     queryKey: ['v2', 'units', propertyId],
     queryFn: () => v2Api.listUnits(propertyId),
+    staleTime: STALE_TIMES.units,
     // Allow querying all units or filtered by property
   });
 }
@@ -88,6 +117,7 @@ export function useUnit(unitId: string) {
     queryKey: ['v2', 'units', unitId],
     queryFn: () => v2Api.getUnit(unitId),
     enabled: !!unitId,
+    staleTime: STALE_TIMES.units,
   });
 }
 
@@ -129,6 +159,7 @@ export function useLandlords(organizationId?: string) {
     queryKey: ['v2', 'landlords', organizationId],
     queryFn: () => v2Api.listLandlords(organizationId),
     enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.landlords,
   });
 }
 
@@ -137,6 +168,7 @@ export function useLandlord(landlordId: string) {
     queryKey: ['v2', 'landlords', landlordId],
     queryFn: () => v2Api.getLandlord(landlordId),
     enabled: !!landlordId,
+    staleTime: STALE_TIMES.landlords,
   });
 }
 
@@ -168,6 +200,7 @@ export function useTenants(organizationId?: string) {
     queryKey: ['v2', 'tenants', organizationId],
     queryFn: () => v2Api.listTenants(organizationId),
     enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.tenants,
   });
 }
 
@@ -176,6 +209,7 @@ export function useTenant(tenantId: string) {
     queryKey: ['v2', 'tenants', tenantId],
     queryFn: () => v2Api.getTenant(tenantId),
     enabled: !!tenantId,
+    staleTime: STALE_TIMES.tenants,
   });
 }
 
@@ -229,6 +263,7 @@ export function useLeases(filters?: { organization_id?: string; unit_id?: string
   return useQuery({
     queryKey: ['v2', 'leases', filters],
     queryFn: () => v2Api.listLeases(filters),
+    staleTime: STALE_TIMES.leases,
   });
 }
 
@@ -237,6 +272,7 @@ export function useLease(leaseId: string) {
     queryKey: ['v2', 'leases', leaseId],
     queryFn: () => v2Api.getLease(leaseId),
     enabled: !!leaseId,
+    staleTime: STALE_TIMES.leases,
   });
 }
 
@@ -274,6 +310,16 @@ export function useRenewLease() {
   });
 }
 
+export function useDeleteLease() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (leaseId: string) => v2Api.deleteLease(leaseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'leases'] });
+    },
+  });
+}
+
 export function useTerminateLease() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -295,6 +341,7 @@ export function useWorkOrders(filters?: {
   return useQuery({
     queryKey: ['v2', 'work-orders', filters],
     queryFn: () => v2Api.listWorkOrders(filters),
+    staleTime: STALE_TIMES.workOrders,
   });
 }
 
@@ -303,6 +350,7 @@ export function useWorkOrder(workOrderId: string) {
     queryKey: ['v2', 'work-orders', workOrderId],
     queryFn: () => v2Api.getWorkOrder(workOrderId),
     enabled: !!workOrderId,
+    staleTime: STALE_TIMES.workOrders,
   });
 }
 
@@ -358,6 +406,7 @@ export function useAttachments(entityType: string, entityId: string) {
     queryKey: ['v2', 'attachments', entityType, entityId],
     queryFn: () => v2Api.listAttachments(entityType, entityId),
     enabled: !!entityType && !!entityId,
+    staleTime: STALE_TIMES.attachments,
   });
 }
 
@@ -383,6 +432,7 @@ export function useNotifications(isRead?: boolean) {
   return useQuery({
     queryKey: ['v2', 'notifications', isRead],
     queryFn: () => v2Api.listNotifications(isRead),
+    staleTime: STALE_TIMES.notifications,
   });
 }
 
@@ -412,6 +462,7 @@ export function useUsers(organizationId?: string) {
     queryKey: ['v2', 'users', organizationId],
     queryFn: () => v2Api.listUsers(organizationId),
     enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.users,
   });
 }
 
@@ -420,6 +471,7 @@ export function useUser(userId: string) {
     queryKey: ['v2', 'users', userId],
     queryFn: () => v2Api.getUser(userId),
     enabled: !!userId,
+    staleTime: STALE_TIMES.users,
   });
 }
 
@@ -441,6 +493,7 @@ export function useVendors(organizationId?: string, search?: string, status?: st
     queryKey: ['v2', 'vendors', organizationId, search, status],
     queryFn: () => v2Api.listVendors(organizationId, search, status),
     enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.vendors,
   });
 }
 
@@ -449,6 +502,7 @@ export function useVendor(vendorId: string) {
     queryKey: ['v2', 'vendors', vendorId],
     queryFn: () => v2Api.getVendor(vendorId),
     enabled: !!vendorId,
+    staleTime: STALE_TIMES.vendors,
   });
 }
 
@@ -480,6 +534,262 @@ export function useDeleteVendor() {
     mutationFn: (id: string) => v2Api.deleteVendor(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['v2', 'vendors'] });
+    },
+  });
+}
+
+// Tasks
+export function useTasks(organizationId?: string, propertyId?: string, statusFilter?: string) {
+  return useQuery({
+    queryKey: ['v2', 'tasks', organizationId, propertyId, statusFilter],
+    queryFn: () => v2Api.listTasks(organizationId, propertyId, statusFilter),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.tasks,
+  });
+}
+
+export function useTask(taskId: string) {
+  return useQuery({
+    queryKey: ['v2', 'tasks', taskId],
+    queryFn: () => v2Api.getTask(taskId),
+    enabled: !!taskId,
+    staleTime: STALE_TIMES.tasks,
+  });
+}
+
+export function useCreateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createTask>[0]) => v2Api.createTask(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'tasks'] });
+    },
+  });
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof v2Api.updateTask>[1] }) =>
+      v2Api.updateTask(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'tasks', variables.id] });
+    },
+  });
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => v2Api.deleteTask(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'tasks'] });
+    },
+  });
+}
+
+// Conversations
+export function useConversations(organizationId?: string, entityType?: string, entityId?: string) {
+  return useQuery({
+    queryKey: ['v2', 'conversations', organizationId, entityType, entityId],
+    queryFn: () => v2Api.listConversations(organizationId, entityType, entityId),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.conversations,
+  });
+}
+
+export function useConversation(conversationId: string) {
+  return useQuery({
+    queryKey: ['v2', 'conversations', conversationId],
+    queryFn: () => v2Api.getConversation(conversationId),
+    enabled: !!conversationId,
+    staleTime: STALE_TIMES.conversations,
+  });
+}
+
+export function useCreateConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createConversation>[0]) => v2Api.createConversation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'conversations'] });
+    },
+  });
+}
+
+export function useMessages(conversationId: string) {
+  return useQuery({
+    queryKey: ['v2', 'conversations', conversationId, 'messages'],
+    queryFn: () => v2Api.listMessages(conversationId),
+    enabled: !!conversationId,
+    staleTime: STALE_TIMES.messages,
+  });
+}
+
+export function useCreateMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, data }: { conversationId: string; data: Parameters<typeof v2Api.createMessage>[1] }) =>
+      v2Api.createMessage(conversationId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'conversations', variables.conversationId, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'conversations', variables.conversationId] });
+    },
+  });
+}
+
+// Invitations
+export function useInvitations(organizationId?: string, statusFilter?: string) {
+  return useQuery({
+    queryKey: ['v2', 'invitations', organizationId, statusFilter],
+    queryFn: () => v2Api.listInvitations(organizationId, statusFilter),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.invitations,
+  });
+}
+
+export function useCreateInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createInvitation>[0]) => v2Api.createInvitation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'invitations'] });
+    },
+  });
+}
+
+export function useAcceptInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => v2Api.acceptInvitation(token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'invitations'] });
+    },
+  });
+}
+
+// Forms
+export function useForms(organizationId?: string, formType?: string, entityType?: string, entityId?: string) {
+  return useQuery({
+    queryKey: ['v2', 'forms', organizationId, formType, entityType, entityId],
+    queryFn: () => v2Api.listForms(organizationId, formType, entityType, entityId),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.forms,
+  });
+}
+
+export function useForm(formId: string) {
+  return useQuery({
+    queryKey: ['v2', 'forms', formId],
+    queryFn: () => v2Api.getForm(formId),
+    enabled: !!formId,
+    staleTime: STALE_TIMES.forms,
+  });
+}
+
+export function useCreateForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createForm>[0]) => v2Api.createForm(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'forms'] });
+    },
+  });
+}
+
+export function useCreateFormSignature() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ formId, data }: { formId: string; data: Parameters<typeof v2Api.createFormSignature>[1] }) =>
+      v2Api.createFormSignature(formId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'forms', variables.formId] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'forms'] });
+    },
+  });
+}
+
+// Rent Payments
+export function useRentPayments(organizationId?: string, leaseId?: string, tenantId?: string, statusFilter?: string) {
+  return useQuery({
+    queryKey: ['v2', 'rent-payments', organizationId, leaseId, tenantId, statusFilter],
+    queryFn: () => v2Api.listRentPayments(organizationId, leaseId, tenantId, statusFilter),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.rentPayments,
+  });
+}
+
+export function useCreateRentPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createRentPayment>[0]) => v2Api.createRentPayment(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'rent-payments'] });
+    },
+  });
+}
+
+// Expenses
+export function useExpenses(organizationId?: string, propertyId?: string, category?: string, statusFilter?: string) {
+  return useQuery({
+    queryKey: ['v2', 'expenses', organizationId, propertyId, category, statusFilter],
+    queryFn: () => v2Api.listExpenses(organizationId, propertyId, category, statusFilter),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.expenses,
+  });
+}
+
+export function useCreateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createExpense>[0]) => v2Api.createExpense(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'expenses'] });
+    },
+  });
+}
+
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof v2Api.updateExpense>[1] }) =>
+      v2Api.updateExpense(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'expenses', variables.id] });
+    },
+  });
+}
+
+// Inspections
+export function useInspections(organizationId?: string, propertyId?: string, statusFilter?: string) {
+  return useQuery({
+    queryKey: ['v2', 'inspections', organizationId, propertyId, statusFilter],
+    queryFn: () => v2Api.listInspections(organizationId, propertyId, statusFilter),
+    enabled: organizationId !== undefined,
+    staleTime: STALE_TIMES.inspections,
+  });
+}
+
+export function useCreateInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof v2Api.createInspection>[0]) => v2Api.createInspection(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'inspections'] });
+    },
+  });
+}
+
+export function useUpdateInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof v2Api.updateInspection>[1] }) =>
+      v2Api.updateInspection(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'inspections'] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'inspections', variables.id] });
     },
   });
 }

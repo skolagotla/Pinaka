@@ -1,116 +1,69 @@
-// Auth0 disabled - using password-based authentication
-// import { auth0 } from '@/lib/auth0';
-import { redirect } from "next/navigation";
+/**
+ * Complete Registration Page - Migrated to v2 FastAPI
+ * 
+ * Removed all Prisma dependencies. Now uses v2 FastAPI for user checks.
+ * Registration is handled client-side via the UI component.
+ */
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Spinner, Alert } from 'flowbite-react';
 import CompleteRegistrationForm from "./ui";
-const { prisma } = require('@/lib/prisma');
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { v2Api } from '@/lib/api/v2-client';
 
-// Mark as dynamic since we use getSession which requires headers
-export const dynamic = 'force-dynamic';
+export default function CompleteRegistration() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useV2Auth();
+  const [checking, setChecking] = useState(true);
+  const [invitationData, setInvitationData] = useState(null);
+  const [error, setError] = useState(null);
 
-export default async function CompleteRegistration() {
-  const session = await auth0.getSession();
-  
-  if (!session?.user) {
-    redirect("/");
-  }
-  
-  const email = session.user.email || "";
-  
-  // Check if user already exists or has valid invitation
-  if (email) {
-    try {
-      // Check all user types (including admin)
-      const [landlord, tenant, pmc, vendor, contractor, admin, invitation] = await Promise.all([
-        prisma.landlord.findUnique({
-          where: { email },
-          select: { id: true, approvalStatus: true }
-        }).catch(() => null),
-        prisma.tenant.findUnique({
-          where: { email },
-          select: { id: true, approvalStatus: true }
-        }).catch(() => null),
-        prisma.propertyManagementCompany.findUnique({
-          where: { email },
-          select: { id: true, approvalStatus: true }
-        }).catch(() => null),
-        prisma.serviceProvider.findFirst({
-          where: { email, type: 'vendor', isDeleted: false },
-          select: { id: true }
-        }).catch(() => null),
-        prisma.serviceProvider.findFirst({
-          where: { email, type: 'contractor', isDeleted: false },
-          select: { id: true }
-        }).catch(() => null),
-        prisma.admin.findUnique({
-          where: { email },
-          select: { id: true, isActive: true, isLocked: true }
-        }).catch(() => null),
-        prisma.invitation.findFirst({
-          where: {
-            email,
-            status: { in: ['pending', 'sent', 'opened'] },
-            expiresAt: { gt: new Date() }
-          },
-          select: { id: true, type: true, status: true }
-        }).catch(() => null),
-      ]);
-      
-      // If user exists, redirect based on role and approval status
-      if (admin) {
-        // Admin users should use admin login, not Auth0 registration
-        redirect("/admin/login");
+  useEffect(() => {
+    // If user is already logged in, check their status
+    if (!authLoading) {
+      if (user) {
+        // User is already authenticated, redirect to dashboard
+        router.push("/dashboard");
+        return;
       }
       
-      if (landlord) {
-        if (landlord.approvalStatus === 'APPROVED') {
-          redirect("/dashboard");
-        } else {
-          redirect("/pending-approval");
-        }
-      }
-      
-      if (tenant || pmc || vendor || contractor) {
-        redirect("/dashboard");
-      }
-      
-      // If no user exists and no valid invitation, show error message
-      if (!invitation) {
-        // No valid invitation - show error message instead of redirecting (to avoid loop)
-        return (
-          <main className="page">
-            <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 16px' }}>
-              <div style={{ 
-                background: '#fff3cd', 
-                border: '1px solid #ffc107', 
-                borderRadius: '8px', 
-                padding: '24px', 
-                textAlign: 'center'
-              }}>
-                <h2 style={{ color: '#856404', marginBottom: '12px' }}>No Invitation Found</h2>
-                <p style={{ color: '#856404', margin: 0 }}>
-                  You don't have a valid invitation to complete registration. Please contact your administrator to receive an invitation.
-                </p>
-              </div>
-            </div>
-          </main>
-        );
-      }
-      
-    } catch (error) {
-      console.error('[Complete Registration] Error checking user status:', error);
-      // On error, redirect to home instead of logout
-      redirect("/?error=registration_error");
+      // No user logged in - allow registration form
+      setChecking(false);
     }
+  }, [authLoading, user, router]);
+
+  if (authLoading || checking) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
   }
+
+  if (error) {
+    return (
+      <div className="max-w-600 mx-auto p-6">
+        <Alert color="failure">
+          <h2 className="text-lg font-semibold mb-2">Registration Error</h2>
+          <p>{error}</p>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Extract name from URL params or use defaults
+  // In a real implementation, you'd get this from invitation token
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const email = searchParams?.get('email') || '';
+  const name = searchParams?.get('name') || '';
   
-  // Parse name from Auth0 (format: "First Last" or "First Middle Last")
-  const fullName = session.user.name || "";
-  const nameParts = fullName.trim().split(/\s+/);
-  
+  const nameParts = name.trim().split(/\s+/);
   let firstName = "";
   let middleName = "";
   let lastName = "";
-  
+
   if (nameParts.length === 1) {
     firstName = nameParts[0];
   } else if (nameParts.length === 2) {
@@ -121,7 +74,7 @@ export default async function CompleteRegistration() {
     lastName = nameParts[nameParts.length - 1];
     middleName = nameParts.slice(1, -1).join(" ");
   }
-  
+
   return (
     <main className="page">
       <CompleteRegistrationForm
@@ -133,4 +86,3 @@ export default async function CompleteRegistration() {
     </main>
   );
 }
-

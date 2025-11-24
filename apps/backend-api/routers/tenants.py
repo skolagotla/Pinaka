@@ -9,6 +9,13 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import (
+    apply_organization_filter,
+    check_organization_access,
+    verify_organization_access_for_create,
+    get_entity_or_404,
+    update_entity_fields
+)
 from schemas.tenant import Tenant, TenantCreate, TenantUpdate, TenantApprovalRequest, TenantRejectionRequest
 from db.models_v2 import Tenant as TenantModel, User, Organization, Landlord, Lease, LeaseTenant, Property, Unit
 
@@ -25,14 +32,7 @@ async def list_tenants(
     user_roles = await get_user_roles(current_user, db)
     
     query = select(TenantModel)
-    
-    # Filter by organization
-    if RoleEnum.SUPER_ADMIN in user_roles:
-        if organization_id:
-            query = query.where(TenantModel.organization_id == organization_id)
-    else:
-        # Non-super users can only see their organization's tenants
-        query = query.where(TenantModel.organization_id == current_user.organization_id)
+    query = await apply_organization_filter(query, TenantModel, current_user, user_roles, organization_id)
     
     result = await db.execute(query)
     tenants = result.scalars().all()
@@ -49,24 +49,14 @@ async def create_tenant(
     """Create tenant"""
     user_roles = await get_user_roles(current_user, db)
     
-    # Verify organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant_data.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot create tenant in different organization",
-            )
-    
-    # Verify organization exists
-    org_result = await db.execute(
-        select(Organization).where(Organization.id == tenant_data.organization_id)
+    # Verify organization access and existence
+    await verify_organization_access_for_create(
+        tenant_data.organization_id,
+        current_user,
+        user_roles,
+        db,
+        "Cannot create tenant in different organization"
     )
-    org = org_result.scalar_one_or_none()
-    if not org:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found",
-        )
     
     tenant = TenantModel(**tenant_data.dict())
     db.add(tenant)
@@ -84,28 +74,13 @@ async def get_tenant(
 ):
     """Get tenant by ID"""
     user_roles = await get_user_roles(current_user, db)
-    
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
     
     # Check organization access
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+        await check_organization_access(tenant, current_user, user_roles)
         # Tenants can only see themselves
         if RoleEnum.TENANT in user_roles:
-            # Check if current user is linked to this tenant
             if tenant.user_id != current_user.id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -124,30 +99,12 @@ async def update_tenant(
 ):
     """Update tenant"""
     user_roles = await get_user_roles(current_user, db)
-    
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
-    
-    # Check organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
+    await check_organization_access(tenant, current_user, user_roles)
     
     # Update fields
     update_data = tenant_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(tenant, field, value)
+    await update_entity_fields(tenant, update_data)
     
     await db.commit()
     await db.refresh(tenant)
@@ -163,25 +120,8 @@ async def delete_tenant(
 ):
     """Delete tenant"""
     user_roles = await get_user_roles(current_user, db)
-    
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
-    
-    # Check organization access
-    if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
+    await check_organization_access(tenant, current_user, user_roles)
     
     await db.execute(delete(TenantModel).where(TenantModel.id == tenant_id))
     await db.commit()
@@ -199,25 +139,10 @@ async def approve_tenant(
     """Approve a tenant"""
     user_roles = await get_user_roles(current_user, db)
     
-    # Get tenant
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
-    
-    # Check access
+    # Get tenant and check access
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+        await check_organization_access(tenant, current_user, user_roles)
         
         # Landlords can only approve tenants for their properties
         if RoleEnum.LANDLORD in user_roles:
@@ -252,25 +177,10 @@ async def reject_tenant(
     """Reject a tenant"""
     user_roles = await get_user_roles(current_user, db)
     
-    # Get tenant
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
-    
-    # Check access (same as approve)
+    # Get tenant and check access
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+        await check_organization_access(tenant, current_user, user_roles)
         
         if RoleEnum.LANDLORD in user_roles:
             landlord_result = await db.execute(
@@ -309,25 +219,10 @@ async def get_tenant_rent_data(
             detail="Access denied",
         )
     
-    # Get tenant
-    result = await db.execute(
-        select(TenantModel).where(TenantModel.id == tenant_id)
-    )
-    tenant = result.scalar_one_or_none()
-    
-    if not tenant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found",
-        )
-    
-    # Check access
+    # Get tenant and check access
+    tenant = await get_entity_or_404(TenantModel, tenant_id, db, "Tenant not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        if tenant.organization_id != current_user.organization_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied",
-            )
+        await check_organization_access(tenant, current_user, user_roles)
     
     # Get active lease for this tenant
     lease_tenant_result = await db.execute(

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Card, Button, Label, TextInput, Select, Textarea, Spinner, Alert } from 'flowbite-react';
 import { formatPhoneNumber, formatPostalCode, formatZipCode, isValidPhoneNumber, isValidPostalCode, isValidZipCode } from '@/lib/utils/formatters';
 import { ALL_TIMEZONES, DEFAULT_TIMEZONE, getTimezoneLabel } from '@/lib/constants/timezones';
 import { useCountryRegion } from '@/lib/hooks';
@@ -21,20 +22,21 @@ const CA_PROVINCES = [
 export default function SettingsForm({ landlord }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [country, setCountry] = useState(landlord.country || "CA");
   const countryRegion = useCountryRegion(country);
   
   const [formData, setFormData] = useState({
-    firstName: landlord.firstName || "",
-    middleName: landlord.middleName || "",
-    lastName: landlord.lastName || "",
+    firstName: landlord.firstName || landlord.first_name || "",
+    middleName: landlord.middleName || landlord.middle_name || "",
+    lastName: landlord.lastName || landlord.last_name || "",
     email: landlord.email || "",
     phone: landlord.phone || "",
-    addressLine1: landlord.addressLine1 || "",
+    addressLine1: landlord.addressLine1 || landlord.address_line1 || "",
     city: landlord.city || "",
     country: landlord.country || "CA",
-    provinceState: landlord.provinceState || "",
-    postalZip: landlord.postalZip || "",
+    provinceState: landlord.provinceState || landlord.state || "",
+    postalZip: landlord.postalZip || landlord.postal_code || "",
     timezone: landlord.timezone || DEFAULT_TIMEZONE,
   });
 
@@ -86,15 +88,13 @@ export default function SettingsForm({ landlord }) {
     if (!isValid || loading) return;
     
     setLoading(true);
+    setError(null);
     try {
       const { v2Api } = await import('@/lib/api/v2-client');
       
-      // Get landlord ID from props or find it via user
+      // Get landlord ID from props
       let landlordId = landlord?.id;
       if (!landlordId) {
-        // Try to get from user context
-        const { useV2Auth } = await import('@/lib/hooks/useV2Auth');
-        // Note: This won't work in a non-hook context, so we need landlord.id from props
         throw new Error('Landlord ID is required');
       }
       
@@ -114,7 +114,7 @@ export default function SettingsForm({ landlord }) {
       router.push("/dashboard");
     } catch (error) {
       console.error('[Settings] Error:', error);
-      alert(error.message || 'Failed to update settings');
+      setError(error.message || 'Failed to update settings');
     } finally {
       setLoading(false);
     }
@@ -126,151 +126,202 @@ export default function SettingsForm({ landlord }) {
   const postalPlaceholder = formData.country === "CA" ? "A1A 1A1" : "12345";
 
   return (
-    <div className="card" style={{ maxWidth: 600, margin: "40px auto" }}>
-      <h1 className="title">Settings</h1>
-      <p style={{ textAlign: "center", color: "#5f6368", marginBottom: 24, fontSize: 14 }}>
-        Update your profile information
-      </p>
-      <form onSubmit={handleSubmit}>
-        <div className="inputs">
-          <input
-            className="input"
-            type="text"
-            placeholder="First Name *"
-            value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-          />
-          <input
-            className="input"
-            type="text"
-            placeholder="Middle Name (Optional)"
-            value={formData.middleName}
-            onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-          />
-          <input
-            className="input"
-            type="text"
-            placeholder="Last Name *"
-            value={formData.lastName}
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-          />
-          <input
-            className="input"
-            type="email"
-            placeholder="Email *"
-            value={formData.email}
-            disabled
-            style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
-          />
-          <input
-            className="input"
-            type="tel"
-            placeholder="Phone Number * (XXX) XXX-XXXX"
-            value={formData.phone}
-            onChange={handlePhoneChange}
-            maxLength={14}
-          />
-          
-          <label className="muted" style={{ marginTop: 16, marginBottom: 4 }}>Country *</label>
-          <select
-            className="input"
-            value={formData.country}
-            onChange={handleCountryChange}
-          >
-            <option value="CA">Canada</option>
-            <option value="US">United States</option>
-          </select>
-          
-          <input
-            className="input"
-            type="text"
-            placeholder="Address *"
-            value={formData.addressLine1}
-            onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-          />
-          <input
-            className="input"
-            type="text"
-            placeholder="City *"
-            value={formData.city}
-            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-          />
-          
-          <label className="muted" style={{ marginTop: 8, marginBottom: 4 }}>{regionLabel} *</label>
-          <select
-            className="input"
-            value={formData.provinceState}
-            onChange={(e) => setFormData({ ...formData, provinceState: e.target.value })}
-          >
-            <option value="">Select {regionLabel}</option>
-            {regionOptions.map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
-            ))}
-          </select>
-          
-          <input
-            className="input"
-            type="text"
-            placeholder={`${postalLabel} * (${postalPlaceholder})`}
-            value={formData.postalZip}
-            onChange={handlePostalZipChange}
-            maxLength={formData.country === "CA" ? 7 : 5}
-          />
-          
-          <label className="muted" style={{ marginTop: 16, marginBottom: 4 }}>
-            Timezone * 
-            <span style={{ fontSize: 12, color: '#666', marginLeft: 8 }}>
-              (All dates and times will display in your selected timezone)
-            </span>
-          </label>
-          <select
-            className="input"
-            value={formData.timezone}
-            onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-            style={{ fontFamily: 'monospace', fontSize: 13 }}
-          >
-            {ALL_TIMEZONES.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.options.map((tz) => (
-                  <option key={tz.value} value={tz.value}>
-                    {tz.label} ({tz.offset})
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
+    <div className="max-w-2xl mx-auto p-6">
+      <Card>
+        <h1 className="text-2xl font-bold mb-2">Settings</h1>
+        <p className="text-gray-600 mb-6">
+          Update your profile information
+        </p>
         
-        <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-          <button
-            type="button"
-            className="icon-text"
-            onClick={() => router.push("/dashboard")}
-            style={{ 
-              flex: 1, 
-              padding: "12px",
-              border: "1px solid #dadce0",
-              borderRadius: "24px",
-              background: "#fff",
-              cursor: "pointer",
-              fontWeight: 500
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="primary"
-            disabled={!isValid || loading}
-            style={{ flex: 1 }}
-          >
-            {loading ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </form>
+        {error && (
+          <Alert color="failure" className="mb-4">
+            {error}
+          </Alert>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="firstName">First Name *</Label>
+              <TextInput
+                id="firstName"
+                type="text"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="middleName">Middle Name (Optional)</Label>
+              <TextInput
+                id="middleName"
+                type="text"
+                placeholder="Middle Name"
+                value={formData.middleName}
+                onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="lastName">Last Name *</Label>
+            <TextInput
+              id="lastName"
+              type="text"
+              placeholder="Last Name"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="email">Email *</Label>
+            <TextInput
+              id="email"
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              disabled
+              className="bg-gray-100 cursor-not-allowed"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="phone">Phone Number *</Label>
+            <TextInput
+              id="phone"
+              type="tel"
+              placeholder="(XXX) XXX-XXXX"
+              value={formData.phone}
+              onChange={handlePhoneChange}
+              maxLength={14}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="country">Country *</Label>
+            <Select
+              id="country"
+              value={formData.country}
+              onChange={handleCountryChange}
+              required
+            >
+              <option value="CA">Canada</option>
+              <option value="US">United States</option>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="addressLine1">Address *</Label>
+            <TextInput
+              id="addressLine1"
+              type="text"
+              placeholder="Address"
+              value={formData.addressLine1}
+              onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="city">City *</Label>
+            <TextInput
+              id="city"
+              type="text"
+              placeholder="City"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="provinceState">{regionLabel} *</Label>
+            <Select
+              id="provinceState"
+              value={formData.provinceState}
+              onChange={(e) => setFormData({ ...formData, provinceState: e.target.value })}
+              required
+            >
+              <option value="">Select {regionLabel}</option>
+              {regionOptions.map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="postalZip">{postalLabel} *</Label>
+            <TextInput
+              id="postalZip"
+              type="text"
+              placeholder={postalPlaceholder}
+              value={formData.postalZip}
+              onChange={handlePostalZipChange}
+              maxLength={formData.country === "CA" ? 7 : 5}
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="timezone">
+              Timezone * 
+              <span className="text-sm text-gray-500 ml-2">
+                (All dates and times will display in your selected timezone)
+              </span>
+            </Label>
+            <Select
+              id="timezone"
+              value={formData.timezone}
+              onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+              required
+              className="font-mono text-sm"
+            >
+              {ALL_TIMEZONES.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label} ({tz.offset})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              color="gray"
+              onClick={() => router.push("/dashboard")}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              color="blue"
+              disabled={!isValid || loading}
+              className="flex-1"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="sm" className="mr-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
-

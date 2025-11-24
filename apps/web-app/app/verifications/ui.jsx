@@ -406,8 +406,8 @@ export default function VerificationsClient({ user, initialStats }) {
             setSelectedVerification(null);
           }}>
             Close
-          </Button>,
-        ]}
+          </Button>
+        }
         width={800}
       >
         {selectedVerification && (
@@ -424,7 +424,7 @@ export default function VerificationsClient({ user, initialStats }) {
               <Col span={12}>
                 <Text strong>Status:</Text>
                 <div>
-                  <Tag icon={STATUS_ICONS[selectedVerification.status]} color={STATUS_COLORS[selectedVerification.status]}>
+                  <Tag icon={STATUS_ICONS[selectedVerification.status} color={STATUS_COLORS[selectedVerification.status}>
                     {selectedVerification.status}
                   </Tag>
                 </div>

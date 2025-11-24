@@ -56,7 +56,7 @@ export default function MaintenanceCreateTicketModal({
       <Form.Item
         name="tenantId"
         label="Tenant"
-        rules={[{ required: true, message: 'Please select a tenant' }]}
+        rules={[{ required: true, message: 'Please select a tenant' }}
       >
         <Select
           placeholder="Select tenant"
@@ -71,7 +71,7 @@ export default function MaintenanceCreateTicketModal({
                   value: t.id,
                   label: `${t.firstName} ${t.lastName} (${t.email})`
                 }))
-            : []}
+            : [}
           onChange={onTenantChange}
           onDropdownVisibleChange={(open) => {
             if (open && (!Array.isArray(tenants) || tenants.length === 0)) {
@@ -84,7 +84,7 @@ export default function MaintenanceCreateTicketModal({
       <Form.Item
         name="propertyId"
         label="Property"
-        rules={[{ required: true, message: 'Property is required' }]}
+        rules={[{ required: true, message: 'Property is required' }}
         tooltip={
           isPropertyEditable 
             ? (Array.isArray(tenantProperties) && tenantProperties.length > 1 
@@ -123,11 +123,11 @@ export default function MaintenanceCreateTicketModal({
             name="priority"
             label="Priority"
             initialValue="Normal"
-            rules={[{ required: true, message: 'Please select priority' }]}
+            rules={[{ required: true, message: 'Please select priority' }}
           >
             <Select placeholder="Select priority">
               {MAINTENANCE_PRIORITIES.map(priority => (
-                <Select.Option key={priority} value={priority}>{priority}</Select.Option>
+                <Select.Option key={priority} value={priority}priority}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -136,7 +136,7 @@ export default function MaintenanceCreateTicketModal({
           <Form.Item
             name="category"
             label="Category"
-            rules={[{ required: true, message: 'Please select a category' }]}
+            rules={[{ required: true, message: 'Please select a category' }}
             extra={selectedCategoryDesc && (
               <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
                 📋 {selectedCategoryDesc}
@@ -148,7 +148,7 @@ export default function MaintenanceCreateTicketModal({
               onChange={onCategoryChange}
             >
               {LANDLORD_CATEGORIES.map(cat => (
-                <Select.Option key={cat} value={cat}>{cat}</Select.Option>
+                <Select.Option key={cat} value={cat}cat}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -158,7 +158,7 @@ export default function MaintenanceCreateTicketModal({
       <Form.Item
         name="title"
         label="Subject"
-        rules={[{ required: true, message: 'Please enter a subject' }]}
+        rules={[{ required: true, message: 'Please enter a subject' }}
       >
         <Input placeholder="Brief description of the issue" />
       </Form.Item>
@@ -166,7 +166,7 @@ export default function MaintenanceCreateTicketModal({
       <Form.Item
         name="description"
         label="Details"
-        rules={[{ required: true, message: 'Please enter details' }]}
+        rules={[{ required: true, message: 'Please enter details' }}
       >
         <TextArea
           rows={4}

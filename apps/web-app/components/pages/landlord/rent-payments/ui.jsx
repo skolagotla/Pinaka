@@ -55,6 +55,8 @@ import { notify } from '@/lib/utils/notification-helper';
 import { useFormState } from '@/lib/hooks/useFormState';
 import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useRentPayments, useCreateRentPayment, useUpdateRentPayment } from '@/lib/hooks/useV2Data';
 
 // Shared Utilities
 import {
@@ -85,16 +87,27 @@ function generateReferenceNumber() {
 
 function RentPaymentsClient({ leases, landlordCountry }) {
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const form = useFormState();
   const { markingUnpaid, withLoading: withMarkingUnpaid, setLoading: setMarkingUnpaid } = useLoading();
+  
+  // v2 API hooks
+  const { data: rentPaymentsData, isLoading: rentPaymentsLoading, refetch: refetchRentPayments } = useRentPayments(organizationId);
+  const createRentPayment = useCreateRentPayment();
+  const updateRentPayment = useUpdateRentPayment();
+  
+  // Use v2 data if available, otherwise fall back to local state
   const [payments, setPayments] = useState([]);
+  const paymentsFromV2 = rentPaymentsData || [];
+  const paymentsToUse = paymentsFromV2.length > 0 ? paymentsFromV2 : payments;
   
   // Ensure payments is always an array - defensive wrapper
   const safeSetPayments = useCallback((value) => {
     const arrayValue = Array.isArray(value) ? value : [];
     setPayments(arrayValue);
   }, []);
-  const { loading, withLoading: withLoadingPayments } = useLoading(true);
+  const { loading, withLoading: withLoadingPayments } = useLoading(rentPaymentsLoading);
   const { isOpen: isRecordModalOpen, open: openRecordModal, close: closeRecordModal, editingItem: selectedPayment, setEditingItem: setSelectedPayment, openForEdit: openRecordModalForEdit } = useModalState();
   const [partialPayments, setPartialPayments] = useState([]);
   const [statusFilter, setStatusFilter] = useState("All");
@@ -117,7 +130,7 @@ function RentPaymentsClient({ leases, landlordCountry }) {
   } = useRentReceipts();
 
   // 🔍 Search functionality
-  const paymentsForSearch = Array.isArray(payments) ? payments : [];
+  const paymentsForSearch = Array.isArray(paymentsToUse) ? paymentsToUse : [];
   const search = useSearch(
     paymentsForSearch,
     ['dueDate', 'paidDate', 'amount', 'status', 'receiptNumber', 'lease.unit.unitName', 'lease.unit.property.propertyName', 'lease.unit.property.addressLine1', 'lease.leaseTenants.tenant.firstName', 'lease.leaseTenants.tenant.lastName'],
@@ -135,20 +148,14 @@ function RentPaymentsClient({ leases, landlordCountry }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Memoize fetchPayments to prevent unnecessary re-renders (v1 API)
+  // Memoize fetchPayments to prevent unnecessary re-renders (v2 API)
   const fetchPayments = useCallback(async () => {
     try {
-      await withLoadingPayments(async () => {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.rentPayments.list({ page: 1, limit: 1000 });
-        const paymentsData = response.data?.data || response.data || [];
-        safeSetPayments(Array.isArray(paymentsData) ? paymentsData : []);
-      });
+      await refetchRentPayments();
     } catch (error) {
       console.error('Error fetching rent payments:', error);
-      safeSetPayments([]);
     }
-  }, [safeSetPayments, withLoadingPayments]);
+  }, [refetchRentPayments]);
 
   useEffect(() => {
     fetchPayments();
@@ -160,17 +167,17 @@ function RentPaymentsClient({ leases, landlordCountry }) {
       console.warn('[RentPayments] payments is not an array, resetting to empty array:', payments);
       safeSetPayments([]);
     }
-  }, [payments, safeSetPayments]);
+  }, [paymentsToUse]);
 
   // Memoize stats calculations
   const stats = useMemo(() => {
     let paymentsArray = [];
     
     try {
-      if (payments && Array.isArray(payments)) {
-        paymentsArray = payments;
-      } else if (payments && typeof payments === 'object' && payments.data && Array.isArray(payments.data)) {
-        paymentsArray = payments.data;
+      if (paymentsToUse && Array.isArray(paymentsToUse)) {
+        paymentsArray = paymentsToUse;
+      } else if (paymentsToUse && typeof paymentsToUse === 'object' && paymentsToUse.data && Array.isArray(paymentsToUse.data)) {
+        paymentsArray = paymentsToUse.data;
       } else {
         paymentsArray = [];
       }
@@ -270,11 +277,11 @@ function RentPaymentsClient({ leases, landlordCountry }) {
       
       if (totalAfterThisPayment >= rentAmount) {
         if (result.autoSentReceipt) {
-          notify.success('🎉 Full payment recorded and receipt automatically sent to tenant!');
+          notify.success('🎉 Full payment recorded and receipt automatically sent to tenant');
         } else if (result.receiptInfo?.error) {
           notify.warning(`Payment recorded successfully, but receipt failed to send: ${result.receiptInfo.error}`);
         } else {
-          notify.success('Full payment recorded successfully!');
+          notify.success('Full payment recorded successfully');
         }
         closeRecordModal();
         setPartialPayments([]);
@@ -299,10 +306,11 @@ function RentPaymentsClient({ leases, landlordCountry }) {
     try {
       notify.loading('Generating receipt PDF...');
       
+      // TODO: Implement v2 endpoint for sending rent payment receipts
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.specialized.sendRentPaymentReceipt(payment.id);
       
-      notify.success('Receipt generated and sent to tenant!');
+      notify.success('Receipt generated and sent to tenant');
       await fetchPayments();
     } catch (error) {
       notify.error(error.message || 'Failed to send receipt');
@@ -487,6 +495,7 @@ function RentPaymentsClient({ leases, landlordCountry }) {
                   onClick={async () => {
                     setMarkingUnpaid(true);
                     try {
+                      // TODO: Implement v2 endpoint for marking rent payment as unpaid
                       const { v1Api } = await import('@/lib/api/v1-client');
                       await v1Api.specialized.markRentPaymentUnpaid(payment.id);
                       notify.success('Rent payment marked as unpaid');

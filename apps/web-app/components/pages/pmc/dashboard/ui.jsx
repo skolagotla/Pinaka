@@ -186,7 +186,7 @@ export default function PMCDashboardClient({
                 <TableHead>
                   <TableRow>
                     {propertyColumns.map((col) => (
-                      <TableHeadCell key={col.header}>{col.header}</TableHeadCell>
+                      <TableHeadCell key={col.header}col.header}</TableHeadCell>
                     ))}
                   </TableRow>
                 </TableHead>
@@ -195,7 +195,7 @@ export default function PMCDashboardClient({
                     <TableRow key={property.id}>
                       {propertyColumns.map((col) => (
                         <TableCell key={col.header}>
-                          {col.cell ? col.cell({ row: { original: property } }) : property[col.accessorKey]}
+                          {col.cell ? col.cell({ row: { original: property } }) : property[col.accessorKey}
                         </TableCell>
                       ))}
                     </TableRow>

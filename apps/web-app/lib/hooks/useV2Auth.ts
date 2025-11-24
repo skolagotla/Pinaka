@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { v2Api } from '../../../../lib/api/v2-client';
+import { v2Api } from '@/lib/api/v2-client';
 
 export interface V2User {
   id: string;

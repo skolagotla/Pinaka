@@ -1,45 +1,87 @@
+/**
+ * Messages Client Component - Migrated to Flowbite UI + v2 FastAPI
+ * 
+ * Uses v2 API endpoints for conversations and messages
+ * UI converted from Ant Design to Flowbite
+ */
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, List, Input, Button, Avatar, Badge, Empty, message, Modal, Form, Select, Spin, Typography, Space, Tag, Popconfirm } from 'antd';
-import { SendOutlined, MessageOutlined, PlusOutlined, UserOutlined, CloseOutlined, DownloadOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
-import PageBanner from './PageBanner';
-import { usePolling, useModalState, useLoadingState } from '@/lib/hooks';
-import dayjs from 'dayjs';
-import { formatDateDisplay, formatDateTimeDisplay, formatDateForAPI, formatTimeOnly, formatDateShort } from '@/lib/utils/safe-date-formatter';
-
-const { Text } = Typography;
-const { TextArea } = Input;
+import { 
+  Card, Button, Modal, TextInput, Label, Textarea, Badge, 
+  Spinner, Avatar, List, Empty, Tooltip, Alert
+} from 'flowbite-react';
+import { 
+  HiPaperAirplane, HiChat, HiPlus, HiUser, HiX, HiDownload, 
+  HiCheckCircle, HiRefresh, HiClock
+} from 'react-icons/hi';
+import { PageLayout } from './PageLayout';
+import { usePolling, useModalState } from '@/lib/hooks';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { 
+  useConversations, useConversation, useCreateConversation, 
+  useMessages, useCreateMessage, useProperties, useLeases 
+} from '@/lib/hooks/useV2Data';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { v2Api } from '@/lib/api/v2-client';
+import { notify } from '@/lib/utils/notification-helper';
+import { formatDateTimeDisplay, formatDateForAPI, formatTimeOnly, formatDateShort } from '@/lib/utils/safe-date-formatter';
+import FlowbitePopconfirm from './FlowbitePopconfirm';
 
 export default function MessagesClient({ userRole = 'landlord' }) {
-  const [loading, setLoading] = useState(true);
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const { isOpen: newConvoModalOpen, open: openNewConvoModal, close: closeNewConvoModal } = useModalState();
-  const [contacts, setContacts] = useState([]); // Generic contacts (tenants for landlord, landlords for tenant)
-  const [properties, setProperties] = useState([]); // Properties for landlords/tenants to select when starting conversations
-  const { loading: sending, withLoading: withSending } = useLoadingState();
-  const [currentUserId, setCurrentUserId] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const [form] = Form.useForm();
 
   // Role-specific configuration
-  // IMPORTANT: Landlords and tenants can ONLY communicate with PMC, not with each other
   const isLandlord = userRole === 'landlord';
   const isTenant = userRole === 'tenant';
-  // For landlords and tenants, we don't show contact selection - they can only message PMC
-  // The conversations API will automatically filter to only show PMC conversations
-  const contactsApiEndpoint = null; // Not used for landlord/tenant - they only see PMC conversations
-  const contactFieldName = null;
-  const contactLabel = 'PMC';
   const subtitle = isLandlord 
     ? 'Communicate with your PMC' 
     : isTenant 
     ? 'Communicate with your PMC' 
     : 'Communicate with your landlord';
+
+  // Load conversations using v2 API
+  const { data: conversationsData, isLoading: conversationsLoading, refetch: refetchConversations } = useConversations(organizationId);
+  const conversations = conversationsData && Array.isArray(conversationsData) ? conversationsData : [];
+
+  // Load selected conversation
+  const { data: selectedConversation, refetch: refetchConversation } = useConversation(selectedConversationId || '');
+  
+  // Load messages for selected conversation
+  const { data: messagesData, refetch: refetchMessages } = useMessages(selectedConversationId || '');
+  const messages = messagesData && Array.isArray(messagesData) ? messagesData : [];
+
+  // Load properties for landlords/tenants
+  const { data: propertiesData } = useProperties(organizationId);
+  const properties = propertiesData && Array.isArray(propertiesData) ? propertiesData : [];
+
+  // Load leases for tenants
+  const { data: leasesData } = useLeases({ tenant_id: user?.id });
+  const leases = leasesData && Array.isArray(leasesData) ? leasesData : [];
+
+  // Extract unique properties from leases (for tenants)
+  const tenantProperties = isTenant ? leases
+    .map(lease => lease.unit?.property)
+    .filter(Boolean)
+    .filter((prop, index, self) => self.findIndex(p => p.id === prop.id) === index) : [];
+
+  const availableProperties = isLandlord ? properties : tenantProperties;
+
+  // Mutations
+  const createConversation = useCreateConversation();
+  const createMessage = useCreateMessage();
+
+  const conversationForm = useFormState({
+    propertyId: '',
+    subject: '',
+    initialMessage: '',
+  });
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -50,163 +92,13 @@ export default function MessagesClient({ userRole = 'landlord' }) {
     scrollToBottom();
   }, [messages]);
 
-  const loadCurrentUser = useCallback(async () => {
-    try {
-      // Use apiClient to call /api/user/current endpoint
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient('/api/user/current', {
-        method: 'GET',
-      });
-      const data = await response.json().catch(() => ({}));
-      if (data.user || data.id) {
-        setCurrentUserId(data.user?.id || data.id);
-      }
-    } catch (error) {
-      // Silently handle errors - only log in development mode
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[Messages] Error loading current user:', error);
-      }
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      // For landlords and tenants, only load conversations (they can only communicate with PMC)
-      // For other roles, load both conversations and contacts
-      // Use v1Api client for conversations
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const promises = [
-        v1Api.conversations.list({ page: 1, limit: 1000 }).then(response => {
-          const conversationsData = response.data?.data || response.data || [];
-          return { ok: true, json: async () => ({ conversations: Array.isArray(conversationsData) ? conversationsData : [] }) };
-        }).catch((err) => {
-          console.warn('[Messages] Failed to load conversations:', err?.message || 'Unknown error');
-          return null;
-        }),
-      ];
-
-      // Only load contacts if not landlord/tenant (they can only message PMC)
-      if (contactsApiEndpoint && !isLandlord && !isTenant) {
-        // Use direct fetch for legacy endpoints that don't have v1 equivalents
-        promises.push(
-          fetch(contactsApiEndpoint, { credentials: 'include' })
-            .then(res => res.ok ? res.json().then(data => ({ ok: true, json: async () => data })) : null)
-            .catch((err) => {
-              console.warn(`[Messages] Failed to load ${contactLabel.toLowerCase()}s:`, err?.message || 'Unknown error');
-              return null;
-            })
-        );
-      }
-
-      // For landlords/tenants, load properties so they can select one when starting a conversation
-      if (isLandlord || isTenant) {
-        // For landlords: use v1Api.properties
-        // For tenants: get properties from their leases via v1Api.leases
-        if (isLandlord) {
-          promises.push(
-            v1Api.properties.list({ page: 1, limit: 1000 }).then(response => {
-              const propertiesData = response.data?.data || response.data || [];
-              return { ok: true, json: async () => ({ properties: Array.isArray(propertiesData) ? propertiesData : [] }) };
-            }).catch((err) => {
-              console.warn('[Messages] Failed to load properties:', err?.message || 'Unknown error');
-              return null;
-            })
-          );
-        } else {
-          promises.push(
-            v1Api.leases.list({ page: 1, limit: 1000 }).then(response => {
-              const leasesData = response.data?.data || response.data || [];
-              return { ok: true, json: async () => (Array.isArray(leasesData) ? leasesData : []) };
-            }).catch((err) => {
-              console.warn('[Messages] Failed to load leases:', err?.message || 'Unknown error');
-              return null;
-            })
-          );
-        }
-      }
-
-      const results = await Promise.all(promises);
-      const [convoRes, contactsRes, propertiesRes] = results;
-
-      if (convoRes && convoRes.ok) {
-        try {
-          const data = await convoRes.json();
-          setConversations(data.conversations || []);
-        } catch (parseError) {
-          console.warn('[Messages] Failed to parse conversations response:', parseError);
-        }
-      }
-
-      if (contactsRes && contactsRes.ok) {
-        try {
-          const data = await contactsRes.json();
-          // Handle different response formats
-          if (Array.isArray(data)) {
-            setContacts(data);
-          } else if (data.tenants) {
-            setContacts(data.tenants);
-          } else if (data.landlords) {
-            setContacts(data.landlords);
-          } else if (data.tenant) {
-            setContacts([data.tenant]);
-          } else if (data.landlord) {
-            setContacts([data.landlord]);
-          } else {
-            setContacts([]);
-          }
-        } catch (parseError) {
-          console.warn(`[Messages] Failed to parse ${contactLabel.toLowerCase()}s response:`, parseError);
-        }
-      }
-
-      // Load properties for landlords/tenants
-      if (propertiesRes && propertiesRes.ok) {
-        try {
-          const data = await propertiesRes.json();
-          if (isLandlord) {
-            // Landlord: properties API returns { properties: [...] }
-            if (Array.isArray(data)) {
-              setProperties(data);
-            } else if (data.properties) {
-              setProperties(data.properties);
-            } else if (data.data) {
-              setProperties(Array.isArray(data.data) ? data.data : []);
-            } else {
-              setProperties([]);
-            }
-          } else if (isTenant) {
-            // Tenant: leases API returns leases, extract unique properties
-            const leases = Array.isArray(data) ? data : (data.leases || data.data || []);
-            const uniqueProperties = new Map();
-            leases.forEach(lease => {
-              if (lease.unit && lease.unit.property) {
-                const prop = lease.unit.property;
-                if (!uniqueProperties.has(prop.id)) {
-                  uniqueProperties.set(prop.id, prop);
-                }
-              }
-            });
-            setProperties(Array.from(uniqueProperties.values()));
-          }
-        } catch (parseError) {
-          console.warn('[Messages] Failed to parse properties response:', parseError);
-        }
-      }
-    } catch (error) {
-      console.warn('[Messages] Error in loadData:', error?.message || 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, [isLandlord, isTenant, contactsApiEndpoint, contactLabel]);
-
   // Polling for real-time updates
   const { startPolling, stopPolling } = usePolling({
     callback: async () => {
-      if (selectedConversation) {
-        await loadMessages(selectedConversation.id);
+      if (selectedConversationId) {
+        refetchMessages();
       }
-      await loadConversations();
+      refetchConversations();
     },
     interval: 5000,
     enabled: true,
@@ -214,190 +106,148 @@ export default function MessagesClient({ userRole = 'landlord' }) {
   });
 
   useEffect(() => {
-    loadCurrentUser();
-    loadData();
     if (isLandlord) {
       startPolling();
       return () => stopPolling();
     }
-  }, [loadCurrentUser, loadData, isLandlord, startPolling, stopPolling]);
+  }, [isLandlord, startPolling, stopPolling]);
 
-  const loadConversations = async () => {
+  const handleStartConversation = async () => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.list({ page: 1, limit: 1000 });
-      const conversationsData = response.data?.data || response.data || [];
-      setConversations(Array.isArray(conversationsData) ? conversationsData : []);
-    } catch (error) {
-      console.warn('[Messages] Failed to load conversations (polling):', error?.message || 'Unknown error');
-    }
-  };
-
-  const loadMessages = async (conversationId) => {
-    try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.conversations.get(conversationId);
-      const conversation = response.data || response;
-      if (conversation) {
-        setMessages(conversation.messages || []);
-        // Update selected conversation with latest data
-        setSelectedConversation(conversation);
+      const values = conversationForm.getFieldsValue();
+      
+      if (!values.subject || !values.propertyId) {
+        notify.error('Subject and property are required');
+        return;
       }
-    } catch (error) {
-      console.warn('[Messages] Failed to load messages:', error?.message || 'Unknown error');
-    }
-  };
 
-  const handleStartConversation = async (values) => {
-    try {
-      // For landlords and tenants, they can only create conversations with PMC
-      // They need to provide propertyId (PMC will be determined from property)
-      const body = {
+      // Get property to find PMC organization
+      const property = availableProperties.find(p => p.id === values.propertyId);
+      if (!property) {
+        notify.error('Property not found');
+        return;
+      }
+
+      // Get PMC users from the property's organization
+      // TODO: Add helper endpoint to get PMC users for a property
+      const pmcUsers = await v2Api.listUsers(property.organization_id);
+      const pmcUserIds = Array.isArray(pmcUsers) 
+        ? pmcUsers.filter(u => u.roles?.some(r => r.name === 'pmc_admin' || r.name === 'pm')).map(u => u.id)
+        : [];
+
+      if (pmcUserIds.length === 0) {
+        notify.error('No PMC users found for this property');
+        return;
+      }
+
+      // Create conversation
+      const conversation = await createConversation.mutateAsync({
+        organization_id: organizationId || '',
         subject: values.subject,
-      };
+        entity_type: 'property',
+        entity_id: values.propertyId,
+        participant_user_ids: pmcUserIds,
+      });
 
-      if (isLandlord || isTenant) {
-        // Landlords/tenants can only message PMC - propertyId is required
-        if (!values.propertyId) {
-          message.error('Property is required to start a conversation with PMC');
-          return;
-        }
-        body.propertyId = values.propertyId;
-        // Initial message is optional but recommended
-        if (values.initialMessage) {
-          body.initialMessage = values.initialMessage;
-        }
-      } else {
-        // For other roles (if any), use the old logic
-        if (contactFieldName && values[contactFieldName]) {
-          body[contactFieldName] = values[contactFieldName];
-          body.propertyId = values.propertyId; // Property might be needed
-        }
+      // If initial message provided, send it
+      if (values.initialMessage) {
+        await createMessage.mutateAsync({
+          conversationId: conversation.id,
+          data: { body: values.initialMessage },
+        });
       }
 
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.conversations.create(body);
-
-      message.success('Conversation started');
+      notify.success('Conversation started');
       closeNewConvoModal();
-      form.resetFields();
-      loadData();
+      conversationForm.reset();
+      setSelectedConversationId(conversation.id);
+      refetchConversations();
     } catch (error) {
       console.error('[Messages] Error starting conversation:', error);
-      message.error(error.message || 'Failed to start conversation');
+      notify.error(error.message || 'Failed to start conversation');
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversationId) return;
     
-    // Don't allow sending messages to closed conversations
-    if (selectedConversation.status === 'closed') {
-      message.warning(isLandlord 
-        ? 'This conversation is closed. You cannot send new messages.'
-        : 'This conversation is closed. Please reopen it to send messages.');
+    if (selectedConversation?.status === 'closed') {
+      notify.warning('This conversation is closed. Please reopen it to send messages.');
       return;
     }
 
-    await withSending(async () => {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.specialized.sendConversationMessage(selectedConversation.id, newMessage.trim());
+    try {
+      await createMessage.mutateAsync({
+        conversationId: selectedConversationId,
+        data: { body: newMessage.trim() },
+      });
 
       setNewMessage('');
-      // Reload messages immediately
-      await loadMessages(selectedConversation.id);
-      // Reload conversations to update last message preview
-      await loadConversations();
-    });
+      refetchMessages();
+      refetchConversations();
+    } catch (error) {
+      console.error('[Messages] Error sending message:', error);
+      notify.error(error.message || 'Failed to send message');
+    }
   };
 
   const handleCloseConversation = async () => {
-    if (!selectedConversation) return;
+    if (!selectedConversationId) return;
 
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const updatedConversation = await v1Api.conversations.update(selectedConversation.id, {
-        status: 'closed'
-      });
-      const conversation = updatedConversation.data || updatedConversation;
-      if (conversation) {
-        setSelectedConversation(conversation);
-        // Update in conversations list
-        setConversations(prev => prev.map(c => 
-          c.id === conversation.id ? conversation : c
-        ));
-        message.success('Conversation closed. You can still view and download it.');
-      }
+      await v2Api.updateConversation(selectedConversationId, { status: 'closed' });
+      notify.success('Conversation closed. You can still view and download it.');
+      refetchConversation();
+      refetchConversations();
     } catch (error) {
-      message.error(error.message || 'Failed to close conversation');
+      notify.error(error.message || 'Failed to close conversation');
     }
   };
 
   const handleReopenConversation = async () => {
-    if (!selectedConversation) return;
+    if (!selectedConversationId) return;
 
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const updatedConversation = await v1Api.conversations.update(selectedConversation.id, {
-        status: 'active'
-      });
-      const conversation = updatedConversation.data || updatedConversation;
-      if (conversation) {
-        setSelectedConversation(conversation);
-        // Update in conversations list
-        setConversations(prev => prev.map(c => 
-          c.id === conversation.id ? conversation : c
-        ));
-        message.success('Conversation reopened. You can now send messages.');
-      }
+      await v2Api.updateConversation(selectedConversationId, { status: 'active' });
+      notify.success('Conversation reopened. You can now send messages.');
+      refetchConversation();
+      refetchConversations();
     } catch (error) {
-      message.error(error.message || 'Failed to reopen conversation');
+      notify.error(error.message || 'Failed to reopen conversation');
     }
   };
 
   const handleDownloadConversation = () => {
     if (!selectedConversation || !messages.length) {
-      message.warning('No messages to download');
+      notify.warning('No messages to download');
       return;
     }
 
-    // Create a formatted text file with conversation details
-    const participantNamesStr = typeof selectedConversation.participantNames === 'string' 
-      ? selectedConversation.participantNames 
-      : (Array.isArray(selectedConversation.participantNames) 
-          ? selectedConversation.participantNames.map(p => typeof p === 'string' ? p : p.name).join(', ')
-          : 'Unknown');
+    const participantNames = selectedConversation.participants?.map(p => p.user?.full_name || p.user?.email || 'Unknown').join(', ') || 'Unknown';
 
     const conversationText = [
       `Conversation: ${selectedConversation.subject || 'Untitled'}`,
-      `Participants: ${participantNamesStr}`,
+      `Participants: ${participantNames}`,
       `Status: ${selectedConversation.status || 'active'}`,
-      `Created: ${formatDateTimeDisplay(selectedConversation.createdAt)}`,
-      `Last Updated: ${formatDateTimeDisplay(selectedConversation.updatedAt)}`,
+      `Created: ${formatDateTimeDisplay(selectedConversation.created_at)}`,
+      `Last Updated: ${formatDateTimeDisplay(selectedConversation.updated_at)}`,
       '',
       '='.repeat(60),
       'MESSAGES',
       '='.repeat(60),
       '',
       ...messages.map((msg, index) => {
-        const senderName = msg.senderName || 'Unknown';
-        const timestamp = formatDateTimeDisplay(msg.createdAt);
+        const senderName = msg.sender?.full_name || msg.sender?.email || 'Unknown';
+        const timestamp = formatDateTimeDisplay(msg.created_at);
         return [
           `[${index + 1}] ${senderName} - ${timestamp}`,
           '-'.repeat(60),
-          msg.messageText,
+          msg.body,
           ''
         ].join('\n');
       })
     ].join('\n');
 
-    // Create blob and download
     const blob = new Blob([conversationText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -409,385 +259,336 @@ export default function MessagesClient({ userRole = 'landlord' }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    message.success('Conversation downloaded successfully');
+    notify.success('Conversation downloaded successfully');
   };
 
-  const selectConversation = async (conversation) => {
-    setSelectedConversation(conversation);
-    await loadMessages(conversation.id);
+  const selectConversation = (conversation) => {
+    setSelectedConversationId(conversation.id);
   };
 
-  const unreadCount = conversations.reduce((count, c) => {
-    return count + (c.unreadCount || 0);
+  // Calculate unread count (messages where is_read is false and sender is not current user)
+  const unreadCount = conversations.reduce((count, conv) => {
+    const unread = conv.messages?.filter(msg => 
+      !msg.is_read && msg.sender_user_id !== user?.id
+    ).length || 0;
+    return count + unread;
   }, 0);
 
+  // Get last message preview
+  const getLastMessage = (conversation) => {
+    if (!conversation.messages || conversation.messages.length === 0) return null;
+    const sorted = [...conversation.messages].sort((a, b) => 
+      new Date(b.created_at) - new Date(a.created_at)
+    );
+    return sorted[0];
+  };
+
   return (
-    <div style={{ padding: '24px' }}>
-      <PageBanner
-        title="Messages"
-        subtitle={subtitle}
-        stats={[
-          { label: 'Conversations', value: conversations.length, color: '#1890ff' },
-          { label: 'Unread', value: unreadCount, color: '#ff4d4f' }
+    <PageLayout
+      title="Messages"
+      subtitle={subtitle}
+       stats={[
+         { label: 'Conversations', value: conversations.length, color: 'blue' },
+         { label: 'Unread', value: unreadCount, color: 'red' }
         ]}
-        actions={[
-          {
-            icon: <PlusOutlined />,
-            label: 'New Message',
-            type: 'primary',
-            onClick: openNewConvoModal
-          }
-        ]}
-      />
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, height: 'calc(100vh - 250px)' }}>
+       actions={[
+        {
+          key: 'new-message',
+          icon: <HiPlus className="h-5 w-5" />,
+          label: 'New Message',
+          type: 'primary',
+          onClick: openNewConvoModal
+        }
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-250px)]">
         {/* Conversations List */}
-        <Card title="Conversations" bodyStyle={{ height: '100%', overflow: 'auto', padding: 0 }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-              <Spin size="large" />
-            </div>
-          ) : conversations.length === 0 ? (
-            <Empty description="No conversations yet" style={{ marginTop: 50 }}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openNewConvoModal}>
-                Start a Conversation
-              </Button>
-            </Empty>
-          ) : (
-            <List
-              dataSource={conversations}
-              renderItem={convo => {
-                const lastMessage = convo.messages?.[0];
-                const preview = lastMessage?.messageText?.substring(0, 50) || 'No messages yet';
-                return (
-                  <List.Item
-                    onClick={() => selectConversation(convo)}
-                    style={{
-                      cursor: 'pointer',
-                      backgroundColor: selectedConversation?.id === convo.id ? '#e6f7ff' : undefined,
-                      padding: '12px 16px',
-                      borderLeft: selectedConversation?.id === convo.id ? '3px solid #1890ff' : '3px solid transparent'
-                    }}
-                  >
-                    <List.Item.Meta
-                      avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />}
-                      title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text strong>{convo.subject || convo.participantNames || 'Conversation'}</Text>
-                          {convo.unreadCount > 0 && (
-                            <Badge count={convo.unreadCount} size="small" />
-                          )}
-                        </div>
-                      }
-                      description={
-                        <div>
-                          <Text type="secondary" ellipsis style={{ fontSize: '12px', display: 'block' }}>
-                            {preview}{preview.length >= 50 ? '...' : ''}
-                          </Text>
-                          <Text type="secondary" style={{ fontSize: '11px' }}>
-                            {formatDateShort(convo.updatedAt)} {formatTimeOnly(convo.updatedAt)}
-                          </Text>
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                );
-              }}
-            />
-          )}
-        </Card>
-
-        {/* Messages Thread */}
-        <Card 
-          title={
-            selectedConversation 
-              ? (() => {
-                  const subject = selectedConversation.subject || 'Conversation';
-                  const participantNames = typeof selectedConversation.participantNames === 'string' 
-                    ? selectedConversation.participantNames 
-                    : (Array.isArray(selectedConversation.participantNames) 
-                        ? selectedConversation.participantNames.map(p => typeof p === 'string' ? p : p.name).join(', ')
-                        : '');
-                  const title = participantNames ? `${subject} - ${participantNames}` : subject;
+        <div className="lg:col-span-1">
+          <Card>
+            <h3 className="text-lg font-semibold mb-4">Conversations</h3>
+            {conversationsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Spinner size="xl" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <Empty description="No conversations yet">
+                <Button onClick={openNewConvoModal} color="blue">
+                  <HiPlus className="h-4 w-4 mr-2" />
+                  Start a Conversation
+                </Button>
+              </Empty>
+            ) : (
+              <div className="space-y-2 max-h-[calc(100vh-350px)] overflow-y-auto">
+                {conversations.map(convo => {
+                  const lastMessage = getLastMessage(convo);
+                  const preview = lastMessage?.body?.substring(0, 50) || 'No messages yet';
+                  const unread = convo.messages?.filter(msg => 
+                    !msg.is_read && msg.sender_user_id !== user?.id
+                  ).length || 0;
+                  
                   return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                      <span>{title}</span>
-                      <Space>
-                        {selectedConversation.status === 'closed' && (
-                          <Tag color="default" icon={<CheckCircleOutlined />}>Closed</Tag>
+                    <div
+                      key={convo.id}
+                      onClick={() => selectConversation(convo)}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedConversationId === convo.id 
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' 
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-l-4 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <h4 className="font-semibold text-sm">{convo.subject || 'Conversation'}</h4>
+                        {unread > 0 && (
+                          <Badge color="failure" size="sm">{unread}</Badge>
                         )}
-                        <Button
-                          type="text"
-                          icon={<DownloadOutlined />}
-                          onClick={handleDownloadConversation}
-                          title="Download conversation"
-                        />
-                        {selectedConversation.status === 'closed' ? (
-                          <Popconfirm
-                            title="Reopen conversation?"
-                            description="This will reopen the conversation so you can send messages again."
-                            onConfirm={handleReopenConversation}
-                            okText="Yes, reopen it"
-                            cancelText="Cancel"
-                          >
-                            <Button
-                              type="text"
-                              icon={<ReloadOutlined />}
-                              title="Reopen conversation"
-                            />
-                          </Popconfirm>
-                        ) : (
-                          <Popconfirm
-                            title="Close conversation?"
-                            description="This will close the conversation. Both parties can still view and download it, but no new messages can be sent."
-                            onConfirm={handleCloseConversation}
-                            okText="Yes, close it"
-                            cancelText="Cancel"
-                          >
-                            <Button
-                              type="text"
-                              icon={<CloseOutlined />}
-                              title="Close conversation"
-                              danger
-                            />
-                          </Popconfirm>
-                        )}
-                      </Space>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mb-1">
+                        {preview}{preview.length >= 50 ? '...' : ''}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {formatDateShort(convo.updated_at)} {formatTimeOnly(convo.updated_at)}
+                      </p>
                     </div>
                   );
-                })()
-              : 'Select a conversation'
-          }
-          bodyStyle={{ height: 'calc(100% - 60px)', display: 'flex', flexDirection: 'column', padding: 0 }}
-        >
-          {selectedConversation ? (
-            <>
-              <div 
-                ref={messagesContainerRef}
-                style={{ 
-                  flex: 1, 
-                  overflow: 'auto', 
-                  padding: '16px',
-                  backgroundColor: '#fafafa',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}
-              >
-                {messages.length === 0 ? (
-                  <Empty description="No messages yet. Start the conversation!" style={{ marginTop: 100 }} />
-                ) : (
-                  messages.map((msg, index) => {
-                    // Determine if this is the current user's message
-                    const isMyMessage = currentUserId && msg.senderId === currentUserId;
-                    const showAvatar = index === 0 || messages[index - 1]?.senderId !== msg.senderId;
-                    
-                    return (
-                      <div
-                        key={msg.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: isMyMessage ? 'flex-end' : 'flex-start',
-                          marginBottom: showAvatar ? '8px' : '4px'
-                        }}
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Messages Thread */}
+        <div className="lg:col-span-2">
+          <Card>
+            {selectedConversation ? (
+              <>
+                <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div>
+                    <h3 className="text-lg font-semibold">{selectedConversation.subject || 'Conversation'}</h3>
+                    {selectedConversation.status === 'closed' && (
+                      <Badge color="gray" className="mt-1">
+                        <HiCheckCircle className="h-3 w-3 mr-1" />
+                        Closed
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Tooltip content="Download conversation">
+                      <Button size="xs" color="light" onClick={handleDownloadConversation}>
+                        <HiDownload className="h-4 w-4" />
+                      </Button>
+                    </Tooltip>
+                    {selectedConversation.status === 'closed' ? (
+                      <FlowbitePopconfirm
+                        title="Reopen conversation?"
+                        description="This will reopen the conversation so you can send messages again."
+                        onConfirm={handleReopenConversation}
                       >
-                        <div style={{
-                          maxWidth: '70%',
-                          display: 'flex',
-                          flexDirection: isMyMessage ? 'row-reverse' : 'row',
-                          gap: '8px',
-                          alignItems: 'flex-end'
-                        }}>
-                          {showAvatar && (
-                            <Avatar 
-                              icon={<UserOutlined />} 
-                              style={{ 
-                                backgroundColor: isMyMessage ? '#1890ff' : '#52c41a',
-                                flexShrink: 0
-                              }}
-                            />
-                          )}
-                          {!showAvatar && <div style={{ width: '32px' }} />}
-                          <div style={{
-                            backgroundColor: isMyMessage ? '#1890ff' : '#ffffff',
-                            color: isMyMessage ? '#ffffff' : '#000000',
-                            padding: '8px 12px',
-                            borderRadius: '12px',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                            wordWrap: 'break-word'
-                          }}>
-                            {showAvatar && (
-                              <Text 
-                                strong 
-                                style={{ 
-                                  fontSize: '12px', 
-                                  color: isMyMessage ? '#ffffff' : '#1890ff',
-                                  display: 'block',
-                                  marginBottom: '4px'
-                                }}
+                        <Button size="xs" color="light">
+                          <HiRefresh className="h-4 w-4" />
+                        </Button>
+                      </FlowbitePopconfirm>
+                    ) : (
+                      <FlowbitePopconfirm
+                        title="Close conversation?"
+                        description="This will close the conversation. Both parties can still view and download it, but no new messages can be sent."
+                        onConfirm={handleCloseConversation}
+                      >
+                        <Button size="xs" color="failure">
+                          <HiX className="h-4 w-4" />
+                        </Button>
+                      </FlowbitePopconfirm>
+                    )}
+                  </div>
+                </div>
+
+                <div 
+                  ref={messagesContainerRef}
+                  className="flex-1 overflow-y-auto space-y-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-4"
+                  style={{ maxHeight: 'calc(100vh - 400px)' }}
+                >
+                  {messages.length === 0 ? (
+                    <Empty description="No messages yet. Start the conversation" />
+                  ) : (
+                    messages.map((msg, index) => {
+                      const isMyMessage = user?.id && msg.sender_user_id === user.id;
+                      const showAvatar = index === 0 || messages[index - 1]?.sender_user_id !== msg.sender_user_id;
+                      const senderName = msg.sender?.full_name || msg.sender?.email || 'User';
+                      
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`flex gap-2 max-w-[70%] ${isMyMessage ? 'flex-row-reverse' : 'flex-row'} items-end`}>
+                            {showAvatar ? (
+                              <Avatar
+                                rounded
+                                img={null}
+                                className={isMyMessage ? 'bg-blue-500' : 'bg-green-500'}
                               >
-                                {msg.senderName || 'User'}
-                              </Text>
+                                <HiUser className="h-5 w-5" />
+                              </Avatar>
+                            ) : (
+                              <div className="w-8" />
                             )}
-                            <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
-                              {msg.messageText}
-                            </div>
-                            <Text 
-                              type="secondary" 
-                              style={{ 
-                                fontSize: '11px', 
-                                display: 'block',
-                                marginTop: '4px',
-                                color: isMyMessage ? 'rgba(255,255,255,0.8)' : '#999'
-                              }}
+                            <div
+                              className={`rounded-lg px-4 py-2 ${
+                                isMyMessage 
+                                  ? 'bg-blue-500 text-white' 
+                                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                              } shadow-sm`}
                             >
-                              {formatTimeOnly(msg.createdAt)}
-                            </Text>
+                              {showAvatar && (
+                                <div className={`text-xs font-semibold mb-1 ${
+                                  isMyMessage ? 'text-white' : 'text-blue-600 dark:text-blue-400'
+                                }`]
+                                  {senderName}
+                                </div>
+                              )}
+                              <div className="text-sm">{msg.body}</div>
+                              <div className={`text-xs mt-1 ${
+                                isMyMessage ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                              }`]
+                                {formatTimeOnly(msg.created_at)}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
 
-              {/* Message Input */}
-              {selectedConversation.status === 'closed' ? (
-                <div style={{ 
-                  padding: '16px',
-                  borderTop: '1px solid #f0f0f0',
-                  backgroundColor: '#f5f5f5',
-                  textAlign: 'center'
-                }}>
-                  <Text type="secondary">
-                    <CheckCircleOutlined /> This conversation is closed. You can still view and download it, or reopen it to continue the conversation.
-                  </Text>
-                </div>
-              ) : (
-                <div style={{ 
-                  display: 'flex', 
-                  gap: 8, 
-                  padding: '16px',
-                  borderTop: '1px solid #f0f0f0',
-                  backgroundColor: '#ffffff'
-                }}>
-                  <TextArea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onPressEnter={(e) => {
-                      if (!e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-                    rows={2}
-                    style={{ flex: 1 }}
-                    disabled={sending}
-                  />
-                  <Button 
-                    type="primary" 
-                    icon={<SendOutlined />}
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || sending}
-                    loading={sending}
-                    style={{ alignSelf: 'flex-end' }}
-                  >
-                    Send
-                  </Button>
-                </div>
-              )}
-            </>
-          ) : (
-            <Empty description="Select a conversation to view messages" style={{ marginTop: 100 }} />
-          )}
-        </Card>
+                {/* Message Input */}
+                {selectedConversation.status === 'closed' ? (
+                  <Alert color="info" className="mb-0">
+                    <div className="flex items-center gap-2">
+                      <HiCheckCircle className="h-5 w-5" />
+                      <span>This conversation is closed. You can still view and download it, or reopen it to continue the conversation.</span>
+                    </div>
+                  </Alert>
+                ) : (
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                      rows={2}
+                      className="flex-1"
+                      disabled={createMessage.isPending}
+                    />
+                    <Button 
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim() || createMessage.isPending}
+                      color="blue"
+                      className="self-end"
+                    >
+                      {createMessage.isPending ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <>
+                          <HiPaperAirplane className="h-4 w-4 mr-2" />
+                          Send
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Empty description="Select a conversation to view messages" />
+            )}
+          </Card>
+        </div>
       </div>
 
       {/* New Conversation Modal */}
-      <Modal
-        title={isLandlord || isTenant ? "Start Conversation with PMC" : "Start New Conversation"}
-        open={newConvoModalOpen}
-        onCancel={() => {
-          closeNewConvoModal();
-          form.resetFields();
-        }}
-        onOk={() => form.submit()}
-      >
-        <Form form={form} layout="vertical" onFinish={handleStartConversation}>
-          {isLandlord || isTenant ? (
-            <>
-              {/* For landlords/tenants: show property selection */}
-              <Form.Item
-                name="propertyId"
-                label="Property"
-                rules={[{ required: true, message: 'Please select a property' }]}
-                help="Select the property related to your conversation with PMC"
-              >
-                <Select
-                  showSearch
-                  placeholder="Select property"
-                  optionFilterProp="label"
-                  options={properties.map(p => ({
-                    value: p.id,
-                    label: p.propertyName || p.addressLine1 || p.id
-                  }))}
-                />
-              </Form.Item>
+      <Modal show={newConvoModalOpen} onClose={closeNewConvoModal} size="md">
+        <Modal.Header>
+          {isLandlord || isTenant ? "Start Conversation with PMC" : "Start New Conversation"}
+        </Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            {(isLandlord || isTenant) && (
+              <>
+                <div>
+                  <Label htmlFor="propertyId" className="mb-2 block">
+                    Property <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="propertyId"
+                    value={conversationForm.getFieldValue('propertyId') || ''}
+                    onChange={(e) => conversationForm.setField('propertyId', e.target.value)}
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                    required
+                  >
+                    <option value="">Select property</option>
+                    {availableProperties.map(p => (
+                      <option key={p.id} value={p.id]
+                        {p.name || p.address_line1 || p.id}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-sm text-gray-500">Select the property related to your conversation with PMC</p>
+                </div>
 
-              <Form.Item
-                name="subject"
-                label="Subject"
-                rules={[{ required: true, message: 'Please enter a subject' }]}
-              >
-                <Input placeholder={isLandlord ? "e.g., Question about property management" : "e.g., Question about my lease"} />
-              </Form.Item>
-
-              <Form.Item
-                name="initialMessage"
-                label="Initial Message"
-                rules={[{ required: true, message: 'Please enter an initial message' }]}
-              >
-                <TextArea 
-                  rows={4} 
-                  placeholder="Start your conversation with PMC..." 
-                />
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              {/* For other roles: show contact selection */}
-              {contactFieldName && (
-                <Form.Item
-                  name={contactFieldName}
-                  label={contactLabel}
-                  rules={[{ required: true, message: `Please select a ${contactLabel.toLowerCase()}` }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder={`Select ${contactLabel.toLowerCase()}`}
-                    optionFilterProp="label"
-                    options={contacts.map(c => ({
-                      value: c.id,
-                      label: `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.name || 'Unknown'
-                    }))}
+                <div>
+                  <Label htmlFor="subject" className="mb-2 block">
+                    Subject <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="subject"
+                    value={conversationForm.getFieldValue('subject') || ''}
+                    onChange={(e) => conversationForm.setField('subject', e.target.value)}
+                    placeholder={isLandlord ? "e.g., Question about property management" : "e.g., Question about my lease"}
+                    required
                   />
-                </Form.Item>
-              )}
+                </div>
 
-              <Form.Item
-                name="subject"
-                label="Subject"
-                rules={[{ required: true, message: 'Please enter a subject' }]}
-              >
-                <Input placeholder="e.g., Question about property" />
-              </Form.Item>
-            </>
-          )}
-        </Form>
+                <div>
+                  <Label htmlFor="initialMessage" className="mb-2 block">
+                    Initial Message <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="initialMessage"
+                    rows={4}
+                    value={conversationForm.getFieldValue('initialMessage') || ''}
+                    onChange={(e) => conversationForm.setField('initialMessage', e.target.value)}
+                    placeholder="Start your conversation with PMC..."
+                    required
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={closeNewConvoModal} color="gray">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleStartConversation} 
+            color="blue"
+            disabled={createConversation.isPending}
+          >
+            {createConversation.isPending ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Creating...
+              </>
+            ) : (
+              'Start Conversation'
+            )}
+          </Button>
+        </Modal.Footer>
       </Modal>
-    </div>
+    </PageLayout>
   );
 }
-

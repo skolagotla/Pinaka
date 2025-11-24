@@ -324,7 +324,7 @@ export default function LibraryClient({
           throw new Error(error.error || error.message || 'Failed to replace document');
         }
         
-        message.success({ content: 'Document replaced successfully! Version history saved.', key: 'upload' });
+        message.success({ content: 'Document replaced successfully Version history saved.', key: 'upload' });
         router.refresh();
         return true;
       } else {
@@ -348,7 +348,7 @@ export default function LibraryClient({
           throw new Error(error.error || error.message || 'Failed to upload document');
         }
         
-        message.success({ content: 'Document uploaded successfully!', key: 'upload' });
+        message.success({ content: 'Document uploaded successfully', key: 'upload' });
         router.refresh();
         return true;
       }
@@ -983,7 +983,7 @@ export default function LibraryClient({
         ) : "Upload Document"}
         open={library.uploadModalOpen}
         onCancel={library.closeUploadModal}
-        footer={userRole === 'tenant' ? null : [
+        footer={userRole === 'tenant' ? null : >{
           <Button key="cancel" onClick={library.closeUploadModal} disabled={library.uploading}>
             Cancel
           </Button>,
@@ -1003,7 +1003,7 @@ export default function LibraryClient({
               ? `Uploading ${library.uploadProgress.current}/${library.uploadProgress.total}...`
               : 'Upload'}
           </Button>,
-        ]}
+        }
         width={600}
         destroyOnClose={userRole === 'tenant'}
       >
@@ -1171,7 +1171,7 @@ export default function LibraryClient({
             // Use v1Api to promote version
             const { v1Api } = await import('@/lib/api/v1-client');
             await v1Api.forms.promoteDocumentVersion(library.viewingDocument.id, versionIndex);
-            message.success({ content: 'Version promoted successfully!', key: 'promote' });
+            message.success({ content: 'Version promoted successfully', key: 'promote' });
             library.closeViewModal();
             setTimeout(() => {
               router.refresh();
@@ -1286,7 +1286,7 @@ export default function LibraryClient({
         }
         open={library.deleteModal.visible}
         onCancel={library.closeDeleteModal}
-        footer={[
+        footer={
           <Button key="cancel" onClick={library.closeDeleteModal} disabled={library.deleteModal.loading}>
             Cancel
           </Button>,
@@ -1299,7 +1299,7 @@ export default function LibraryClient({
           >
             Delete Document
           </Button>,
-        ]}
+        }
         width={500}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>

@@ -3,6 +3,7 @@ packages:
   - apps/*
   - domains/*
   - schema/types
+  - '!apps/backend-api'
 
 ignoredBuiltDependencies:
   - '@prisma/client'

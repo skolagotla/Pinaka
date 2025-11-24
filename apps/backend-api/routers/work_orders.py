@@ -1,14 +1,15 @@
 """
 Work Order endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_organization_filter, apply_pagination
 from schemas.work_order import WorkOrder, WorkOrderCreate, WorkOrderUpdate, WorkOrderApprovalRequest, WorkOrderMarkViewedRequest, WorkOrderAssignVendorRequest
 from schemas.work_order_comment import WorkOrderComment, WorkOrderCommentCreate
 from db.models_v2 import (
@@ -18,6 +19,8 @@ from db.models_v2 import (
     Property,
     Tenant,
     Landlord,
+    Vendor,
+    WorkOrderAssignment,
 )
 
 router = APIRouter(prefix="/work-orders", tags=["work-orders"])
@@ -28,38 +31,53 @@ async def list_work_orders(
     organization_id: Optional[UUID] = None,
     property_id: Optional[UUID] = None,
     status_filter: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT, RoleEnum.VENDOR], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List work orders (scoped by organization and role)"""
+    """List work orders (scoped by organization and role) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
+    # Base query with eager loading for related entities
     query = select(WorkOrderModel).options(
         selectinload(WorkOrderModel.comments).selectinload(CommentModel.author),
+        selectinload(WorkOrderModel.property),
+        selectinload(WorkOrderModel.tenant),
+        selectinload(WorkOrderModel.unit),
     )
     
-    # Filter by organization
-    if RoleEnum.SUPER_ADMIN in user_roles:
-        if organization_id:
-            query = query.where(WorkOrderModel.organization_id == organization_id)
-    else:
-        query = query.where(WorkOrderModel.organization_id == current_user.organization_id)
+    # Build count query with same filters
+    count_query = select(func.count()).select_from(WorkOrderModel)
+    
+    # Filter by organization (note: count_query not used, but keeping for potential future use)
+    query = await apply_organization_filter(query, WorkOrderModel, current_user, user_roles, organization_id)
     
     # Additional filters
     if property_id:
         query = query.where(WorkOrderModel.property_id == property_id)
+        count_query = count_query.where(WorkOrderModel.property_id == property_id)
     
     if status_filter:
         query = query.where(WorkOrderModel.status == status_filter)
+        count_query = count_query.where(WorkOrderModel.status == status_filter)
     
     # Role-based filtering
     if RoleEnum.TENANT in user_roles:
         # Tenants see only their own work orders
         query = query.where(WorkOrderModel.tenant_id == current_user.id)
+        count_query = count_query.where(WorkOrderModel.tenant_id == current_user.id)
     elif RoleEnum.VENDOR in user_roles:
         # Vendors see only assigned work orders (via assignments table)
-        # This would require a join - simplified for now
-        pass
+        vendor_subquery = select(Vendor.id).where(Vendor.user_id == current_user.id)
+        assignment_subquery = select(WorkOrderAssignment.work_order_id).where(
+            WorkOrderAssignment.vendor_id.in_(vendor_subquery)
+        )
+        query = query.where(WorkOrderModel.id.in_(assignment_subquery))
+        count_query = count_query.where(WorkOrderModel.id.in_(assignment_subquery))
+    
+    # Apply pagination
+    query = apply_pagination(query, page, limit, WorkOrderModel.created_at.desc())
     
     result = await db.execute(query)
     work_orders = result.scalars().all()

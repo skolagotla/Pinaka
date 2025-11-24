@@ -55,7 +55,7 @@ export default function PMCTenantsClient({ pmc, tenants }) {
         );
         return (
           <div className="flex items-center gap-2">
-            <Badge color="blue" icon={HiHome}>{uniqueProperties.size}</Badge>
+            <Badge color="blue" icon={HiHome}uniqueProperties.size}</Badge>
             <span className="text-gray-500 text-sm">
               {uniqueProperties.size} propert{uniqueProperties.size !== 1 ? 'ies' : 'y'}
             </span>
@@ -119,7 +119,7 @@ export default function PMCTenantsClient({ pmc, tenants }) {
           <span>Tenants</span>
         </div>
       }
-      headerActions={[
+      headerActions={
         <TextInput
           key="search"
           type="text"
@@ -129,7 +129,7 @@ export default function PMCTenantsClient({ pmc, tenants }) {
           className="w-72"
           icon={HiEye}
         />
-      ]}
+      }
       stats={stats}
       statsCols={3}
     >

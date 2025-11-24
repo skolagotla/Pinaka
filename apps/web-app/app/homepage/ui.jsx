@@ -111,10 +111,10 @@ export default function HomeContent({ name }) {
                 aria-selected={p.id === selectedId}
                 style={{ cursor: "pointer" }}
               >
-                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}>{p.address}</div>
-                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}>{p.city}</div>
-                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}>{p.province}</div>
-                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}>{p.postal}</div>
+                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}p.address}</div>
+                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}p.city}</div>
+                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}p.province}</div>
+                <div className="grid-cell" role="cell" style={{ textAlign: "center" }}p.postal}</div>
               </div>
             ))}
           </div>
@@ -166,7 +166,7 @@ export default function HomeContent({ name }) {
               <input className="input" placeholder="City" value={draft.city} onChange={(e)=>setDraft({...draft, city: e.target.value})} />
               <select className="input" value={draft.province} onChange={(e)=>setDraft({...draft, province: e.target.value})}>
                 <option value="">Province</option>
-                {CANADA_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                {CANADA_PROVINCES.map(p => <option key={p} value={p}p}</option>)}
               </select>
               <input className="input" placeholder="Postal code (A1A 1A1)" value={draft.postal} onChange={(e)=>setDraft({...draft, postal: e.target.value})} />
             </div>

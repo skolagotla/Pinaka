@@ -24,6 +24,8 @@ import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useRentReceipts, useResizableTable } from '@/lib/hooks';
 import { configureTableColumns } from '@/lib/utils/table-config';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useRentPayments } from '@/lib/hooks/useV2Data';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
 import { formatDateDisplay, formatDateShort } from '@/lib/utils/safe-date-formatter';
@@ -37,12 +39,16 @@ const PDFViewerModal = dynamic(
 
 export default function PaymentsClient() {
   const { fetch } = useUnifiedApi({ showUserMessage: false });
-  const { loading, withLoading } = useLoading(true);
-  const [payments, setPayments] = useState([]);
+  const { user } = useV2Auth();
+  const tenantId = user?.id;
+  const { data: rentPaymentsData, isLoading: rentPaymentsLoading, refetch: refetchRentPayments } = useRentPayments(undefined, undefined, tenantId);
+  const { loading, withLoading } = useLoading(rentPaymentsLoading);
   const [summary, setSummary] = useState(null);
   const [activeTab, setActiveTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  
+  const payments = rentPaymentsData || [];
   
   // Filter payments
   const filteredPaymentsForTable = useMemo(() => {
@@ -77,24 +83,20 @@ export default function PaymentsClient() {
     handleCloseModal,
   } = useRentReceipts();
 
+  // Payments are loaded via v2 hooks above
   useEffect(() => {
-    loadPayments();
-  }, []);
-
-  const loadPayments = async () => {
-    await withLoading(async () => {
-      try {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const data = await v1Api.specialized.getTenantPaymentHistory();
-        if (data.success) {
-          setPayments(data.payments || []);
-          setSummary(data.summary || null);
-        }
-      } catch (error) {
-        // Error already handled
-      }
-    });
-  };
+    // Calculate summary from payments
+    if (payments.length > 0) {
+      const totalPaid = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+      const totalUnpaid = payments.filter(p => p.status === 'Unpaid' || p.status === 'Overdue').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+      setSummary({
+        totalPaid,
+        totalUnpaid,
+        totalPayments: payments.length,
+        paidCount: payments.filter(p => p.status === 'Paid').length,
+      });
+    }
+  }, [payments]);
 
   const handleViewReceiptWrapper = (payment) => {
     handleViewReceipt(payment, '/api/tenant-rent-receipts');

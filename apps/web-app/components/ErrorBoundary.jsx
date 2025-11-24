@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component {
               </Button>,
               <Button key="logs" onClick={this.handleDownloadLogs}>
                 Download Error Logs
-              </Button>,
+              </Button>
             ]}
           >
             <Card style={{ marginTop: 24, textAlign: 'left' }}>

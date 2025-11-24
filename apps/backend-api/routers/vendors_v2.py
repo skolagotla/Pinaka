@@ -8,6 +8,11 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import (
+    apply_organization_filter,
+    get_entity_or_404,
+    update_entity_fields
+)
 from schemas.vendor_v2 import VendorResponse, VendorCreate, VendorUpdate
 from db.models_v2 import Vendor as VendorModel, User, Organization
 
@@ -26,13 +31,7 @@ async def list_vendors(
     user_roles = await get_user_roles(current_user, db)
     
     query = select(VendorModel)
-    
-    # Filter by organization
-    if RoleEnum.SUPER_ADMIN in user_roles:
-        if organization_id:
-            query = query.where(VendorModel.organization_id == organization_id)
-    else:
-        query = query.where(VendorModel.organization_id == current_user.organization_id)
+    query = await apply_organization_filter(query, VendorModel, current_user, user_roles, organization_id)
     
     # Additional filters
     if status_filter:
@@ -62,20 +61,14 @@ async def get_vendor(
     """Get vendor by ID"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(VendorModel).where(VendorModel.id == vendor_id)
-    
-    # Scope by organization unless super_admin
+    # Get vendor and check organization access
+    vendor = await get_entity_or_404(VendorModel, vendor_id, db, "Vendor not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        query = query.where(VendorModel.organization_id == current_user.organization_id)
-    
-    result = await db.execute(query)
-    vendor = result.scalar_one_or_none()
-    
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Vendor not found"
-        )
+        if vendor.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found"  # Return 404 instead of 403 for security
+            )
     
     return vendor
 
@@ -112,25 +105,17 @@ async def update_vendor(
     """Update vendor"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(VendorModel).where(VendorModel.id == vendor_id)
-    
+    vendor = await get_entity_or_404(VendorModel, vendor_id, db, "Vendor not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        query = query.where(VendorModel.organization_id == current_user.organization_id)
-    
-    result = await db.execute(query)
-    vendor = result.scalar_one_or_none()
-    
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Vendor not found"
-        )
+        if vendor.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found"
+            )
     
     # Update fields
     update_data = vendor_data.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        if hasattr(vendor, key):
-            setattr(vendor, key, value)
+    await update_entity_fields(vendor, update_data)
     
     await db.commit()
     await db.refresh(vendor)
@@ -147,19 +132,13 @@ async def delete_vendor(
     """Delete vendor (soft delete by setting status)"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(VendorModel).where(VendorModel.id == vendor_id)
-    
+    vendor = await get_entity_or_404(VendorModel, vendor_id, db, "Vendor not found")
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        query = query.where(VendorModel.organization_id == current_user.organization_id)
-    
-    result = await db.execute(query)
-    vendor = result.scalar_one_or_none()
-    
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Vendor not found"
-        )
+        if vendor.organization_id != current_user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found"
+            )
     
     vendor.status = 'inactive'
     await db.commit()

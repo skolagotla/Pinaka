@@ -21,9 +21,9 @@ function NotificationCenter() {
   const markAllAsRead = useMarkAllNotificationsRead();
   
   // Calculate unread count
-  const unreadCount = notifications?.filter((n: any) => !n.is_read)?.length || 0;
+  const unreadCount = notifications?.filter((n) => !n.is_read)?.length || 0;
   
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification) => {
     if (!notification.is_read) {
       markAsRead.mutate(notification.id);
     }
@@ -45,7 +45,7 @@ function NotificationCenter() {
     markAllAsRead.mutate();
   };
   
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type) => {
     // Return appropriate icon based on notification type
     return '🔔';
   };
@@ -76,7 +76,7 @@ function NotificationCenter() {
         </div>
       ) : (
         <div className="divide-y divide-gray-200">
-          {notifications.map((notification: any) => (
+          {notifications.map((notification) => (
             <div
               key={notification.id}
               className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${

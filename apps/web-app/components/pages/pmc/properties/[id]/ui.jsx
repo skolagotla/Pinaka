@@ -3,23 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Typography, 
-  Tabs, 
-  Space, 
-  Tag, 
-  Button,
-  Alert,
-  Spin,
-} from 'antd';
+  Button, 
+  Alert, 
+  Spinner,
+  Tabs,
+} from 'flowbite-react';
 import {
-  HomeOutlined,
-  TeamOutlined,
-  ToolOutlined,
-  DollarOutlined,
-  MessageOutlined,
-  EditOutlined,
-  ArrowLeftOutlined,
-} from '@ant-design/icons';
+  HiHome,
+  HiUserGroup,
+  HiWrench,
+  HiCurrencyDollar,
+  HiChat,
+  HiArrowLeft,
+} from 'react-icons/hi';
 import { ProCard } from '@/components/shared/LazyProComponents';
 import PropertyOverviewTab from '@/components/property-detail/PropertyOverviewTab';
 import PropertyUnitsTab from '@/components/property-detail/PropertyUnitsTab';
@@ -27,35 +23,30 @@ import PropertyTenantsTab from '@/components/property-detail/PropertyTenantsTab'
 import PropertyMaintenanceTab from '@/components/property-detail/PropertyMaintenanceTab';
 import PropertyContextBanner from '@/components/PropertyContextBanner';
 
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
-
 export default function PropertyDetailClient({ property, error }) {
   const router = useRouter();
 
   if (error) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button onClick={() => router.push('/properties')}>
-              Back to Properties
-            </Button>
-          }
-        />
+      <div className="p-6 max-w-6xl mx-auto">
+        <Alert color="failure">
+          <div>
+            <div className="font-semibold mb-2">Error</div>
+            <div>{error}</div>
+          </div>
+          <Button onClick={() => router.push('/properties')} className="mt-4">
+            Back to Properties
+          </Button>
+        </Alert>
       </div>
     );
   }
 
   if (!property) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16 }}>Loading property...</div>
+      <div className="p-6 max-w-6xl mx-auto text-center">
+        <Spinner size="xl" />
+        <div className="mt-4">Loading property...</div>
       </div>
     );
   }
@@ -65,116 +56,97 @@ export default function PropertyDetailClient({ property, error }) {
     : property.propertyName || 'Unnamed Property';
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Property Context Banner */}
       <PropertyContextBanner userRole="pmc" />
 
       {/* Header */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
+      <div className="mb-6 flex justify-between items-center">
+        <div className="flex items-center gap-4">
           <Button
-            icon={<ArrowLeftOutlined />}
+            color="light"
             onClick={() => router.push('/properties')}
           >
+            <HiArrowLeft className="mr-2 h-4 w-4" />
             Back to Properties
           </Button>
           <div>
-            <Title level={2} style={{ margin: 0 }}>
-              <HomeOutlined /> {property.propertyName || property.addressLine1 || 'Property'}
-            </Title>
-            <Text type="secondary">{propertyAddress}</Text>
+            <h2 className="text-2xl font-semibold flex items-center gap-2">
+              <HiHome className="h-6 w-6" />
+              {property.propertyName || property.addressLine1 || 'Property'}
+            </h2>
+            <p className="text-gray-500">{propertyAddress}</p>
             {property.landlord && (
-              <div style={{ marginTop: 4 }}>
-                <Text type="secondary" style={{ fontSize: '14px' }}>
-                  Managed for: {property.landlord.firstName} {property.landlord.lastName}
-                </Text>
-              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Managed for: {property.landlord.firstName} {property.landlord.lastName}
+              </p>
             )}
           </div>
-        </Space>
+        </div>
       </div>
 
       {/* Tabs */}
       <ProCard>
-        <Tabs defaultActiveKey="overview" size="large">
-          <TabPane
-            tab={
-              <span>
-                <HomeOutlined />
-                Overview
-              </span>
-            }
-            key="overview"
-          >
+        <Tabs aria-label="Property tabs" defaultActiveTab="overview">
+          <Tabs.Item active title={
+            <span className="flex items-center gap-2">
+              <HiHome className="h-4 w-4" />
+              Overview
+            </span>
+          }>
             <PropertyOverviewTab property={property} />
-          </TabPane>
+          </Tabs.Item>
 
-          <TabPane
-            tab={
-              <span>
-                <TeamOutlined />
-                Units & Leases
-              </span>
-            }
-            key="units"
-          >
+          <Tabs.Item title={
+            <span className="flex items-center gap-2">
+              <HiUserGroup className="h-4 w-4" />
+              Units & Leases
+            </span>
+          }>
             <PropertyUnitsTab property={property} />
-          </TabPane>
+          </Tabs.Item>
 
-          <TabPane
-            tab={
-              <span>
-                <TeamOutlined />
-                Tenants
-              </span>
-            }
-            key="tenants"
-          >
+          <Tabs.Item title={
+            <span className="flex items-center gap-2">
+              <HiUserGroup className="h-4 w-4" />
+              Tenants
+            </span>
+          }>
             <PropertyTenantsTab property={property} />
-          </TabPane>
+          </Tabs.Item>
 
-          <TabPane
-            tab={
-              <span>
-                <ToolOutlined />
-                Maintenance
-              </span>
-            }
-            key="maintenance"
-          >
+          <Tabs.Item title={
+            <span className="flex items-center gap-2">
+              <HiWrench className="h-4 w-4" />
+              Maintenance
+            </span>
+          }>
             <PropertyMaintenanceTab property={property} />
-          </TabPane>
+          </Tabs.Item>
 
-          <TabPane
-            tab={
-              <span>
-                <DollarOutlined />
-                Financials
-              </span>
-            }
-            key="financials"
-          >
-            <div style={{ padding: '16px 0' }}>
-              <Text>Financial information will be displayed here.</Text>
+          <Tabs.Item title={
+            <span className="flex items-center gap-2">
+              <HiCurrencyDollar className="h-4 w-4" />
+              Financials
+            </span>
+          }>
+            <div className="p-4">
+              <p>Financial information will be displayed here.</p>
             </div>
-          </TabPane>
+          </Tabs.Item>
 
-          <TabPane
-            tab={
-              <span>
-                <MessageOutlined />
-                Messages
-              </span>
-            }
-            key="messages"
-          >
-            <div style={{ padding: '16px 0' }}>
-              <Text>Messages and conversations will be displayed here.</Text>
+          <Tabs.Item title={
+            <span className="flex items-center gap-2">
+              <HiChat className="h-4 w-4" />
+              Messages
+            </span>
+          }>
+            <div className="p-4">
+              <p>Messages and conversations will be displayed here.</p>
             </div>
-          </TabPane>
+          </Tabs.Item>
         </Tabs>
       </ProCard>
     </div>
   );
 }
-

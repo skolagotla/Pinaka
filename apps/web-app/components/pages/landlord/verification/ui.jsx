@@ -2,40 +2,33 @@
 
 import { useState, useCallback } from 'react';
 import {
-  Typography,
-  Table,
-  Tag,
   Button,
-  Upload,
-  Form,
-  Select,
-  DatePicker,
-  Input,
-  Space,
+  Badge,
+  FileInput,
+  Label,
+  Modal,
   Alert,
-  Empty,
-  Tooltip,
-} from 'antd';
-import { StandardModal, FormTextInput, FormSelect, FormDatePicker, PageLayout, TableWrapper, StatCard } from '@/components/shared';
+  Textarea,
+  TextInput,
+  Spinner,
+} from 'flowbite-react';
+import { StandardModal, FormTextInput, FormSelect, FormDatePicker, PageLayout, TableWrapper, FlowbiteTable, EmptyState } from '@/components/shared';
 import { renderStatus, renderDate } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { rules } from '@/lib/utils/validation-rules';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { useModalState } from '@/lib/hooks/useModalState';
 import {
-  UploadOutlined,
-  FileOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  EyeOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+  HiUpload,
+  HiDocument,
+  HiCheckCircle,
+  HiXCircle,
+  HiClock,
+  HiEye,
+} from 'react-icons/hi';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import dayjs from 'dayjs';
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 const DOCUMENT_TYPES = [
   { value: 'GOVERNMENT_ID', label: 'Government ID (Driver\'s License/Passport)' },
@@ -50,26 +43,35 @@ const DOCUMENT_TYPES = [
 ];
 
 const STATUS_COLORS = {
-  PENDING: 'orange',
-  VERIFIED: 'green',
-  REJECTED: 'red',
-  EXPIRED: 'default',
+  PENDING: 'warning',
+  VERIFIED: 'success',
+  REJECTED: 'failure',
+  EXPIRED: 'gray',
 };
 
 const STATUS_ICONS = {
-  PENDING: <ClockCircleOutlined />,
-  VERIFIED: <CheckCircleOutlined />,
-  REJECTED: <CloseCircleOutlined />,
-  EXPIRED: <ClockCircleOutlined />,
+  PENDING: <HiClock className="h-4 w-4" />,
+  VERIFIED: <HiCheckCircle className="h-4 w-4" />,
+  REJECTED: <HiXCircle className="h-4 w-4" />,
+  EXPIRED: <HiClock className="h-4 w-4" />,
 };
 
 export default function VerificationClient({ user, pmcRelationships }) {
-  const [form] = Form.useForm();
+  const { formData, updateField, resetForm } = useFormState({
+    documentType: '',
+    propertyId: '',
+    expirationDate: '',
+    documentNumber: '',
+    issuedBy: '',
+    issuedDate: '',
+    notes: '',
+    pmcRelationshipId: '',
+  });
   const { isOpen: uploadModalVisible, open: openUploadModal, close: closeUploadModal, openForCreate: openUploadModalForCreate } = useModalState();
   const { isOpen: viewModalVisible, open: openViewModal, close: closeViewModal, editingItem: selectedVerification, openForEdit: openViewModalForEdit } = useModalState();
   const [selectedRelationship, setSelectedRelationship] = useState(null);
   const { loading: uploading, withLoading: withUploading } = useLoading();
-  const [fileList, setFileList] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
   const { fetch } = useUnifiedApi({ showUserMessage: true });
 
   // Flatten all verifications from all relationships
@@ -90,207 +92,206 @@ export default function VerificationClient({ user, pmcRelationships }) {
   };
 
   const handleUpload = useCallback(async () => {
-    try {
-      const values = await form.validateFields();
-      if (fileList.length === 0) {
-        notify.error('Please select a file to upload');
-        return;
-      }
-
-      await withUploading(async () => {
-        const formData = new FormData();
-        formData.append('pmcLandlordId', selectedRelationship.id);
-        formData.append('documentType', values.documentType);
-        if (values.propertyId) formData.append('propertyId', values.propertyId);
-        if (values.expirationDate) formData.append('expirationDate', values.expirationDate.format('YYYY-MM-DD'));
-        if (values.documentNumber) formData.append('documentNumber', values.documentNumber);
-        if (values.issuedBy) formData.append('issuedBy', values.issuedBy);
-        if (values.issuedDate) formData.append('issuedDate', values.issuedDate.format('YYYY-MM-DD'));
-        if (values.notes) formData.append('notes', values.notes);
-        formData.append('file', fileList[0].originFileObj);
-
-        const response = await fetch(
-          '/api/ownership-verification/upload',
-          {
-            method: 'POST',
-            body: formData,
-          },
-          { operation: 'Upload verification document', showUserMessage: true }
-        );
-
-        if (response.ok) {
-          notify.success('Document uploaded successfully');
-          closeUploadModal();
-          form.resetFields();
-          setFileList([]);
-          // Reload page to refresh data
-          window.location.reload();
-        }
-      });
-    } catch (error) {
-      console.error('[Verification Upload] Error:', error);
+    if (!formData.documentType) {
+      notify.error('Please select a document type');
+      return;
     }
-  }, [form, fileList, selectedRelationship, fetch]);
+    if (!selectedFile) {
+      notify.error('Please select a file to upload');
+      return;
+    }
+    if (!selectedRelationship) {
+      notify.error('Please select a PMC relationship');
+      return;
+    }
+
+    await withUploading(async () => {
+      const formDataObj = new FormData();
+      formDataObj.append('pmcLandlordId', selectedRelationship.id);
+      formDataObj.append('documentType', formData.documentType);
+      if (formData.propertyId) formDataObj.append('propertyId', formData.propertyId);
+      if (formData.expirationDate) formDataObj.append('expirationDate', formData.expirationDate);
+      if (formData.documentNumber) formDataObj.append('documentNumber', formData.documentNumber);
+      if (formData.issuedBy) formDataObj.append('issuedBy', formData.issuedBy);
+      if (formData.issuedDate) formDataObj.append('issuedDate', formData.issuedDate);
+      if (formData.notes) formDataObj.append('notes', formData.notes);
+      formDataObj.append('file', selectedFile);
+
+      const response = await fetch(
+        '/api/ownership-verification/upload',
+        {
+          method: 'POST',
+          body: formDataObj,
+        },
+        { operation: 'Upload verification document', showUserMessage: true }
+      );
+
+      if (response.ok) {
+        notify.success('Document uploaded successfully');
+        closeUploadModal();
+        resetForm();
+        setSelectedFile(null);
+        // Reload page to refresh data
+        window.location.reload();
+      }
+    });
+  }, [formData, selectedFile, selectedRelationship, fetch, withUploading, closeUploadModal, resetForm]);
 
   const handleViewDocument = useCallback(async (verification) => {
     openViewModalForEdit(verification);
   }, [openViewModalForEdit]);
 
   const columns = [
-    customizeColumn(STANDARD_COLUMNS.TYPE, {
-      title: 'Document Type',
-      dataIndex: 'documentType',
-      render: (type) => {
-        const docType = DOCUMENT_TYPES.find(dt => dt.value === type);
-        return docType?.label || type;
-      },
-    }),
     {
-      title: 'PMC',
-      dataIndex: 'pmcName',
-      key: 'pmcName',
-    },
-    customizeColumn(STANDARD_COLUMNS.PROPERTY_NAME, {
-      title: 'Property',
-      dataIndex: 'property',
-      render: (property) => property ? property.propertyName || property.addressLine1 : '-',
-    }),
-    customizeColumn(STANDARD_COLUMNS.STATUS, {
-      render: (status) => renderStatus(status, { customColors: STATUS_COLORS }),
-    }),
-    customizeColumn(STANDARD_COLUMNS.UPLOADED_DATE, {
-      render: (_, record) => renderDate(record.uploadedAt),
-    }),
-    {
-      title: 'Verified/Rejected',
-      key: 'verifiedAt',
-      render: (_, record) => {
-        if (record.status === 'VERIFIED' && record.verifiedAt) {
-          return renderDate(record.verifiedAt);
-        }
-        if (record.status === 'REJECTED' && record.rejectedAt) {
-          return renderDate(record.rejectedAt);
-        }
-        return <Text type="secondary">—</Text>;
+      header: 'Document Type',
+      accessorKey: 'documentType',
+      cell: ({ row }) => {
+        const docType = DOCUMENT_TYPES.find(dt => dt.value === row.original.documentType);
+        return docType?.label || row.original.documentType;
       },
     },
     {
-      ...STANDARD_COLUMNS.ACTIONS,
-      render: (_, record) => (
-        <Space>
+      header: 'PMC',
+      accessorKey: 'pmcName',
+    },
+    {
+      header: 'Property',
+      accessorKey: 'property',
+      cell: ({ row }) => row.original.property ? (row.original.property.propertyName || row.original.property.addressLine1) : '-',
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ row }) => renderStatus(row.original.status, { customColors: STATUS_COLORS }),
+    },
+    {
+      header: 'Uploaded',
+      accessorKey: 'uploadedAt',
+      cell: ({ row }) => renderDate(row.original.uploadedAt),
+    },
+    {
+      header: 'Verified/Rejected',
+      accessorKey: 'verifiedAt',
+      cell: ({ row }) => {
+        if (row.original.status === 'VERIFIED' && row.original.verifiedAt) {
+          return renderDate(row.original.verifiedAt);
+        }
+        if (row.original.status === 'REJECTED' && row.original.rejectedAt) {
+          return renderDate(row.original.rejectedAt);
+        }
+        return <span className="text-gray-400">—</span>;
+      },
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
           <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDocument(record)}
+            color="light"
+            onClick={() => handleViewDocument(row.original)}
           >
+            <HiEye className="mr-2 h-4 w-4" />
             View
           </Button>
-          {record.status === 'REJECTED' && (
+          {row.original.status === 'REJECTED' && (
             <Button
-              type="link"
-              icon={<UploadOutlined />}
+              color="light"
               onClick={() => {
-                setSelectedRelationship(pmcRelationships.find(r => r.id === record.relationshipId));
-                form.setFieldsValue({
-                  documentType: record.documentType,
-                  propertyId: record.propertyId,
-                });
+                setSelectedRelationship(pmcRelationships.find(r => r.id === row.original.relationshipId));
+                updateField('documentType', row.original.documentType);
+                updateField('propertyId', row.original.propertyId || '');
                 openUploadModalForCreate();
               }}
             >
+              <HiUpload className="mr-2 h-4 w-4" />
               Re-upload
             </Button>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
-
-  // Get properties for property selector
-  const getPropertiesForRelationship = (relationshipId) => {
-    // This would need to fetch properties from the relationship
-    // For now, return empty array - can be enhanced
-    return [];
-  };
 
   const statsData = [
     {
       title: 'Total Documents',
       value: stats.total,
-      prefix: <FileOutlined />,
+      prefix: <HiDocument className="h-5 w-5" />,
     },
     {
       title: 'Pending Review',
       value: stats.pending,
-      prefix: <ClockCircleOutlined />,
+      prefix: <HiClock className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
     {
       title: 'Verified',
       value: stats.verified,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Rejected',
       value: stats.rejected,
-      prefix: <CloseCircleOutlined />,
+      prefix: <HiXCircle className="h-5 w-5" />,
       valueStyle: { color: '#ff4d4f' },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><FileOutlined /> Property Ownership Verification</>}
-      headerActions={[
+      headerTitle={<><HiDocument className="inline mr-2" /> Property Ownership Verification</>}
+      headerActions={
         pmcRelationships.length > 0 && (
           <Button
             key="upload"
-            type="primary"
-            icon={<UploadOutlined />}
+            color="blue"
             onClick={() => {
               if (pmcRelationships.length === 1) {
                 setSelectedRelationship(pmcRelationships[0]);
-                form.setFieldsValue({ pmcRelationshipId: pmcRelationships[0].id });
+                updateField('pmcRelationshipId', pmcRelationships[0].id);
               }
               openUploadModalForCreate();
             }}
           >
+            <HiUpload className="mr-2 h-4 w-4" />
             Upload Document
           </Button>
         ),
-      ]}
-      stats={pmcRelationships.length > 0 ? statsData : []}
+      }
+      stats={pmcRelationships.length > 0 ? statsData : [}
       statsCols={4}
       contentStyle={{ maxWidth: 1400, margin: '0 auto' }}
     >
       {pmcRelationships.length === 0 ? (
-        <Alert
-          message="No PMC Relationship"
-          description="You are not currently managed by a Property Management Company. Verification documents are only required when you have an active PMC relationship."
-          type="info"
-          showIcon
-        />
+        <Alert color="info">
+          <div>
+            <div className="font-semibold mb-2">No PMC Relationship</div>
+            <div>You are not currently managed by a Property Management Company. Verification documents are only required when you have an active PMC relationship.</div>
+          </div>
+        </Alert>
       ) : (
         <TableWrapper>
           {allVerifications.length === 0 ? (
-            <Empty
-              description="No verification documents uploaded yet"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            <EmptyState
+              icon={<HiDocument className="h-12 w-12 text-gray-400" />}
+              title="No verification documents uploaded yet"
+              description="Upload your first verification document to get started"
             >
               <Button
-                type="primary"
-                icon={<UploadOutlined />}
+                color="blue"
                 onClick={() => openUploadModalForCreate()}
               >
+                <HiUpload className="mr-2 h-4 w-4" />
                 Upload Your First Document
               </Button>
-            </Empty>
+            </EmptyState>
           ) : (
-            <Table
-              dataSource={allVerifications}
+            <FlowbiteTable
+              data={allVerifications}
               columns={columns}
-              rowKey="id"
+              keyField="id"
               pagination={{ pageSize: 10 }}
             />
           )}
@@ -301,49 +302,49 @@ export default function VerificationClient({ user, pmcRelationships }) {
       <StandardModal
         title="Upload Verification Document"
         open={uploadModalVisible}
-        form={form}
         loading={uploading}
         submitText="Upload"
         onCancel={() => {
           closeUploadModal();
-          form.resetFields();
-          setFileList([]);
+          resetForm();
+          setSelectedFile(null);
         }}
         onFinish={handleUpload}
         width={600}
       >
-          {pmcRelationships.length > 1 ? (
-            <Form.Item
-              name="pmcRelationshipId"
-              label="PMC"
-              rules={[rules.required('PMC')]}
-            >
-              <Select
-                placeholder="Select PMC"
-                onChange={(value) => {
-                  setSelectedRelationship(pmcRelationships.find(r => r.id === value));
-                }}
-              >
-                {pmcRelationships.map(rel => (
-                  <Select.Option key={rel.id} value={rel.id}>
-                    {rel.pmc.companyName}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          ) : (
-            <Form.Item label="PMC">
-              <Input
-                value={selectedRelationship?.pmc?.companyName || ''}
-                disabled
-              />
-            </Form.Item>
-          )}
+        {pmcRelationships.length > 1 ? (
+          <FormSelect
+            name="pmcRelationshipId"
+            label="PMC"
+            required
+            value={formData.pmcRelationshipId}
+            onChange={(e) => {
+              updateField('pmcRelationshipId', e.target.value);
+              setSelectedRelationship(pmcRelationships.find(r => r.id === e.target.value));
+            }}
+            options={pmcRelationships.map(rel => ({
+              label: rel.pmc.companyName,
+              value: rel.id
+            }))}
+            placeholder="Select PMC"
+          />
+        ) : (
+          <div>
+            <Label htmlFor="pmc-display" className="mb-2 block">PMC</Label>
+            <TextInput
+              id="pmc-display"
+              value={selectedRelationship?.pmc?.companyName || ''}
+              disabled
+            />
+          </div>
+        )}
 
         <FormSelect
           name="documentType"
           label="Document Type"
           required
+          value={formData.documentType}
+          onChange={(e) => updateField('documentType', e.target.value)}
           options={DOCUMENT_TYPES.map(dt => ({
             label: dt.label,
             value: dt.value
@@ -354,168 +355,157 @@ export default function VerificationClient({ user, pmcRelationships }) {
         <FormSelect
           name="propertyId"
           label="Property (Optional)"
-          tooltip="Leave blank if this document applies to all properties"
-          options={[]}
-          allowClear
+          value={formData.propertyId}
+          onChange={(e) => updateField('propertyId', e.target.value)}
+          options={[}
           placeholder="Select property (optional)"
         />
 
-          <Form.Item
-            name="file"
-            label="Document File"
-            rules={[rules.required('Document file')]}
-          >
-            <Upload
-              fileList={fileList}
-              onChange={({ fileList }) => setFileList(fileList)}
-              beforeUpload={() => false}
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
-              maxCount={1}
-            >
-              <Button icon={<UploadOutlined />}>Select File</Button>
-            </Upload>
-          </Form.Item>
-          <Form.Item label=" " colon={false}>
-            <Text type="secondary" style={{ display: 'block' }}>
-              Accepted formats: PDF, JPEG, PNG, WebP (Max 10MB)
-            </Text>
-          </Form.Item>
+        <div>
+          <Label htmlFor="file" className="mb-2 block">
+            Document File <span className="text-red-500">*</span>
+          </Label>
+          <FileInput
+            id="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+          />
+          <p className="mt-1 text-sm text-gray-500">
+            Accepted formats: PDF, JPEG, PNG, WebP (Max 10MB)
+          </p>
+        </div>
 
         <FormDatePicker
           name="expirationDate"
           label="Expiration Date (Optional)"
+          value={formData.expirationDate}
+          onChange={(e) => updateField('expirationDate', e.target.value)}
         />
 
         <FormTextInput
           name="documentNumber"
           label="Document Number (Optional)"
           placeholder="e.g., License number, Passport number"
+          value={formData.documentNumber}
+          onChange={(e) => updateField('documentNumber', e.target.value)}
         />
 
         <FormTextInput
           name="issuedBy"
           label="Issued By (Optional)"
           placeholder="e.g., Ontario Ministry of Transportation"
+          value={formData.issuedBy}
+          onChange={(e) => updateField('issuedBy', e.target.value)}
         />
 
         <FormDatePicker
           name="issuedDate"
           label="Issued Date (Optional)"
+          value={formData.issuedDate}
+          onChange={(e) => updateField('issuedDate', e.target.value)}
         />
 
-        <FormTextInput
-          name="notes"
-          label="Additional Notes (Optional)"
-          textArea
-          rows={3}
-          placeholder="Any additional information about this document"
-        />
+        <div>
+          <Label htmlFor="notes" className="mb-2 block">Additional Notes (Optional)</Label>
+          <Textarea
+            id="notes"
+            rows={3}
+            placeholder="Any additional information about this document"
+            value={formData.notes}
+            onChange={(e) => updateField('notes', e.target.value)}
+          />
+        </div>
       </StandardModal>
 
       {/* View Document Modal */}
       <Modal
-        title="Verification Document Details"
-        open={viewModalVisible}
-        onCancel={() => {
-          closeViewModal();
-          // selectedVerification is managed by useModalState;
-        }}
-        footer={[
-          <Button key="close" onClick={() => {
-            closeViewModal();
-            // selectedVerification is managed by useModalState;
-          }}>
-            Close
-          </Button>,
-        ]}
-        width={800}
+        show={viewModalVisible}
+        onClose={closeViewModal}
+        size="xl"
       >
-        {selectedVerification && (
-          <div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>Document Type:</Text>
+        <Modal.Header>Verification Document Details</Modal.Header>
+        <Modal.Body>
+          {selectedVerification && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  {DOCUMENT_TYPES.find(dt => dt.value === selectedVerification.documentType)?.label || selectedVerification.documentType}
-                </div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Status:</Text>
-                <div>
-                  <Tag icon={STATUS_ICONS[selectedVerification.status]} color={STATUS_COLORS[selectedVerification.status]}>
-                    {selectedVerification.status}
-                  </Tag>
-                </div>
-              </Col>
-            </Row>
-
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>PMC:</Text>
-                <div>{selectedVerification.pmcName}</div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Uploaded:</Text>
-                <div>{new Date(selectedVerification.uploadedAt).toLocaleString()}</div>
-              </Col>
-            </Row>
-
-            {selectedVerification.status === 'VERIFIED' && (
-              <Alert
-                message="Verified"
-                description={
+                  <div className="font-semibold mb-1">Document Type:</div>
                   <div>
+                    {DOCUMENT_TYPES.find(dt => dt.value === selectedVerification.documentType)?.label || selectedVerification.documentType}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold mb-1">Status:</div>
+                  <div>
+                    <Badge color={STATUS_COLORS[selectedVerification.status} icon={STATUS_ICONS[selectedVerification.status}>
+                      {selectedVerification.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="font-semibold mb-1">PMC:</div>
+                  <div>{selectedVerification.pmcName}</div>
+                </div>
+                <div>
+                  <div className="font-semibold mb-1">Uploaded:</div>
+                  <div>{new Date(selectedVerification.uploadedAt).toLocaleString()}</div>
+                </div>
+              </div>
+
+              {selectedVerification.status === 'VERIFIED' && (
+                <Alert color="success">
+                  <div>
+                    <div className="font-semibold mb-2">Verified</div>
                     <div>Verified by: {selectedVerification.verifiedByName}</div>
                     <div>Verified at: {new Date(selectedVerification.verifiedAt).toLocaleString()}</div>
                     {selectedVerification.verificationNotes && (
-                      <div style={{ marginTop: 8 }}>
-                        <Text strong>Notes:</Text>
+                      <div className="mt-2">
+                        <div className="font-semibold">Notes:</div>
                         <div>{selectedVerification.verificationNotes}</div>
                       </div>
                     )}
                   </div>
-                }
-                type="success"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
+                </Alert>
+              )}
 
-            {selectedVerification.status === 'REJECTED' && (
-              <Alert
-                message="Rejected"
-                description={
+              {selectedVerification.status === 'REJECTED' && (
+                <Alert color="failure">
                   <div>
+                    <div className="font-semibold mb-2">Rejected</div>
                     <div>Rejected by: {selectedVerification.rejectedByName}</div>
                     <div>Rejected at: {new Date(selectedVerification.rejectedAt).toLocaleString()}</div>
                     {selectedVerification.rejectionReason && (
-                      <div style={{ marginTop: 8 }}>
-                        <Text strong>Reason:</Text>
+                      <div className="mt-2">
+                        <div className="font-semibold">Reason:</div>
                         <div>{selectedVerification.rejectionReason}</div>
                       </div>
                     )}
                   </div>
-                }
-                type="error"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
+                </Alert>
+              )}
 
-            <div style={{ marginTop: 16 }}>
-              <Button
-                type="primary"
-                icon={<EyeOutlined />}
-                href={`/api/ownership-verification/files/${selectedVerification.fileName}`}
-                target="_blank"
-              >
-                View Document
-              </Button>
+              <div className="mt-4">
+                <Button
+                  color="blue"
+                  href={`/api/ownership-verification/files/${selectedVerification.fileName}`}
+                  target="_blank"
+                >
+                  <HiEye className="mr-2 h-4 w-4" />
+                  View Document
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={closeViewModal}>
+            Close
+          </Button>
+        </Modal.Footer>
       </Modal>
     </PageLayout>
   );
 }
-

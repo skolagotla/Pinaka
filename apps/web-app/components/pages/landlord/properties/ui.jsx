@@ -36,7 +36,8 @@ import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { rules } from '@/lib/utils/validation-rules';
 import { PostalCodeInput, AddressAutocomplete } from '@/components/forms';
-import { v1Api } from '@/lib/api/v1-client';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useCreateUnit, useUpdateUnit, useDeleteUnit } from '@/lib/hooks/useV2Data';
 
 // Rules Engine Components
 import CurrencyInput from '@/components/rules/CurrencyInput';
@@ -53,6 +54,7 @@ import { formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 // Memoize component to prevent unnecessary re-renders
 const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient({ landlordId, initialProperties, landlordData }) {
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  const { user } = useV2Auth();
   const searchParams = useSearchParams();
   const propertyForm = useFormState({ 
     country: 'CA', 
@@ -69,6 +71,11 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
   const { isOpen: unitModalVisible, open: openUnitModal, close: closeUnitModal, editingItem: editingUnit, openForEdit: openUnitModalForEdit, openForCreate: openUnitModalForCreate } = useModalState();
   const [selectedPropertyForUnit, setSelectedPropertyForUnit] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // v2 API hooks for units
+  const createUnit = useCreateUnit();
+  const updateUnit = useUpdateUnit();
+  const deleteUnit = useDeleteUnit();
 
   // Properties are loaded from server component
   const safeLandlordData = landlordData || { country: 'CA' };
@@ -156,7 +163,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
     ].some(field => field?.toLowerCase().includes(lowerSearch));
 
     const unitMatch = item.units?.some(unit =>
-      [
+      >{
         unit.unitName,
         unit.floorNumber?.toString(),
         unit.status,
@@ -382,7 +389,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         return;
       }
 
-      await v1Api.units.deletePropertyUnit(property.id, unitId);
+      await deleteUnit.mutateAsync(unitId);
       notify.success('Unit deleted successfully');
       pinaka.refresh();
     } catch (error) {
@@ -407,10 +414,19 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
       };
 
       if (editingUnit && editingUnit.id) {
-        await v1Api.units.updatePropertyUnit(propertyId, editingUnit.id, payload);
+        await updateUnit.mutateAsync({
+          id: editingUnit.id,
+          data: {
+            ...payload,
+            property_id: propertyId,
+          }
+        });
         notify.success('Unit updated successfully');
       } else {
-        await v1Api.units.createPropertyUnit(propertyId, payload);
+        await createUnit.mutateAsync({
+          ...payload,
+          property_id: propertyId,
+        });
         notify.success('Unit added successfully');
       }
 
@@ -528,7 +544,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
         render: (_, unit) => {
           const hasActiveLease = unit.leases && unit.leases.some(l => l.status === "Active");
           const displayStatus = hasActiveLease ? "Rented" : unit.status;
-          return <Badge color={getStatusBadgeColor(unit.status, hasActiveLease)}>{displayStatus}</Badge>;
+          return <Badge color={getStatusBadgeColor(unit.status, hasActiveLease)}displayStatus}</Badge>;
         },
       },
       {
@@ -607,7 +623,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
                 >
                   {unitColumns.map((col, colIdx) => (
                     <Table.Cell key={colIdx} className={col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}>
-                      {col.render ? col.render(unit[col.dataIndex], unit, 0) : unit[col.dataIndex]}
+                      {col.render ? col.render(unit[col.dataIndex], unit, 0) : unit[col.dataIndex}
                     </Table.Cell>
                   ))}
                 </Table.Row>
@@ -773,7 +789,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             >
               <option value="">Select type</option>
               {getFilteredPropertyTypes().map(type => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}type}</option>
               ))}
             </Select>
           </div>
@@ -873,7 +889,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
             >
               <option value="">Select</option>
               {pinaka.countryRegion.getRegionsByCountry(pinaka.country).map(region => (
-                <option key={region.code} value={region.code}>{region.code}</option>
+                <option key={region.code} value={region.code}region.code}</option>
               ))}
             </Select>
           </div>
@@ -913,7 +929,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
               required
             >
               {pinaka.countryRegion.getCountries().map(c => (
-                <option key={c.code} value={c.code}>{c.name}</option>
+                <option key={c.code} value={c.code}c.name}</option>
               ))}
             </Select>
           </div>
@@ -1224,7 +1240,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
           <span>Properties</span>
         </div>
       }
-      headerActions={[
+      headerActions={
         <Button
           key="add"
           color="blue"
@@ -1246,7 +1262,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
           <HiRefresh className="h-4 w-4" />
           Refresh
         </Button>,
-      ]}
+      }
       stats={statsData}
       statsCols={4}
       showSearch={true}
@@ -1446,7 +1462,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
                 onChange={(e) => unitForm.setFieldsValue({ status: e.target.value })}
               >
                 {UNIT_STATUSES.map(status => (
-                  <option key={status} value={status}>{status}</option>
+                  <option key={status} value={status}status}</option>
                 ))}
               </Select>
             </div>

@@ -969,7 +969,7 @@ export default function LandlordDashboardClient({
         <QuickStatsWidget
           title="Quick Stats"
           icon={<HiTrendingUp className="h-5 w-5" />}
-          stats={[
+          stats={
             {
               label: 'Collection Rate',
               value: parseFloat(stats.collectionRate || 0),
@@ -987,7 +987,7 @@ export default function LandlordDashboardClient({
               value: stats.pendingMaintenance || 0,
               color: stats.pendingMaintenance > 5 ? '#cf1322' : '#faad14',
             },
-          ]}
+          }
         />
       </div>
     </div>

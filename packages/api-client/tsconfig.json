@@ -14,7 +14,7 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "@pinaka/schemas": ["../schemas/dist/index"]
+      "@pinaka/shared-types": ["../shared-types"]
     }
   },
   "include": [
@@ -23,6 +23,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "src/generated-client.ts",
     "../../packages/server-stubs/**/*"
   ]
 }

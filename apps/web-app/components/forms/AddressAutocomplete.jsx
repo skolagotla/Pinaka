@@ -87,7 +87,7 @@ export default function AddressAutocomplete({
       if (configKey) {
         console.log('[AddressAutocomplete] ✅ TomTom API key found:', configKey.substring(0, 20) + '...');
       } else {
-        console.error('[AddressAutocomplete] ❌ No TomTom API key found!');
+        console.error('[AddressAutocomplete] ❌ No TomTom API key found');
         console.error('[AddressAutocomplete] Options:');
         console.error('  1. Set NEXT_PUBLIC_TOMTOM_API_KEY in .env file');
         console.error('  2. localStorage.setItem("tomtom_api_key", "your_key")');
@@ -106,7 +106,7 @@ export default function AddressAutocomplete({
 
     const apiKey = getApiKey();
     if (!apiKey) {
-      console.error('[AddressAutocomplete] ❌ TomTom API key not found!');
+      console.error('[AddressAutocomplete] ❌ TomTom API key not found');
       console.error('[AddressAutocomplete] Please set NEXT_PUBLIC_TOMTOM_API_KEY in .env file');
       console.error('[AddressAutocomplete] Or store in localStorage: localStorage.setItem("tomtom_api_key", "your_key")');
       setSuggestions([]);

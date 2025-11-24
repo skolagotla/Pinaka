@@ -82,7 +82,7 @@ export default function AdminApiKeysPage() {
       if (data.success) {
         if (!editingKey && data.data.key) {
           setNewKey(data.data.key);
-          setSuccessMessage('Save this API key securely - it will not be shown again!');
+          setSuccessMessage('Save this API key securely - it will not be shown again');
           setErrorMessage(null);
         } else {
           setSuccessMessage(editingKey ? 'API key updated' : 'API key created');
@@ -239,7 +239,7 @@ export default function AdminApiKeysPage() {
           <div className="space-y-3">
             <div className="font-semibold">New API Key Generated</div>
             <div>
-              <p className="text-sm mb-2">Save this key securely - it will not be shown again!</p>
+              <p className="text-sm mb-2">Save this key securely - it will not be shown again</p>
               <code className="block px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded text-sm font-mono break-all">
                 {newKey}
               </code>

@@ -214,7 +214,7 @@ export default function AdminSecurityPage() {
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`p-3 rounded-lg ${colorClasses[stat.color]}`}>
+                  <div className={`p-3 rounded-lg ${colorClasses[stat.color}`}>
                     <Icon className="h-6 w-6" />
                   </div>
                 </div>
@@ -262,10 +262,10 @@ export default function AdminSecurityPage() {
               {stats?.topIPs && stats.topIPs.length > 0 ? (
                 <FlowbiteTable
                   dataSource={stats.topIPs.map((item, index) => ({ ...item, key: index }))}
-                  columns={[
+                  columns={
                     { title: 'IP Address', dataIndex: 'ip', key: 'ip' },
                     { title: 'Failed Attempts', dataIndex: 'count', key: 'count' },
-                  ]}
+                  }
                   pagination={false}
                 />
               ) : (

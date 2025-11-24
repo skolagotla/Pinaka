@@ -37,7 +37,7 @@ import {
   HiPlus,
   HiSearch,
 } from 'react-icons/hi';
-import { RBACRole, ResourceCategory, PermissionAction } from '../../../../lib/types/rbac';
+import { RBACRole, ResourceCategory, PermissionAction } from '@/lib/types/rbac';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
 import { notify } from '@/lib/utils/notification-helper';
 import { ModalHelper } from '@/lib/utils/flowbite-modal-helper';

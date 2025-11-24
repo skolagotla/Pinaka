@@ -1,96 +1,66 @@
 # Pinaka - Property Management Platform
 
-**Monorepo Architecture with Domain-Driven Design, API-First, and Single Source of Truth Schema**
+A modern, full-stack property management platform built with Next.js, Flowbite UI, FastAPI, and PostgreSQL.
 
----
+## 🎯 Overview
 
-## 🎯 Architecture Status
+Pinaka is a comprehensive property management system designed for Property Management Companies (PMCs), landlords, tenants, and vendors. It provides end-to-end functionality for managing properties, leases, maintenance, financials, and more.
 
-**✅ 100% COMPLIANT** with Domain-Driven, API-First, Shared-Schema "Single Source of Truth" architecture
+## 🏗️ Tech Stack
 
-### Compliance Summary
+- **Frontend**: Next.js 16 + React + Flowbite UI
+- **Backend**: FastAPI + SQLAlchemy (async)
+- **Database**: PostgreSQL v2
+- **Authentication**: JWT-based with role-based access control (RBAC)
+- **Monorepo**: pnpm workspaces
 
-| Principle | Status | Compliance |
-|-----------|--------|------------|
-| **Domain-Driven Design** | ✅ Yes | 95.2% (100% for business operations) |
-| **API-First** | ✅ Yes | 100% |
-| **Shared-Schema (SSOT)** | ✅ Yes | 100% |
-
-**Key Achievements:**
-- ✅ **0** legacy business domain endpoints (all migrated to v1)
-- ✅ **0** inline schema definitions (all in shared registry)
-- ✅ **253** v1Api usage references in frontend
-- ✅ **82** v1Api usage references in lib
-- ✅ All business domain operations use domain services
-- ✅ All endpoints use shared schemas from `schema/types/domains/`
-
----
-
-## 🏗️ Repository Structure
+## 📁 Monorepo Structure
 
 ```
-/schema                       # ⭐ Canonical API schemas (Single Source of Truth)
-  ├── openapi.yaml           # OpenAPI specification
-  ├── openapi.json           # Generated OpenAPI spec
-  ├── graphql/
-  │   └── schema.graphql     # GraphQL schema (future)
-  └── types/                 # Canonical runtime validators (Zod)
-      ├── registry.ts        # Schema registry (ONLY place to define contracts)
-      ├── domains/           # Domain schemas
-      ├── generated-types.ts # Generated TypeScript types
-      └── generated-validators.ts # Generated runtime validators
-
-/packages
-  ├── /generated             # Codegen outputs (clients/types/stubs)
-  │   ├── clients/          # Generated API clients
-  │   ├── types/            # Generated types
-  │   └── stubs/            # Generated server stubs
-  │
-  ├── /schemas              # @pinaka/schemas (published internally)
-  │   └── src/              # Types + Validators package
-  │
-  ├── /ui                   # @pinaka/ui (shared UI components & hooks)
-  │   ├── components/       # Shared React components
-  │   └── hooks/           # Shared React hooks
-  │
-  └── /domain-common        # @pinaka/domain-common (shared domain utilities)
-      └── src/              # Common domain logic
-
-/apps
-  ├── /api-server           # @pinaka/api-server (Next.js API server)
-  │   └── pages/api/v1/    # v1 API endpoints (100% compliant)
-  ├── /backend-api          # @pinaka/backend-api (FastAPI backend - migration in progress)
-  │   └── routers/vendors/ # FastAPI endpoints (vendors domain migrated)
-  └── /web-app              # @pinaka/web-app (Next.js web application)
-
-/domains                     # Domain-Driven Design structure
-  ├── /leases
-  │   ├── /domain          # Domain models & business logic
-  │   ├── /application     # Application services
-  │   ├── /interfaces      # API interfaces
-  │   └── /infrastructure  # Repositories & data access
-  │
-  ├── /users
-  │   ├── /domain
-  │   ├── /application
-  │   ├── /interfaces
-  │   └── /infrastructure
-  │
-  └── ... (more domains)
-
-/ci                          # CI/CD configuration
-  ├── schema-validation.yml  # Schema validation workflow
-  └── husky/                # Git hooks
+Pinaka/
+├── apps/
+│   ├── web-app/              # Next.js frontend application
+│   │   ├── app/              # Next.js App Router pages
+│   │   ├── components/       # React components
+│   │   └── lib/              # Frontend utilities, hooks, API clients
+│   │
+│   └── backend-api/          # FastAPI backend application
+│       ├── routers/          # API route handlers
+│       ├── schemas/          # Pydantic schemas
+│       ├── db/               # SQLAlchemy models
+│       ├── core/             # Core utilities (auth, database, CRUD helpers)
+│       └── services/         # Business logic services
+│
+├── packages/                 # Shared packages
+│   ├── api-client/           # Generated API client
+│   ├── domains/              # Domain-driven design modules
+│   ├── schemas/              # Shared TypeScript schemas
+│   ├── shared-types/         # Shared TypeScript types
+│   ├── shared-utils/         # Shared utilities
+│   └── ui/                   # Shared UI components
+│
+├── infra/                    # Infrastructure
+│   ├── db/                   # Database migrations (Alembic)
+│   └── backups/              # Database backups
+│
+├── docs/                     # Documentation
+│   ├── architecture.md       # Architecture overview
+│   ├── backend.md            # Backend documentation
+│   ├── frontend.md           # Frontend documentation
+│   └── api.md                # API documentation
+│
+├── scripts/                  # Utility scripts
+└── ci/                      # CI/CD configuration
 ```
-
----
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- pnpm >= 8.0.0
+- **Node.js** >= 18.0.0
+- **pnpm** >= 8.0.0
+- **Python** >= 3.9
+- **PostgreSQL** >= 14
 
 ### Installation
 
@@ -98,570 +68,185 @@
 # Install dependencies
 pnpm install
 
-# Generate schema artifacts
-pnpm run generate:schema
-
-# Validate schema
-pnpm run validate:schema
-
-# Start development
-pnpm run dev              # Web app (port 3000) - runs from apps/web-app
-pnpm run dev:api         # API server (port 3001) - runs from apps/api-server
-pnpm run dev:backend     # FastAPI backend (port 8000) - runs from apps/backend-api
-
-# Or run individually
-pnpm --filter @pinaka/web-app dev
-pnpm --filter @pinaka/api-server dev
-cd apps/backend-api && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your database credentials and API keys
 ```
 
----
-
-## 📦 Packages
-
-### @pinaka/schema-types
-**Canonical schema types and validators** - Single Source of Truth
-- Location: `schema/types/`
-- Contains: Schema registry, generated types, validators, OpenAPI generation
-
-### @pinaka/schemas
-**Published package: Types + Validators**
-- Location: `packages/schemas/`
-- Published internally for use across monorepo
-
-### @pinaka/generated
-**Codegen outputs** - Auto-generated, do not edit
-- Location: `packages/generated/`
-- Contains: API clients, server stubs, generated types
-
-### @pinaka/ui
-**Shared UI components & hooks**
-- Location: `packages/ui/`
-- Contains: React components and hooks
-
-### @pinaka/domain-common
-**Shared domain utilities**
-- Location: `packages/domain-common/`
-- Contains: Common domain logic
-
-### @pinaka/api-server
-**API Server application**
-- Location: `apps/api-server/`
-- Next.js API server with v1 endpoints
-
-### @pinaka/web-app
-**Web Application**
-- Location: `apps/web-app/`
-- Next.js web application
-
-### @pinaka/backend-api
-**FastAPI Backend** (Migration in Progress)
-- Location: `apps/backend-api/`
-- FastAPI backend with async SQLAlchemy
-- Migrated domains: Vendors
-- See `apps/backend-api/README.md` for setup instructions
-
----
-
-## 🔄 Code Generation
-
-### Generate Schema Artifacts
+### Development
 
 ```bash
-# Generate all schema artifacts (types, validators, OpenAPI)
-pnpm run generate:schema
+# Start frontend (Next.js) - http://localhost:3000
+pnpm dev
 
-# Or individually
-cd schema/types
-npm run generate:types
-npm run generate:validators
-npm run generate:openapi
+# Start backend (FastAPI) - http://localhost:8000
+pnpm dev:backend
+
+# Or run both in separate terminals
+pnpm dev              # Frontend
+pnpm dev:backend      # Backend
 ```
 
-### Generate Client & Stubs
+### Database Setup
 
 ```bash
-# Generate API client and server stubs
-pnpm run generate:all
+# Run migrations
+cd apps/backend-api
+alembic upgrade head
+
+# Seed initial data (optional)
+python scripts/seed_v2.py
 ```
 
----
+## 🎭 Role-Based Access Control (RBAC)
 
-## 🛡️ CI/CD
+Pinaka supports multiple user roles:
 
-### Pre-commit Hook
-- Validates schema registry before commits
-- Location: `ci/husky/pre-commit`
+- **SUPER_ADMIN**: Full system access
+- **PMC_ADMIN**: PMC organization management
+- **PM**: Property Manager (manages properties and tenants)
+- **LANDLORD**: Property owner
+- **TENANT**: Lease holder
+- **VENDOR**: Service provider
+- **CONTRACTOR**: Maintenance contractor
 
-### GitHub Actions
-- Schema validation on PR/push
-- Contract compatibility checks
-- Location: `ci/schema-validation.yml`
+See [docs/architecture.md](docs/architecture.md) for detailed role permissions.
 
----
+## 📚 Documentation
 
-## 🎯 Architecture Principles
+- **[Architecture Overview](docs/architecture.md)** - System architecture and design decisions
+- **[Backend Documentation](docs/backend.md)** - FastAPI backend details
+- **[Frontend Documentation](docs/frontend.md)** - Next.js frontend details
+- **[API Documentation](docs/api.md)** - API endpoints and usage
+
+## 🏛️ Architecture Principles
 
 ### 1. Domain-Driven Design (DDD)
-- **Repository → Service → API** pattern enforced
-- All business domain operations use domain services
-- No direct Prisma in business logic (except documented analytics exceptions)
-- Domain services encapsulate business rules and data access
+- Business logic organized by domain (properties, tenants, leases, etc.)
+- Domain services encapsulate business rules
+- Clear separation between domain, application, and infrastructure layers
 
-**Example:**
-```typescript
-// ✅ Correct: Use domain service
-import { tenantService } from '@/lib/domains/tenant';
-const tenant = await tenantService.getById(id);
+### 2. API-First
+- FastAPI backend with OpenAPI/Swagger documentation
+- Consistent RESTful API patterns
+- Type-safe API clients generated from schemas
 
-// ❌ Wrong: Direct Prisma access
-const tenant = await prisma.tenant.findUnique({ where: { id } });
-```
+### 3. Shared Schema (Single Source of Truth)
+- All API schemas defined in `packages/shared-types`
+- TypeScript types and Pydantic schemas generated from shared definitions
+- Runtime validation on both frontend and backend
 
-### 2. API-First Architecture
-- All endpoints follow API-First principles
-- Schema validation in place
-- Consistent API patterns (`/api/v1/*`)
-- Standardized response formats
-- Generated client methods via `v1Api`
+## 🔧 Development Workflow
 
-**Example:**
-```typescript
-// ✅ Correct: Use generated v1Api client
-import { v1Api } from '@/lib/api/v1-client';
-const properties = await v1Api.properties.list();
+### Adding a New Feature
 
-// ❌ Wrong: Direct fetch to legacy endpoint
-const response = await fetch('/api/properties');
-```
+1. **Define Schema**: Add types to `packages/shared-types/src/types/`
+2. **Backend**: Create router in `apps/backend-api/routers/`
+3. **Frontend**: Create components in `apps/web-app/components/`
+4. **API Client**: Regenerate client from schemas
 
-### 3. Shared-Schema (Single Source of Truth)
-- **All schemas** in shared registry (`schema/types/domains/`)
-- **No inline schema definitions** in API endpoints
-- All endpoints import from `@/lib/schemas`
-- Schema changes propagate automatically via code generation
+### Code Style
 
-**Example:**
-```typescript
-// ✅ Correct: Import from shared schemas
-import { tenantCreateSchema } from '@/lib/schemas';
-const data = tenantCreateSchema.parse(req.body);
-
-// ❌ Wrong: Inline schema definition
-const schema = z.object({ name: z.string() });
-```
-
----
-
-## 📋 API Endpoints
-
-### v1 API Endpoints (Business Domain)
-
-All business domain operations use `/api/v1/*` endpoints:
-
-- **Properties**: `/api/v1/properties/*`
-- **Tenants**: `/api/v1/tenants/*`
-- **Leases**: `/api/v1/leases/*`
-- **Rent Payments**: `/api/v1/rent-payments/*`
-- **Maintenance**: `/api/v1/maintenance/*`
-- **Expenses**: `/api/v1/expenses/*`
-- **Documents**: `/api/v1/documents/*`
-- **Vendors**: `/api/v1/vendors/*`
-- **Inspections**: `/api/v1/inspections/*`
-- **Conversations**: `/api/v1/conversations/*`
-- **Applications**: `/api/v1/applications/*`
-- **Notifications**: `/api/v1/notifications/*`
-- **Tasks**: `/api/v1/tasks/*`
-- **Invitations**: `/api/v1/invitations/*`
-- **Analytics**: `/api/v1/analytics/*`
-- **Search**: `/api/v1/search`
-- **Activity Logs**: `/api/v1/activity-logs`
-
-### Infrastructure Endpoints (System)
-
-These endpoints are intentionally not part of v1 API:
-
-- **`/api/auth/*`** - Authentication endpoints
-- **`/api/admin/*`** - Admin operations (use `adminApi` helper)
-- **`/api/rbac/*`** - RBAC system (use `adminApi` helper)
-- **`/api/user/*`** - User settings
-- **`/api/reference-data`** - Reference data
-- **`/api/db-switcher/*`** - Database switching (dev tool)
-- **`/api/cron/*`** - Cron jobs
-- **`/api/stripe/*`** - Payment processing
-- **`/api/webhooks/*`** - Webhook handlers
-- **`/api/health/*`** - Health checks
-
----
-
-## 🔧 Development
-
-### Using v1Api Client
-
-```typescript
-import { v1Api } from '@/lib/api/v1-client';
-
-// List properties
-const properties = await v1Api.properties.list({ page: 1, limit: 50 });
-
-// Create tenant
-const tenant = await v1Api.tenants.create({
-  firstName: 'John',
-  lastName: 'Doe',
-  email: 'john@example.com',
-});
-
-// Update maintenance request
-await v1Api.maintenance.update(id, { status: 'Completed' });
-```
-
-### Using Domain Services
-
-```typescript
-import { tenantService } from '@/lib/domains/tenant';
-import { propertyService } from '@/lib/domains/property';
-
-// Get tenant with validation
-const tenant = await tenantService.getById(id);
-
-// Check permissions
-const belongsToLandlord = await tenantService.belongsToLandlord(tenantId, landlordId);
-
-// Create property
-const property = await propertyService.create({
-  propertyName: '123 Main St',
-  addressLine1: '123 Main Street',
-  city: 'Toronto',
-  // ...
-});
-```
-
-### Adding a New Domain
-
-1. **Add to schema registry:**
-   ```typescript
-   // schema/types/domains/my-domain.schema.ts
-   export const myDomainCreateSchema = z.object({
-     name: z.string().min(1),
-     // ...
-   });
-   ```
-
-2. **Create domain structure:**
-   ```bash
-   mkdir -p domains/my-domain/{domain,application,interfaces,infrastructure}
-   ```
-
-3. **Create repository:**
-   ```typescript
-   // domains/my-domain/infrastructure/MyDomainRepository.ts
-   export class MyDomainRepository {
-     constructor(private prisma: PrismaClient) {}
-     // ...
-   }
-   ```
-
-4. **Create service:**
-   ```typescript
-   // domains/my-domain/domain/MyDomainService.ts
-   export class MyDomainService {
-     constructor(private repository: MyDomainRepository) {}
-     // ...
-   }
-   ```
-
-5. **Create API endpoint:**
-   ```typescript
-   // apps/api-server/pages/api/v1/my-domain/index.ts
-   import { myDomainCreateSchema } from '@/lib/schemas';
-   import { myDomainService } from '@/lib/domains/my-domain';
-   
-   export default withAuth(async (req, res, user) => {
-     const data = myDomainCreateSchema.parse(req.body);
-     const result = await myDomainService.create(data);
-     return res.json({ success: true, data: result });
-   });
-   ```
-
-6. **Regenerate artifacts:**
-   ```bash
-   pnpm run generate:all
-   ```
-
-7. **Validate:**
-   ```bash
-   pnpm run validate:schema
-   ```
-
----
-
-## 🔐 Authentication & Authorization
-
-### Authentication Setup
-
-The application supports multiple authentication modes:
-
-**Environment Variable:**
-```bash
-AUTH_MODE=password  # or 'auth0' or 'auto'
-```
-
-**Supported User ID Formats:**
-- Email addresses: `user@example.com`
-- PMC Admin IDs: `pmcadmin1`, `pmc1-admin` (maps to `pmcadmin1@pmc.local`)
-- Landlord IDs: `pmc1-lld1`, `pmc1-lld2` (maps to `pmc1-lld1@pmc.local`)
-
-### RBAC Setup
-
-**Initialize RBAC System:**
-```bash
-npx tsx scripts/initialize-rbac.ts
-```
-
-This creates all 13 system roles:
-- Super Admin
-- PMC Admin
-- Property Manager
-- Landlord
-- Tenant
-- Accountant
-- And more...
-
-**View/Manage Roles:**
-- Navigate to `/admin/rbac` in the admin dashboard
-- View roles and permissions
-- Create custom roles
-- Assign roles to users
-
----
+- **Frontend**: TypeScript/JavaScript with Flowbite UI components
+- **Backend**: Python with type hints, FastAPI conventions
+- **Formatting**: Prettier (frontend), Black (backend)
 
 ## 🧪 Testing
 
-### API Testing
+```bash
+# Backend tests
+cd apps/backend-api
+pytest
 
-All v1 endpoints follow consistent patterns:
-- Schema validation using Zod
-- Authentication via `withAuth` middleware
-- Domain service usage
-- Standardized error handling
-
-**Example Test:**
-```typescript
-import { v1Api } from '@/lib/api/v1-client';
-
-test('create tenant', async () => {
-  const tenant = await v1Api.tenants.create({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john@example.com',
-  });
-  expect(tenant).toBeDefined();
-});
+# Frontend tests (when available)
+cd apps/web-app
+pnpm test
 ```
 
----
-
-## 📊 Build & Deploy
-
-### Build All Packages
+## 📦 Build & Deploy
 
 ```bash
-pnpm run build:packages
+# Build all packages
+pnpm build:packages
+
+# Build all apps
+pnpm build:apps
+
+# Build frontend
+cd apps/web-app
+pnpm build
+
+# Run backend in production
+cd apps/backend-api
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### Build All Apps
+## 🗄️ Database
 
-```bash
-pnpm run build:apps
-```
+### Migrations
 
-### Clean
-
-```bash
-pnpm run clean
-```
-
----
-
-## ✅ Compliance Verification
-
-### Verify No Legacy Endpoints
-
-```bash
-# Check for legacy business domain endpoints
-grep -r "fetch.*['\"]/api/(dashboard|properties|tenants|leases|maintenance|documents|expenses|financials|search|activity-logs|vendors|approvals)" apps/web-app lib
-
-# Should return: 0 matches ✅
-```
-
-### Verify No Inline Schemas
-
-```bash
-# Check for inline schema definitions
-grep -r "const \w+Schema = z\." apps/api-server/pages/api/v1
-
-# Should return: 0 matches ✅
-```
-
-### Verify Domain Service Usage
-
-```bash
-# Check for direct Prisma usage in business endpoints
-grep -r "prisma\." apps/api-server/pages/api/v1 --exclude-dir=analytics
-
-# Should only find acceptable exceptions ✅
-```
-
----
-
-## 📝 Key Principles
-
-1. **Single Source of Truth**: `schema/types/domains/` is the ONLY place to define API contracts
-2. **Code Generation**: All types, clients, and stubs are generated from schema
-3. **Domain-Driven Design**: Code organized by business domains
-4. **API-First**: All endpoints follow consistent patterns
-5. **Shared Packages**: Duplicated code consolidated into shared packages
-6. **CI/CD Enforcement**: Automated validation and contract checks
-
----
-
-## 🎉 Migration Status
-
-### ✅ Completed
-
-- ✅ All legacy business domain endpoints migrated to v1
-- ✅ All inline schemas moved to shared registry
-- ✅ All business operations use domain services
-- ✅ All endpoints use shared schemas
-- ✅ 100% compliance with DDD, API-First, SSOT architecture
-
-### 📊 Statistics
-
-- **0** legacy business domain endpoints
-- **0** inline schema definitions
-- **253** v1Api usage references (frontend)
-- **82** v1Api usage references (lib)
-- **20** endpoints refactored to use domain services
-- **18** inline schemas migrated to shared registry
-
----
-
-## 🐛 Bug Fixes & Performance
-
-### Recent Optimizations (2025-01-18)
-
-**Performance Improvements:**
-- ✅ LTBDocumentsGrid optimized with React.memo, useMemo, and useCallback
-- ✅ PDFViewerModal lazy loaded to reduce initial bundle size (~50KB savings)
-- ✅ Memory leaks fixed with proper AbortController cleanup
-- ✅ Input sanitization added for search queries
-
-**Critical Bug Fixes:**
-- ✅ Fixed variable shadowing bug in LTBDocumentsGrid (document parameter)
-- ✅ Fixed memory leak in PDFViewerModal (proper blob URL cleanup)
-- ✅ Added localStorage error handling for private browsing mode
-- ✅ Added timeout and better error handling to fetch calls
-
-**Performance Metrics:**
-- Initial bundle size: ~1-1.3MB (gzipped)
-- Code splitting: Heavy components lazy loaded
-- Bundle optimization: Vendor chunks split by library (max 200KB per chunk)
-
----
-
-## 🗄️ Database Setup
-
-### Prisma Setup
-
-**Generate Prisma Client:**
-```bash
-# Prisma client is auto-generated on install via postinstall script
-pnpm install
-
-# Or manually
-npx prisma generate
-```
-
-**Database Migrations:**
 ```bash
 # Create a new migration
-npx prisma migrate dev --name migration_name
+cd apps/backend-api
+alembic revision --autogenerate -m "description"
 
 # Apply migrations
-npx prisma migrate deploy
+alembic upgrade head
 
-# Reset database (dev only)
-npx prisma migrate reset
+# Rollback
+alembic downgrade -1
 ```
 
-**Prisma Studio (Database GUI):**
-```bash
-npx prisma studio
-```
+### Database Schema
 
-**Environment Variables:**
-```bash
-# Database connection
-DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
+The v2 PostgreSQL schema includes:
+- Organizations, Users, Roles
+- Properties, Units, Leases
+- Tenants, Landlords, Vendors
+- Work Orders, Attachments, Notifications
+- Audit Logs, Forms, Rent Payments
 
-# Prisma query engine (auto-detected)
-PRISMA_QUERY_ENGINE_LIBRARY="/path/to/libquery_engine-darwin-arm64.dylib.node"
-```
+See `apps/backend-api/db/models_v2.py` for full schema.
 
-**Prisma Query Engine Setup:**
-The application automatically detects and configures the Prisma query engine for pnpm monorepo setups. The engine finder utility (`lib/utils/prisma-engine-finder.js`) handles:
-- Platform detection (macOS, Linux, Windows)
-- Version-agnostic engine location
-- Automatic environment variable configuration
+## 🔐 Authentication & Authorization
 
-If you encounter "Query Engine not found" errors:
-1. Run `npx prisma generate`
-2. Check logs for `[Prisma] Found query engine at:` messages
-3. Verify `@prisma/client` is installed: `pnpm install`
+- **JWT-based authentication** via FastAPI
+- **Role-based access control** (RBAC) enforced in backend
+- **Organization-scoped data** - users only see data from their organization
+- **Frontend auth hook**: `useV2Auth()` from `@/lib/hooks/useV2Auth`
 
----
+## 📝 Key Features
 
-## 🛠️ Scripts & Utilities
+- **Property Management**: Properties, units, leases
+- **Tenant Management**: Applications, approvals, rent payments
+- **Maintenance**: Work orders, vendor assignments, tracking
+- **Financials**: Rent collection, expenses, reporting
+- **Documents**: Document storage, forms, signatures
+- **Communications**: Messaging, notifications
+- **Analytics**: Dashboards, reports, insights
 
-### Essential Scripts
+## 🛠️ Scripts
 
-**Setup & Initialization:**
-- `scripts/setup-first-admin.js` - Setup first admin user
-- `scripts/initialize-rbac.ts` - Initialize RBAC system
-- `scripts/create-superadmin-pt.js` - Create super admin for test database
-- `scripts/create-pmc-admins-pt.js` - Create PMC admins
-
-**Data Management:**
-- `scripts/delete-user-by-email.js` - Delete user by email
-- `scripts/delete-tenant-by-email.js` - Delete tenant by email
-- `scripts/find-pmc-by-email.js` - Find PMC by email
-- `scripts/list-pmcs.js` - List all PMCs
-
-**Health Checks:**
-- `scripts/check-document-expiration.js` - Check document expiration
-- `scripts/check-admin-env.js` - Check admin environment
-- `scripts/rbac-health-check.ts` - RBAC system health check
-- `scripts/test-rbac-system.ts` - Test RBAC system
-
-**Production:**
-- `scripts/backup.sh` - Full backup script
-- `scripts/deploy.sh` - Deployment script
-- `scripts/clear-cache.sh` - Clear all caches
-- `scripts/stop.sh` - Stop all services
-
-**Code Generation:**
-- `scripts/generate-api-handlers.ts` - Generate API handlers
-- `scripts/generate-api-routes.ts` - Generate API routes
-- `scripts/generate-openapi.ts` - Generate OpenAPI spec
-
-**Note:** One-time migration scripts are archived in `scripts/archive/one-time-use/` for reference only.
-
----
+Key utility scripts in `scripts/`:
+- `initialize-rbac.ts` - Initialize RBAC system
+- `seed_v2.py` - Seed database with test data
+- Various migration and utility scripts
 
 ## 📄 License
 
 ISC
 
+## 🤝 Contributing
+
+1. Follow the architecture principles (DDD, API-First, Shared Schema)
+2. Use TypeScript/Python type hints
+3. Write tests for new features
+4. Update documentation
+
+## 📞 Support
+
+For issues, questions, or contributions, please refer to the documentation in `docs/` or open an issue.
+
 ---
 
-**Built with ❤️ using Domain-Driven Design, API-First, and Single Source of Truth principles**
+**Built with ❤️ using modern web technologies and best practices**

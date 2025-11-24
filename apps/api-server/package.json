@@ -12,7 +12,7 @@
   "dependencies": {
     "@pinaka/domain-common": "workspace:*",
     "@pinaka/generated": "workspace:*",
-    "@pinaka/schemas": "workspace:*",
+    "@pinaka/shared-types": "workspace:*",
     "@pinaka/shared-utils": "workspace:*",
     "@prisma/client": "^6.18.0",
     "@types/formidable": "^3.4.6",

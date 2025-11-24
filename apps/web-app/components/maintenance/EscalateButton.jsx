@@ -85,7 +85,7 @@ export default function EscalateButton({ maintenanceRequestId, onSuccess, userRo
           <Form.Item
             name="priority"
             label="Priority"
-            rules={[{ required: true }]}
+            rules={[{ required: true }}
           >
             <Select>
               <Option value="High">High</Option>
@@ -96,10 +96,10 @@ export default function EscalateButton({ maintenanceRequestId, onSuccess, userRo
           <Form.Item
             name="reason"
             label="Escalation Reason"
-            rules={[
+            rules={
               { required: true, message: 'Please provide a reason for escalation' },
               { min: 10, message: 'Reason must be at least 10 characters' },
-            ]}
+            }
           >
             <TextArea
               rows={4}

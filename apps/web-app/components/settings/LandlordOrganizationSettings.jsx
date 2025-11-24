@@ -179,7 +179,7 @@ export default function LandlordOrganizationSettings() {
 
       {statusAlerts}
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16}>
         {/* Organization Info */}
         <Col xs={24} lg={12}>
           <Card title="Organization Information">
@@ -328,7 +328,7 @@ export default function LandlordOrganizationSettings() {
 
       {/* Plan Limits */}
       <Card title="Plan Limits" style={{ marginTop: 16 }}>
-        <Row gutter={[16, 16]}>
+        <Row gutter={[16, 16}>
           <Col xs={24} sm={12} md={6}>
             <Statistic
               title="Max Properties"

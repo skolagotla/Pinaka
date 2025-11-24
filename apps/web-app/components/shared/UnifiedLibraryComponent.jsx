@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Tabs, Empty } from 'antd';
-import { FormOutlined, BankOutlined, UserOutlined } from '@ant-design/icons';
+import { Tabs } from 'flowbite-react';
+import { HiDocumentText, HiBanknotes, HiUser } from 'react-icons/hi';
 import LTBDocumentsGrid from '@/components/shared/LTBDocumentsGrid';
 import LibraryClient from '@/components/shared/LibraryClient';
 import dynamic from 'next/dynamic';
@@ -133,181 +133,61 @@ export default function UnifiedLibraryComponent({
     }
   }, [mounted, isPersonalRole]);
 
-  // Tab items based on role
-  const tabItems = useMemo(() => {
-    if (isPersonalRole) {
-      // Landlord/Tenant: Personal + Legal tabs
-      return [
-        {
-          key: 'personal',
-          label: (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-              <UserOutlined style={{ fontSize: '15px' }} />
-              <span>Personal</span>
-            </span>
-          ),
-          children: (
-            <DynamicLibraryClient
-              userRole={userRole}
-              user={user}
-              tenants={tenants}
-              initialDocuments={initialDocuments}
-              leaseDocuments={leaseDocuments}
-            />
-          ),
-        },
-        {
-          key: 'legal',
-          label: (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-              <FormOutlined style={{ fontSize: '15px' }} />
-              <span>Legal</span>
-            </span>
-          ),
-          children: (
-            <LTBDocumentsGrid 
-              userRole={userRole} 
-              showFilters={true} 
-              showTitle={false}
-            />
-          ),
-        },
-      ];
-    } else {
-      // Admin/PMC/PM: Business + Legal tabs
-      return [
-        {
-          key: 'business',
-          label: (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-              <BankOutlined style={{ fontSize: '15px' }} />
-              <span>Business</span>
-            </span>
-          ),
-          children: (
-            <DynamicLibraryClient
-              userRole={userRole}
-              user={user}
-              tenants={tenants}
-              initialDocuments={initialDocuments}
-              leaseDocuments={leaseDocuments}
-            />
-          ),
-        },
-        {
-          key: 'legal',
-          label: (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
-              <FormOutlined style={{ fontSize: '15px' }} />
-              <span>Legal</span>
-            </span>
-          ),
-          children: (
-            <LTBDocumentsGrid 
-              userRole={userRole} 
-              showFilters={true} 
-              showTitle={false}
-            />
-          ),
-        },
-      ];
-    }
-  }, [isPersonalRole, userRole, user, tenants, initialDocuments, leaseDocuments]);
-
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '0' }}>
+    <div className="h-full flex flex-col p-0">
       {mounted ? (
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          size="large"
-          style={{ 
-            flex: 1, 
-            display: 'flex', 
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden'
-          }}
-          tabBarStyle={{ 
-            margin: '0 24px',
-            paddingTop: '24px',
-            paddingBottom: '0',
-            marginBottom: 0, 
-            flexShrink: 0,
-            borderBottom: '1px solid #e8e8e8',
-            backgroundColor: '#ffffff',
-          }}
-          tabBarGutter={48}
-          className="unified-library-tabs"
-        />
+        <Tabs aria-label="Library tabs" style="underline" className="flex-1 flex flex-col h-full">
+          {isPersonalRole ? (
+            <>
+              <Tabs.Item active={activeTab === 'personal'} title="Personal" icon={HiUser} onClick={() => setActiveTab('personal')}>
+                <div className="h-full overflow-auto">
+                  <DynamicLibraryClient
+                    userRole={userRole}
+                    user={user}
+                    tenants={tenants}
+                    initialDocuments={initialDocuments}
+                    leaseDocuments={leaseDocuments}
+                  />
+                </div>
+              </Tabs.Item>
+              <Tabs.Item active={activeTab === 'legal'} title="Legal" icon={HiDocumentText} onClick={() => setActiveTab('legal')}>
+                <div className="h-full overflow-auto">
+                  <LTBDocumentsGrid 
+                    userRole={userRole} 
+                    showFilters={true} 
+                    showTitle={false}
+                  />
+                </div>
+              </Tabs.Item>
+            </>
+          ) : (
+            <>
+              <Tabs.Item active={activeTab === 'business'} title="Business" icon={HiBanknotes} onClick={() => setActiveTab('business')}>
+                <div className="h-full overflow-auto">
+                  <DynamicLibraryClient
+                    userRole={userRole}
+                    user={user}
+                    tenants={tenants}
+                    initialDocuments={initialDocuments}
+                    leaseDocuments={leaseDocuments}
+                  />
+                </div>
+              </Tabs.Item>
+              <Tabs.Item active={activeTab === 'legal'} title="Legal" icon={HiDocumentText} onClick={() => setActiveTab('legal')}>
+                <div className="h-full overflow-auto">
+                  <LTBDocumentsGrid 
+                    userRole={userRole} 
+                    showFilters={true} 
+                    showTitle={false}
+                  />
+                </div>
+              </Tabs.Item>
+            </>
+          )}
+        </Tabs>
       ) : (
-        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+        <div className="p-5 text-center">Loading...</div>
       )}
-      <style jsx global>{`
-        .unified-library-tabs .ant-tabs-nav {
-          margin-bottom: 0 !important;
-          padding: 0 !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-nav-list {
-          gap: 0 !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab {
-          padding: 16px 0 !important;
-          margin: 0 24px 0 0 !important;
-          font-size: 15px !important;
-          color: #8c8c8c !important;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          border-bottom: 2px solid transparent !important;
-          position: relative !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab:first-child {
-          margin-left: 0 !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab:hover {
-          color: #1890ff !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab-active {
-          color: #1890ff !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-          color: #1890ff !important;
-          font-weight: 600 !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-ink-bar {
-          height: 2px !important;
-          background: #1890ff !important;
-          border-radius: 1px 1px 0 0 !important;
-        }
-        
-        .unified-library-tabs .ant-tabs-content-holder {
-          flex: 1;
-          overflow: hidden;
-        }
-        
-        .unified-library-tabs .ant-tabs-content {
-          height: 100%;
-        }
-        
-        .unified-library-tabs .ant-tabs-tabpane {
-          height: 100%;
-          overflow: auto;
-        }
-        
-        .unified-library-tabs .ant-tabs-tab-btn {
-          display: inline-flex !important;
-          align-items: center !important;
-          gap: 10px !important;
-          padding: 0 !important;
-        }
-      `}</style>
     </div>
   );
 }

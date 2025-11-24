@@ -14,6 +14,8 @@ import {
 import { SaveOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import CurrencyInput from '@/components/rules/CurrencyInput';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useCreateExpense } from '@/lib/hooks/useV2Data';
 
 const { TextArea } = Input;
 
@@ -35,6 +37,9 @@ export default function MaintenanceExpenseTracker({
   onExpenseAdded
 }) {
   const { message: messageApi } = App.useApp();
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
+  const createExpense = useCreateExpense();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [invoiceFileList, setInvoiceFileList] = useState([]);
@@ -106,11 +111,16 @@ export default function MaintenanceExpenseTracker({
       
       delete expenseData.invoice;
       
-      // Use v1Api to create expense
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.expenses.create({
+      if (!organizationId) {
+        messageApi.error('Organization ID is required');
+        return;
+      }
+      
+      // Use v2Api to create expense
+      const data = await createExpense.mutateAsync({
         ...expenseData,
-        maintenanceRequestId: selectedRequest.id,
+        organization_id: organizationId,
+        work_order_id: selectedRequest.id,
       });
       messageApi.success('Expense recorded successfully');
       form.resetFields();
@@ -197,7 +207,7 @@ export default function MaintenanceExpenseTracker({
             <Form.Item
               name="paymentMethod"
               label="Payment Method"
-              rules={[{ required: true, message: 'Please select payment method' }]}
+              rules={[{ required: true, message: 'Please select payment method' }}
             >
               <Select>
                 <Select.Option value="Cash">Cash</Select.Option>
@@ -213,14 +223,14 @@ export default function MaintenanceExpenseTracker({
             <Form.Item
               name="amount"
               label="Amount"
-              rules={[
+              rules={
                 { required: true, message: 'Please enter amount' },
                 { 
                   type: 'number', 
                   min: 0.01, 
                   message: 'Amount must be greater than 0' 
                 }
-              ]}
+              }
             >
               <CurrencyInput
                 country={selectedRequest?.property?.country || 'CA'}
@@ -234,7 +244,7 @@ export default function MaintenanceExpenseTracker({
             <Form.Item
               name="date"
               label="Payment Date"
-              rules={[{ required: true, message: 'Please select date' }]}
+              rules={[{ required: true, message: 'Please select date' }}
             >
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
@@ -244,7 +254,7 @@ export default function MaintenanceExpenseTracker({
         <Form.Item
           name="description"
           label="Description"
-          rules={[{ required: true, message: 'Please enter description' }]}
+          rules={[{ required: true, message: 'Please enter description' }}
         >
           <TextArea
             rows={3}

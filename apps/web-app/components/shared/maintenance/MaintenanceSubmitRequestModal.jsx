@@ -37,12 +37,12 @@ export default function MaintenanceSubmitRequestModal({
           <Form.Item
             name="propertyId"
             label="Property"
-            rules={[{ required: true, message: 'Please select property' }]}
+            rules={[{ required: true, message: 'Please select property' }}
             extra={selectedPropertyAddress.addressLine && (
               <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
                 <div>📍 {selectedPropertyAddress.addressLine}</div>
                 {selectedPropertyAddress.cityStateZip && (
-                  <div style={{ marginLeft: 20 }}>{selectedPropertyAddress.cityStateZip}</div>
+                  <div style={{ marginLeft: 20 }}selectedPropertyAddress.cityStateZip}</div>
                 )}
               </div>
             )}
@@ -63,11 +63,11 @@ export default function MaintenanceSubmitRequestModal({
           <Form.Item
             name="category"
             label="Category"
-            rules={[{ required: true }]}
+            rules={[{ required: true }}
           >
             <Select>
               {MAINTENANCE_CATEGORIES.map(cat => (
-                <Select.Option key={cat} value={cat}>{cat}</Select.Option>
+                <Select.Option key={cat} value={cat}cat}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -76,11 +76,11 @@ export default function MaintenanceSubmitRequestModal({
           <Form.Item
             name="priority"
             label="Priority"
-            rules={[{ required: true }]}
+            rules={[{ required: true }}
           >
             <Select>
               {MAINTENANCE_PRIORITIES.map(pri => (
-                <Select.Option key={pri} value={pri}>{pri}</Select.Option>
+                <Select.Option key={pri} value={pri}pri}</Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -90,7 +90,7 @@ export default function MaintenanceSubmitRequestModal({
       <Form.Item
         name="title"
         label="Title"
-        rules={[{ required: true, message: 'Please enter title' }]}
+        rules={[{ required: true, message: 'Please enter title' }}
       >
         <Input placeholder="Brief description of the issue" />
       </Form.Item>
@@ -98,7 +98,7 @@ export default function MaintenanceSubmitRequestModal({
       <Form.Item
         name="description"
         label="Description"
-        rules={[{ required: true, message: 'Please enter description' }]}
+        rules={[{ required: true, message: 'Please enter description' }}
       >
         <TextArea rows={4} placeholder="Detailed description of the maintenance issue" />
       </Form.Item>

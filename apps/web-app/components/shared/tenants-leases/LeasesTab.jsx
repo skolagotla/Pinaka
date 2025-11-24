@@ -2,17 +2,16 @@
  * LeasesTab Component
  * 
  * Tab component for managing leases
- * Extracted from tenants-leases/ui.jsx for better code organization
+ * Converted to Flowbite UI + v2 API
  */
 
 import React, { useMemo } from 'react';
-import { Table, Card, Empty, Space, Button, Tooltip, Typography } from 'antd';
-import { FileTextOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { Button, Spinner } from 'flowbite-react';
+import { HiDocumentText, HiPlus } from 'react-icons/hi';
 import { useResizableTable, configureTableColumns, useSearch } from '@/lib/hooks';
 import BulkActionsToolbar from '../BulkActionsToolbar';
 import { PageLayout, TableWrapper, EmptyState } from '../';
+import FlowbiteTable from '../FlowbiteTable';
 
 /**
  * Memoized Leases Tab
@@ -78,54 +77,45 @@ const LeasesTab = React.memo(({
       onSearchClear={search.clearSearch}
       searchPlaceholder={searchPlaceholder}
       stats={stats}
-      actions={[
+      actions={
         {
           key: 'refresh',
-          icon: <span style={{ fontSize: 16 }}>↻</span>,
+          icon: <span className="text-base">↻</span>,
           tooltip: 'Refresh',
           onClick: onRefresh,
         },
         {
           key: 'add',
-          icon: <PlusOutlined />,
+          icon: <HiPlus className="w-5 h-5" />,
           tooltip: 'Add Lease',
           onClick: onAddLease,
           type: 'primary'
         }
-      ]}
+      }
     >
       {leases.length === 0 ? (
         <EmptyState
-          icon={<FileTextOutlined />}
+          icon={<HiDocumentText className="w-12 h-12 text-gray-400" />}
           description={
             <div>
-              <Text strong type="secondary">No leases yet</Text>
-              <br />
-              <Text type="secondary">Click "Add Lease" to create your first lease</Text>
+              <p className="font-semibold text-gray-500">No leases yet</p>
+              <p className="text-gray-400">Click "Add Lease" to create your first lease</p>
             </div>
           }
         />
       ) : (
         <TableWrapper>
-          <Table
+          <FlowbiteTable
             {...tableProps}
             columns={configuredColumns}
             dataSource={filteredData}
             rowKey="id"
             loading={loading}
-            sticky={{ offsetHeader: 0 }}
-            scroll={{ y: 'calc(100vh - 320px)', x: 'max-content' }}
-            expandable={expandedRowRender ? {
-              expandedRowRender,
-              expandedRowKeys,
-              onExpandedRowsChange: setExpandedRowKeys,
-            } : undefined}
             pagination={{
               pageSize: 25,
               showSizeChanger: true,
               showTotal: (total) => `Total ${total} leases`,
             }}
-            size="middle"
           />
         </TableWrapper>
       )}
@@ -142,4 +132,3 @@ const LeasesTab = React.memo(({
 LeasesTab.displayName = 'LeasesTab';
 
 export default LeasesTab;
-

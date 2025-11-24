@@ -1,7 +1,7 @@
 """
 Notification endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import List, Optional
@@ -18,16 +18,20 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("", response_model=List[Notification])
 async def list_notifications(
     is_read: Optional[bool] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user_v2),
     db: AsyncSession = Depends(get_db)
 ):
-    """List notifications for current user"""
+    """List notifications for current user with pagination"""
     query = select(NotificationModel).where(NotificationModel.user_id == current_user.id)
     
     if is_read is not None:
         query = query.where(NotificationModel.is_read == is_read)
     
-    query = query.order_by(NotificationModel.created_at.desc())
+    # Apply pagination
+    offset = (page - 1) * limit
+    query = query.order_by(NotificationModel.created_at.desc()).offset(offset).limit(limit)
     
     result = await db.execute(query)
     notifications = result.scalars().all()

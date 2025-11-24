@@ -32,7 +32,7 @@ export default function PartnersPage() {
     contact_name: '',
     email: '',
     phone: '',
-    service_categories: [] as string[],
+    service_categories: [],
     status: 'active',
   });
   
@@ -72,7 +72,7 @@ export default function PartnersPage() {
     
     try {
       await createVendor.mutateAsync({
-        organization_id: organizationId!,
+        organization_id: organizationId,
         company_name: newVendor.company_name,
         contact_name: newVendor.contact_name || undefined,
         email: newVendor.email || undefined,
@@ -96,7 +96,7 @@ export default function PartnersPage() {
     }
   };
   
-  const handleEditVendor = (vendor: any) => {
+  const handleEditVendor = (vendor) => {
     setSelectedVendor(vendor);
     setNewVendor({
       company_name: vendor.company_name,
@@ -133,7 +133,7 @@ export default function PartnersPage() {
     }
   };
   
-  const handleDeleteVendor = async (vendorId: string) => {
+  const handleDeleteVendor = async (vendorId) => {
     if (!confirm('Are you sure you want to delete this vendor?')) return;
     
     try {
@@ -178,7 +178,7 @@ export default function PartnersPage() {
               <Table.HeadCell>Actions</Table.HeadCell>
             </Table.Head>
             <Table.Body className="divide-y">
-              {vendors.map((vendor: any) => (
+              {vendors.map((vendor) => (
                 <Table.Row key={vendor.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
                   <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                     {vendor.company_name}

@@ -28,6 +28,8 @@ import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useProperties, useTenants } from '@/lib/hooks/useV2Data';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
 
@@ -48,12 +50,20 @@ const DelinquencyRiskChart = dynamic(
 );
 
 export default function AnalyticsDashboardClient({ user, userRole }) {
+  const { user: currentUser } = useV2Auth();
+  const organizationId = currentUser?.organization_id;
   const { fetch } = useUnifiedApi({ showUserMessage: false });
   const { loading, withLoading } = useLoading(true);
   const [dateRange, setDateRange] = useState([dayjs().subtract(12, 'month'), dayjs()]);
   const [selectedProperty, setSelectedProperty] = useState(null);
-  const [properties, setProperties] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Load properties and tenants using v2 API
+  const { data: propertiesData } = useProperties(organizationId);
+  const properties = propertiesData && Array.isArray(propertiesData) ? propertiesData : [];
+  
+  const { data: tenantsData } = useTenants(organizationId);
+  const tenants = tenantsData && Array.isArray(tenantsData) ? tenantsData : [];
   
   // Analytics data
   const [portfolioData, setPortfolioData] = useState(null);
@@ -98,15 +108,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         setCashFlowData(cashFlowResponse.data);
       }
 
-      // Load properties for selector
-      const propertiesResponse = await v1Api.properties.list({ page: 1, limit: 1000 });
-      const props = propertiesResponse.data?.data || propertiesResponse.data || [];
-      setProperties(props);
-
-      // Load tenants for risk analysis
-      const tenantsResponse = await v1Api.tenants.list({ page: 1, limit: 1000 });
-      const tenants = tenantsResponse.data?.data || tenantsResponse.data || [];
-      
+      // Properties and tenants are loaded via v2 API hooks above
       // Load risk data for each tenant
       const riskPromises = tenants.map(async (tenant) => {
         try {
@@ -114,8 +116,8 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
           if (riskResponse.success) {
             return {
               tenantId: tenant.id,
-              firstName: tenant.firstName,
-              lastName: tenant.lastName,
+              firstName: tenant.first_name || tenant.name?.split(' ')[0] || '',
+              lastName: tenant.last_name || tenant.name?.split(' ').slice(1).join(' ') || '',
               ...riskResponse.data,
             };
           }
@@ -158,7 +160,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analytics-${type}-${new Date().toISOString().split('T')[0]}.${format}`;
+      a.download = `analytics-${type}-${new Date().toISOString().split('T')[0].${format}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -172,7 +174,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
     {
       title: 'Tenant',
       key: 'tenant',
-      render: (_, record) => `${record.firstName} ${record.lastName}`,
+      render: (_, record) => `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown',
     },
     {
       title: 'Risk Score',
@@ -182,7 +184,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         let color = 'success';
         if (score >= 70) color = 'failure';
         else if (score >= 40) color = 'warning';
-        return <Badge color={color}>{score}/100</Badge>;
+        return <Badge color={color}score}/100</Badge>;
       },
     },
     {
@@ -191,7 +193,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       key: 'riskLevel',
       render: (level) => {
         const colors = { high: 'failure', medium: 'warning', low: 'success' };
-        return <Badge color={colors[level]}>{level.toUpperCase()}</Badge>;
+        return <Badge color={colors[level}level.toUpperCase()}</Badge>;
       },
     },
     {
@@ -217,7 +219,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       label: 'Property',
       type: 'select',
       options: properties.map(p => ({
-        label: p.propertyName || p.addressLine1,
+        label: p.name || p.address_line1,
         value: p.id,
       })),
     },
@@ -237,7 +239,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         </div>
       }
       headerDescription="Advanced insights and performance metrics"
-      headerActions={[
+      headerActions={
         <Button
           key="export-json"
           color="blue"
@@ -256,7 +258,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
           <HiDownload className="h-4 w-4" />
           Export CSV
         </Button>,
-      ]}
+      }
       contentStyle={{ padding: 0, display: 'flex', flexDirection: 'column' }}
     >
       <FilterBar

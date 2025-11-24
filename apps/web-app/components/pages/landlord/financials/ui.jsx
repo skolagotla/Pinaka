@@ -29,6 +29,8 @@ import { rules } from '@/lib/utils/validation-rules';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useExpenses, useProperties, useCreateExpense } from '@/lib/hooks/useV2Data';
 import { useDataLoader, useTabNavigation, useModalState, useFormSubmission, useResizableTable } from '@/lib/hooks';
 import { configureTableColumns } from '@/lib/utils/table-config';
 import { processExpensesByCategory, processMonthlyTrend } from '@/lib/utils/chartDataProcessors';
@@ -59,6 +61,8 @@ const TicketViewModal = dynamic(
 
 export default function FinancialsClient() {
   const router = useRouter();
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const { fetch: fetchApi } = useUnifiedApi({ showUserMessage: false });
   const { activeTab, setActiveTab } = useTabNavigation({ 
     defaultTab: 'expenses',
@@ -66,6 +70,15 @@ export default function FinancialsClient() {
   });
   const { isOpen: expenseModalOpen, open: openExpenseModal, close: closeExpenseModal, reset: resetExpenseModal } = useModalState();
   const form = useFormState();
+  
+  // Load expenses and properties using v2 API
+  const { data: expensesData, isLoading: expensesLoading, refetch: refetchExpenses } = useExpenses(organizationId);
+  const expenses = expensesData && Array.isArray(expensesData) ? expensesData : [];
+  
+  const { data: propertiesData } = useProperties(organizationId);
+  const properties = propertiesData && Array.isArray(propertiesData) ? propertiesData : [];
+  
+  const createExpense = useCreateExpense();
 
   // Mortgage state
   const [mortgageData, setMortgageData] = useState(null);
@@ -76,23 +89,8 @@ export default function FinancialsClient() {
   const { isOpen: ticketModalOpen, open: openTicketModal, close: closeTicketModal, editingItem: selectedTicket, setEditingItem: setSelectedTicket } = useModalState();
   const { loading: ticketLoading, withLoading: withTicketLoading } = useLoading();
 
-  // Use the new useDataLoader hook for cleaner data fetching (v1 API)
-  const { 
-    data, 
-    loading, 
-    refetch,
-    error: dataLoaderError
-  } = useDataLoader({
-    endpoints: {
-      dashboard: '/api/v1/analytics/dashboard',
-      expenses: '/api/v1/expenses',
-      properties: '/api/v1/properties'
-    },
-    showUserMessages: false,
-    onError: (err) => {
-      console.error('[FinancialsClient] Data loading error:', err);
-    }
-  });
+  // Dashboard data - TODO: implement v2 analytics endpoint
+  const dashboard = null;
 
   // Load mortgage data when mortgage tab is active
   const loadMortgageData = useCallback(async () => {
@@ -142,12 +140,12 @@ export default function FinancialsClient() {
       const { adminApi } = await import('@/lib/api/admin-api');
       await adminApi.approveApproval(approvalId, null);
       notify.success('Expense approved successfully');
-      refetch();
+      refetchExpenses();
     } catch (error) {
       console.error('Error approving expense:', error);
       notify.error(error.message || 'Failed to approve expense');
     }
-  }, [refetch]);
+  }, [refetchExpenses]);
 
   const { isOpen: rejectModalOpen, open: openRejectModal, close: closeRejectModal, editingItem: rejectingApprovalId, openForEdit: openRejectModalForEdit } = useModalState();
   const rejectForm = useFormState();
@@ -164,7 +162,7 @@ export default function FinancialsClient() {
       notify.success('Expense rejected');
       closeRejectModal();
       rejectForm.resetFields();
-      refetch();
+      refetchExpenses();
     } catch (error) {
       if (error.errorFields) {
         return;
@@ -172,14 +170,14 @@ export default function FinancialsClient() {
       console.error('Error rejecting expense:', error);
       notify.error(error.message || 'Failed to reject expense');
     }
-  }, [refetch, rejectForm, rejectingApprovalId, closeRejectModal]);
+  }, [refetchExpenses, rejectForm, rejectingApprovalId, closeRejectModal]);
 
   // Listen for expense updates
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
     const handleExpenseUpdate = () => {
-      refetch();
+      refetchExpenses();
     };
 
     window.addEventListener('expenseUpdated', handleExpenseUpdate);
@@ -187,18 +185,12 @@ export default function FinancialsClient() {
     return () => {
       window.removeEventListener('expenseUpdated', handleExpenseUpdate);
     };
-  }, [refetch]);
+  }, [refetchExpenses]);
 
-  // Extract data with fallbacks
-  const dashboard = useMemo(() => data?.dashboard || null, [data?.dashboard]);
-  const expenses = useMemo(() => Array.isArray(data?.expenses) ? data.expenses : [], [data?.expenses]);
-  const properties = useMemo(() => Array.isArray(data?.properties) ? data.properties : (data?.properties?.properties || []), [data?.properties]);
+  // Expenses and properties are loaded via v2 API hooks above
 
-  const { submit: submitExpense, submitting: submittingExpense } = useFormSubmission({
-    endpoint: '/api/v1/expenses',
-    method: 'POST',
-    successMessage: 'Expense added successfully',
-    transformData: (values) => {
+  const handleAddExpense = useCallback(async (values) => {
+    try {
       let dateString;
       if (dayjs.isDayjs(values.date)) {
         dateString = values.date.format('YYYY-MM-DD');
@@ -209,32 +201,37 @@ export default function FinancialsClient() {
         dateString = formatDateForInput(values.date);
       }
       
-      return {
-        ...values,
-        date: dateString
-      };
-    },
-    onSuccess: () => {
+      await createExpense.mutateAsync({
+        organization_id: organizationId,
+        category: values.category,
+        amount: parseFloat(values.amount),
+        expense_date: dateString,
+        description: values.description,
+        property_id: values.propertyId || null,
+        work_order_id: values.workOrderId || null,
+        vendor_id: values.vendorId || null,
+      });
+      
+      notify.success('Expense added successfully');
       closeExpenseModal();
-      form.resetFields();
-      refetch();
+      form.reset();
+      refetchExpenses();
+    } catch (error) {
+      console.error('[FinancialsClient] Error adding expense:', error);
+      notify.error(error.message || 'Failed to add expense');
     }
-  });
-
-  const handleAddExpense = useCallback(async (values) => {
-    await submitExpense(values);
-  }, [submitExpense]);
+  }, [createExpense, organizationId, form, closeExpenseModal, refetch]);
 
   const handleExportCSV = useCallback(() => {
     try {
       const headers = ['Date', 'Category', 'Description', 'Paid To', 'Amount', 'Payment Method'];
       const rows = expenses.map(exp => [
-        formatDateForAPI(exp.date),
+        formatDateForAPI(exp.expense_date || exp.date),
         exp.category,
-        exp.description,
-        exp.paidTo || '',
-        exp.amount.toFixed(2),
-        exp.paymentMethod || ''
+        exp.description || '',
+        exp.vendor?.company_name || exp.paidTo || '',
+        parseFloat(exp.amount || 0).toFixed(2),
+        exp.payment_method || exp.paymentMethod || ''
       ]);
 
       const csvContent = [
@@ -270,12 +267,12 @@ export default function FinancialsClient() {
           occupancyRate: dashboard?.occupancyRate || 0
         },
         expenses: expenses.map(exp => ({
-          date: formatDateForAPI(exp.date),
+          date: formatDateForAPI(exp.expense_date || exp.date),
           category: exp.category,
-          amount: exp.amount,
-          description: exp.description,
-          paidTo: exp.paidTo,
-          paymentMethod: exp.paymentMethod
+          amount: parseFloat(exp.amount || 0),
+          description: exp.description || '',
+          paidTo: exp.vendor?.company_name || exp.paidTo || '',
+          paymentMethod: exp.payment_method || exp.paymentMethod || ''
         }))
       };
 
@@ -579,7 +576,7 @@ export default function FinancialsClient() {
           <HiDocumentText className="h-4 w-4" />
           Export Report
         </Button>
-      ]}
+      }
     >
       {/* All Metrics in One Row */}
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -652,7 +649,7 @@ export default function FinancialsClient() {
 
       {/* Tabs for different views */}
       <Card>
-        <Tabs aria-label="Financial tabs" onActiveTabChange={(tab) => setActiveTab(tab)}>
+        <Tabs aria-label="Financial tabs" onActiveTabChange={(tab) => setActiveTab(tab)}
           <Tabs.Item active={activeTab === 'expenses'} title="Expenses">
             <TableWrapper>
               <FlowbiteTable
@@ -686,7 +683,7 @@ export default function FinancialsClient() {
               <HiCurrencyDollar className="h-4 w-4" />
               <span>Mortgage</span>
             </div>
-          }>
+          ]
             {mortgageLoading ? (
               <div className="text-center py-12">
                 <Spinner size="xl" />
@@ -737,7 +734,7 @@ export default function FinancialsClient() {
                       dataSource={mortgageData.properties}
                       rowKey="propertyId"
                       pagination={{ pageSize: 10 }}
-                      columns={[
+                      columns={
                         {
                           title: 'Property',
                           key: 'property',
@@ -777,7 +774,7 @@ export default function FinancialsClient() {
                           key: 'frequency',
                           align: 'center',
                           render: (_, record) => (
-                            <Badge color={record.paymentFrequency === 'biweekly' ? 'success' : 'warning'}>
+                            <Badge color={record.paymentFrequency === 'biweekly' ? 'success' : 'warning']
                               {record.paymentFrequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'}
                             </Badge>
                           ),
@@ -815,7 +812,7 @@ export default function FinancialsClient() {
                             </button>
                           ),
                         },
-                      ]}
+                      }
                     />
                   </Card>
                 ) : (
@@ -834,7 +831,7 @@ export default function FinancialsClient() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge color="blue">{selectedProperty.interestRate}% interest</Badge>
-                          <Badge color={selectedProperty.paymentFrequency === 'biweekly' ? 'success' : 'warning'}>
+                          <Badge color={selectedProperty.paymentFrequency === 'biweekly' ? 'success' : 'warning']
                             {selectedProperty.paymentFrequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'} payments
                           </Badge>
                         </div>
@@ -877,7 +874,7 @@ export default function FinancialsClient() {
                           showSizeChanger: true,
                           showTotal: (total) => `${total} payments made to date`
                         }}
-                        columns={[
+                        columns={
                           {
                             title: 'Payment #',
                             dataIndex: 'paymentNumber',
@@ -936,7 +933,7 @@ export default function FinancialsClient() {
                               <CurrencyDisplay value={balance} country="CA" />
                             ),
                           },
-                        ]}
+                        }
                       />
                     </Card>
                   </div>
@@ -950,7 +947,7 @@ export default function FinancialsClient() {
               <HiChartBar className="h-4 w-4" />
               <span>Charts</span>
             </div>
-          }>
+          ]
             <div className="space-y-6">
               <Card>
                 <h3 className="text-lg font-semibold mb-4">Income vs Expenses (Last 6 Months)</h3>
@@ -1046,7 +1043,7 @@ export default function FinancialsClient() {
               >
                 <option value="">Select a property</option>
                 {properties.map(prop => (
-                  <option key={prop.id} value={prop.id}>
+                  <option key={prop.id} value={prop.id]
                     {prop.propertyName || prop.addressLine1}
                   </option>
                 ))}
@@ -1167,7 +1164,7 @@ export default function FinancialsClient() {
               >
                 Cancel
               </Button>
-              <Button type="submit" color="blue" disabled={submittingExpense}>
+              <Button type="submit" color="blue" disabled={submittingExpense]
                 {submittingExpense ? (
                   <>
                     <Spinner size="sm" className="mr-2" />

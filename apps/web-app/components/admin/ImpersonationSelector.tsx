@@ -34,36 +34,31 @@ export default function ImpersonationSelector({ users = [] }: ImpersonationSelec
     try {
       setLoading(true);
       const { adminApi } = await import('@/lib/api/admin-api');
+      const { v2Api } = await import('@/lib/api/v2-client');
       
       let fetchedUsers: User[] = [];
       
       if (userType === 'landlord') {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.landlords.list({ page: 1, limit: 100 });
-        if (response.success && response.data) {
-          fetchedUsers = (Array.isArray(response.data) ? response.data : response.data.data || []).map((u: any) => ({
-            id: u.id,
-            email: u.email,
-            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
-            type: 'landlord',
-          }));
-        }
+        const landlords = await v2Api.listLandlords();
+        fetchedUsers = (Array.isArray(landlords) ? landlords : []).map((u: any) => ({
+          id: u.id,
+          email: u.email || '',
+          name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Unknown',
+          type: 'landlord',
+        }));
       } else if (userType === 'tenant') {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.tenants.list({ page: 1, limit: 100 });
-        if (response.success && response.data) {
-          fetchedUsers = (Array.isArray(response.data) ? response.data : response.data.data || []).map((u: any) => ({
-            id: u.id,
-            email: u.email,
-            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
-            type: 'tenant',
-          }));
-        }
+        const tenants = await v2Api.listTenants();
+        fetchedUsers = (Array.isArray(tenants) ? tenants : []).map((u: any) => ({
+          id: u.id,
+          email: u.email || '',
+          name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Unknown',
+          type: 'tenant',
+        }));
       } else if (userType === 'pmc') {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.pmcs?.list?.({ page: 1, limit: 100 }) || { success: false, data: [] };
+        // PMCs are organizations in v2 - use adminApi for now
+        const response = await adminApi.getUsers({ limit: 100 });
         if (response.success && response.data) {
-          fetchedUsers = (Array.isArray(response.data) ? response.data : response.data.data || []).map((u: any) => ({
+          fetchedUsers = (Array.isArray(response.data) ? response.data : []).map((u: any) => ({
             id: u.id,
             email: u.email,
             name: u.companyName || u.name || u.email,
@@ -71,16 +66,14 @@ export default function ImpersonationSelector({ users = [] }: ImpersonationSelec
           }));
         }
       } else if (userType === 'vendor') {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.vendors.list({ page: 1, limit: 100 });
-        if (response.success && response.data) {
-          fetchedUsers = (Array.isArray(response.data) ? response.data : response.data.data || []).map((u: any) => ({
-            id: u.id,
-            email: u.email,
-            name: u.name || u.businessName || u.email,
-            type: 'vendor',
-          }));
-        }
+        const vendors = await v2Api.listVendors();
+        const vendorsData = Array.isArray(vendors) ? vendors : (vendors?.data || []);
+        fetchedUsers = vendorsData.map((u: any) => ({
+          id: u.id,
+          email: u.email || '',
+          name: u.company_name || u.contact_name || u.email || 'Unknown',
+          type: 'vendor',
+        }));
       } else if (userType === 'admin') {
         const response = await adminApi.getUsers({ limit: 100 });
         if (response.success && response.data) {
@@ -111,36 +104,9 @@ export default function ImpersonationSelector({ users = [] }: ImpersonationSelec
     try {
       // Use adminApi for impersonation (if endpoint exists)
       // For now, fallback to fetch if adminApi doesn't have this method
-      try {
-        const { adminApi } = await import('@/lib/api/admin-api');
-        // If adminApi has impersonate method, use it
-        if (adminApi.impersonate) {
-          await adminApi.impersonate(selectedUserId, selectedUserType);
-          window.location.reload();
-          return;
-        }
-      } catch (apiError) {
-        // Fallback to fetch
-      }
-      
-      // Fallback to fetch for compatibility
-      const response = await fetch('/api/admin/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          userId: selectedUserId,
-          userType: selectedUserType,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        window.location.reload();
-      } else {
-        setError(data.error || 'Failed to start impersonation');
-      }
+      const { adminApi } = await import('@/lib/api/admin-api');
+      await adminApi.startImpersonation(selectedUserId, selectedUserType);
+      window.location.reload();
     } catch (err: any) {
       setError(err.message || 'Failed to start impersonation');
     } finally {

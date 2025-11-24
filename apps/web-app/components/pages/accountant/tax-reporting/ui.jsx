@@ -6,34 +6,38 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, Button, Form, Input, Select, Table, Tag, Alert, Space } from 'antd';
-import { DownloadOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { Card, Button, TextInput, Label, Select, Alert, Badge, Spinner } from 'flowbite-react';
+import { HiDownload, HiDocumentText } from 'react-icons/hi';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
-import { rules } from '@/lib/utils/validation-rules';
-import { PageLayout } from '@/components/shared';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { PageLayout, TableWrapper, FlowbiteTable } from '@/components/shared';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { exportToPDF } from '@/lib/utils/export-utils';
 
 export default function TaxReportingClient({ user, userRole }) {
-  const [form] = Form.useForm();
+  const { formData, updateField } = useFormState({
+    landlordId: '',
+    taxYear: new Date().getFullYear() - 1, // Previous year by default
+    propertyIds: [],
+  });
   const { fetch } = useUnifiedApi({ showUserMessage: true });
   const { loading, withLoading } = useLoading();
   const [report, setReport] = useState(null);
 
-  const handleGenerate = async (values) => {
+  const handleGenerate = async () => {
     await withLoading(async () => {
       try {
-        // Use v1Api for T776 generation
+        // TODO: Implement v2 endpoint for T776 generation
         const { apiClient } = await import('@/lib/utils/api-client');
         const response = await apiClient('/api/v1/analytics/t776/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            landlordId: values.landlordId || user.userId,
-            taxYear: values.taxYear,
-            propertyIds: values.propertyIds,
+            landlordId: formData.landlordId || user.userId,
+            taxYear: formData.taxYear,
+            propertyIds: formData.propertyIds,
           }),
         });
         
@@ -81,118 +85,108 @@ export default function TaxReportingClient({ user, userRole }) {
   };
 
   const propertyColumns = [
-    customizeColumn(STANDARD_COLUMNS.PROPERTY_NAME, {
-      dataIndex: 'propertyName',
-    }),
     {
-      title: 'Address',
-      dataIndex: 'address',
-      key: 'address',
+      header: 'Property Name',
+      accessorKey: 'propertyName',
     },
     {
-      title: 'Income',
-      dataIndex: 'income',
-      key: 'income',
-      render: (amount) => `$${amount.toFixed(2)}`,
+      header: 'Address',
+      accessorKey: 'address',
+    },
+    {
+      header: 'Income',
+      accessorKey: 'income',
+      cell: ({ row }) => `$${row.original.income?.toFixed(2) || '0.00'}`,
     },
   ];
 
   return (
     <PageLayout title="Tax Reporting (T776)">
-      <Card title="Generate T776 Tax Report" style={{ marginBottom: 24 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleGenerate}
-          initialValues={{
-            taxYear: new Date().getFullYear() - 1, // Previous year by default
-          }}
-        >
+      <Card className="mb-6">
+        <h5 className="text-xl font-semibold mb-4">Generate T776 Tax Report</h5>
+        <div className="space-y-4">
           {userRole !== 'landlord' && (
-            <Form.Item
-              name="landlordId"
-              label="Landlord ID"
-              rules={[rules.required('Landlord ID')]}
-            >
-              <Input placeholder="Enter landlord ID" />
-            </Form.Item>
+            <div>
+              <Label htmlFor="landlordId" value="Landlord ID" />
+              <TextInput
+                id="landlordId"
+                type="text"
+                placeholder="Enter landlord ID"
+                value={formData.landlordId}
+                onChange={(e) => updateField('landlordId', e.target.value)}
+                required
+              />
+            </div>
           )}
 
-          <Form.Item
-            name="taxYear"
-            label="Tax Year"
-            rules={[{ required: true, message: 'Please select tax year' }]}
-          >
-            <Input type="number" placeholder="e.g., 2024" />
-          </Form.Item>
+          <div>
+            <Label htmlFor="taxYear" value="Tax Year" />
+            <TextInput
+              id="taxYear"
+              type="number"
+              placeholder="e.g., 2024"
+              value={formData.taxYear}
+              onChange={(e) => updateField('taxYear', parseInt(e.target.value))}
+              required
+            />
+          </div>
 
-          <Form.Item
-            name="propertyIds"
-            label="Properties (Optional)"
-            help="Leave empty to include all properties"
-          >
+          <div>
+            <Label htmlFor="propertyIds" value="Properties (Optional)" />
+            <p className="text-sm text-gray-500 mb-2">Leave empty to include all properties</p>
             <Select
-              mode="multiple"
-              placeholder="Select properties (optional)"
-              allowClear
+              id="propertyIds"
+              multiple
+              value={formData.propertyIds}
+              onChange={(value) => updateField('propertyIds', value)}
             >
               {/* Properties would be loaded from API */}
             </Select>
-          </Form.Item>
+          </div>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} icon={<FilePdfOutlined />}>
-              Generate Report
-            </Button>
-          </Form.Item>
-        </Form>
+          <Button
+            color="blue"
+            onClick={handleGenerate}
+            disabled={loading}
+          >
+            {loading ? <Spinner size="sm" className="mr-2" /> : <HiDocumentText className="mr-2 h-5 w-5" />}
+            Generate Report
+          </Button>
+        </div>
       </Card>
 
       {report && (
-        <Card 
-          title="Tax Report Summary" 
-          extra={
-            <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <h5 className="text-xl font-semibold">Tax Report Summary</h5>
+            <Button onClick={handleDownload}>
+              <HiDownload className="mr-2 h-5 w-5" />
               Download PDF
             </Button>
-          }
-        >
-          <Alert
-            message={`Tax Year: ${report.taxYear}`}
-            type="info"
-            style={{ marginBottom: 16 }}
-          />
+          </div>
 
-          <Table
-            dataSource={report.properties}
-            columns={propertyColumns}
-            rowKey="propertyId"
-            pagination={false}
-            summary={() => (
-              <Table.Summary fixed>
-                <Table.Summary.Row>
-                  <Table.Summary.Cell index={0}>
-                    <strong>Total</strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={1}></Table.Summary.Cell>
-                  <Table.Summary.Cell index={2}>
-                    <strong>${report.income.totalRentalIncome.toFixed(2)}</strong>
-                  </Table.Summary.Cell>
-                </Table.Summary.Row>
-              </Table.Summary>
-            )}
-          />
+          <Alert color="info" className="mb-4">
+            Tax Year: {report.taxYear}
+          </Alert>
 
-          <div style={{ marginTop: 24 }}>
-            <h3>Income Summary</h3>
-            <p>Total Rental Income: <strong>${report.income.totalRentalIncome.toFixed(2)}</strong></p>
-            <p>Total Expenses: <strong>${report.totalExpenses.toFixed(2)}</strong></p>
-            <p>Net Income: <strong>${report.netIncome.toFixed(2)}</strong></p>
-            <p>Net Income After CCA: <strong>${report.netIncomeAfterCCA.toFixed(2)}</strong></p>
+          <TableWrapper>
+            <FlowbiteTable
+              data={report.properties || []}
+              columns={propertyColumns}
+              keyField="propertyId"
+              pagination={false}
+            />
+          </TableWrapper>
+
+          <div className="mt-6 space-y-2">
+            <h3 className="text-lg font-semibold mb-2">Income Summary</h3>
+            <p>Total Rental Income: <strong>${report.income?.totalRentalIncome?.toFixed(2) || '0.00'}</strong></p>
+            <p>Total Expenses: <strong>${report.totalExpenses?.toFixed(2) || '0.00'}</strong></p>
+            <p>Net Income: <strong>${report.netIncome?.toFixed(2) || '0.00'}</strong></p>
+            <p>Net Income After CCA: <strong>${report.netIncomeAfterCCA?.toFixed(2) || '0.00'}</strong></p>
           </div>
         </Card>
       )}
     </PageLayout>
   );
 }
-

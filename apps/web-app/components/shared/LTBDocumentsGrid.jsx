@@ -665,7 +665,7 @@ function LTBDocumentsGrid({
             pagination={{
               ...pagination,
               showSizeChanger: true,
-              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} forms`,
+              showTotal: (total, range) => `${range[0]-${range[1] of ${total} forms`,
               onChange: (page) => fetchDocuments(page),
               onShowSizeChange: (current, size) => {
                 setPagination(prev => ({ ...prev, pageSize: size }));

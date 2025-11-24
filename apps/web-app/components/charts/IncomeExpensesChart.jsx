@@ -30,13 +30,13 @@ export default function IncomeExpensesChart({ data }) {
           dataKey="income" 
           fill="#3f8600" 
           name="Income"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
         <Bar 
           dataKey="expenses" 
           fill="#cf1322" 
           name="Expenses"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
       </ComposedChart>
     </ResponsiveContainer>

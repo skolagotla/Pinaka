@@ -3,37 +3,23 @@
 import { useState, useEffect } from 'react';
 import {
   Card,
-  Typography,
-  Space,
-  Statistic,
-  Progress,
-  Alert,
-  Tag,
-  Row,
-  Col,
   Button,
-  Divider,
-  Descriptions,
-  Spin,
-} from 'antd';
+  Alert,
+  Badge,
+  Spinner,
+} from 'flowbite-react';
 import {
-  TeamOutlined,
-  HomeOutlined,
-  UserOutlined,
-  DatabaseOutlined,
-  ApiOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ReloadOutlined,
-  BankOutlined,
-} from '@ant-design/icons';
+  HiUserGroup,
+  HiHome,
+  HiUser,
+  HiRefresh,
+  HiBanknotes,
+  HiExclamationTriangle,
+} from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 import { safeJsonParse } from '@/lib/utils/safe-json-parser';
 import { PageLayout, LoadingWrapper } from '@/components/shared';
 import { useLoading } from '@/lib/hooks/useLoading';
-
-const { Text, Paragraph } = Typography;
 
 export default function PMCOrganizationClient({ user, pmcData }) {
   const router = useRouter();
@@ -108,45 +94,49 @@ export default function PMCOrganizationClient({ user, pmcData }) {
     plan: 'PMC', // PMC plan type
   } : null;
 
-  const getStatusTag = (status) => {
+  const getStatusBadge = (status) => {
     const statusConfig = {
       ACTIVE: { color: 'success', text: 'Active' },
-      SUSPENDED: { color: 'error', text: 'Suspended' },
-      CANCELLED: { color: 'default', text: 'Cancelled' },
+      SUSPENDED: { color: 'failure', text: 'Suspended' },
+      CANCELLED: { color: 'gray', text: 'Cancelled' },
       TRIAL: { color: 'warning', text: 'Trial' },
+      INACTIVE: { color: 'warning', text: 'Inactive' },
     };
-    const config = statusConfig[status] || { color: 'default', text: status };
-    return <Tag color={config.color}>{config.text}</Tag>;
+    const config = statusConfig[status] || { color: 'gray', text: status };
+    return <Badge color={config.color}config.text}</Badge>;
   };
 
-  const getPlanTag = (plan) => {
+  const getPlanBadge = (plan) => {
     const planColors = {
-      FREE: 'default',
+      FREE: 'gray',
       STARTER: 'blue',
       PROFESSIONAL: 'purple',
-      ENTERPRISE: 'gold',
+      ENTERPRISE: 'yellow',
       CUSTOM: 'cyan',
+      PMC: 'blue',
     };
-    return <Tag color={planColors[plan] || 'default'}>{plan}</Tag>;
+    return <Badge color={planColors[plan] || 'gray'}plan}</Badge>;
   };
 
   if (loading) {
     return (
-      <PageLayout headerTitle={<><BankOutlined /> PMC Organization</>}>
-        <LoadingWrapper loading={loading} />
+      <PageLayout headerTitle={<><HiBanknotes className="inline mr-2" /> PMC Organization</>}>
+        <div className="flex justify-center items-center min-h-[400px]">
+          <Spinner size="xl" />
+        </div>
       </PageLayout>
     );
   }
 
   if (!organization || !pmcData) {
     return (
-      <PageLayout headerTitle={<><BankOutlined /> PMC Organization</>}>
-        <Alert
-          message="PMC Information Not Found"
-          description={error || 'Unable to load PMC company information. Please contact support.'}
-          type="error"
-          showIcon
-        />
+      <PageLayout headerTitle={<><HiBanknotes className="inline mr-2" /> PMC Organization</>}>
+        <Alert color="failure">
+          <div>
+            <div className="font-semibold mb-2">PMC Information Not Found</div>
+            <div>{error || 'Unable to load PMC company information. Please contact support.'}</div>
+          </div>
+        </Alert>
       </PageLayout>
     );
   }
@@ -160,143 +150,172 @@ export default function PMCOrganizationClient({ user, pmcData }) {
     statusAlerts.push(
       <Alert
         key="inactive"
-        message="PMC Account Inactive"
-        description="Your PMC account is currently inactive. Please contact support for assistance."
-        type="warning"
-        showIcon
-        style={{ marginBottom: 16 }}
-      />
+        color="warning"
+        icon={HiExclamationTriangle}
+        className="mb-4"
+      >
+        <div>
+          <div className="font-semibold mb-2">PMC Account Inactive</div>
+          <div>Your PMC account is currently inactive. Please contact support for assistance.</div>
+        </div>
+      </Alert>
     );
   }
 
   return (
     <PageLayout
-      headerTitle={<><BankOutlined /> PMC Organization</>}
-      headerActions={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchUsageData}>
+      headerTitle={<><HiBanknotes className="inline mr-2" /> PMC Organization</>}
+      headerActions={
+        <Button key="refresh" onClick={fetchUsageData} disabled={loading}>
+          {loading ? <Spinner size="sm" className="mr-2" /> : <HiRefresh className="mr-2 h-5 w-5" />}
           Refresh
         </Button>
-      ]}
+      }
       contentStyle={{ maxWidth: 1200, margin: '0 auto' }}
     >
       {statusAlerts}
 
-      <Row gutter={[16, 16]}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Organization Info */}
-        <Col xs={24} lg={12}>
-          <Card title="Organization Information">
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="Company Name">{organization.name}</Descriptions.Item>
-              <Descriptions.Item label="Company ID">
-                <Text code>{organization.companyId}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Email">{organization.email}</Descriptions.Item>
-              {organization.phone && (
-                <Descriptions.Item label="Phone">{organization.phone}</Descriptions.Item>
-              )}
-              {organization.address?.addressLine1 && (
-                <Descriptions.Item label="Address">
+        <Card>
+          <h5 className="text-xl font-semibold mb-4">Organization Information</h5>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="font-medium">Company Name:</span>
+              <span>{organization.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Company ID:</span>
+              <code className="px-2 py-1 bg-gray-100 rounded">{organization.companyId}</code>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Email:</span>
+              <span>{organization.email}</span>
+            </div>
+            {organization.phone && (
+              <div className="flex justify-between">
+                <span className="font-medium">Phone:</span>
+                <span>{organization.phone}</span>
+              </div>
+            )}
+            {organization.address?.addressLine1 && (
+              <div className="flex justify-between">
+                <span className="font-medium">Address:</span>
+                <div className="text-right">
+                  <div>{organization.address.addressLine1}</div>
+                  {organization.address.addressLine2 && (
+                    <div>{organization.address.addressLine2}</div>
+                  )}
                   <div>
-                    <div>{organization.address.addressLine1}</div>
-                    {organization.address.addressLine2 && (
-                      <div>{organization.address.addressLine2}</div>
-                    )}
-                    <div>
-                      {organization.address.city}
-                      {organization.address.provinceState && `, ${organization.address.provinceState}`}
-                      {organization.address.postalZip && ` ${organization.address.postalZip}`}
-                    </div>
-                    {organization.address.country && (
-                      <div>{organization.address.country}</div>
-                    )}
+                    {organization.address.city}
+                    {organization.address.provinceState && `, ${organization.address.provinceState}`}
+                    {organization.address.postalZip && ` ${organization.address.postalZip}`}
                   </div>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="Plan">{getPlanTag(organization.plan)}</Descriptions.Item>
-              <Descriptions.Item label="Status">{getStatusTag(organization.status)}</Descriptions.Item>
-              {organization.createdAt && (
-                <Descriptions.Item label="Created">
+                  {organization.address.country && (
+                    <div>{organization.address.country}</div>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="font-medium">Plan:</span>
+              {getPlanBadge(organization.plan)}
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium">Status:</span>
+              {getStatusBadge(organization.status)}
+            </div>
+            {organization.createdAt && (
+              <div className="flex justify-between">
+                <span className="font-medium">Created:</span>
+                <span>
                   {typeof organization.createdAt === 'string' 
                     ? new Date(organization.createdAt).toLocaleDateString()
                     : organization.createdAt.toLocaleDateString()}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
-        </Col>
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
 
         {/* Usage Statistics */}
-        <Col xs={24} lg={12}>
-          <Card title="Usage Statistics">
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              {/* Managed Properties */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text>
-                    <HomeOutlined /> Managed Properties
-                  </Text>
-                  <Text strong>{usageData?.propertyCount || 0}</Text>
-                </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Properties managed across all landlords
-                </Text>
+        <Card>
+          <h5 className="text-xl font-semibold mb-4">Usage Statistics</h5>
+          <div className="space-y-4">
+            {/* Managed Properties */}
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="flex items-center gap-2">
+                  <HiHome className="h-4 w-4" /> Managed Properties
+                </span>
+                <span className="font-semibold">{usageData?.propertyCount || 0}</span>
               </div>
+              <div className="text-sm text-gray-500">
+                Properties managed across all landlords
+              </div>
+            </div>
 
-              {/* Managed Tenants */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text>
-                    <TeamOutlined /> Managed Tenants
-                  </Text>
-                  <Text strong>{usageData?.tenantCount || 0}</Text>
-                </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Tenants across all managed properties
-                </Text>
+            {/* Managed Tenants */}
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="flex items-center gap-2">
+                  <HiUserGroup className="h-4 w-4" /> Managed Tenants
+                </span>
+                <span className="font-semibold">{usageData?.tenantCount || 0}</span>
               </div>
+              <div className="text-sm text-gray-500">
+                Tenants across all managed properties
+              </div>
+            </div>
 
-              {/* Managed Landlords */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text>
-                    <UserOutlined /> Managed Landlords
-                  </Text>
-                  <Text strong>{usageData?.landlordCount || 0}</Text>
-                </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Landlords under management
-                </Text>
+            {/* Managed Landlords */}
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="flex items-center gap-2">
+                  <HiUser className="h-4 w-4" /> Managed Landlords
+                </span>
+                <span className="font-semibold">{usageData?.landlordCount || 0}</span>
               </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+              <div className="text-sm text-gray-500">
+                Landlords under management
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Management Statistics */}
-      <Card title="Management Overview" style={{ marginTop: 16 }}>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={8}>
-            <Statistic
-              title="Properties Managed"
-              value={usageData?.propertyCount || 0}
-              prefix={<HomeOutlined />}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Statistic
-              title="Tenants Managed"
-              value={usageData?.tenantCount || 0}
-              prefix={<TeamOutlined />}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Statistic
-              title="Landlords Managed"
-              value={usageData?.landlordCount || 0}
-              prefix={<UserOutlined />}
-            />
-          </Col>
-        </Row>
+      <Card>
+        <h5 className="text-xl font-semibold mb-4">Management Overview</h5>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <HiHome className="h-5 w-5 text-gray-500" />
+              <span className="text-sm text-gray-500">Properties Managed</span>
+            </div>
+            <div className="text-2xl font-semibold">
+              {usageData?.propertyCount || 0}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <HiUserGroup className="h-5 w-5 text-gray-500" />
+              <span className="text-sm text-gray-500">Tenants Managed</span>
+            </div>
+            <div className="text-2xl font-semibold">
+              {usageData?.tenantCount || 0}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <HiUser className="h-5 w-5 text-gray-500" />
+              <span className="text-sm text-gray-500">Landlords Managed</span>
+            </div>
+            <div className="text-2xl font-semibold">
+              {usageData?.landlordCount || 0}
+            </div>
+          </div>
+        </div>
       </Card>
     </PageLayout>
   );

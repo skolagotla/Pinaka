@@ -25,7 +25,7 @@ export default function MonthlyExpenseChart({ data }) {
         <Bar 
           dataKey="amount" 
           fill="#cf1322"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
       </BarChart>
     </ResponsiveContainer>

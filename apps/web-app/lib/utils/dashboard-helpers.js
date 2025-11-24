@@ -20,57 +20,37 @@ export function getOrdinal(n) {
  * @returns {string} Formatted relative time
  */
 export function formatRelativeTime(date) {
-  if (!date) return 'N/A';
-  
   const now = new Date();
-  const then = new Date(date);
-  const diffMs = now - then;
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  
-  if (diffSecs < 60) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffTime = now - new Date(date);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+  const diffMinutes = Math.floor(diffTime / (1000 * 60));
+
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return `${Math.floor(diffDays / 365)}y ago`;
+  return new Date(date).toLocaleDateString();
 }
 
 /**
- * Get status color for Flowbite Badge
+ * Get status color for Ant Design Tag
  * @param {string} status - Status string
- * @returns {string} Color name for Flowbite Badge ('success' | 'failure' | 'warning' | 'info' | 'gray')
+ * @returns {string} Color name
  */
 export function getStatusColor(status) {
-  if (!status) return 'gray';
-  
-  const statusLower = status.toLowerCase();
-  
-  // Success states
-  if (['paid', 'completed', 'active', 'approved', 'rented', 'success'].includes(statusLower)) {
-    return 'success';
+  switch (status) {
+    case "Completed":
+    case "Closed":
+      return "success";
+    case "In Progress":
+      return "processing";
+    case "Pending":
+      return "warning";
+    case "Overdue":
+      return "error";
+    default:
+      return "default";
   }
-  
-  // Failure/Error states
-  if (['overdue', 'cancelled', 'rejected', 'expired', 'error', 'failed'].includes(statusLower)) {
-    return 'failure';
-  }
-  
-  // Warning states
-  if (['unpaid', 'pending', 'in progress', 'partial', 'vacant', 'warning'].includes(statusLower)) {
-    return 'warning';
-  }
-  
-  // Info states
-  if (['new', 'processing', 'info'].includes(statusLower)) {
-    return 'info';
-  }
-  
-  // Default
-  return 'gray';
 }
 

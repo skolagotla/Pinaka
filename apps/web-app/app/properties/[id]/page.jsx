@@ -17,7 +17,7 @@ import Link from 'next/link';
 export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const propertyId = params?.id as string;
+  const propertyId = params?.id || '';
   
   const { user, loading: authLoading, hasRole } = useV2Auth();
   const { data: property, isLoading: propertyLoading } = useProperty(propertyId);
@@ -56,9 +56,9 @@ export default function PropertyDetailPage() {
   const canDelete = hasRole('super_admin') || hasRole('pmc_admin');
   
   // Filter leases for this property
-  const propertyLeases = leases?.filter((lease: any) => {
+  const propertyLeases = leases?.filter((lease) => {
     // Check if lease's unit belongs to this property
-    return units?.some((unit: any) => unit.id === lease.unit_id);
+    return units?.some((unit) => unit.id === lease.unit_id);
   }) || [];
   
   return (
@@ -120,7 +120,7 @@ export default function PropertyDetailPage() {
                     <Table.HeadCell>Actions</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {units.map((unit: any) => (
+                    {units.map((unit) => (
                       <Table.Row key={unit.id}>
                         <Table.Cell className="font-medium">{unit.name}</Table.Cell>
                         <Table.Cell>{unit.type || '-'}</Table.Cell>
@@ -158,8 +158,8 @@ export default function PropertyDetailPage() {
                     <Table.HeadCell>Actions</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {propertyLeases.map((lease: any) => {
-                      const unit = units?.find((u: any) => u.id === lease.unit_id);
+                    {propertyLeases.map((lease) => {
+                      const unit = units?.find((u) => u.id === lease.unit_id);
                       return (
                         <Table.Row key={lease.id}>
                           <Table.Cell>{unit?.name || '-'}</Table.Cell>
@@ -196,7 +196,7 @@ export default function PropertyDetailPage() {
                 <Spinner />
               ) : workOrders && workOrders.length > 0 ? (
                 <div className="space-y-2">
-                  {workOrders.slice(0, 5).map((wo: any) => (
+                  {workOrders.slice(0, 5).map((wo) => (
                     <div key={wo.id} className="flex justify-between items-center p-3 border border-gray-200 rounded">
                       <div>
                         <p className="font-medium">{wo.title}</p>

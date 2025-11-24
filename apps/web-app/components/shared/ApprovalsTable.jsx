@@ -228,7 +228,7 @@ const ApprovalsTable = React.memo(function ApprovalsTable({
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          items={[
+          items={
             {
               key: 'pending',
               label: `Pending (${counts.pending})`,

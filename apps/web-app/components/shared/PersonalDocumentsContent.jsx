@@ -240,7 +240,7 @@ export default function PersonalDocumentsContent({
         ) : "Upload Document"}
         open={library.uploadModalOpen}
         onCancel={library.closeUploadModal}
-        footer={userRole === 'tenant' ? null : [
+        footer={userRole === 'tenant' ? null : >{
           <Button key="cancel" onClick={library.closeUploadModal} disabled={library.uploading}>
             Cancel
           </Button>,
@@ -260,7 +260,7 @@ export default function PersonalDocumentsContent({
               ? `Uploading ${library.uploadProgress.current}/${library.uploadProgress.total}...`
               : 'Upload'}
           </Button>,
-        ]}
+        }
         width={600}
         destroyOnClose={userRole === 'tenant'}
       >
@@ -427,7 +427,7 @@ export default function PersonalDocumentsContent({
             
             const { v1Api } = await import('@/lib/api/v1-client');
             await v1Api.forms.promoteDocumentVersion(library.viewingDocument.id, versionIndex);
-            message.success({ content: 'Version promoted successfully!', key: 'promote' });
+            message.success({ content: 'Version promoted successfully', key: 'promote' });
             library.closeViewModal();
             setTimeout(() => {
               router.refresh();
@@ -539,7 +539,7 @@ export default function PersonalDocumentsContent({
         }
         open={library.deleteModal.visible}
         onCancel={library.closeDeleteModal}
-        footer={[
+        footer={
           <Button key="cancel" onClick={library.closeDeleteModal} disabled={library.deleteModal.loading}>
             Cancel
           </Button>,
@@ -552,7 +552,7 @@ export default function PersonalDocumentsContent({
           >
             Delete Document
           </Button>,
-        ]}
+        }
         width={500}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>

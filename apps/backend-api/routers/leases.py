@@ -1,14 +1,15 @@
 """
 Lease endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_organization_filter, apply_pagination
 from schemas.lease import Lease, LeaseCreate, LeaseUpdate, LeaseWithTenants, LeaseRenewalRequest, LeaseTerminationRequest
 from db.models_v2 import Lease as LeaseModel, LeaseTenant, Unit, Property, Tenant, User, Landlord
 
@@ -21,13 +22,21 @@ async def list_leases(
     unit_id: Optional[UUID] = None,
     tenant_id: Optional[UUID] = None,
     landlord_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List leases (scoped by organization and filters)"""
+    """List leases (scoped by organization and filters) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(LeaseModel)
+    # Base query with eager loading for related entities
+    query = select(LeaseModel).options(
+        selectinload(LeaseModel.lease_tenants).selectinload(LeaseTenant.tenant),
+        selectinload(LeaseModel.unit),
+        selectinload(LeaseModel.property),
+        selectinload(LeaseModel.landlord),
+    )
     
     # Apply filters
     if organization_id:
@@ -56,6 +65,13 @@ async def list_leases(
             else:
                 # No tenant record, return empty
                 return []
+    else:
+        # Super admin can filter by organization_id if provided
+        if organization_id:
+            query = query.where(LeaseModel.organization_id == organization_id)
+    
+    # Apply pagination
+    query = apply_pagination(query, page, limit, LeaseModel.created_at.desc())
     
     result = await db.execute(query)
     leases = result.scalars().all()

@@ -15,7 +15,7 @@
  * @param {function} props.onView - View handler: (record) => void
  * @param {function} props.onEdit - Edit handler: (record) => void
  * @param {function} props.onDelete - Delete handler: (record) => void
- * @param {Array} props.customActions - Custom actions: [{type: string, onClick: function, condition?: function}]
+ * @param {Array} props.customActions - Custom actions: [{type, onClick: function, condition?: function}]
  * @param {function} props.canEdit - Permission check for edit: (record) => boolean
  * @param {function} props.canDelete - Permission check for delete: (record) => boolean
  * @param {string} props.title - Column title (default: 'Actions')
@@ -32,7 +32,7 @@
  *   onEdit: (record) => handleEdit(record),
  *   onDelete: (record) => handleDelete(record.id),
  *   canEdit: (record) => record.status !== 'archived',
- *   customActions: [
+ *   customActions: >{
  *     { type: 'approve', onClick: (record) => handleApprove(record), condition: (record) => record.status === 'pending' }
  *   ]
  * });

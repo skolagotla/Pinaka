@@ -2,81 +2,71 @@
 
 import { useRouter } from 'next/navigation';
 import { 
-  Typography, 
-  Card, 
-  Space, 
-  Tag, 
   Button,
-  Descriptions,
-  Table,
-  Divider,
-} from 'antd';
+  Badge,
+} from 'flowbite-react';
 import {
-  TeamOutlined,
-  HomeOutlined,
-  ArrowLeftOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  EnvironmentOutlined,
-} from '@ant-design/icons';
-import { PageLayout } from '@/components/shared';
-
-const { Title, Text } = Typography;
+  HiUserGroup,
+  HiHome,
+  HiArrowLeft,
+  HiMail,
+  HiPhone,
+  HiLocationMarker,
+} from 'react-icons/hi';
+import { PageLayout, TableWrapper, FlowbiteTable } from '@/components/shared';
 
 export default function PMCLandlordDetailClient({ landlord, relationship }) {
   const router = useRouter();
 
   const propertyColumns = [
     {
-      title: 'Property Name',
-      dataIndex: 'propertyName',
-      key: 'propertyName',
-      render: (name, record) => (
+      header: 'Property Name',
+      accessorKey: 'propertyName',
+      cell: ({ row }) => (
         <div>
-          <Text strong>{name || record.addressLine1 || 'Unnamed Property'}</Text>
-          {name && record.addressLine1 && (
-            <div style={{ fontSize: '12px', color: '#999' }}>
-              {record.addressLine1}
+          <div className="font-semibold">{row.original.propertyName || row.original.addressLine1 || 'Unnamed Property'}</div>
+          {row.original.propertyName && row.original.addressLine1 && (
+            <div className="text-sm text-gray-500">
+              {row.original.addressLine1}
             </div>
           )}
         </div>
       ),
     },
     {
-      title: 'Address',
-      key: 'address',
-      render: (_, record) => (
-        <Text type="secondary">
-          {record.addressLine1}
-          {record.addressLine2 && `, ${record.addressLine2}`}
-          {record.city && `, ${record.city}`}
-          {record.provinceState && `, ${record.provinceState}`}
-          {record.postalZip && ` ${record.postalZip}`}
-        </Text>
+      header: 'Address',
+      accessorKey: 'address',
+      cell: ({ row }) => (
+        <span className="text-gray-500">
+          {row.original.addressLine1}
+          {row.original.addressLine2 && `, ${row.original.addressLine2}`}
+          {row.original.city && `, ${row.original.city}`}
+          {row.original.provinceState && `, ${row.original.provinceState}`}
+          {row.original.postalZip && ` ${row.original.postalZip}`}
+        </span>
       ),
     },
     {
-      title: 'Type',
-      dataIndex: 'propertyType',
-      key: 'propertyType',
-      render: (type) => <Tag>{type || 'N/A'}</Tag>,
+      header: 'Type',
+      accessorKey: 'propertyType',
+      cell: ({ row }) => <Badge>{row.original.propertyType || 'N/A'}</Badge>,
     },
     {
-      title: 'Units',
-      key: 'units',
-      render: (_, record) => (
-        <Space>
-          <Tag icon={<HomeOutlined />}>{record.units?.length || 0}</Tag>
-        </Space>
+      header: 'Units',
+      accessorKey: 'units',
+      cell: ({ row }) => (
+        <Badge color="blue" icon={HiHome}>
+          {row.original.units?.length || 0}
+        </Badge>
       ),
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_, record) => (
+      header: 'Action',
+      accessorKey: 'action',
+      cell: ({ row }) => (
         <Button
-          type="link"
-          onClick={() => router.push(`/properties/${record.id}`)}
+          color="light"
+          onClick={() => router.push(`/properties/${row.original.id}`)}
         >
           View Property
         </Button>
@@ -85,106 +75,106 @@ export default function PMCLandlordDetailClient({ landlord, relationship }) {
   ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
+      <div className="mb-6 flex justify-between items-center">
+        <div className="flex items-center gap-4">
           <Button
-            icon={<ArrowLeftOutlined />}
+            color="light"
             onClick={() => router.push('/landlords')}
           >
+            <HiArrowLeft className="mr-2 h-4 w-4" />
             Back to Landlords
           </Button>
           <div>
-            <Title level={2} style={{ margin: 0 }}>
-              <TeamOutlined /> {landlord.firstName} {landlord.lastName}
-            </Title>
-            <Text type="secondary">{landlord.email}</Text>
+            <h2 className="text-2xl font-semibold flex items-center gap-2">
+              <HiUserGroup className="h-6 w-6" />
+              {landlord.firstName} {landlord.lastName}
+            </h2>
           </div>
-        </Space>
+        </div>
       </div>
 
-      {/* Relationship Info */}
-      {relationship && (
-        <Card style={{ marginBottom: 24 }}>
-          <Descriptions title="Management Relationship" bordered column={2}>
-            <Descriptions.Item label="Status">
-              <Tag color={relationship.status === 'active' ? 'green' : 'orange'}>
-                {relationship.status?.toUpperCase()}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Started">
-              {relationship.startedAt ? new Date(relationship.startedAt).toLocaleDateString() : 'N/A'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ended">
-              {relationship.endedAt ? new Date(relationship.endedAt).toLocaleDateString() : 'Ongoing'}
-            </Descriptions.Item>
-            <Descriptions.Item label="PMC Company">
-              {relationship.pmc?.companyName || 'N/A'}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-      )}
-
       {/* Landlord Information */}
-      <Card title="Landlord Information" style={{ marginBottom: 24 }}>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Full Name">
-            {landlord.firstName} {landlord.lastName}
-          </Descriptions.Item>
-          <Descriptions.Item label="Email">
-            <Space>
-              <MailOutlined />
-              {landlord.email}
-            </Space>
-          </Descriptions.Item>
-          {landlord.phone && (
-            <Descriptions.Item label="Phone">
-              <Space>
-                <PhoneOutlined />
-                {landlord.phone}
-              </Space>
-            </Descriptions.Item>
-          )}
-          <Descriptions.Item label="Approval Status">
-            <Tag color={landlord.approvalStatus === 'APPROVED' ? 'green' : 'orange'}>
-              {landlord.approvalStatus || 'PENDING'}
-            </Tag>
-          </Descriptions.Item>
-          {(landlord.addressLine1 || landlord.city) && (
-            <Descriptions.Item label="Address" span={2}>
-              <Space>
-                <EnvironmentOutlined />
-                {landlord.addressLine1}
-                {landlord.addressLine2 && `, ${landlord.addressLine2}`}
-                {landlord.city && `, ${landlord.city}`}
-                {landlord.provinceState && `, ${landlord.provinceState}`}
-                {landlord.postalZip && ` ${landlord.postalZip}`}
-                {landlord.country && `, ${landlord.country}`}
-              </Space>
-            </Descriptions.Item>
-          )}
-        </Descriptions>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <HiMail className="h-5 w-5 text-gray-500" />
+              <span>{landlord.email}</span>
+            </div>
+            {landlord.phone && (
+              <div className="flex items-center gap-2">
+                <HiPhone className="h-5 w-5 text-gray-500" />
+                <span>{landlord.phone}</span>
+              </div>
+            )}
+            {landlord.addressLine1 && (
+              <div className="flex items-start gap-2">
+                <HiLocationMarker className="h-5 w-5 text-gray-500 mt-0.5" />
+                <div>
+                  <div>{landlord.addressLine1}</div>
+                  {landlord.addressLine2 && <div>{landlord.addressLine2}</div>}
+                  <div>
+                    {landlord.city}
+                    {landlord.provinceState && `, ${landlord.provinceState}`}
+                    {landlord.postalZip && ` ${landlord.postalZip}`}
+                  </div>
+                  {landlord.country && <div>{landlord.country}</div>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-      {/* Properties */}
-      <Card 
-        title={
-          <Space>
-            <HomeOutlined />
-            Properties ({landlord.properties?.length || 0})
-          </Space>
-        }
-      >
-        <Table
-          dataSource={landlord.properties || []}
-          columns={propertyColumns}
-          rowKey="id"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
-          size="middle"
-        />
-      </Card>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Relationship Information</h3>
+          <div className="space-y-3">
+            {relationship && (
+              <>
+                <div className="flex justify-between">
+                  <span className="font-medium">Status:</span>
+                  <Badge color={relationship.status === 'active' ? 'success' : relationship.status === 'suspended' ? 'warning' : 'gray'}>
+                    {relationship.status}
+                  </Badge>
+                </div>
+                {relationship.startedAt && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Started:</span>
+                    <span>{new Date(relationship.startedAt).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {relationship.endedAt && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Ended:</span>
+                    <span>{new Date(relationship.endedAt).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Properties Table */}
+      {landlord.properties && landlord.properties.length > 0 ? (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Properties</h3>
+          <TableWrapper>
+            <FlowbiteTable
+              data={landlord.properties}
+              columns={propertyColumns}
+              keyField="id"
+            />
+          </TableWrapper>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-6 text-center">
+          <HiHome className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No properties found for this landlord</p>
+        </div>
+      )}
     </div>
   );
 }
-

@@ -35,7 +35,7 @@ export default function PaymentHistoryChart({ data }) {
           dataKey="amount" 
           fill="#52c41a" 
           name="Amount Paid"
-          radius={[4, 4, 0, 0]}
+          radius={[4, 4, 0, 0}
         />
       </BarChart>
     </ResponsiveContainer>

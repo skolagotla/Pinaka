@@ -1,23 +1,21 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Button, Typography, Tag } from 'antd';
-import { ReloadOutlined, HistoryOutlined } from '@ant-design/icons';
-import { PageLayout, TableWrapper, FilterBar, renderDate } from '@/components/shared';
+import { Button, Badge, Spinner } from 'flowbite-react';
+import { HiRefresh, HiClock } from 'react-icons/hi';
+import { PageLayout, TableWrapper, FilterBar, renderDate, FlowbiteTable } from '@/components/shared';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { formatDateTimeDisplay as formatDateTimeLocal } from '@/lib/utils/date-utils';
 import dayjs from 'dayjs';
 
-const { Text } = Typography;
-
 const ACTION_COLORS = {
   create: 'green',
   update: 'blue',
   delete: 'red',
-  view: 'default',
+  view: 'gray',
   approve: 'success',
-  reject: 'error',
+  reject: 'failure',
   send: 'cyan',
   upload: 'purple',
 };
@@ -71,7 +69,7 @@ export default function ActivityLogsClient({ user }) {
       if (filters.startDate) params.append('startDate', filters.startDate.format('YYYY-MM-DD'));
       if (filters.endDate) params.append('endDate', filters.endDate.format('YYYY-MM-DD'));
 
-      // Use v1Api for activity logs
+      // TODO: Implement v2 endpoint for activity logs
       const { apiClient } = await import('@/lib/utils/api-client');
       const response = await apiClient(`/api/v1/activity-logs?${params.toString()}`, {
         method: 'GET',
@@ -168,70 +166,53 @@ export default function ActivityLogsClient({ user }) {
   };
 
   const columns = [
-    customizeColumn(STANDARD_COLUMNS.CREATED_DATE, {
-      title: 'Date & Time',
-      dataIndex: 'createdAt',
-      width: 180,
-      render: (date) => {
+    {
+      header: 'Date & Time',
+      accessorKey: 'createdAt',
+      cell: ({ row }) => {
+        const date = row.original.createdAt;
         if (!date) return '-';
         try {
-          // Use local timezone formatting instead of UTC
           return formatDateTimeLocal(date);
         } catch (error) {
           console.error('Date formatting error:', error);
           return new Date(date).toLocaleString();
         }
       },
-      sorter: true,
-    }),
-    {
-      title: 'User',
-      dataIndex: 'userName',
-      key: 'userName',
-      width: 150,
-      render: (name) => <Text strong>{name || '-'}</Text>,
     },
     {
-      title: 'Role',
-      dataIndex: 'userRole',
-      key: 'userRole',
-      width: 100,
-      render: (role) => (
-        <Tag color={role === 'landlord' ? 'blue' : role === 'tenant' ? 'green' : 'default'}>
-          {role || '-'}
-        </Tag>
-      ),
+      header: 'User',
+      accessorKey: 'userName',
+      cell: ({ row }) => <span className="font-semibold">{row.original.userName || '-'}</span>,
     },
     {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      width: 100,
-      render: (action) => (
-        <Tag color={ACTION_COLORS[action?.toLowerCase()] || 'default'}>
-          {action || '-'}
-        </Tag>
-      ),
+      header: 'Role',
+      accessorKey: 'userRole',
+      cell: ({ row }) => {
+        const role = row.original.userRole;
+        const color = role === 'landlord' ? 'blue' : role === 'tenant' ? 'green' : 'gray';
+        return <Badge color={color}role || '-'}</Badge>;
+      },
     },
     {
-      title: 'Entity',
-      dataIndex: 'entityType',
-      key: 'entityType',
-      width: 120,
-      render: (type) => <Text style={{ textTransform: 'capitalize' }}>{type || '-'}</Text>,
+      header: 'Action',
+      accessorKey: 'action',
+      cell: ({ row }) => {
+        const action = row.original.action?.toLowerCase();
+        const color = ACTION_COLORS[action] || 'gray';
+        return <Badge color={color}row.original.action || '-'}</Badge>;
+      },
     },
     {
-      title: 'Description',
-      key: 'description',
-      render: (_, record) => {
-        // Debug logging for property updates
-        if (record.entityType === 'property' && record.action === 'update') {
-          console.log('[Activity Logs UI] Rendering property update description:', {
-            description: record.description,
-            metadata: record.metadata,
-            hasChangedFields: record.metadata?.changedFields ? record.metadata.changedFields.length : 0
-          });
-        }
+      header: 'Entity',
+      accessorKey: 'entityType',
+      cell: ({ row }) => <span className="capitalize">{row.original.entityType || '-'}</span>,
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      cell: ({ row }) => {
+        const record = row.original;
         
         // Parse metadata if it's a string (Prisma Json field)
         let metadata = record.metadata;
@@ -244,9 +225,9 @@ export default function ActivityLogsClient({ user }) {
           }
         }
         
-        // SIMPLIFIED: Always use description field if it exists (it should contain all the info)
+        // SIMPLIFIED: Always use description field if it exists
         if (record.description) {
-          return <Text>{record.description}</Text>;
+          return <span>{record.description}</span>;
         }
         
         // Fallback: If no description, try to construct from metadata
@@ -259,7 +240,7 @@ export default function ActivityLogsClient({ user }) {
           });
           const entityName = record.entityName || record.entityId?.substring(0, 8) || 'Unknown';
           const userName = record.userName || 'User';
-          return <Text>{`${userName} updated ${record.entityType} "${entityName}" - ${changeDescriptions.join('; ')}`}</Text>;
+          return <span>{`${userName} updated ${record.entityType} "${entityName}" - ${changeDescriptions.join('; ')}`}</span>;
         }
         
         // Fallback 2: Use changedFields if available
@@ -267,27 +248,28 @@ export default function ActivityLogsClient({ user }) {
           const fieldNames = metadata.changedFields.join(', ');
           const entityName = record.entityName || record.entityId?.substring(0, 8) || 'Unknown';
           const userName = record.userName || 'User';
-          return <Text>{`${userName} updated ${record.entityType} "${entityName}" - Changed: ${fieldNames}`}</Text>;
+          return <span>{`${userName} updated ${record.entityType} "${entityName}" - Changed: ${fieldNames}`}</span>;
         }
         
         // Fallback to default description
         const action = record.action?.toLowerCase() || 'unknown';
         const entity = record.entityType?.toLowerCase() || 'item';
         const name = record.entityName || record.entityId?.substring(0, 8) || 'unknown';
-        return <Text>{action} {entity} "{name}"</Text>;
+        return <span>{action} {entity} "{name}"</span>;
       },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><HistoryOutlined /> Activity Log</>}
+      headerTitle={<><HiClock className="inline mr-2" /> Activity Log</>}
       headerDescription="Track all system activities and user actions"
-      headerActions={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={() => loadActivities()}>
+      headerActions={
+        <Button key="refresh" onClick={() => loadActivities()} disabled={loading}>
+          {loading ? <Spinner size="sm" className="mr-2" /> : <HiRefresh className="mr-2 h-5 w-5" />}
           Refresh
         </Button>
-      ]}
+      }
       contentStyle={{ padding: 0, display: 'flex', flexDirection: 'column' }}
     >
       <FilterBar
@@ -310,25 +292,22 @@ export default function ActivityLogsClient({ user }) {
         showSearch={false}
       />
       <TableWrapper>
-        <Table
+        <FlowbiteTable
+          data={activities}
           columns={columns}
-          dataSource={activities}
+          keyField="id"
           loading={loading}
-          rowKey="id"
           pagination={{
-            current: pagination.page,
             pageSize: pagination.limit,
+            currentPage: pagination.page,
             total: pagination.total,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} activities`,
-            onChange: (page, pageSize) => {
-              setPagination(prev => ({ ...prev, page, limit: pageSize }));
-            },
+            onPageChange: (page) => setPagination(prev => ({ ...prev, page })),
+            onPageSizeChange: (pageSize) => setPagination(prev => ({ ...prev, limit: pageSize, page: 1 })),
           }}
-          size="middle"
         />
       </TableWrapper>
     </PageLayout>
   );
 }
-

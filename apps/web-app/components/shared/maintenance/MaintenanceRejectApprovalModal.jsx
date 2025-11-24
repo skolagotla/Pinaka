@@ -38,7 +38,7 @@ export default function MaintenanceRejectApprovalModal({
         <Form.Item
           label="Rejection Reason"
           name="reason"
-          rules={[{ required: true, message: 'Please provide a reason for rejection' }]}
+          rules={[{ required: true, message: 'Please provide a reason for rejection' }}
         >
           <Input.TextArea rows={4} placeholder="Enter rejection reason..." />
         </Form.Item>

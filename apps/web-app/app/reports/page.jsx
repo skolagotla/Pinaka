@@ -50,17 +50,17 @@ export default function ReportsPage() {
   
   // Calculate metrics
   const metrics = useMemo(() => {
-    const activeLeases = leases?.filter((l: any) => l.status === 'active') || [];
-    const occupiedUnits = units?.filter((u: any) => u.status === 'occupied') || [];
+    const activeLeases = leases?.filter((l) => l.status === 'active') || [];
+    const occupiedUnits = units?.filter((u) => u.status === 'occupied') || [];
     const totalUnits = units?.length || 0;
     const occupancyRate = totalUnits > 0 ? (occupiedUnits.length / totalUnits) * 100 : 0;
     
-    const totalRent = activeLeases.reduce((sum: number, lease: any) => sum + (lease.rent_amount || 0), 0);
+    const totalRent = activeLeases.reduce((sum, lease) => sum + (lease.rent_amount || 0), 0);
     const monthlyRevenue = totalRent;
     const annualRevenue = monthlyRevenue * 12;
     
-    const openWorkOrders = workOrders?.filter((wo: any) => wo.status !== 'completed' && wo.status !== 'cancelled') || [];
-    const completedWorkOrders = workOrders?.filter((wo: any) => wo.status === 'completed') || [];
+    const openWorkOrders = workOrders?.filter((wo) => wo.status !== 'completed' && wo.status !== 'cancelled') || [];
+    const completedWorkOrders = workOrders?.filter((wo) => wo.status === 'completed') || [];
     
     return {
       totalProperties: properties?.length || 0,
@@ -78,7 +78,7 @@ export default function ReportsPage() {
     };
   }, [properties, units, leases, tenants, workOrders]);
   
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -176,7 +176,7 @@ export default function ReportsPage() {
                     <Table.HeadCell>Status</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {leases.filter((l: any) => l.status === 'active').slice(0, 10).map((lease: any) => (
+                    {leases.filter((l) => l.status === 'active').slice(0, 10).map((lease) => (
                       <Table.Row key={lease.id}>
                         <Table.Cell>{lease.property_id ? `Property ${lease.property_id.substring(0, 8)}` : '-'}</Table.Cell>
                         <Table.Cell>{formatCurrency(lease.rent_amount || 0)}</Table.Cell>
@@ -225,7 +225,7 @@ export default function ReportsPage() {
                     <Table.HeadCell>Priority</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {workOrders.slice(0, 10).map((wo: any) => (
+                    {workOrders.slice(0, 10).map((wo) => (
                       <Table.Row key={wo.id}>
                         <Table.Cell className="font-medium">{wo.title}</Table.Cell>
                         <Table.Cell>

@@ -396,7 +396,7 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
           <span>Leases</span>
         </div>
       }
-      headerActions={[
+      headerActions={
         permissions.canEditLeases && (
           <Button
             key="add"
@@ -417,7 +417,7 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
           <HiRefresh className="h-4 w-4" />
           Refresh
         </Button>,
-      ]}
+      }
       stats={statsData}
       statsCols={3}
       showSearch={true}
@@ -539,7 +539,7 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
                     onChange={(e) => form.setFieldsValue({ status: e.target.value })}
                   >
                     {LEASE_STATUSES.map(status => (
-                      <option key={status} value={status}>{status}</option>
+                      <option key={status} value={status}status}</option>
                     ))}
                   </Select>
                 </div>
@@ -557,7 +557,7 @@ export default function LeasesClient({ units, tenants, initialLeases, user }) {
                 multiple
                 placeholder="Select tenant(s)"
                 disabled={!selectedUnit}
-                value={form.values.tenantIds || []}
+                value={form.values.tenantIds || [}
                 onChange={(e) => {
                   const values = Array.from(e.target.selectedOptions, option => option.value);
                   form.setFieldsValue({ tenantIds: values });

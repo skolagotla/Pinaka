@@ -34,6 +34,8 @@ import dynamic from 'next/dynamic';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useResizableTable, configureTableColumns, useModalState } from '@/lib/hooks';
 import { useFormState } from '@/lib/hooks/useFormState';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useForms, useTenants, useProperties } from '@/lib/hooks/useV2Data';
 
 // Lazy load PDFViewerModal to reduce initial bundle size
 const PDFViewerModal = dynamic(
@@ -44,11 +46,38 @@ const PDFViewerModal = dynamic(
 export default function GeneratedFormsClient({ userRole, user = null }) {
   const router = useRouter();
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  const { user: v2User } = useV2Auth();
+  const organizationId = v2User?.organization_id;
   const { loading, withLoading } = useLoading(true);
+  
+  // v2 API hooks
+  const { data: formsData, isLoading: formsLoading, refetch: refetchForms } = useForms(organizationId);
+  const { data: tenantsData } = useTenants(organizationId);
+  const { data: propertiesData } = useProperties(organizationId);
+  
   const [forms, setForms] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [tenantsWithBalance, setTenantsWithBalance] = useState([]);
   const [properties, setProperties] = useState([]);
+  
+  // Use v2 data if available
+  useEffect(() => {
+    if (formsData && Array.isArray(formsData)) {
+      setForms(formsData);
+    }
+  }, [formsData]);
+  
+  useEffect(() => {
+    if (tenantsData && Array.isArray(tenantsData)) {
+      setTenants(tenantsData);
+    }
+  }, [tenantsData]);
+  
+  useEffect(() => {
+    if (propertiesData && Array.isArray(propertiesData)) {
+      setProperties(propertiesData);
+    }
+  }, [propertiesData]);
   
   // Form generation state
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -230,45 +259,19 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const loadData = async () => {
     await withLoading(async () => {
+      // Use v2 hooks for forms, tenants, and properties
+      await refetchForms();
+      
+      // TODO: Implement v2 endpoint for getTenantsWithOutstandingBalance
       const { v1Api } = await import('@/lib/api/v1-client');
-      const [formsRes, tenantsRes, tenantsWithBalanceRes, propertiesRes] = await Promise.all([
-        v1Api.generatedForms.list({ page: 1, limit: 1000 }).then(response => {
-          const formsData = response.forms || response.data?.forms || [];
-          return { ok: true, json: async () => ({ forms: Array.isArray(formsData) ? formsData : [] }) };
-        }).catch(() => null),
-        v1Api.tenants.list({ page: 1, limit: 1000 }).then(response => {
-          const tenantsData = response.data?.data || response.data || [];
-          return { ok: true, json: async () => ({ tenants: Array.isArray(tenantsData) ? tenantsData : [] }) };
-        }).catch(() => null),
+      const [tenantsWithBalanceRes] = await Promise.all([
         v1Api.specialized.getTenantsWithOutstandingBalance().then(data => {
           const tenants = data.tenants || data.data || [];
           return { ok: true, json: async () => ({ tenants: Array.isArray(tenants) ? tenants : [] }) };
-        }).catch(() => null),
-        v1Api.properties.list({ page: 1, limit: 1000 }).then(response => {
-          const propertiesData = response.data?.data || response.data || [];
-          return { ok: true, json: async () => ({ properties: Array.isArray(propertiesData) ? propertiesData : [] }) };
         }).catch(() => null)
       ]);
 
-      if (formsRes) {
-        try {
-          const data = await formsRes.json();
-          setForms(Array.isArray(data?.forms) ? data.forms : []);
-        } catch (error) {
-          console.error('[GeneratedFormsClient] Error parsing forms:', error);
-          setForms([]);
-        }
-      }
-
-      if (tenantsRes) {
-        try {
-          const data = await tenantsRes.json();
-          setTenants(Array.isArray(data?.tenants) ? data.tenants : []);
-        } catch (error) {
-          console.error('[GeneratedFormsClient] Error parsing tenants:', error);
-          setTenants([]);
-        }
-      }
+      // Forms, tenants, and properties are loaded via v2 hooks above
 
       if (tenantsWithBalanceRes) {
         try {
@@ -472,7 +475,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.generatedForms.update(formId, { status: 'finalized' });
 
-      notify.success('Form finalized successfully!');
+      notify.success('Form finalized successfully');
       loadData();
       closeWizard();
 
@@ -524,7 +527,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.forms.sendForm(record.id);
 
-      notify.success('Email sent successfully to tenant!');
+      notify.success('Email sent successfully to tenant');
       
       loadData();
     } catch (error) {
@@ -567,7 +570,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
   };
 
   const handleSignComplete = () => {
-    notify.success('Document signed and downloaded successfully!');
+    notify.success('Document signed and downloaded successfully');
     loadData();
   };
 
@@ -873,7 +876,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                   <option key={ft?.value} value={ft?.value}>
                     {ft?.value} - {ft?.label}
                   </option>
-                )) : []}
+                )) : [}
               </Select>
               {selectedFormType && (
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -915,7 +918,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                             <option key={p?.id} value={p?.id}>
                               {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
                             </option>
-                          )) : []}
+                          )) : [}
                         </Select>
                       )
                     ) : (
@@ -942,7 +945,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                             <option key={p?.id} value={p?.id}>
                               {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
                             </option>
-                          )) : []}
+                          )) : [}
                         </Select>
                       )
                     )}
@@ -979,7 +982,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                                 <option key={t?.id} value={t?.id}>
                                   {formatTenantName(t)}
                                 </option>
-                              )) : []}
+                              )) : [}
                             </Select>
                           );
                         })()
@@ -1009,7 +1012,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                               <option key={t?.id} value={t?.id}>
                                 {formatTenantName(t, tenants)}
                               </option>
-                            )) : []}
+                            )) : [}
                           </Select>
                         )
                       )}

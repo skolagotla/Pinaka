@@ -70,7 +70,7 @@ function SignatureUploadContent() {
         const data = response.data || response;
         setSignatureUrl(data.signatureUrl);
         setHasSignature(true);
-        message.success('✅ Signature saved successfully!');
+        message.success('✅ Signature saved successfully');
         handleClearCanvas();
         setLoading(false);
       }, 'image/png');
@@ -94,7 +94,7 @@ function SignatureUploadContent() {
       const data = response.data || response;
       setSignatureUrl(data.signatureUrl);
       setHasSignature(true);
-      message.success('✅ Signature uploaded successfully!');
+      message.success('✅ Signature uploaded successfully');
     } catch (error) {
       console.error('[SignatureUpload] Error uploading signature:', error);
       message.error(error.message || 'Failed to upload signature');
@@ -113,7 +113,7 @@ function SignatureUploadContent() {
 
       setSignatureUrl(null);
       setHasSignature(false);
-      message.success('✅ Signature removed successfully!');
+      message.success('✅ Signature removed successfully');
     } catch (error) {
       console.error('[SignatureUpload] Error deleting signature:', error);
       message.error(error.message || 'Failed to delete signature');
@@ -163,7 +163,7 @@ function SignatureUploadContent() {
         const data = response.data || response;
         setSignatureUrl(data.signatureUrl);
         setHasSignature(true);
-        message.success('✅ Signature saved successfully!');
+        message.success('✅ Signature saved successfully');
         setTypedName('');
         setLoading(false);
       }, 'image/png');

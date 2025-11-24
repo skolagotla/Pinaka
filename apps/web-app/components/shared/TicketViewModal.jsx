@@ -24,6 +24,8 @@ import {
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { useState, useEffect } from 'react';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useExpenses, useUpdateExpense } from '@/lib/hooks/useV2Data';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -64,9 +66,9 @@ function renderCommentText(text) {
     const parts = text.split('Ticket Acknowledged: Pending');
     return (
       <Text>
-        {parts[0]}
+        {parts[0]
         Ticket Acknowledged: <Text strong style={{ color: statusColors['Pending'], fontWeight: 700 }}>Pending</Text>
-        {parts[1]}
+        {parts[1]
       </Text>
     );
   }
@@ -74,9 +76,9 @@ function renderCommentText(text) {
     const parts = text.split('In Progress');
     return (
       <Text>
-        {parts[0]}
+        {parts[0]
         <Text strong style={{ color: statusColors['In Progress'], fontWeight: 700 }}>In Progress</Text>
-        {parts[1]}
+        {parts[1]
       </Text>
     );
   }
@@ -84,9 +86,9 @@ function renderCommentText(text) {
     const parts = text.split('Status: Pending');
     return (
       <Text>
-        {parts[0]}
+        {parts[0]
         Status: <Text strong style={{ color: statusColors['Pending'], fontWeight: 700 }}>Pending</Text>
-        {parts[1]}
+        {parts[1]
       </Text>
     );
   }
@@ -94,9 +96,9 @@ function renderCommentText(text) {
     const parts = text.split('Status: In Progress');
     return (
       <Text>
-        {parts[0]}
+        {parts[0]
         Status: <Text strong style={{ color: statusColors['In Progress'], fontWeight: 700 }}>In Progress</Text>
-        {parts[1]}
+        {parts[1]
       </Text>
     );
   }
@@ -104,9 +106,9 @@ function renderCommentText(text) {
     const parts = text.split(/Status: (Closed|Close)/);
     return (
       <Text>
-        {parts[0]}
-        Status: <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}>{parts[1]}</Text>
-        {parts[2]}
+        {parts[0]
+        Status: <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}parts[1]</Text>
+        {parts[2}
       </Text>
     );
   }
@@ -114,9 +116,9 @@ function renderCommentText(text) {
     const parts = text.split(/(Closed|Close)/);
     return (
       <Text>
-        {parts[0]}
-        <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}>{parts[1]}</Text>
-        {parts[2]}
+        {parts[0]
+        <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}parts[1]</Text>
+        {parts[2}
       </Text>
     );
   }
@@ -216,12 +218,11 @@ export default function TicketViewModal({
         throw new Error('Failed to upload invoice');
       }
 
-      // Then update the expense with the receiptUrl using v1Api
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const updateResponse = await v1Api.expenses.update(uploadingExpenseId, { 
-        receiptUrl: uploadData.receiptUrl 
+      // Then update the expense with the receiptUrl using v2Api
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const updateData = await v2Api.updateExpense(uploadingExpenseId, { 
+        receipt_url: uploadData.receiptUrl 
       });
-      const updateData = updateResponse.data || updateResponse;
       if (updateData.success && updateData.expense) {
         // Update local expenses state
         setExpenses(prevExpenses => 
@@ -497,7 +498,7 @@ export default function TicketViewModal({
                         <Text type="secondary" style={{ fontSize: 12 }}>Rating:</Text>
                         <br />
                         <Rate disabled value={ticket.assignedToVendor.rating} style={{ fontSize: 14 }} />
-                        <Text style={{ marginLeft: 8 }}>{ticket.assignedToVendor.rating.toFixed(1)}</Text>
+                        <Text style={{ marginLeft: 8 }}ticket.assignedToVendor.rating.toFixed(1)}</Text>
                       </div>
                     )}
                   </Space>
@@ -556,7 +557,7 @@ export default function TicketViewModal({
               style={{ marginBottom: 16 }}
             >
               <Timeline
-                items={[
+                items={
                   {
                     color: 'blue',
                     children: (
@@ -613,7 +614,7 @@ export default function TicketViewModal({
                       </div>
                     )
                   }] : [])
-                ]}
+                }
               />
             </Card>
           )}
@@ -773,7 +774,7 @@ export default function TicketViewModal({
                     size="small"
                     pagination={false}
                     scroll={{ x: 'max-content' }}
-                    columns={[
+                    columns={
                       {
                         title: 'Date',
                         dataIndex: 'date',
@@ -872,7 +873,7 @@ export default function TicketViewModal({
                           );
                         }
                       }
-                    ]}
+                    }
                   />
                 ) : (
                   <Empty 
@@ -898,7 +899,7 @@ export default function TicketViewModal({
         setInvoiceFileList([]);
         setUploadingExpenseId(null);
       }}
-      footer={[
+      footer={
         <Button
           key="cancel"
           onClick={() => {
@@ -919,7 +920,7 @@ export default function TicketViewModal({
         >
           Upload
         </Button>
-      ]}
+      }
       width={500}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -955,7 +956,7 @@ export default function TicketViewModal({
         setInvoiceViewModalOpen(false);
         setViewingInvoiceUrl(null);
       }}
-      footer={[
+      footer={
         <Button
           key="close"
           onClick={() => {
@@ -965,7 +966,7 @@ export default function TicketViewModal({
         >
           Close
         </Button>
-      ]}
+      }
       width="90%"
       style={{ top: 20 }}
       styles={{ body: { height: 'calc(100vh - 200px)', padding: 0 } }}

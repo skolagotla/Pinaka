@@ -23,9 +23,9 @@ export default function V2TestPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const success = await login('superadmin@pinaka.com', 'SuperAdmin123!');
+      const success = await login('superadmin@pinaka.com', 'SuperAdmin123');
       if (success) {
-        setTestResult('✅ Login successful!');
+        setTestResult('✅ Login successful');
       } else {
         setTestResult('❌ Login failed');
       }
@@ -41,7 +41,7 @@ export default function V2TestPage() {
     setTestResult(null);
     try {
       const result = await v2Api.listWorkOrders();
-      setTestResult(`✅ API call successful! Found ${result.length} work orders`);
+      setTestResult(`✅ API call successful Found ${result.length} work orders`);
     } catch (err) {
       setTestResult(`❌ API Error: ${err?.detail || err?.message || 'Unknown error'}`);
     } finally {

@@ -6,31 +6,36 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Button, Form, Input, DatePicker, Table, Tag, Alert, Space, Modal } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { Card, Button, TextInput, Label, Alert, Spinner, Badge } from 'flowbite-react';
+import { HiCheckCircle, HiXCircle, HiExclamationTriangle } from 'react-icons/hi';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
-import { rules } from '@/lib/utils/validation-rules';
+import { useFormState } from '@/lib/hooks/useFormState';
 import { renderStatus } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
-import { PageLayout } from '@/components/shared';
+import { PageLayout, TableWrapper, FlowbiteTable } from '@/components/shared';
 import dayjs from 'dayjs';
 
 export default function YearEndClosingClient({ user, userRole }) {
-  const [form] = Form.useForm();
+  const { formData, updateField, resetForm } = useFormState({ periodId: '' });
   const { fetch } = useUnifiedApi({ showUserMessage: false });
   const { loading, withLoading } = useLoading();
   const { loading: validating, withLoading: withValidating } = useLoading();
   const [validationResult, setValidationResult] = useState(null);
   const [periods, setPeriods] = useState([]);
 
-  const handleValidate = async (values) => {
+  const handleValidate = async () => {
+    if (!formData.periodId) {
+      notify.warning('Please enter a period ID first');
+      return;
+    }
+
     await withValidating(async () => {
       try {
-        // Use v1Api for period validation
+        // TODO: Implement v2 endpoint for period validation
         const { apiClient } = await import('@/lib/utils/api-client');
-        const response = await apiClient(`/api/v1/analytics/close-period?periodId=${values.periodId}`, {
+        const response = await apiClient(`/api/v1/analytics/close-period?periodId=${formData.periodId}`, {
           method: 'GET',
         });
 
@@ -48,22 +53,27 @@ export default function YearEndClosingClient({ user, userRole }) {
     });
   };
 
-  const handleClose = async (values) => {
+  const handleClose = async () => {
+    if (!formData.periodId) {
+      notify.warning('Please enter a period ID first');
+      return;
+    }
+
     await withLoading(async () => {
       try {
-        // Use v1Api for period closing
+        // TODO: Implement v2 endpoint for period closing
         const { apiClient } = await import('@/lib/utils/api-client');
         const response = await apiClient('/api/v1/analytics/close-period', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            periodId: values.periodId,
+            periodId: formData.periodId,
           }),
         });
 
         if (response && response.ok) {
           notify.success('Period closed successfully');
-          form.resetFields();
+          resetForm();
           setValidationResult(null);
           // Refresh periods list
         }
@@ -75,12 +85,14 @@ export default function YearEndClosingClient({ user, userRole }) {
 
   const columns = [
     {
-      title: 'Period ID',
-      dataIndex: 'id',
-      key: 'id',
+      header: 'Period ID',
+      accessorKey: 'id',
     },
-    customizeColumn(STANDARD_COLUMNS.STATUS, {
-      render: (status) => {
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ row }) => {
+        const status = row.original.status;
         const statusMap = {
           closed: 'Completed',
           open: 'In Progress'
@@ -94,104 +106,103 @@ export default function YearEndClosingClient({ user, userRole }) {
           }
         });
       },
-    }),
-    {
-      title: 'Closed At',
-      dataIndex: 'closedAt',
-      key: 'closedAt',
-      render: (date) => date ? new Date(date).toLocaleDateString() : '-',
     },
     {
-      title: 'Closed By',
-      dataIndex: 'closedBy',
-      key: 'closedBy',
+      header: 'Closed At',
+      accessorKey: 'closedAt',
+      cell: ({ row }) => row.original.closedAt ? new Date(row.original.closedAt).toLocaleDateString() : '-',
+    },
+    {
+      header: 'Closed By',
+      accessorKey: 'closedBy',
     },
   ];
 
   return (
     <PageLayout title="Year-End Closing">
-      <Card title="Close Financial Period" style={{ marginBottom: 24 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleClose}
-        >
-          <Form.Item
-            name="periodId"
-            label="Period ID"
-            rules={[rules.required('Period ID')]}
-          >
-            <Input placeholder="e.g., 2024-Q4" />
-          </Form.Item>
+      <Card className="mb-6">
+        <h5 className="text-xl font-semibold mb-4">Close Financial Period</h5>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="periodId" value="Period ID" />
+            <TextInput
+              id="periodId"
+              type="text"
+              placeholder="e.g., 2024-Q4"
+              value={formData.periodId}
+              onChange={(e) => updateField('periodId', e.target.value)}
+              required
+            />
+          </div>
 
-          <Form.Item>
-            <Space>
-              <Button 
-                onClick={() => {
-                  const values = form.getFieldsValue();
-                  if (values.periodId) {
-                    handleValidate(values);
-                  } else {
-                    notify.warning('Please enter a period ID first');
-                  }
-                }}
-                loading={validating}
-              >
-                Validate Period
-              </Button>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                Close Period
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleValidate}
+              disabled={validating || !formData.periodId}
+            >
+              {validating ? <Spinner size="sm" className="mr-2" /> : null}
+              Validate Period
+            </Button>
+            <Button
+              color="blue"
+              onClick={handleClose}
+              disabled={loading || !formData.periodId}
+            >
+              {loading ? <Spinner size="sm" className="mr-2" /> : null}
+              Close Period
+            </Button>
+          </div>
+        </div>
 
         {validationResult && (
           <Alert
-            message={validationResult.valid ? "Validation Passed" : "Validation Failed"}
-            description={
-              <div>
-                {validationResult.errors.length > 0 && (
-                  <div>
-                    <strong>Errors:</strong>
-                    <ul>
-                      {validationResult.errors.map((error, idx) => (
-                        <li key={idx} style={{ color: '#ff4d4f' }}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {validationResult.warnings.length > 0 && (
-                  <div>
-                    <strong>Warnings:</strong>
-                    <ul>
-                      {validationResult.warnings.map((warning, idx) => (
-                        <li key={idx} style={{ color: '#faad14' }}>{warning}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {validationResult.valid && validationResult.warnings.length === 0 && (
-                  <div>All checks passed. Ready to close.</div>
-                )}
+            color={validationResult.valid ? "success" : "failure"}
+            icon={validationResult.valid ? HiCheckCircle : HiXCircle}
+            className="mt-4"
+          >
+            <div>
+              <div className="font-semibold mb-2">
+                {validationResult.valid ? "Validation Passed" : "Validation Failed"}
               </div>
-            }
-            type={validationResult.valid ? "success" : "error"}
-            showIcon
-            style={{ marginTop: 16 }}
-          />
+              {validationResult.errors && validationResult.errors.length > 0 && (
+                <div className="mb-2">
+                  <strong>Errors:</strong>
+                  <ul className="list-disc list-inside">
+                    {validationResult.errors.map((error, idx) => (
+                      <li key={idx} className="text-red-600">{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {validationResult.warnings && validationResult.warnings.length > 0 && (
+                <div className="mb-2">
+                  <strong>Warnings:</strong>
+                  <ul className="list-disc list-inside">
+                    {validationResult.warnings.map((warning, idx) => (
+                      <li key={idx} className="text-yellow-600">{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {validationResult.valid && (!validationResult.warnings || validationResult.warnings.length === 0) && (
+                <div>All checks passed. Ready to close.</div>
+              )}
+            </div>
+          </Alert>
         )}
       </Card>
 
-      <Card title="Closed Periods">
-        <Table
-          dataSource={periods}
-          columns={columns}
-          rowKey="id"
-          pagination={false}
-        />
+      <Card>
+        <h5 className="text-xl font-semibold mb-4">Closed Periods</h5>
+        <TableWrapper>
+          <FlowbiteTable
+            data={periods}
+            columns={columns}
+            keyField="id"
+            pagination={false}
+          />
+        </TableWrapper>
       </Card>
     </PageLayout>
   );
 }
-

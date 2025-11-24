@@ -64,7 +64,7 @@ export default function CalendarPage() {
   }
   
   // Format properties for calendar components
-  const formattedProperties = properties?.map((prop: any) => ({
+  const formattedProperties = properties?.map((prop) => ({
     id: prop.id,
     propertyName: prop.name || prop.address_line1,
     addressLine1: prop.address_line1,

@@ -2,42 +2,31 @@
 
 import { useState, useCallback } from 'react';
 import {
-  Typography,
-  Card,
-  Table,
-  Tag,
   Button,
+  Badge,
   Modal,
-  Form,
-  Input,
-  Space,
   Alert,
-  Empty,
-  Row,
-  Col,
-  Statistic,
+  Textarea,
   Select,
-  Tooltip,
-} from 'antd';
-import { StandardModal, FormTextInput, FormSelect, PageLayout, TableWrapper, FilterBar } from '@/components/shared';
+  Label,
+} from 'flowbite-react';
+import { StandardModal, FormTextInput, PageLayout, TableWrapper, FilterBar, FlowbiteTable, EmptyState } from '@/components/shared';
 import { renderStatus, renderDate } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import {
-  FileOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  EyeOutlined,
-  CheckOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+import { useFormState } from '@/lib/hooks/useFormState';
 import { useModalState } from '@/lib/hooks/useModalState';
-
-const { Text } = Typography;
-const { TextArea } = Input;
+import {
+  HiDocument,
+  HiCheckCircle,
+  HiXCircle,
+  HiClock,
+  HiEye,
+  HiCheck,
+  HiX,
+} from 'react-icons/hi';
+import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 
 const DOCUMENT_TYPES = [
   { value: 'GOVERNMENT_ID', label: 'Government ID' },
@@ -52,22 +41,26 @@ const DOCUMENT_TYPES = [
 ];
 
 const STATUS_COLORS = {
-  PENDING: 'orange',
-  VERIFIED: 'green',
-  REJECTED: 'red',
-  EXPIRED: 'default',
+  PENDING: 'warning',
+  VERIFIED: 'success',
+  REJECTED: 'failure',
+  EXPIRED: 'gray',
 };
 
 const STATUS_ICONS = {
-  PENDING: <ClockCircleOutlined />,
-  VERIFIED: <CheckCircleOutlined />,
-  REJECTED: <CloseCircleOutlined />,
-  EXPIRED: <ClockCircleOutlined />,
+  PENDING: <HiClock className="h-4 w-4" />,
+  VERIFIED: <HiCheckCircle className="h-4 w-4" />,
+  REJECTED: <HiXCircle className="h-4 w-4" />,
+  EXPIRED: <HiClock className="h-4 w-4" />,
 };
 
 export default function VerificationClient({ pmc, pmcRelationships }) {
-  const [verifyForm] = Form.useForm();
-  const [rejectForm] = Form.useForm();
+  const { formData: verifyFormData, updateField: updateVerifyField, resetForm: resetVerifyForm } = useFormState({
+    verificationNotes: '',
+  });
+  const { formData: rejectFormData, updateField: updateRejectField, resetForm: resetRejectForm } = useFormState({
+    rejectionReason: '',
+  });
   const { isOpen: viewModalVisible, open: openViewModal, close: closeViewModal, editingItem: selectedVerification, openForEdit: openViewModalForEdit } = useModalState();
   const { isOpen: verifyModalVisible, open: openVerifyModal, close: closeVerifyModal, openForEdit: openVerifyModalForEdit } = useModalState();
   const { isOpen: rejectModalVisible, open: openRejectModal, close: closeRejectModal, openForEdit: openRejectModalForEdit } = useModalState();
@@ -102,7 +95,9 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
     rejected: allVerifications.filter(v => v.status === 'REJECTED').length,
   };
 
-  const handleVerify = useCallback(async (values) => {
+  const handleVerify = useCallback(async () => {
+    if (!selectedVerification) return;
+
     await withVerifying(async () => {
       try {
         const response = await fetch(
@@ -111,7 +106,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              verificationNotes: values.verificationNotes || null,
+              verificationNotes: verifyFormData.verificationNotes || null,
             }),
           },
           { operation: 'Verify document', showUserMessage: true }
@@ -120,8 +115,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
         if (response.ok) {
           notify.success('Document verified successfully');
           closeVerifyModal();
-          verifyForm.resetFields();
-          // selectedVerification is managed by useModalState;
+          resetVerifyForm();
           // Reload page to refresh data
           window.location.reload();
         }
@@ -129,9 +123,15 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
         console.error('[Verification Verify] Error:', error);
       }
     });
-  }, [verifyForm, selectedVerification, fetch, withVerifying]);
+  }, [verifyFormData, selectedVerification, fetch, withVerifying, closeVerifyModal, resetVerifyForm]);
 
-  const handleReject = useCallback(async (values) => {
+  const handleReject = useCallback(async () => {
+    if (!selectedVerification) return;
+    if (!rejectFormData.rejectionReason) {
+      notify.error('Please provide a rejection reason');
+      return;
+    }
+
     await withRejecting(async () => {
       try {
         const response = await fetch(
@@ -140,7 +140,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              rejectionReason: values.rejectionReason,
+              rejectionReason: rejectFormData.rejectionReason,
             }),
           },
           { operation: 'Reject document', showUserMessage: true }
@@ -149,8 +149,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
         if (response.ok) {
           notify.success('Document rejected');
           closeRejectModal();
-          rejectForm.resetFields();
-          // selectedVerification is managed by useModalState;
+          resetRejectForm();
           // Reload page to refresh data
           window.location.reload();
         }
@@ -158,7 +157,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
         console.error('[Verification Reject] Error:', error);
       }
     });
-  }, [rejectForm, selectedVerification, fetch, withRejecting]);
+  }, [rejectFormData, selectedVerification, fetch, withRejecting, closeRejectModal, resetRejectForm]);
 
   const handleViewDocument = useCallback((verification) => {
     openViewModalForEdit(verification);
@@ -174,68 +173,71 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
 
   const columns = [
     {
-      title: 'Landlord',
-      key: 'landlord',
-      render: (_, record) => (
+      header: 'Landlord',
+      accessorKey: 'landlord',
+      cell: ({ row }) => (
         <div>
-          <Text strong>{record.landlordName}</Text>
-          <div style={{ fontSize: '12px', color: '#999' }}>
-            {record.landlordEmail}
+          <div className="font-semibold">{row.original.landlordName}</div>
+          <div className="text-sm text-gray-500">
+            {row.original.landlordEmail}
           </div>
         </div>
       ),
     },
-    customizeColumn(STANDARD_COLUMNS.TYPE, {
-      title: 'Document Type',
-      dataIndex: 'documentType',
-      render: (type) => {
-        const docType = DOCUMENT_TYPES.find(dt => dt.value === type);
-        return docType?.label || type;
-      },
-    }),
-    customizeColumn(STANDARD_COLUMNS.PROPERTY_NAME, {
-      title: 'Property',
-      dataIndex: 'property',
-      render: (property) => property ? property.propertyName || property.addressLine1 : '-',
-    }),
-    customizeColumn(STANDARD_COLUMNS.STATUS, {
-      render: (status) => renderStatus(status, { customColors: STATUS_COLORS }),
-    }),
-    customizeColumn(STANDARD_COLUMNS.UPLOADED_DATE, {
-      render: (_, record) => renderDate(record.uploadedAt),
-    }),
     {
-      ...STANDARD_COLUMNS.ACTIONS,
-      render: (_, record) => (
-        <Space>
+      header: 'Document Type',
+      accessorKey: 'documentType',
+      cell: ({ row }) => {
+        const docType = DOCUMENT_TYPES.find(dt => dt.value === row.original.documentType);
+        return docType?.label || row.original.documentType;
+      },
+    },
+    {
+      header: 'Property',
+      accessorKey: 'property',
+      cell: ({ row }) => row.original.property ? (row.original.property.propertyName || row.original.property.addressLine1) : '-',
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ row }) => renderStatus(row.original.status, { customColors: STATUS_COLORS }),
+    },
+    {
+      header: 'Uploaded',
+      accessorKey: 'uploadedAt',
+      cell: ({ row }) => renderDate(row.original.uploadedAt),
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
           <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDocument(record)}
+            color="light"
+            onClick={() => handleViewDocument(row.original)}
           >
+            <HiEye className="mr-2 h-4 w-4" />
             View
           </Button>
-          {record.status === 'PENDING' && (
+          {row.original.status === 'PENDING' && (
             <>
               <Button
-                type="link"
-                icon={<CheckOutlined />}
-                onClick={() => handleVerifyClick(record)}
-                style={{ color: '#52c41a' }}
+                color="success"
+                onClick={() => handleVerifyClick(row.original)}
               >
+                <HiCheck className="mr-2 h-4 w-4" />
                 Verify
               </Button>
               <Button
-                type="link"
-                icon={<StopOutlined />}
-                onClick={() => handleRejectClick(record)}
-                danger
+                color="failure"
+                onClick={() => handleRejectClick(row.original)}
               >
+                <HiX className="mr-2 h-4 w-4" />
                 Reject
               </Button>
             </>
           )}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -250,24 +252,24 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
     {
       title: 'Total Documents',
       value: stats.total,
-      prefix: <FileOutlined />,
+      prefix: <HiDocument className="h-5 w-5" />,
     },
     {
       title: 'Pending Review',
       value: stats.pending,
-      prefix: <ClockCircleOutlined />,
+      prefix: <HiClock className="h-5 w-5" />,
       valueStyle: { color: '#faad14' },
     },
     {
       title: 'Verified',
       value: stats.verified,
-      prefix: <CheckCircleOutlined />,
+      prefix: <HiCheckCircle className="h-5 w-5" />,
       valueStyle: { color: '#52c41a' },
     },
     {
       title: 'Rejected',
       value: stats.rejected,
-      prefix: <CloseCircleOutlined />,
+      prefix: <HiXCircle className="h-5 w-5" />,
       valueStyle: { color: '#ff4d4f' },
     },
   ];
@@ -277,7 +279,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
       key: 'status',
       label: 'Status',
       type: 'select',
-      options: [
+      options: >{
         { label: 'All Status', value: 'all' },
         { label: 'Pending', value: 'PENDING' },
         { label: 'Verified', value: 'VERIFIED' },
@@ -288,7 +290,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
       key: 'landlord',
       label: 'Landlord',
       type: 'select',
-      options: [
+      options: >{
         { label: 'All Landlords', value: 'all' },
         ...landlords.map(landlord => ({
           label: landlord.name,
@@ -305,7 +307,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
 
   return (
     <PageLayout
-      headerTitle={<><FileOutlined /> Property Ownership Verification</>}
+      headerTitle={<><HiDocument className="inline mr-2" /> Property Ownership Verification</>}
       stats={statsData}
       statsCols={4}
       contentStyle={{ maxWidth: 1400, margin: '0 auto', padding: 0, display: 'flex', flexDirection: 'column' }}
@@ -331,15 +333,16 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
       {/* Documents Table */}
       <TableWrapper>
         {filteredVerifications.length === 0 ? (
-          <Empty
-            description="No verification documents found"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          <EmptyState
+            icon={<HiDocument className="h-12 w-12 text-gray-400" />}
+            title="No verification documents found"
+            description="No verification documents match the current filters"
           />
         ) : (
-          <Table
-            dataSource={filteredVerifications}
+          <FlowbiteTable
+            data={filteredVerifications}
             columns={columns}
-            rowKey="id"
+            keyField="id"
             pagination={{ pageSize: 20 }}
           />
         )}
@@ -347,236 +350,215 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
 
       {/* View Document Modal */}
       <Modal
-        title="Verification Document Details"
-        open={viewModalVisible}
-        onCancel={() => {
-          closeViewModal();
-          // selectedVerification is managed by useModalState;
-        }}
-        footer={[
-          selectedVerification?.status === 'PENDING' && (
-            <Button
-              key="reject"
-              danger
-              icon={<StopOutlined />}
-              onClick={() => {
-                closeViewModal();
-                handleRejectClick(selectedVerification);
-              }}
-            >
-              Reject
-            </Button>
-          ),
-          selectedVerification?.status === 'PENDING' && (
-            <Button
-              key="verify"
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => {
-                closeViewModal();
-                handleVerifyClick(selectedVerification);
-              }}
-            >
-              Verify
-            </Button>
-          ),
-          <Button
-            key="close"
-            onClick={() => {
-              closeViewModal();
-              // selectedVerification is managed by useModalState;
-            }}
-          >
-            Close
-          </Button>,
-        ]}
-        width={800}
+        show={viewModalVisible}
+        onClose={closeViewModal}
+        size="xl"
       >
-        {selectedVerification && (
-          <div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>Landlord:</Text>
-                <div>{selectedVerification.landlordName}</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>
-                  {selectedVerification.landlordEmail}
-                </div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Status:</Text>
+        <Modal.Header>Verification Document Details</Modal.Header>
+        <Modal.Body>
+          {selectedVerification && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Tag icon={STATUS_ICONS[selectedVerification.status]} color={STATUS_COLORS[selectedVerification.status]}>
-                    {selectedVerification.status}
-                  </Tag>
+                  <div className="font-semibold mb-1">Landlord:</div>
+                  <div>{selectedVerification.landlordName}</div>
+                  <div className="text-sm text-gray-500">
+                    {selectedVerification.landlordEmail}
+                  </div>
                 </div>
-              </Col>
-            </Row>
-
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>Document Type:</Text>
                 <div>
-                  {DOCUMENT_TYPES.find(dt => dt.value === selectedVerification.documentType)?.label || selectedVerification.documentType}
+                  <div className="font-semibold mb-1">Status:</div>
+                  <div>
+                    <Badge color={STATUS_COLORS[selectedVerification.status} icon={STATUS_ICONS[selectedVerification.status}>
+                      {selectedVerification.status}
+                    </Badge>
+                  </div>
                 </div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Uploaded:</Text>
-                <div>{new Date(selectedVerification.uploadedAt).toLocaleString()}</div>
-              </Col>
-            </Row>
+              </div>
 
-            {selectedVerification.property && (
-              <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={24}>
-                  <Text strong>Property:</Text>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="font-semibold mb-1">Document Type:</div>
+                  <div>
+                    {DOCUMENT_TYPES.find(dt => dt.value === selectedVerification.documentType)?.label || selectedVerification.documentType}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold mb-1">Uploaded:</div>
+                  <div>{new Date(selectedVerification.uploadedAt).toLocaleString()}</div>
+                </div>
+              </div>
+
+              {selectedVerification.property && (
+                <div>
+                  <div className="font-semibold mb-1">Property:</div>
                   <div>
                     {selectedVerification.property.propertyName || selectedVerification.property.addressLine1}
                   </div>
-                </Col>
-              </Row>
-            )}
+                </div>
+              )}
 
-            {selectedVerification.documentNumber && (
-              <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={12}>
-                  <Text strong>Document Number:</Text>
-                  <div>{selectedVerification.documentNumber}</div>
-                </Col>
-                {selectedVerification.issuedBy && (
-                  <Col span={12}>
-                    <Text strong>Issued By:</Text>
-                    <div>{selectedVerification.issuedBy}</div>
-                  </Col>
-                )}
-              </Row>
-            )}
-
-            {selectedVerification.notes && (
-              <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={24}>
-                  <Text strong>Notes from Landlord:</Text>
-                  <div>{selectedVerification.notes}</div>
-                </Col>
-              </Row>
-            )}
-
-            {selectedVerification.status === 'VERIFIED' && (
-              <Alert
-                message="Verified"
-                description={
+              {selectedVerification.documentNumber && (
+                <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <div className="font-semibold mb-1">Document Number:</div>
+                    <div>{selectedVerification.documentNumber}</div>
+                  </div>
+                  {selectedVerification.issuedBy && (
+                    <div>
+                      <div className="font-semibold mb-1">Issued By:</div>
+                      <div>{selectedVerification.issuedBy}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedVerification.notes && (
+                <div>
+                  <div className="font-semibold mb-1">Notes from Landlord:</div>
+                  <div>{selectedVerification.notes}</div>
+                </div>
+              )}
+
+              {selectedVerification.status === 'VERIFIED' && (
+                <Alert color="success">
+                  <div>
+                    <div className="font-semibold mb-2">Verified</div>
                     <div>Verified by: {selectedVerification.verifiedByName}</div>
                     <div>Verified at: {new Date(selectedVerification.verifiedAt).toLocaleString()}</div>
                     {selectedVerification.verificationNotes && (
-                      <div style={{ marginTop: 8 }}>
-                        <Text strong>Notes:</Text>
+                      <div className="mt-2">
+                        <div className="font-semibold">Notes:</div>
                         <div>{selectedVerification.verificationNotes}</div>
                       </div>
                     )}
                   </div>
-                }
-                type="success"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
+                </Alert>
+              )}
 
-            {selectedVerification.status === 'REJECTED' && (
-              <Alert
-                message="Rejected"
-                description={
+              {selectedVerification.status === 'REJECTED' && (
+                <Alert color="failure">
                   <div>
+                    <div className="font-semibold mb-2">Rejected</div>
                     <div>Rejected by: {selectedVerification.rejectedByName}</div>
                     <div>Rejected at: {new Date(selectedVerification.rejectedAt).toLocaleString()}</div>
                     {selectedVerification.rejectionReason && (
-                      <div style={{ marginTop: 8 }}>
-                        <Text strong>Reason:</Text>
+                      <div className="mt-2">
+                        <div className="font-semibold">Reason:</div>
                         <div>{selectedVerification.rejectionReason}</div>
                       </div>
                     )}
                   </div>
-                }
-                type="error"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
+                </Alert>
+              )}
 
-            <div style={{ marginTop: 16 }}>
-              <Button
-                type="primary"
-                icon={<EyeOutlined />}
-                href={`/api/ownership-verification/files/${selectedVerification.fileName}`}
-                target="_blank"
-              >
-                View Document
-              </Button>
+              <div className="mt-4">
+                <Button
+                  color="blue"
+                  href={`/api/ownership-verification/files/${selectedVerification.fileName}`}
+                  target="_blank"
+                >
+                  <HiEye className="mr-2 h-4 w-4" />
+                  View Document
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          {selectedVerification?.status === 'PENDING' && (
+            <>
+              <Button
+                color="failure"
+                onClick={() => {
+                  closeViewModal();
+                  handleRejectClick(selectedVerification);
+                }}
+              >
+                <HiX className="mr-2 h-4 w-4" />
+                Reject
+              </Button>
+              <Button
+                color="success"
+                onClick={() => {
+                  closeViewModal();
+                  handleVerifyClick(selectedVerification);
+                }}
+              >
+                <HiCheck className="mr-2 h-4 w-4" />
+                Verify
+              </Button>
+            </>
+          )}
+          <Button color="gray" onClick={closeViewModal}>
+            Close
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Verify Modal */}
       <StandardModal
         title="Verify Document"
         open={verifyModalVisible}
-        form={verifyForm}
         loading={verifying}
         submitText="Verify"
         onCancel={() => {
           closeVerifyModal();
-          verifyForm.resetFields();
-          // selectedVerification is managed by useModalState;
+          resetVerifyForm();
         }}
         onFinish={handleVerify}
       >
-        <Alert
-          message="Verify this document"
-          description="Please review the document carefully before verifying. Once verified, the landlord will be notified."
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-        <FormTextInput
-          name="verificationNotes"
-          label="Verification Notes (Optional)"
-          textArea
-          rows={4}
-          placeholder="Add any notes about the verification (e.g., 'All information verified and matches records')"
-        />
+        <Alert color="info" className="mb-4">
+          <div>
+            <div className="font-semibold mb-2">Verify this document</div>
+            <div>Please review the document carefully before verifying. Once verified, the landlord will be notified.</div>
+          </div>
+        </Alert>
+        <div>
+          <Label htmlFor="verificationNotes" className="mb-2 block">Verification Notes (Optional)</Label>
+          <Textarea
+            id="verificationNotes"
+            rows={4}
+            placeholder="Add any notes about the verification (e.g., 'All information verified and matches records')"
+            value={verifyFormData.verificationNotes}
+            onChange={(e) => updateVerifyField('verificationNotes', e.target.value)}
+          />
+        </div>
       </StandardModal>
 
       {/* Reject Modal */}
       <StandardModal
         title="Reject Document"
         open={rejectModalVisible}
-        form={rejectForm}
         loading={rejecting}
         submitText="Reject"
+        submitColor="failure"
         onCancel={() => {
           closeRejectModal();
-          rejectForm.resetFields();
-          // selectedVerification is managed by useModalState;
+          resetRejectForm();
         }}
         onFinish={handleReject}
       >
-        <Alert
-          message="Reject this document"
-          description="Please provide a clear reason for rejection. The landlord will be notified and can re-upload the document."
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-        <FormTextInput
-          name="rejectionReason"
-          label="Rejection Reason"
-          textArea
-          rows={4}
-          required
-          placeholder="e.g., 'Property tax document is expired. Please upload current year document.'"
-        />
+        <Alert color="warning" className="mb-4">
+          <div>
+            <div className="font-semibold mb-2">Reject this document</div>
+            <div>Please provide a clear reason for rejection. The landlord will be notified and can re-upload the document.</div>
+          </div>
+        </Alert>
+        <div>
+          <Label htmlFor="rejectionReason" className="mb-2 block">
+            Rejection Reason <span className="text-red-500">*</span>
+          </Label>
+          <Textarea
+            id="rejectionReason"
+            rows={4}
+            required
+            placeholder="e.g., 'Property tax document is expired. Please upload current year document.'"
+            value={rejectFormData.rejectionReason}
+            onChange={(e) => updateRejectField('rejectionReason', e.target.value)}
+          />
+        </div>
       </StandardModal>
     </PageLayout>
   );
 }
-

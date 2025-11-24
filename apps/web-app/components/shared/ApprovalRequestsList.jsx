@@ -131,7 +131,7 @@ export default function ApprovalRequestsList() {
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
+        <Tag color={getStatusColor(status)}status}</Tag>
       ),
     },
     {
@@ -145,7 +145,7 @@ export default function ApprovalRequestsList() {
       key: 'action',
       render: (_, record) => {
         if (record.status !== 'PENDING') {
-          return <Tag color={getStatusColor(record.status)}>{record.status}</Tag>;
+          return <Tag color={getStatusColor(record.status)}record.status}</Tag>;
         }
         return (
           <Space>
@@ -270,10 +270,10 @@ export default function ApprovalRequestsList() {
               <Form.Item
                 name="reason"
                 label="Rejection Reason"
-                rules={[
+                rules={
                   { required: true, message: 'Please provide a reason for rejection' },
                   { min: 10, message: 'Reason must be at least 10 characters' },
-                ]}
+                }
               >
                 <TextArea rows={4} placeholder="Explain why you are rejecting this request..." />
               </Form.Item>

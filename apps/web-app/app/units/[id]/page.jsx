@@ -17,7 +17,7 @@ import Link from 'next/link';
 export default function UnitDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const unitId = params?.id as string;
+  const unitId = params?.id || "";
   
   const { user, loading: authLoading, hasRole } = useV2Auth();
   const { data: unit, isLoading: unitLoading } = useUnit(unitId);
@@ -32,7 +32,7 @@ export default function UnitDetailPage() {
   });
   
   // Filter work orders for this unit
-  const unitWorkOrders = workOrders?.filter((wo: any) => wo.unit_id === unitId) || [];
+  const unitWorkOrders = workOrders?.filter((wo) => wo.unit_id === unitId) || [];
   
   if (authLoading || unitLoading || propertyLoading) {
     return (
@@ -61,7 +61,7 @@ export default function UnitDetailPage() {
   const canEdit = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm');
   const canDelete = hasRole('super_admin') || hasRole('pmc_admin');
   
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -133,7 +133,7 @@ export default function UnitDetailPage() {
             </Card>
             
             <Card>
-              <h3 className="text-lg font-semibold mb-4">Active Leases ({leases?.filter((l: any) => l.status === 'active').length || 0})</h3>
+              <h3 className="text-lg font-semibold mb-4">Active Leases ({leases?.filter((l) => l.status === 'active').length || 0})</h3>
               {leasesLoading ? (
                 <Spinner />
               ) : leases && leases.length > 0 ? (
@@ -147,7 +147,7 @@ export default function UnitDetailPage() {
                     <Table.HeadCell>Actions</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {leases.map((lease: any) => (
+                    {leases.map((lease) => (
                       <Table.Row key={lease.id}>
                         <Table.Cell className="font-medium">
                           {lease.tenant_id ? (
@@ -186,7 +186,7 @@ export default function UnitDetailPage() {
                 <Spinner />
               ) : unitWorkOrders.length > 0 ? (
                 <div className="space-y-2">
-                  {unitWorkOrders.slice(0, 5).map((wo: any) => (
+                  {unitWorkOrders.slice(0, 5).map((wo) => (
                     <div key={wo.id} className="flex justify-between items-center p-3 border border-gray-200 rounded">
                       <div>
                         <p className="font-medium">{wo.title}</p>

@@ -49,7 +49,7 @@ export default function TomTomAddressAutocomplete({
     }
 
     if (!apiKey) {
-      console.error('[TomTomAddressAutocomplete] ❌ TomTom API key not found!');
+      console.error('[TomTomAddressAutocomplete] ❌ TomTom API key not found');
       console.error('[TomTomAddressAutocomplete] Please provide an API key via the apiKey prop');
       setSuggestions([]);
       return;

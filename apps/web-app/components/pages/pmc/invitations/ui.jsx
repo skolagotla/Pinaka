@@ -1,234 +1,139 @@
+/**
+ * PMC Invitations Component - Migrated to Flowbite UI + v2 FastAPI
+ * 
+ * Uses v2 API endpoints for invitation management
+ * UI converted from Ant Design to Flowbite
+ * 
+ * NOTE: Approval/rejection workflow may need additional v2 backend endpoints
+ */
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Input,
-  Space,
-  Tag,
-  Select,
-  Descriptions,
-} from 'antd';
+  Button, Modal, TextInput, Label, Select, Textarea,
+  Badge, Spinner, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell
+} from 'flowbite-react';
 import {
-  MailOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  EyeOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
-import { PageLayout, TableWrapper, StandardModal, FormTextInput, FormSelect, renderDate } from '@/components/shared';
+  HiMail, HiPlus, HiRefresh, HiEye, HiCheckCircle, HiXCircle
+} from 'react-icons/hi';
+import { PageLayout } from '@/components/shared';
 import { notify } from '@/lib/utils/notification-helper';
-import { useLoading } from '@/lib/hooks/useLoading';
 import { useModalState } from '@/lib/hooks/useModalState';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useInvitations, useCreateInvitation } from '@/lib/hooks/useV2Data';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { renderStatus, renderDate } from '@/components/shared/FlowbiteTableRenderers';
+import { v2Api } from '@/lib/api/v2-client';
 
 export default function PMCInvitationsClient({ initialInvitations = [] }) {
-  const { loading, withLoading: withLoadingFetch } = useLoading();
-  const { loading: loadingDetails, withLoading: withLoadingDetails } = useLoading();
-  const { loading: submitting, withLoading: withLoadingSubmit } = useLoading();
-  const [invitations, setInvitations] = useState(initialInvitations);
-  const { isOpen: modalVisible, open: openModal, close: closeModal, openForCreate: openModalForCreate } = useModalState();
-  const { isOpen: viewModalVisible, open: openViewModal, close: closeViewModal, editingItem: selectedInvitation, openForEdit: openViewModalForEdit } = useModalState();
-  const { isOpen: rejectModalVisible, open: openRejectModal, close: closeRejectModal, editingItem: rejectingInvitation, openForEdit: openRejectModalForEdit } = useModalState();
-  const [applicationDetails, setApplicationDetails] = useState(null);
-  const [form] = Form.useForm();
-  const [rejectForm] = Form.useForm();
+  const { user } = useV2Auth();
+  const organizationId = user?.organization_id;
   const [approvingId, setApprovingId] = useState(null);
+  const [applicationDetails, setApplicationDetails] = useState(null);
+  
+  const { isOpen: modalVisible, open: openModal, close: closeModal } = useModalState();
+  const { isOpen: viewModalVisible, open: openViewModal, close: closeViewModal } = useModalState();
+  const { isOpen: rejectModalVisible, open: openRejectModal, close: closeRejectModal } = useModalState();
+  
+  const [selectedInvitation, setSelectedInvitation] = useState(null);
+  const [rejectingInvitation, setRejectingInvitation] = useState(null);
 
-  const fetchInvitations = useCallback(async () => {
-    await withLoadingFetch(async () => {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.invitations.list({ page: 1, limit: 1000 });
-      const invitationsData = response.data?.invitations || response.data?.data || response.data || [];
-      const processedInvitations = Array.isArray(invitationsData) ? invitationsData : [];
-      console.log('[PMC Invitations] Fetched invitations:', processedInvitations.length);
-      // Log approval status for completed invitations
-      processedInvitations.forEach(inv => {
-        if (inv.status === 'completed') {
-          console.log(`[PMC Invitations] Invitation ${inv.id} (${inv.type}): approvalStatus=${inv.approvalStatus}`);
-        }
-      });
-      setInvitations(processedInvitations);
-    }).catch(err => {
-      console.error('Error fetching invitations:', err);
-      setInvitations([]);
-    });
-  }, [withLoadingFetch]);
+  // Load invitations using v2 API
+  const { data: invitationsData, isLoading, refetch } = useInvitations(organizationId);
+  const invitations = invitationsData && Array.isArray(invitationsData) ? invitationsData : (initialInvitations.length > 0 ? initialInvitations : []);
 
-  useEffect(() => {
-    // Only fetch if we don't have initial data or want to refresh
-    if (initialInvitations.length === 0) {
-      fetchInvitations();
-    }
-  }, [fetchInvitations, initialInvitations.length]);
+  const createInvitation = useCreateInvitation();
 
-  const handleCreate = async (values) => {
-    await withLoadingSubmit(async () => {
-      console.log('[PMC Invitations] Sending invitation:', values);
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.invitations.create({
-        email: values.email,
-        type: values.type || 'tenant',
-        metadata: {
-          firstName: values.firstName,
-          lastName: values.lastName,
-          phone: values.phone,
-        },
-        propertyId: values.propertyId || null,
-        unitId: values.unitId || null,
-      });
-      console.log('[PMC Invitations] API Response:', response);
+  const invitationForm = useFormState({
+    email: '',
+    role_name: 'tenant',
+    expires_in_days: 7,
+  });
+
+  const rejectForm = useFormState({
+    reason: '',
+  });
+
+  const handleCreate = async () => {
+    try {
+      const values = invitationForm.getFieldsValue();
       
+      if (!values.email || !values.role_name) {
+        notify.error('Email and role are required');
+        return;
+      }
+
+      await createInvitation.mutateAsync({
+        organization_id: organizationId,
+        email: values.email,
+        role_name: values.role_name,
+        expires_in_days: values.expires_in_days || 7,
+      });
+
       notify.success('Invitation sent successfully');
       closeModal();
-      form.resetFields();
-      await fetchInvitations();
-    }).catch(err => {
-      console.error('[PMC Invitations] Network Error:', err);
-      notify.error('Failed to send invitation. Please check your connection and try again.');
-    });
+      invitationForm.reset();
+      refetch();
+    } catch (error) {
+      console.error('[PMC Invitations] Error creating invitation:', error);
+      notify.error(error.message || 'Failed to send invitation');
+    }
   };
 
   const handleViewDetails = useCallback(async (invitation) => {
-    if (!invitation || invitation.status !== 'completed') {
-      notify.warning('Only completed invitations can be viewed');
+    if (!invitation || invitation.status !== 'accepted') {
+      notify.warning('Only accepted invitations can be viewed');
       return;
     }
 
-    openViewModalForEdit(invitation);
+    setSelectedInvitation(invitation);
+    openViewModal();
 
-    await withLoadingDetails(async () => {
-      // Fetch application details using v1Api
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.getInvitationApplication(invitation.id);
-      
-      if (data.success && data.data) {
-        setApplicationDetails(data.data);
-      } else {
-        notify.error(data.error || 'Failed to fetch application details');
-        setApplicationDetails(null);
-      }
-    }).catch(err => {
-      console.error('Error fetching application details:', err);
-      notify.error('Failed to fetch application details');
-      setApplicationDetails(null);
+    // TODO: Fetch application details - may need additional v2 endpoint
+    // For now, just show invitation details
+    setApplicationDetails({
+      invitation: invitation,
+      // Additional details would come from a separate endpoint
     });
-  }, [withLoadingDetails]);
+  }, []);
 
   const handleApprove = useCallback(async (invitationId) => {
     if (approvingId) {
-      console.log('[PMC Invitations] Already approving, ignoring click');
       return; // Prevent multiple clicks
     }
     
     try {
       setApprovingId(invitationId);
-      console.log('[PMC Invitations] Approve clicked for invitation:', invitationId);
-      const invitation = invitations.find((inv) => inv.id === invitationId);
-      console.log('[PMC Invitations] Found invitation:', invitation);
       
-      if (!invitation) {
-        notify.error('Invitation not found');
-        setApprovingId(null);
-        return;
-      }
+      // TODO: Implement approval endpoint in v2 API
+      // For now, this is a placeholder
+      notify.warning('Approval functionality requires additional v2 backend endpoint');
       
-      if (invitation.status !== 'completed') {
-        notify.warning('Only completed invitations can be approved');
-        setApprovingId(null);
-        return;
-      }
-      
-      // Check if already approved or rejected
-      // First check the invitation data, then fetch fresh status if needed
-      console.log('[PMC Invitations] Invitation approval status from data:', invitation.approvalStatus);
-      console.log('[PMC Invitations] Full invitation object:', JSON.stringify(invitation, null, 2));
-      
-      // If approval status is missing, try to fetch it from the application details API
-      let currentApprovalStatus = invitation.approvalStatus;
-      if (!currentApprovalStatus && invitation.status === 'completed') {
-        try {
-          console.log('[PMC Invitations] Approval status missing, fetching from application details...');
-          const { v1Api } = await import('@/lib/api/v1-client');
-          const statusData = await v1Api.specialized.getInvitationApplication(invitationId);
-          currentApprovalStatus = statusData.data?.approvalStatus || statusData.approvalStatus;
-          console.log('[PMC Invitations] Fetched approval status:', currentApprovalStatus);
-        } catch (statusError) {
-          console.warn('[PMC Invitations] Could not fetch approval status:', statusError);
-        }
-      }
-      
-      if (currentApprovalStatus === 'APPROVED') {
-        console.log('[PMC Invitations] Application already approved, skipping API call');
-        notify.warning('This application has already been approved');
-        setApprovingId(null);
-        // Refresh to ensure UI is up to date
-        await fetchInvitations();
-        return;
-      }
-      
-      if (currentApprovalStatus === 'REJECTED') {
-        console.log('[PMC Invitations] Application already rejected, skipping API call');
-        notify.warning('This application has already been rejected');
-        setApprovingId(null);
-        return;
-      }
-
-      console.log('[PMC Invitations] Approval status is PENDING, proceeding with approval...');
-      console.log('[PMC Invitations] Calling approve API...');
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.approveApplication(invitationId);
-      console.log('[PMC Invitations] Approve API response data:', data);
-      
-      if (data.success) {
-        notify.success('Application approved successfully');
-        await fetchInvitations();
-      } else {
-        const errorMsg = data.error || data.message || 'Failed to approve application';
-        console.error('[PMC Invitations] Approve failed:', errorMsg);
-        
-        // Handle specific error cases
-        if (errorMsg.includes('already approved')) {
-          notify.warning('This application has already been approved');
-          // Refresh to update the UI
-          await fetchInvitations();
-        } else {
-          notify.error(errorMsg);
-        }
-      }
+      // Placeholder for future implementation:
+      // await v2Api.approveInvitationApplication(invitationId);
+      // notify.success('Application approved successfully');
+      // refetch();
     } catch (err) {
       console.error('[PMC Invitations] Approve error:', err);
       notify.error(`Failed to approve application: ${err.message || 'Unknown error'}`);
     } finally {
       setApprovingId(null);
     }
-  }, [invitations, fetchInvitations, approvingId]);
+  }, [approvingId]);
 
   const handleReject = useCallback(async (invitationId, reason) => {
     try {
-      const invitation = invitations.find((inv) => inv.id === invitationId);
-      if (!invitation || invitation.status !== 'completed') {
-        notify.warning('Only completed invitations can be rejected');
-        return;
-      }
-
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.rejectApplication(invitationId, reason);
-      if (data.success) {
-        notify.success('Application rejected');
-        fetchInvitations();
-      } else {
-        notify.error(data.error || 'Failed to reject application');
-      }
+      // TODO: Implement rejection endpoint in v2 API
+      notify.warning('Rejection functionality requires additional v2 backend endpoint');
+      
+      // Placeholder for future implementation:
+      // await v2Api.rejectInvitationApplication(invitationId, reason);
+      // notify.success('Application rejected');
+      // refetch();
     } catch (err) {
       notify.error('Failed to reject application');
     }
-  }, [invitations, fetchInvitations]);
+  }, []);
 
   const columns = useMemo(() => [
     {
@@ -237,331 +142,291 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
       key: 'email',
     },
     {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => type ? <Tag color="blue">{type.toUpperCase()}</Tag> : <Tag>N/A</Tag>,
+      title: 'Role',
+      dataIndex: 'role_name',
+      key: 'role_name',
+      render: (role) => role ? <Badge color="blue">{role.toUpperCase()}</Badge> : <Badge color="gray">N/A</Badge>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        if (!status) return <Tag>N/A</Tag>;
-        // Map invitation statuses to standard status names
+        if (!status) return <Badge color="gray">N/A</Badge>;
         const statusMap = {
           pending: 'Pending',
-          sent: 'In Progress',
-          opened: 'In Progress',
-          completed: 'Completed',
-          expired: 'Cancelled',
+          accepted: 'Accepted',
+          expired: 'Expired',
           cancelled: 'Cancelled'
         };
         return renderStatus(statusMap[status] || status, {
           customColors: {
-            'Pending': 'orange',
-            'In Progress': 'blue',
-            'Completed': 'green',
-            'Cancelled': 'red',
-            'Expired': 'default'
+            'Pending': 'warning',
+            'Accepted': 'success',
+            'Expired': 'failure',
+            'Cancelled': 'gray'
           }
         });
       },
     },
     {
       title: 'Expires',
-      dataIndex: 'expiresAt',
-      key: 'expiresAt',
-      render: (_, record) => renderDate(record.expiresAt),
+      dataIndex: 'expires_at',
+      key: 'expires_at',
+      render: (_, record) => renderDate(record.expires_at),
     },
     {
       title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (_, record) => renderDate(record.createdAt),
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (_, record) => renderDate(record.created_at),
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_text, record) => {
-        if (record?.status === 'completed') {
-          const isApproved = record?.approvalStatus === 'APPROVED';
-          const isRejected = record?.approvalStatus === 'REJECTED';
-          
+        if (record?.status === 'accepted') {
+          // TODO: Add approval/rejection when backend endpoints are available
           return (
-            <Space>
+            <div className="flex gap-2">
               <Button
-                icon={<EyeOutlined />}
-                size="small"
+                size="xs"
+                color="light"
                 onClick={() => handleViewDetails(record)}
                 title="View Details"
-              />
-              {!isApproved && !isRejected && (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<CheckCircleOutlined />}
-                    size="small"
-                    loading={approvingId === record.id}
-                    disabled={approvingId !== null || record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED'}
-                    onClick={() => {
-                      // Double-check before proceeding
-                      if (record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED') {
-                        console.log('[PMC Invitations] Button clicked but status is:', record.approvalStatus, '- refreshing list');
-                        notify.warning(`This application is already ${record.approvalStatus.toLowerCase()}`);
-                        fetchInvitations();
-                        return;
-                      }
-                      console.log('[PMC Invitations] Approve button clicked for:', record.id);
-                      handleApprove(record.id);
-                    }}
-                    title="Approve"
-                  />
-                  <Button
-                    danger
-                    icon={<CloseCircleOutlined />}
-                    size="small"
-                    disabled={record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED'}
-                    onClick={() => {
-                      // Double-check before proceeding
-                      if (record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED') {
-                        console.log('[PMC Invitations] Reject button clicked but status is:', record.approvalStatus, '- refreshing list');
-                        notify.warning(`This application is already ${record.approvalStatus.toLowerCase()}`);
-                        fetchInvitations();
-                        return;
-                      }
-                      openRejectModalForEdit(record);
-                    }}
-                    title="Reject"
-                  />
-                </>
-              )}
-              {isApproved && (
-                <Tag color="green" icon={<CheckCircleOutlined />}>
-                  Approved
-                </Tag>
-              )}
-              {isRejected && (
-                <Tag color="red" icon={<CloseCircleOutlined />}>
-                  Rejected
-                </Tag>
-              )}
-            </Space>
+              >
+                <HiEye className="h-4 w-4" />
+              </Button>
+              {/* Approval/rejection buttons will be added when backend endpoints are ready */}
+            </div>
           );
         }
-        return <span style={{ color: '#999' }}>-</span>;
+        return <span className="text-gray-400">—</span>;
       },
     },
-  ], [handleApprove, handleViewDetails, fetchInvitations]);
+  ], [handleViewDetails]);
 
   return (
     <PageLayout
-      headerTitle={<><MailOutlined /> Invitations</>}
-      headerActions={[
-        <Button key="refresh" icon={<ReloadOutlined />} onClick={fetchInvitations} size="small">
-          Refresh
-        </Button>,
-        <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openModalForCreate} size="small">
-          Send Invitation
-        </Button>
+      title="Invitations"
+      actions={[
+        {
+          key: 'refresh',
+          icon: <HiRefresh className="h-5 w-5" />,
+          label: 'Refresh',
+          onClick: () => refetch(),
+        },
+        {
+          key: 'add',
+          icon: <HiPlus className="h-5 w-5" />,
+          label: 'Send Invitation',
+          type: 'primary',
+          onClick: openModal,
+        }
       ]}
     >
-      <TableWrapper>
-        <Table
-          columns={columns}
-          dataSource={invitations}
-          loading={loading}
-          rowKey={(record) => record?.id || 'unknown'}
-          pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (total) => `Total ${total} invitations` }}
-          size="middle"
-        />
-      </TableWrapper>
+      <div className="overflow-x-auto shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Spinner size="xl" />
+          </div>
+        ) : (
+          <Table hoverable>
+            <TableHead className="bg-gray-50 dark:bg-gray-800">
+              <TableRow>
+                {columns.map((col, idx) => (
+                  <TableHeadCell key={idx}>
+                    {col.title}
+                  </TableHeadCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+              {invitations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-center py-8 text-gray-500">
+                    No invitations found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                invitations.map((record, rowIdx) => {
+                  const key = record?.id || rowIdx;
+                  return (
+                    <TableRow key={key} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      {columns.map((col, colIdx) => {
+                        const value = col.dataIndex ? record[col.dataIndex] : null;
+                        return (
+                           <TableCell key={colIdx}
+                            {col.render ? col.render(value, record, rowIdx) : value}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </div>
 
-      <StandardModal
-        title="Send Invitation"
-        open={modalVisible}
-        form={form}
-        loading={submitting}
-        submitText="Send"
-        onCancel={() => {
-          if (!submitting) {
-            closeModal();
-            form.resetFields();
-          }
-        }}
-        onFinish={async (values) => {
-          await handleCreate(values);
-        }}
-        initialValues={{ type: 'tenant' }}
-      >
-        <FormSelect
-          name="type"
-          label="Invitation Type"
-          required
-          options={[
-            { label: 'Tenant', value: 'tenant' },
-            { label: 'Landlord', value: 'landlord' }
-          ]}
-        />
-        <FormTextInput
-          name="email"
-          label="Email"
-          type="email"
-          required
-          placeholder="email@example.com"
-        />
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
+      {/* Create Invitation Modal */}
+      <Modal show={modalVisible} onClose={closeModal} size="md">
+        <Modal.Header>Send Invitation</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="role_name" className="mb-2 block">
+                Invitation Type <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="role_name"
+                value={invitationForm.getFieldValue('role_name') || 'tenant'}
+                onChange={(e) => invitationForm.setField('role_name', e.target.value)}
+                required
+              >
+                <option value="tenant">Tenant</option>
+                <option value="landlord">Landlord</option>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="email" className="mb-2 block">
+                Email <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="email"
+                type="email"
+                value={invitationForm.getFieldValue('email') || ''}
+                onChange={(e) => invitationForm.setField('email', e.target.value)}
+                placeholder="email@example.com"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="expires_in_days" className="mb-2 block">
+                Expires In (Days)
+              </Label>
+              <TextInput
+                id="expires_in_days"
+                type="number"
+                value={invitationForm.getFieldValue('expires_in_days') || 7}
+                onChange={(e) => invitationForm.setField('expires_in_days', parseInt(e.target.value) || 7)}
+                min={1}
+                max={30}
+              />
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={closeModal} color="gray">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreate} 
+            color="blue"
+            disabled={createInvitation.isPending}
           >
-            {({ getFieldValue }) => {
-              const type = getFieldValue('type');
-              if (type === 'tenant') {
-                return (
-                  <>
-                    <FormTextInput
-                      name="firstName"
-                      label="First Name (Optional)"
-                    />
-                    <FormTextInput
-                      name="lastName"
-                      label="Last Name (Optional)"
-                    />
-                    <FormTextInput
-                      name="phone"
-                      label="Phone (Optional)"
-                    />
-                  </>
-                );
-              } else if (type === 'landlord') {
-                return (
-                  <>
-                    <FormTextInput
-                      name="firstName"
-                      label="First Name (Optional)"
-                    />
-                    <FormTextInput
-                      name="lastName"
-                      label="Last Name (Optional)"
-                    />
-                    <FormTextInput
-                      name="phone"
-                      label="Phone (Optional)"
-                    />
-                  </>
-                );
-              }
-              return null;
-            }}
-          </Form.Item>
-      </StandardModal>
-
-      <StandardModal
-        title="Reject Application"
-        open={rejectModalVisible}
-        form={rejectForm}
-        loading={false}
-        submitText="Reject"
-        onCancel={() => {
-          closeRejectModal();
-          rejectForm.resetFields();
-        }}
-        onFinish={(values) => {
-          if (rejectingInvitation) {
-            handleReject(rejectingInvitation.id, values.reason);
-            closeRejectModal();
-            rejectForm.resetFields();
-          }
-        }}
-      >
-        <FormTextInput
-          name="reason"
-          label="Rejection Reason"
-          textArea
-          rows={4}
-          required
-          placeholder="Explain why this application is being rejected..."
-        />
-      </StandardModal>
-
-      <Modal
-        title="Application Details"
-        open={viewModalVisible}
-        onCancel={() => {
-          closeViewModal();
-          setApplicationDetails(null);
-        }}
-        footer={[
-          <Button key="close" onClick={() => {
-            closeViewModal();
-            setApplicationDetails(null);
-          }}>
-            Close
-          </Button>,
-        ]}
-        width={800}
-      >
-        {loadingDetails ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>
-        ) : applicationDetails ? (
-          <Descriptions bordered column={2}>
-            {selectedInvitation?.type === 'landlord' && applicationDetails.user ? (
+            {createInvitation.isPending ? (
               <>
-                <Descriptions.Item label="Landlord ID">{applicationDetails.user.landlordId || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Email">{applicationDetails.user.email || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="First Name">{applicationDetails.user.firstName || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Last Name">{applicationDetails.user.lastName || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Phone">{applicationDetails.user.phone || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Address Line 1">{applicationDetails.user.addressLine1 || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Address Line 2">{applicationDetails.user.addressLine2 || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="City">{applicationDetails.user.city || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Province/State">{applicationDetails.user.provinceState || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Postal/Zip Code">{applicationDetails.user.postalZip || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Country (Legacy)">{applicationDetails.user.country || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Status">
-                  <Tag color={applicationDetails.approvalStatus === 'APPROVED' ? 'green' : applicationDetails.approvalStatus === 'REJECTED' ? 'red' : 'orange'}>
-                    {applicationDetails.approvalStatus}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Created At">
-                  {applicationDetails.user.createdAt ? new Date(applicationDetails.user.createdAt).toLocaleString() : 'N/A'}
-                </Descriptions.Item>
-                {applicationDetails.user.rejectionReason && (
-                  <Descriptions.Item label="Rejection Reason" span={2}>
-                    {applicationDetails.user.rejectionReason}
-                  </Descriptions.Item>
-                )}
-              </>
-            ) : selectedInvitation?.type === 'tenant' && applicationDetails.user ? (
-              <>
-                <Descriptions.Item label="Tenant ID">{applicationDetails.user.tenantId || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Email">{applicationDetails.user.email || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="First Name">{applicationDetails.user.firstName || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Last Name">{applicationDetails.user.lastName || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Phone">{applicationDetails.user.phone || 'N/A'}</Descriptions.Item>
-                <Descriptions.Item label="Status">
-                  <Tag color={applicationDetails.approvalStatus === 'APPROVED' ? 'green' : applicationDetails.approvalStatus === 'REJECTED' ? 'red' : 'orange'}>
-                    {applicationDetails.approvalStatus}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Created At">
-                  {applicationDetails.user.createdAt ? new Date(applicationDetails.user.createdAt).toLocaleString() : 'N/A'}
-                </Descriptions.Item>
-                {applicationDetails.user.rejectionReason && (
-                  <Descriptions.Item label="Rejection Reason" span={2}>
-                    {applicationDetails.user.rejectionReason}
-                  </Descriptions.Item>
-                )}
+                <Spinner size="sm" className="mr-2" />
+                Sending...
               </>
             ) : (
-              <Descriptions.Item span={2}>No details available</Descriptions.Item>
+              'Send Invitation'
             )}
-          </Descriptions>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '40px' }}>No application details found</div>
-        )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* View Details Modal */}
+      <Modal show={viewModalVisible} onClose={closeViewModal} size="lg">
+        <Modal.Header>Application Details</Modal.Header>
+        <Modal.Body>
+          {applicationDetails ? (
+            <div className="space-y-4">
+              {selectedInvitation && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-semibold">Email</Label>
+                      <p className="text-gray-700 dark:text-gray-300">{selectedInvitation.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">Role</Label>
+                      <p className="text-gray-700 dark:text-gray-300">{selectedInvitation.role_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">Status</Label>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {renderStatus(selectedInvitation.status || 'N/A')}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">Created</Label>
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {renderDate(selectedInvitation.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>Note:</strong> Full application details require additional v2 backend endpoints.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No application details found
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={closeViewModal} color="gray">
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Reject Modal */}
+      <Modal show={rejectModalVisible} onClose={closeRejectModal} size="md">
+        <Modal.Header>Reject Application</Modal.Header>
+        <Modal.Body>
+          <div>
+            <Label htmlFor="reason" className="mb-2 block">
+              Rejection Reason <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="reason"
+              rows={4}
+              value={rejectForm.getFieldValue('reason') || ''}
+              onChange={(e) => rejectForm.setField('reason', e.target.value)}
+              placeholder="Explain why this application is being rejected..."
+              required
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={closeRejectModal} color="gray">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              if (rejectingInvitation) {
+                handleReject(rejectingInvitation.id, rejectForm.getFieldValue('reason'));
+                closeRejectModal();
+                rejectForm.reset();
+              }
+            }}
+            color="failure"
+          >
+            Reject
+          </Button>
+        </Modal.Footer>
       </Modal>
     </PageLayout>
   );
 }
-

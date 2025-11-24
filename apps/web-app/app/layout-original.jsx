@@ -283,7 +283,7 @@ export default async function RootLayout({ children }) {
             userTheme={userTheme} 
             userTimezone={userTimezone}
             userRole={userRole}
-            initialProperties={[]} // Properties will be fetched client-side
+            initialProperties={[} // Properties will be fetched client-side
             useAuth0={useAuth0}
           >
             <LayoutClient 

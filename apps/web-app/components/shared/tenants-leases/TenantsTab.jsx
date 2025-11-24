@@ -2,18 +2,19 @@
  * TenantsTab Component
  * 
  * Tab component for managing tenants
- * Extracted from tenants-leases/ui.jsx for better code organization
+ * Converted to Flowbite UI + v2 API
  */
 
 import React, { useMemo } from 'react';
-import { Table, Card, Empty, Space, Button, Tooltip, Popconfirm, Tag, Typography } from 'antd';
-import { UserOutlined, EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { Button, Badge, Spinner } from 'flowbite-react';
+import { HiUser, HiPencil, HiTrash, HiPlus } from 'react-icons/hi';
 import { useResizableTable, configureTableColumns, useBulkOperations, useSearch } from '@/lib/hooks';
 import { formatPhoneNumber } from '@/lib/utils/formatters';
 import BulkActionsToolbar from '../BulkActionsToolbar';
 import { PageLayout, TableWrapper, EmptyState } from '../';
+import FlowbiteTable from '../FlowbiteTable';
+import FlowbitePopconfirm from '../FlowbitePopconfirm';
+import { ActionButton } from '../buttons';
 
 /**
  * Memoized Tenants Tab
@@ -60,7 +61,7 @@ const TenantsTab = React.memo(({
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `tenants-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `tenants-${new Date().toISOString().split('T')[0].csv`;
         a.click();
         window.URL.revokeObjectURL(url);
         return true;
@@ -71,17 +72,17 @@ const TenantsTab = React.memo(({
 
   // Table columns
   const columns = useMemo(() => {
-    return configureTableColumns([
+    return configureTableColumns(>{
       {
         title: 'Name',
         key: 'name',
         dataIndex: 'name',
         width: 200,
         render: (_, tenant) => (
-          <Space>
-            <UserOutlined style={{ color: '#1890ff' }} />
-            <Text strong>{tenant.firstName} {tenant.lastName}</Text>
-          </Space>
+          <div className="flex items-center gap-2">
+            <HiUser className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold">{tenant.firstName} {tenant.lastName}</span>
+          </div>
         ),
       },
       {
@@ -89,14 +90,14 @@ const TenantsTab = React.memo(({
         key: 'email',
         dataIndex: 'email',
         width: 200,
-        render: (email) => <Text>{email}</Text>,
+        render: (email) => <span>{email}</span>,
       },
       {
         title: 'Phone',
         key: 'phone',
         dataIndex: 'phone',
         width: 150,
-        render: (phone) => phone ? <Text>{formatPhoneNumber(phone)}</Text> : <Text type="secondary">—</Text>,
+        render: (phone) => phone ? <span>{formatPhoneNumber(phone)}</span> : <span className="text-gray-400">—</span>,
       },
       {
         title: 'Status',
@@ -106,9 +107,9 @@ const TenantsTab = React.memo(({
         render: (_, tenant) => {
           const hasActiveLease = tenant.leaseTenants?.some(lt => lt.lease?.status === 'Active');
           return hasActiveLease ? (
-            <Tag color="success">Active Lease</Tag>
+            <Badge color="success">Active Lease</Badge>
           ) : (
-            <Tag color="default">No Active Lease</Tag>
+            <Badge color="gray">No Active Lease</Badge>
           );
         },
       },
@@ -117,27 +118,26 @@ const TenantsTab = React.memo(({
         key: 'actions',
         width: 150,
         render: (_, tenant) => (
-          <Space size="small">
-            <Tooltip title="Edit Tenant">
-              <Button 
-                type="text" 
-                icon={<EditOutlined />} 
-                onClick={() => onEditTenant && onEditTenant(tenant)}
-              />
-            </Tooltip>
-            <Popconfirm
+          <div className="flex items-center gap-2">
+            <ActionButton
+              action="edit"
+              onClick={() => onEditTenant && onEditTenant(tenant)}
+              tooltip="Edit Tenant"
+            />
+            <FlowbitePopconfirm
               title="Delete tenant?"
               description="This action cannot be undone."
               onConfirm={() => onDeleteTenant && onDeleteTenant(tenant.id)}
               okText="Yes"
               cancelText="No"
-              okButtonProps={{ danger: true }}
+              danger={true}
             >
-              <Tooltip title="Delete Tenant">
-                <Button type="text" danger icon={<DeleteOutlined />} />
-              </Tooltip>
-            </Popconfirm>
-          </Space>
+              <ActionButton
+                action="delete"
+                tooltip="Delete Tenant"
+              />
+            </FlowbitePopconfirm>
+          </div>
         ),
       },
     ]);
@@ -157,30 +157,29 @@ const TenantsTab = React.memo(({
       onSearchClear={search.clearSearch}
       searchPlaceholder={searchPlaceholder}
       stats={stats}
-      actions={[
+      actions={
         {
           key: 'refresh',
-          icon: <span style={{ fontSize: 16 }}>↻</span>,
+          icon: <span className="text-base">↻</span>,
           tooltip: 'Refresh',
           onClick: onRefresh,
         },
         {
           key: 'add',
-          icon: <PlusOutlined />,
+          icon: <HiPlus className="w-5 h-5" />,
           tooltip: 'Add Tenant',
           onClick: onAddTenant,
           type: 'primary'
         }
-      ]}
+      }
     >
       {(!tenants || tenants.length === 0) && !loading ? (
         <EmptyState
-          icon={<UserOutlined />}
+          icon={<HiUser className="w-12 h-12 text-gray-400" />}
           description={
             <div>
-              <Text strong type="secondary">No tenants yet</Text>
-              <br />
-              <Text type="secondary">Click "Add Tenant" to add your first tenant</Text>
+              <p className="font-semibold text-gray-500">No tenants yet</p>
+              <p className="text-gray-400">Click "Add Tenant" to add your first tenant</p>
             </div>
           }
         />
@@ -189,24 +188,19 @@ const TenantsTab = React.memo(({
           <BulkActionsToolbar
             selectionCount={bulkOps.selectionCount}
             onBulkExport={() => bulkOps.handleBulkAction('export')}
-            availableActions={['export']}
+            availableActions={['export'}
           />
           <TableWrapper>
-            <Table
+            <FlowbiteTable
               {...tableProps}
-              dataSource={search.filteredData || []}
+              dataSource={search.filteredData || [}
               rowKey="id"
               loading={loading}
-              rowSelection={{
-                selectedRowKeys: bulkOps.selectedRowKeys,
-                onChange: bulkOps.setSelectedRowKeys,
-              }}
               pagination={{
                 pageSize: 25,
                 showSizeChanger: true,
                 showTotal: (total) => `Total ${total} tenants`,
               }}
-              size="middle"
             />
           </TableWrapper>
         </>
@@ -224,4 +218,3 @@ const TenantsTab = React.memo(({
 TenantsTab.displayName = 'TenantsTab';
 
 export default TenantsTab;
-

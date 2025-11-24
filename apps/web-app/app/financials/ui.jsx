@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import { Tabs } from 'antd';
+import { Tabs } from 'flowbite-react';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
-  WalletOutlined,
-  DollarOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons';
+  HiWallet,
+  HiCurrencyDollar,
+  HiDocumentText,
+} from 'react-icons/hi';
 import dynamic from 'next/dynamic';
 
 // Lazy load components for better performance
@@ -95,80 +95,43 @@ export default function FinancialsClient({ user, userRole, financialData, rentPa
     trackPageView('financials', activeTab, userRole);
   }, [activeTab, userRole]);
 
-  // Determine which tabs to show based on role
-  const availableTabs = useMemo(() => {
-    const tabs = [];
-    
-    // Overview/Financials tab - available for all roles
-    tabs.push({
-      key: 'overview',
-      label: (
-        <span>
-          <WalletOutlined /> Overview
-        </span>
-      ),
-      component: userRole === 'pmc' ? (
-        <PMCFinancialsClient pmc={user} financialData={financialData || { expenses: [], rentPayments: [], totalRent: 0, totalExpenses: 0, netIncome: 0 }} />
-      ) : (
-        <LandlordFinancialsClient />
-      ),
-    });
-    
-    // Rent Payments tab - available for landlord and PMC
-    if (userRole === 'landlord' || userRole === 'pmc') {
-      tabs.push({
-        key: 'rent-payments',
-        label: (
-          <span>
-            <DollarOutlined /> Rent Payments
-          </span>
-        ),
-        component: userRole === 'pmc' ? (
-          <PMCRentPaymentsClient 
-            leases={rentPaymentsData?.leases || []}
-            landlordCountry={rentPaymentsData?.landlordCountry || 'CA'}
-          />
-        ) : (
-          <RentPaymentsClient 
-            leases={rentPaymentsData?.leases || []}
-            landlordCountry={rentPaymentsData?.landlordCountry || 'US'}
-          />
-        ),
-      });
-    }
-    
-    // Financial Reports tab - only for PMC
-    if (userRole === 'pmc') {
-      tabs.push({
-        key: 'reports',
-        label: (
-          <span>
-            <FileTextOutlined /> Reports
-          </span>
-        ),
-        component: <FinancialReports />,
-      });
-    }
-    
-    return tabs;
-  }, [userRole, user, financialData, rentPaymentsData]);
-
   return (
-    <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={availableTabs.map(tab => ({
-          key: tab.key,
-          label: tab.label,
-          children: (
-            <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-              {tab.component}
+    <div className="p-3 h-full flex flex-col">
+      <Tabs aria-label="Financials tabs" style="underline" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs.Item active={activeTab === 'overview'} title="Overview" icon={HiWallet} onClick={() => handleTabChange('overview')}>
+          <div className="flex-1 overflow-auto pt-3">
+            {userRole === 'pmc' ? (
+              <PMCFinancialsClient pmc={user} financialData={financialData || { expenses: [], rentPayments: [], totalRent: 0, totalExpenses: 0, netIncome: 0 }} />
+            ) : (
+              <LandlordFinancialsClient />
+            )}
+          </div>
+        </Tabs.Item>
+        {(userRole === 'landlord' || userRole === 'pmc') && (
+          <Tabs.Item active={activeTab === 'rent-payments'} title="Rent Payments" icon={HiCurrencyDollar} onClick={() => handleTabChange('rent-payments')}>
+            <div className="flex-1 overflow-auto pt-3">
+              {userRole === 'pmc' ? (
+                <PMCRentPaymentsClient 
+                  leases={rentPaymentsData?.leases || []}
+                  landlordCountry={rentPaymentsData?.landlordCountry || 'CA'}
+                />
+              ) : (
+                <RentPaymentsClient 
+                  leases={rentPaymentsData?.leases || []}
+                  landlordCountry={rentPaymentsData?.landlordCountry || 'US'}
+                />
+              )}
             </div>
-          ),
-        }))}
-      />
+          </Tabs.Item>
+        )}
+        {userRole === 'pmc' && (
+          <Tabs.Item active={activeTab === 'reports'} title="Reports" icon={HiDocumentText} onClick={() => handleTabChange('reports')}>
+            <div className="flex-1 overflow-auto pt-3">
+              <FinancialReports />
+            </div>
+          </Tabs.Item>
+        )}
+      </Tabs>
     </div>
   );
 }

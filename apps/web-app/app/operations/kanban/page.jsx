@@ -9,9 +9,10 @@
 import { useState } from 'react';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useWorkOrders, useUpdateWorkOrder, useCreateWorkOrder } from '@/lib/hooks/useV2Data';
-import { Card, Button, Badge, Modal, Textarea, TextInput, Select, Spinner } from 'flowbite-react';
-import { HiPlus, HiChat } from 'react-icons/hi';
+import { Card, Button, Badge, Modal, Textarea, TextInput, Select, Spinner, Alert } from 'flowbite-react';
+import { HiPlus, HiChat, HiClipboardList } from 'react-icons/hi';
 import AttachmentsList from '@/components/shared/AttachmentsList';
+import { PageHeader, PageSkeleton } from '@/components/shared';
 
 const COLUMNS = [
   { id: 'new', label: 'New', status: 'new' },
@@ -40,7 +41,7 @@ export default function WorkOrdersKanbanPage() {
   const updateWorkOrder = useUpdateWorkOrder();
   const createWorkOrder = useCreateWorkOrder();
   
-  const handleStatusChange = async (workOrderId: string, newStatus: string) => {
+  const handleStatusChange = async (workOrderId, newStatus) => {
     try {
       await updateWorkOrder.mutateAsync({
         id: workOrderId,
@@ -60,7 +61,7 @@ export default function WorkOrdersKanbanPage() {
     
     try {
       await createWorkOrder.mutateAsync({
-        organization_id: organizationId!,
+        organization_id: organizationId,
         property_id: newWorkOrder.property_id || undefined,
         unit_id: newWorkOrder.unit_id || undefined,
         tenant_id: newWorkOrder.tenant_id || undefined,
@@ -85,8 +86,8 @@ export default function WorkOrdersKanbanPage() {
     }
   };
   
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
+  const getStatusColor = (status) => {
+    const colors = {
       new: 'blue',
       in_progress: 'yellow',
       waiting_on_vendor: 'purple',
@@ -96,8 +97,8 @@ export default function WorkOrdersKanbanPage() {
     return colors[status] || 'gray';
   };
   
-  const getPriorityColor = (priority: string) => {
-    const colors: Record<string, string> = {
+  const getPriorityColor = (priority) => {
+    const colors = {
       low: 'gray',
       medium: 'blue',
       high: 'orange',
@@ -107,19 +108,15 @@ export default function WorkOrdersKanbanPage() {
   };
   
   if (authLoading || isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Spinner size="xl" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
   
   if (!user) {
     return (
       <div className="p-6">
-        <Card>
-          <p>Please log in to view work orders.</p>
-        </Card>
+        <Alert color="warning">
+          Please log in to view work orders.
+        </Alert>
       </div>
     );
   }
@@ -136,60 +133,108 @@ export default function WorkOrdersKanbanPage() {
   
   // Group work orders by status
   const workOrdersByStatus = COLUMNS.reduce((acc, column) => {
-    acc[column.status] = filteredWorkOrders.filter((wo: any) => wo.status === column.status);
+    acc[column.status] = filteredWorkOrders.filter((wo) => wo.status === column.status);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
+  
+  const totalWorkOrders = filteredWorkOrders.length;
+  const canCreateWorkOrder = hasRole('tenant') || hasRole('landlord') || hasRole('pm') || hasRole('pmc_admin') || hasRole('super_admin');
   
   return (
-    <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Work Orders Kanban</h1>
-        {(hasRole('tenant') || hasRole('landlord') || hasRole('pm') || hasRole('pmc_admin') || hasRole('super_admin')) && (
-          <Button color="blue" onClick={() => setCreateModalOpen(true)}>
-            <HiPlus className="mr-2 h-4 w-4" />
-            New Work Order
-          </Button>
-        )}
-      </div>
+    <div className="space-y-6">
+      <PageHeader 
+        title="Work Orders"
+        description={`Manage and track work orders across your properties. ${totalWorkOrders} total work orders.`}
+        actions={
+          canCreateWorkOrder ? (
+            <Button color="blue" onClick={() => setCreateModalOpen(true)}>
+              <HiPlus className="mr-2 h-4 w-4" />
+              New Work Order
+            </Button>
+          ) : null
+        }
+      />
       
       {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {COLUMNS.map((column) => (
-          <div key={column.id} className="flex flex-col">
-            <div className="bg-gray-100 p-3 rounded-t-lg border-b border-gray-200">
-              <h3 className="font-semibold text-gray-700">{column.label}</h3>
-              <p className="text-sm text-gray-500">
-                {workOrdersByStatus[column.status]?.length || 0} items
-              </p>
-            </div>
-            <div className="bg-gray-50 p-2 rounded-b-lg min-h-[400px] space-y-2">
-              {workOrdersByStatus[column.status]?.map((wo: any) => (
-                <Card
-                  key={wo.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => {
-                    setSelectedWorkOrder(wo);
-                    setDetailModalOpen(true);
-                  }}
-                >
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">{wo.title}</h4>
-                    {wo.description && (
-                      <p className="text-xs text-gray-600 line-clamp-2">{wo.description}</p>
-                    )}
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge color={getPriorityColor(wo.priority)}>{wo.priority}</Badge>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {new Date(wo.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </Card>
-              ))}
-            </div>
+      {totalWorkOrders === 0 ? (
+        <Card>
+          <div className="text-center py-12">
+            <HiClipboardList className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No work orders yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              Get started by creating your first work order
+            </p>
+            {canCreateWorkOrder && (
+              <Button color="blue" onClick={() => setCreateModalOpen(true)}>
+                <HiPlus className="mr-2 h-4 w-4" />
+                Create Work Order
+              </Button>
+            )}
           </div>
-        ))}
-      </div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {COLUMNS.map((column) => {
+            const columnWorkOrders = workOrdersByStatus[column.status] || [];
+            const count = columnWorkOrders.length;
+            
+            return (
+              <div key={column.id} className="flex flex-col">
+                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-t-lg border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{column.label}</h3>
+                    <Badge color={getStatusColor(column.status)} size="sm">
+                      {count}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-b-lg min-h-[500px] space-y-3 overflow-y-auto max-h-[600px]">
+                  {columnWorkOrders.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+                      No items
+                    </div>
+                  ) : (
+                    columnWorkOrders.map((wo) => (
+                      <Card
+                        key={wo.id}
+                        className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]"
+                        onClick={() => {
+                          setSelectedWorkOrder(wo);
+                          setDetailModalOpen(true);
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2">
+                            {wo.title}
+                          </h4>
+                          {wo.description && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                              {wo.description}
+                            </p>
+                          )}
+                          <div className="flex gap-2 flex-wrap items-center">
+                            <Badge color={getPriorityColor(wo.priority)} size="sm" className="capitalize">
+                              {wo.priority}
+                            </Badge>
+                            {wo.property && (
+                              <span className="text-xs text-gray-500 truncate max-w-[100px]">
+                                {wo.property.name || wo.property.address_line1}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            {new Date(wo.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       
       {/* Create Work Order Modal */}
       <Modal show={createModalOpen} onClose={() => setCreateModalOpen(false)} size="lg">
@@ -286,7 +331,7 @@ export default function WorkOrdersKanbanPage() {
                   <div>
                     <h3 className="font-semibold mb-2">Comments</h3>
                     <div className="space-y-2">
-                      {selectedWorkOrder.comments.map((comment: any) => (
+                      {selectedWorkOrder.comments.map((comment) => (
                         <div key={comment.id} className="bg-gray-50 p-3 rounded">
                           <p className="text-sm font-medium">
                             {comment.author?.full_name || comment.author?.email || 'Unknown'}

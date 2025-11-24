@@ -11,7 +11,7 @@ const PMCLandlordDetailClient = dynamic(() => import('@/components/pages/pmc/lan
 export default function LandlordDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const landlordId = params?.id as string;
+  const landlordId = params?.id || '';
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

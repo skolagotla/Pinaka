@@ -139,7 +139,7 @@ export default function ExpandableFlowbiteTable({
       <Table hoverable>
         <TableHead>
           {allColumns.map((col, idx) => (
-            <TableHeadCell key={idx}>{col.header}</TableHeadCell>
+            <TableHeadCell key={idx}col.header}</TableHeadCell>
           ))}
         </TableHead>
         <TableBody className="divide-y">
@@ -156,7 +156,7 @@ export default function ExpandableFlowbiteTable({
                 >
                   {allColumns.map((col, colIdx) => (
                     <TableCell key={colIdx}>
-                      {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey]}
+                      {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey}
                     </TableCell>
                   ))}
                 </TableRow>

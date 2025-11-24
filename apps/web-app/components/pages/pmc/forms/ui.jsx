@@ -2,20 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { Card, Button, Modal, Select, TextInput, Textarea, Badge, Tooltip, Spinner, Alert } from 'flowbite-react';
 import {
-  Card, Button, Table, Tag, Space, Modal, Form, Select, Input, DatePicker,
-  Tooltip, Popconfirm, Empty, Spin, Descriptions, Typography, Steps,
-  Alert, Row, Col
-} from 'antd';
-import {
-  PlusOutlined, FileTextOutlined, EyeOutlined, EditOutlined, DeleteOutlined,
-  CheckCircleOutlined, DownloadOutlined, FileDoneOutlined, ClockCircleOutlined,
-  SendOutlined, FileProtectOutlined
-} from '@ant-design/icons';
+  HiPlus, HiDocumentText, HiEye, HiPencil, HiTrash,
+  HiCheckCircle, HiDownload, HiDocumentCheck, HiClock,
+  HiPaperAirplane, HiShieldCheck
+} from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateMonthYear, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { formatAmount } from '@/lib/currency-utils';
-import { PageLayout, TableWrapper, renderDate, DeleteConfirmButton } from '@/components/shared';
+import { PageLayout, TableWrapper, renderDate, DeleteConfirmButton, FormTextInput, FormSelect, FormDatePicker, EmptyState, FlowbiteTable } from '@/components/shared';
 import { renderStatus } from '@/components/shared/TableRenderers';
 import { notify } from '@/lib/utils/notification-helper';
 import { rules } from '@/lib/utils/validation-rules';
@@ -24,6 +20,9 @@ import SigningFlow from '@/components/SigningFlow';
 import dynamic from 'next/dynamic';
 import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
 import { useResizableTable, configureTableColumns, useModalState } from '@/lib/hooks';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { useForms, useTenants, useProperties } from '@/lib/hooks/useV2Data';
+import { useFormState } from '@/lib/hooks/useFormState';
 
 // Lazy load PDFViewerModal to reduce initial bundle size
 const PDFViewerModal = dynamic(
@@ -31,18 +30,41 @@ const PDFViewerModal = dynamic(
   { ssr: false, loading: () => null }
 );
 
-const { Text, Paragraph, Title } = Typography;
-const { TextArea } = Input;
-const { Step } = Steps;
-
 export default function PMCGeneratedFormsClient() {
   const router = useRouter();
   const { fetch } = useUnifiedApi({ showUserMessage: true });
+  const { user: v2User } = useV2Auth();
+  const organizationId = v2User?.organization_id;
   const { loading, withLoading } = useLoading(true);
+  
+  // v2 API hooks
+  const { data: formsData, refetch: refetchForms } = useForms(organizationId);
+  const { data: tenantsData } = useTenants(organizationId);
+  const { data: propertiesData } = useProperties(organizationId);
+  
   const [forms, setForms] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [tenantsWithBalance, setTenantsWithBalance] = useState([]);
   const [properties, setProperties] = useState([]);
+  
+  // Use v2 data if available
+  useEffect(() => {
+    if (formsData && Array.isArray(formsData)) {
+      setForms(formsData);
+    }
+  }, [formsData]);
+  
+  useEffect(() => {
+    if (tenantsData && Array.isArray(tenantsData)) {
+      setTenants(tenantsData);
+    }
+  }, [tenantsData]);
+  
+  useEffect(() => {
+    if (propertiesData && Array.isArray(propertiesData)) {
+      setProperties(propertiesData);
+    }
+  }, [propertiesData]);
   
   // Removed filter state - now using table column filters
   
@@ -70,7 +92,15 @@ export default function PMCGeneratedFormsClient() {
   const [signatureUrl, setSignatureUrl] = useState(null);
 
   // Form for custom data
-  const [form] = Form.useForm();
+  const { formData, updateField, resetForm } = useFormState({
+    arrearsStartDate: null,
+    terminationDate: null,
+    notes: '',
+    misconductDetails: '',
+    incidentDate: null,
+    personMovingIn: '',
+    relationshipToLandlord: ''
+  });
 
   // Load signature on mount - skip for PMC users as they need a landlordId
   // Signature will be fetched when a landlord is selected during form generation
@@ -467,11 +497,9 @@ export default function PMCGeneratedFormsClient() {
       
       // Auto-populate form fields
       if (rentData) {
-        form.setFieldsValue({
-          arrearsStartDate: rentData.arrearsStartDate,
-          terminationDate: rentData.terminationDate,
-          notes: rentData.notes
-        });
+        updateField('arrearsStartDate', rentData.arrearsStartDate);
+        updateField('terminationDate', rentData.terminationDate);
+        updateField('notes', rentData.notes);
       }
     } else {
       // Clear rent data for non-N4 forms
@@ -486,7 +514,7 @@ export default function PMCGeneratedFormsClient() {
     setSelectedLease(null);
     setGeneratedFormData(null);
     setTenantRentData(null);
-    form.resetFields();
+    resetForm();
   };
 
   const closeWizard = () => {
@@ -497,14 +525,14 @@ export default function PMCGeneratedFormsClient() {
     setSelectedLease(null);
     setGeneratedFormData(null);
     setTenantRentData(null);
-    form.resetFields();
+    resetForm();
   };
 
   const handleGenerateForm = async () => {
     try {
       setGenerating(true);
 
-      const customData = form.getFieldsValue();
+      const customData = formData;
       
       // Arrears data is now calculated automatically on the backend
       // No need to pass it from frontend
@@ -539,7 +567,7 @@ export default function PMCGeneratedFormsClient() {
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.generatedForms.update(formId, { status: 'finalized' });
 
-      notify.success('Form finalized successfully!');
+      notify.success('Form finalized successfully');
       loadData();
       closeWizard();
 
@@ -594,7 +622,7 @@ export default function PMCGeneratedFormsClient() {
       const { v1Api } = await import('@/lib/api/v1-client');
       await v1Api.forms.sendForm(record.id);
 
-      notify.success('Email sent successfully to tenant!');
+      notify.success('Email sent successfully to tenant');
       
       // Update form status to 'sent' and refresh the list
       loadData();
@@ -609,7 +637,7 @@ export default function PMCGeneratedFormsClient() {
       if (!generatedFormData) {
         setGenerating(true);
         
-        const customData = form.getFieldsValue();
+        const customData = formData;
         
         // Use v1Api to generate form
         const { v1Api } = await import('@/lib/api/v1-client');
@@ -645,7 +673,7 @@ export default function PMCGeneratedFormsClient() {
   };
 
   const handleSignComplete = () => {
-    notify.success('Document signed and downloaded successfully!');
+    notify.success('Document signed and downloaded successfully');
     loadData(); // Refresh the forms list
   };
 
@@ -657,13 +685,13 @@ export default function PMCGeneratedFormsClient() {
       dataIndex: 'formType',
       key: 'formType',
       render: (type) => (
-        <Tag color={
+        <Badge color={
           type.startsWith('L') ? 'red' :
-          type === 'N4' || type === 'N7' ? 'orange' :
-          'blue'
+          type === 'N4' || type === 'N7' ? 'warning' :
+          'info'
         }>
           {type}
-        </Tag>
+        </Badge>
       ),
       filters: formTypes.map(ft => ({ text: ft.value, value: ft.value })),
       onFilter: (value, record) => record.formType === value,
@@ -674,7 +702,7 @@ export default function PMCGeneratedFormsClient() {
       dataIndex: 'tenantName',
       key: 'tenantName',
       render: (name) => (
-        <Text strong>{name || 'N/A'}</Text>
+        <span className="font-semibold">{name || 'N/A'}</span>
       )
     },
     {
@@ -686,16 +714,16 @@ export default function PMCGeneratedFormsClient() {
         
         // Single unit: show property name only
         if (record.propertyUnitCount === 1) {
-          return <Text>{propertyName}</Text>;
+          return <span>{propertyName}</span>;
         }
         
         // Multiple units: show "Unit# - Property Name" (e.g., "1801 Aspen")
         const unitName = record.unitName || '';
         if (unitName) {
-          return <Text>{unitName} - {propertyName}</Text>;
+          return <span>{unitName} - {propertyName}</span>;
         }
         
-        return <Text>{propertyName}</Text>;
+        return <span>{propertyName}</span>;
       }
     },
     {
@@ -710,7 +738,7 @@ export default function PMCGeneratedFormsClient() {
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        if (!status) return <Tag>N/A</Tag>;
+        if (!status) return <Badge color="gray">N/A</Badge>;
         // Map form statuses to standard status names for renderStatus
         const statusMap = {
           draft: 'Draft',
@@ -741,47 +769,57 @@ export default function PMCGeneratedFormsClient() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Space>
-          <Tooltip title="View">
+        <div className="flex items-center gap-2">
+          <Tooltip content="View">
             <Button
-              type="text"
-              icon={<EyeOutlined />}
+              size="xs"
+              color="gray"
               onClick={() => handleViewForm(record)}
-            />
+            >
+              <HiEye className="h-4 w-4" />
+            </Button>
           </Tooltip>
           {record.status === 'draft' && (
             <>
-              <Tooltip title="Edit">
+              <Tooltip content="Edit">
                 <Button
-                  type="text"
-                  icon={<EditOutlined />}
+                  size="xs"
+                  color="gray"
                   onClick={() => {
                     notify.info('Edit functionality coming soon');
                   }}
-                />
+                >
+                  <HiPencil className="h-4 w-4" />
+                </Button>
               </Tooltip>
-              <Tooltip title="Finalize">
+              <Tooltip content="Finalize">
                 <Button
-                  type="text"
-                  icon={<CheckCircleOutlined />}
+                  size="xs"
+                  color="gray"
                   onClick={() => handleFinalizeForm(record.id)}
-                />
+                >
+                  <HiCheckCircle className="h-4 w-4" />
+                </Button>
               </Tooltip>
             </>
           )}
-          <Tooltip title="Download PDF">
+          <Tooltip content="Download PDF">
             <Button
-              type="text"
-              icon={<DownloadOutlined />}
+              size="xs"
+              color="gray"
               onClick={() => handleDownloadPDF(record)}
-            />
+            >
+              <HiDownload className="h-4 w-4" />
+            </Button>
           </Tooltip>
-          <Tooltip title="Send to Tenant">
+          <Tooltip content="Send to Tenant">
             <Button
-              type="text"
-              icon={<SendOutlined />}
+              size="xs"
+              color="gray"
               onClick={() => handleSendForm(record)}
-            />
+            >
+              <HiPaperAirplane className="h-4 w-4" />
+            </Button>
           </Tooltip>
           {/* Allow delete for drafts and finalized forms, but not for sent/filed forms */}
           {(record.status === 'draft' || record.status === 'finalized') && (
@@ -803,7 +841,7 @@ export default function PMCGeneratedFormsClient() {
               }}
             />
           )}
-        </Space>
+        </div>
       ),
       sorter: false, // Disable sorting for actions
       fixed: 'right'
@@ -825,38 +863,38 @@ export default function PMCGeneratedFormsClient() {
     {
       title: 'Total Forms',
       value: forms.length,
-      prefix: <FileTextOutlined />,
+      prefix: <HiDocumentText className="h-5 w-5" />,
     },
     {
       title: 'Drafts',
       value: forms.filter(f => f.status === 'draft').length,
-      prefix: <FileTextOutlined />,
-      valueStyle: { color: '#faad14' },
+      prefix: <HiDocumentText className="h-5 w-5" />,
+      valueStyle: { color: '#f59e0b' },
     },
     {
       title: 'Finalized',
       value: forms.filter(f => f.status === 'finalized').length,
-      prefix: <CheckCircleOutlined />,
-      valueStyle: { color: '#52c41a' },
+      prefix: <HiCheckCircle className="h-5 w-5" />,
+      valueStyle: { color: '#10b981' },
     },
     {
       title: 'Sent',
       value: forms.filter(f => f.status === 'sent').length,
-      prefix: <SendOutlined />,
-      valueStyle: { color: '#1890ff' },
+      prefix: <HiPaperAirplane className="h-5 w-5" />,
+      valueStyle: { color: '#3b82f6' },
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><FileTextOutlined /> Generated Forms</>}
+      headerTitle={<><HiDocumentText className="h-5 w-5 inline mr-2" /> Generated Forms</>}
       headerActions={[
         <Button
           key="generate"
-          type="primary"
-          icon={<PlusOutlined />}
+          color="blue"
           onClick={openWizard}
         >
+          <HiPlus className="h-4 w-4 mr-2" />
           Generate Form
         </Button>
       ]}
@@ -866,26 +904,28 @@ export default function PMCGeneratedFormsClient() {
       {/* Generated Forms Table */}
       <Card>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <Spin size="large" />
+          <div className="text-center py-12">
+            <Spinner size="xl" />
           </div>
         ) : forms.length === 0 ? (
-          <Empty
-            image={<FileTextOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
-            description="No forms generated yet"
-          >
-            <Button type="primary" icon={<PlusOutlined />} onClick={openWizard}>
-              Generate Your First Form
-            </Button>
-          </Empty>
+          <EmptyState
+            icon={<HiDocumentText className="h-16 w-16 text-gray-300" />}
+            title="No forms generated yet"
+            description="Get started by generating your first form"
+            action={
+              <Button color="blue" onClick={openWizard}>
+                <HiPlus className="h-4 w-4 mr-2" />
+                Generate Your First Form
+              </Button>
+            }
+          />
         ) : (
           <TableWrapper>
-            <Table
+            <FlowbiteTable
               {...tableProps}
-              dataSource={forms}
+              data={forms}
               rowKey="id"
               pagination={{ pageSize: 20 }}
-              scroll={{ x: 1200 }}
             />
           </TableWrapper>
         )}
@@ -893,114 +933,112 @@ export default function PMCGeneratedFormsClient() {
 
       {/* Form Generation - Single Screen */}
       <Modal
-        title={selectedFormType ? `Generate ${selectedFormType}` : "Generate Legal Form"}
-        open={wizardOpen}
-        onCancel={closeWizard}
-        width={900}
-        footer={null}
+        show={wizardOpen}
+        onClose={closeWizard}
+        size="4xl"
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Step 1: Select Form Type (Dropdown) */}
-          <div>
-            <Title level={5} style={{ marginBottom: 8 }}>Select Form Type:</Title>
-            <Select
-              style={{ width: '100%' }}
-              placeholder="Choose the form you need"
-              value={selectedFormType}
-              onChange={(value) => {
-                setSelectedFormType(value);
-                setSelectedProperty(null);
-                setSelectedTenant(null);
-                setTenantRentData(null);
-                form.resetFields();
-              }}
-              options={formTypes.map(ft => ({
-                value: ft.value,
-                label: (
-                  <Space>
-                    <Tag color={ft.urgent ? 'red' : 'blue'}>{ft.value}</Tag>
-                    {ft.urgent && <Tag color="orange">Urgent</Tag>}
-                    <Text>{ft.label}</Text>
-                  </Space>
-                )
-              }))}
-            />
-          </div>
+        <Modal.Header>
+          {selectedFormType ? `Generate ${selectedFormType}` : "Generate Legal Form"}
+        </Modal.Header>
+        <Modal.Body>
+          <div className="space-y-6">
+            {/* Step 1: Select Form Type (Dropdown) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                Select Form Type:
+              </label>
+              <Select
+                value={selectedFormType || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedFormType(value);
+                  setSelectedProperty(null);
+                  setSelectedTenant(null);
+                  setTenantRentData(null);
+                  resetForm();
+                }}
+              >
+                <option value="">Choose the form you need</option>
+                {formTypes.map(ft => (
+                  <option key={ft.value} value={ft.value]
+                    {ft.value} - {ft.label} {ft.urgent && '(Urgent)'}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
           {/* Step 2: Property, Tenant, and Amount Owed - All in one row */}
           {selectedFormType && (
             <div>
-              <Row gutter={16}>
+              <div className={`grid gap-4 ${selectedFormType === 'N4' && selectedTenant && tenantRentData ? 'grid-cols-3' : selectedTenant ? 'grid-cols-2' : 'grid-cols-1'}`]
                 {/* Property */}
-                <Col span={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 8 : selectedTenant ? 8 : 12}>
-                  <Title level={5} style={{ marginBottom: 8 }}>Property:</Title>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Property:
+                  </label>
                   {selectedFormType === 'N4' ? (
                     eligibleProperties.length === 0 ? (
-                      <Alert
-                        message="No properties with tenants who owe rent"
-                        description="N4 forms are only available for properties with tenants who have outstanding balances."
-                        type="warning"
-                        showIcon
-                        style={{ marginBottom: 0 }}
-                      />
+                      <Alert color="warning">
+                        <div>
+                          <div className="font-semibold">No properties with tenants who owe rent</div>
+                          <div className="text-sm">N4 forms are only available for properties with tenants who have outstanding balances.</div>
+                        </div>
+                      </Alert>
                     ) : (
                       <Select
-                        showSearch
-                        style={{ width: '100%' }}
-                        placeholder="Select property"
-                        value={selectedProperty}
-                        onChange={(value) => {
+                        value={selectedProperty || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseInt(e.target.value) : null;
                           setSelectedProperty(value);
                           setSelectedTenant(null);
                           setTenantRentData(null);
-                          form.resetFields();
+                          resetForm();
                         }}
-                        filterOption={(input, option) =>
-                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                        }
-                        options={eligibleProperties.map(p => ({
-                          value: p.id,
-                          label: `${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`
-                        }))}
-                      />
+                      >
+                        <option value="">Select property</option>
+                        {eligibleProperties.map(p => (
+                          <option key={p.id} value={p.id]
+                            {`${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`}
+                          </option>
+                        ))}
+                      </Select>
                     )
                   ) : (
                     properties.length === 0 ? (
-                      <Alert
-                        message="No properties found"
-                        description="You need to create properties first."
-                        type="info"
-                        showIcon
-                        style={{ marginBottom: 0 }}
-                      />
+                      <Alert color="info">
+                        <div>
+                          <div className="font-semibold">No properties found</div>
+                          <div className="text-sm">You need to create properties first.</div>
+                        </div>
+                      </Alert>
                     ) : (
                       <Select
-                        showSearch
-                        style={{ width: '100%' }}
-                        placeholder="Select property"
-                        value={selectedProperty}
-                        onChange={(value) => {
+                        value={selectedProperty || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseInt(e.target.value) : null;
                           setSelectedProperty(value);
                           setSelectedTenant(null);
                           setTenantRentData(null);
-                          form.resetFields();
+                          resetForm();
                         }}
-                        filterOption={(input, option) =>
-                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                        }
-                        options={properties.map(p => ({
-                          value: p.id,
-                          label: `${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`
-                        }))}
-                      />
+                      >
+                        <option value="">Select property</option>
+                        {properties.map(p => (
+                          <option key={p.id} value={p.id]
+                            {`${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`}
+                          </option>
+                        ))}
+                      </Select>
                     )
                   )}
-                </Col>
+                </div>
 
                 {/* Tenant */}
                 {selectedProperty && (
-                  <Col span={selectedFormType === 'N4' && selectedTenant && tenantRentData ? 8 : 12}>
-                    <Title level={5} style={{ marginBottom: 8 }}>Select Tenant:</Title>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Select Tenant:
+                    </label>
                     {selectedFormType === 'N4' ? (
                       (() => {
                         // Filter tenants by selected property
@@ -1010,83 +1048,82 @@ export default function PMCGeneratedFormsClient() {
                         
                         if (filteredTenants.length === 0) {
                           return (
-                            <Alert
-                              message="No tenants with outstanding balance for this property"
-                              description="This property has no tenants who owe rent."
-                              type="warning"
-                              showIcon
-                              style={{ marginBottom: 0 }}
-                            />
+                            <Alert color="warning">
+                              <div>
+                                <div className="font-semibold">No tenants with outstanding balance for this property</div>
+                                <div className="text-sm">This property has no tenants who owe rent.</div>
+                              </div>
+                            </Alert>
                           );
                         }
                         
                         return (
                           <Select
-                            showSearch
-                            style={{ width: '100%' }}
-                            placeholder="Search by tenant name"
-                            value={selectedTenant}
-                            onChange={handleTenantSelect}
-                            filterOption={(input, option) =>
-                              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                            }
-                            options={filteredTenants.map(t => ({
-                              value: t.id,
-                              label: formatTenantName(t)
-                            }))}
-                          />
+                            value={selectedTenant || ''}
+                            onChange={(e) => {
+                              const value = e.target.value ? parseInt(e.target.value) : null;
+                              handleTenantSelect(value);
+                            }}
+                          >
+                            <option value="">Search by tenant name</option>
+                            {filteredTenants.map(t => (
+                              <option key={t.id} value={t.id]
+                                {formatTenantName(t)}
+                              </option>
+                            ))}
+                          </Select>
                         );
                       })()
                     ) : (
                       tenants.length === 0 ? (
-                        <Alert
-                          message="No tenants found"
-                          description="You need to create tenants first."
-                          type="info"
-                          showIcon
-                          style={{ marginBottom: 0 }}
-                          action={
+                        <Alert color="info">
+                          <div>
+                            <div className="font-semibold">No tenants found</div>
+                            <div className="text-sm">You need to create tenants first.</div>
                             <Button 
-                              size="small" 
-                              type="primary"
+                              size="sm" 
+                              color="blue"
                               onClick={() => router.push('/tenants')}
+                              className="mt-2"
                             >
                               Go to Tenants
                             </Button>
-                          }
-                        />
+                          </div>
+                        </Alert>
                       ) : (
                         <Select
-                          showSearch
-                          style={{ width: '100%' }}
-                          placeholder="Search by tenant name or email"
-                          value={selectedTenant}
-                          onChange={handleTenantSelect}
-                          filterOption={(input, option) =>
-                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                          }
-                          options={tenants.map(t => ({
-                            value: t.id,
-                            label: formatTenantName(t, tenants)
-                          }))}
-                        />
+                          value={selectedTenant || ''}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value) : null;
+                            handleTenantSelect(value);
+                          }}
+                        >
+                          <option value="">Search by tenant name or email</option>
+                          {tenants.map(t => (
+                            <option key={t.id} value={t.id]
+                              {formatTenantName(t, tenants)}
+                            </option>
+                          ))}
+                        </Select>
                       )
                     )}
-                  </Col>
+                  </div>
                 )}
                 
                 {/* Amount Owed - Show after tenant selection on same line */}
                 {selectedTenant && tenantRentData && selectedFormType === 'N4' && (
-                  <Col span={8}>
-                    <Title level={5} style={{ marginBottom: 8 }}>Amount Owed:</Title>
-                    <Input
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                      Amount Owed:
+                    </label>
+                    <TextInput
                       value={`$${formatAmount(tenantRentData.totalArrears || 0)}`}
                       readOnly
-                      style={{ background: '#f5f5f5', fontWeight: 600 }}
+                      className="bg-gray-50 font-semibold"
                     />
-                  </Col>
+                  </div>
                 )}
-              </Row>
+              </div>
             </div>
           )}
 
@@ -1094,111 +1131,117 @@ export default function PMCGeneratedFormsClient() {
           {selectedFormType && selectedProperty && selectedTenant && (
             <div>
               {selectedFormType === 'N4' && tenantRentData && tenantRentData.unpaidCount > 0 && (
-                <Alert
-                  message="Rent Arrears Detected"
-                  description={
-                    <div>
-                      <Text strong>Total Arrears: ${formatAmount(tenantRentData.totalArrears || 0)}</Text>
-                    </div>
-                  }
-                  type="warning"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
+                <Alert color="warning" className="mb-4">
+                  <div>
+                    <div className="font-semibold">Rent Arrears Detected</div>
+                    <div className="text-sm font-semibold">Total Arrears: ${formatAmount(tenantRentData.totalArrears || 0)}</div>
+                  </div>
+                </Alert>
               )}
               
-              <Form form={form} layout="vertical">
+              <div className="space-y-4">
                 {selectedFormType === 'N4' && (
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="arrearsStartDate"
-                        label="Arrears Start Date"
-                        tooltip="Day after rent was first due and unpaid"
-                      >
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="terminationDate"
-                        label="Termination Date"
-                        tooltip="15 days from today (standard notice period)"
-                      >
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormDatePicker
+                      label="Arrears Start Date"
+                      value={formData.arrearsStartDate}
+                      onChange={(date) => updateField('arrearsStartDate', date)}
+                      tooltip="Day after rent was first due and unpaid"
+                    />
+                    <FormDatePicker
+                      label="Termination Date"
+                      value={formData.terminationDate}
+                      onChange={(date) => updateField('terminationDate', date)}
+                      tooltip="15 days from today (standard notice period)"
+                    />
+                  </div>
                 )}
                 
                 {selectedFormType === 'N5' && (
                   <>
-                    <Form.Item
-                      name="misconductDetails"
-                      label="Misconduct Details"
-                      rules={[rules.required('Misconduct Details')]}
-                    >
-                      <TextArea rows={4} placeholder="Describe the misconduct..." />
-                    </Form.Item>
-                    <Form.Item
-                      name="incidentDate"
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        Misconduct Details <span className="text-red-500">*</span>
+                      </label>
+                      <Textarea
+                        rows={4}
+                        placeholder="Describe the misconduct..."
+                        value={formData.misconductDetails}
+                        onChange={(e) => updateField('misconductDetails', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <FormDatePicker
                       label="Incident Date"
-                    >
-                      <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
+                      value={formData.incidentDate}
+                      onChange={(date) => updateField('incidentDate', date)}
+                    />
                   </>
                 )}
                 
                 {selectedFormType === 'N12' && (
                   <>
-                    <Form.Item
-                      name="personMovingIn"
+                    <FormTextInput
                       label="Person Moving In"
-                    >
-                      <Input placeholder="e.g., Myself, My son" />
-                    </Form.Item>
-                    <Form.Item
-                      name="relationshipToLandlord"
+                      value={formData.personMovingIn}
+                      onChange={(e) => updateField('personMovingIn', e.target.value)}
+                      placeholder="e.g., Myself, My son"
+                    />
+                    <FormSelect
                       label="Relationship to Landlord"
-                    >
-                      <Select>
-                        <Select.Option value="Self">Self</Select.Option>
-                        <Select.Option value="Spouse">Spouse</Select.Option>
-                        <Select.Option value="Child">Child</Select.Option>
-                        <Select.Option value="Parent">Parent</Select.Option>
-                      </Select>
-                    </Form.Item>
+                      value={formData.relationshipToLandlord}
+                      onChange={(e) => updateField('relationshipToLandlord', e.target.value)}
+                      options={
+                        { value: 'Self', label: 'Self' },
+                        { value: 'Spouse', label: 'Spouse' },
+                        { value: 'Child', label: 'Child' },
+                        { value: 'Parent', label: 'Parent' }
+                      }
+                    />
                   </>
                 )}
 
-                <Form.Item
-                  name="notes"
-                  label="Additional Notes"
-                >
-                  <TextArea rows={3} placeholder="Any additional information..." />
-                </Form.Item>
-              </Form>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Additional Notes
+                  </label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Any additional information..."
+                    value={formData.notes}
+                    onChange={(e) => updateField('notes', e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginTop: 16 }}>
-            <Button onClick={closeWizard}>
+          <div className="flex justify-between items-center mt-6">
+            <Button color="gray" onClick={closeWizard]
               Cancel
             </Button>
             {selectedFormType && selectedProperty && selectedTenant && (
               <Button
-                type="primary"
-                icon={<EyeOutlined />}
-                size="large"
+                color="blue"
                 onClick={handleReviewPDF}
-                loading={generating}
+                disabled={generating}
               >
-                Review PDF
+                {generating ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <HiEye className="h-4 w-4 mr-2" />
+                    Review PDF
+                  </>
+                )}
               </Button>
             )}
           </div>
-        </Space>
+        </Modal.Body>
       </Modal>
 
       {/* PDF Viewer Modal */}

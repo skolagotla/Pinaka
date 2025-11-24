@@ -6,7 +6,7 @@
  * ALWAYS USE THIS COMPONENT TO DISPLAY PHONE NUMBERS
  * 
  * This component automatically formats phone numbers consistently
- * across the entire application. No manual formatting needed!
+ * across the entire application. No manual formatting needed
  * 
  * Usage:
  *   <PhoneDisplay phone={user.phone} />

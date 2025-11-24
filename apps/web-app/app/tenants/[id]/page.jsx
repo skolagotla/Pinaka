@@ -17,7 +17,7 @@ import Link from 'next/link';
 export default function TenantDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const tenantId = params?.id as string;
+  const tenantId = params?.id || "";
   
   const { user, loading: authLoading, hasRole } = useV2Auth();
   const organizationId = user?.organization_id;
@@ -35,12 +35,12 @@ export default function TenantDetailPage() {
   const { data: units } = useUnits();
   
   // Create lookup maps
-  const propertyMap = properties?.reduce((acc: Record<string, any>, prop: any) => {
+  const propertyMap = properties?.reduce((acc, prop) => {
     acc[prop.id] = prop;
     return acc;
   }, {}) || {};
   
-  const unitMap = units?.reduce((acc: Record<string, any>, unit: any) => {
+  const unitMap = units?.reduce((acc, unit) => {
     acc[unit.id] = unit;
     return acc;
   }, {}) || {};
@@ -72,7 +72,7 @@ export default function TenantDetailPage() {
   const canEdit = hasRole('super_admin') || hasRole('pmc_admin') || hasRole('pm');
   const canDelete = hasRole('super_admin') || hasRole('pmc_admin');
   
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -153,7 +153,7 @@ export default function TenantDetailPage() {
                     <Table.HeadCell>Actions</Table.HeadCell>
                   </Table.Head>
                   <Table.Body>
-                    {leases.map((lease: any) => {
+                    {leases.map((lease) => {
                       const property = propertyMap[lease.property_id];
                       const unit = unitMap[lease.unit_id];
                       return (
@@ -206,7 +206,7 @@ export default function TenantDetailPage() {
                 <Spinner />
               ) : workOrders && workOrders.length > 0 ? (
                 <div className="space-y-2">
-                  {workOrders.slice(0, 5).map((wo: any) => (
+                  {workOrders.slice(0, 5).map((wo) => (
                     <div key={wo.id} className="flex justify-between items-center p-3 border border-gray-200 rounded">
                       <div>
                         <p className="font-medium">{wo.title}</p>

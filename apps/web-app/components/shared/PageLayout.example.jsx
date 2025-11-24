@@ -22,10 +22,10 @@ export function SimplePageExample({ data, loading }) {
   return (
     <PageLayout
       headerTitle={<><HomeOutlined /> Properties</>}
-      headerActions={[
+      headerActions={
         <Button key="refresh" icon={<ReloadOutlined />} size="small">Refresh</Button>,
         <Button key="add" type="primary" icon={<PlusOutlined />} size="small">Add Property</Button>,
-      ]}
+      }
     >
       {data.length === 0 ? (
         <EmptyState
@@ -89,7 +89,7 @@ export function PageWithStatsExample({ properties, units, leases, landlords }) {
       <TableWrapper>
         <Table
           dataSource={properties}
-          columns={[]}
+          columns={[}
           rowKey="id"
           pagination={{ pageSize: 20 }}
           size="middle"
@@ -122,7 +122,7 @@ export function CustomHeaderExample() {
   return (
     <PageLayout header={customHeader}>
       <TableWrapper>
-        <Table dataSource={[]} columns={[]} />
+        <Table dataSource={[} columns={[} />
       </TableWrapper>
     </PageLayout>
   );
@@ -138,7 +138,7 @@ export function TabsPageExample() {
         activeKey={activeTab}
         onChange={setActiveTab}
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={[
+        items={
           {
             key: 'tab1',
             label: 'Tab 1',
@@ -146,16 +146,16 @@ export function TabsPageExample() {
               <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
                 <PageLayout
                   headerTitle="Tab Content"
-                  stats={[]}
+                  stats={[}
                 >
                   <TableWrapper>
-                    <Table dataSource={[]} columns={[]} />
+                    <Table dataSource={[} columns={[} />
                   </TableWrapper>
                 </PageLayout>
               </div>
             ),
           },
-        ]}
+        }
       />
     </div>
   );
