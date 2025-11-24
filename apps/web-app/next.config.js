@@ -203,9 +203,15 @@ const nextConfig = {
   
   async rewrites() {
     return [
+      // Map admin auth endpoints to FastAPI v2
+      {
+        source: '/api/admin/auth/:path*',
+        destination: 'http://localhost:8000/api/v2/auth/:path*',
+      },
+      // Map all other API endpoints to FastAPI v2
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3001/api/:path*',
+        destination: 'http://localhost:8000/api/v2/:path*',
       },
     ];
   },

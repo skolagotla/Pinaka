@@ -33,19 +33,51 @@ export const adminApi = {
   /**
    * Get current admin user
    * Returns null if not authenticated (401) instead of throwing
+   * Uses FastAPI v2 JWT token from localStorage
    */
   async getCurrentUser() {
     try {
+      // Get JWT token from localStorage (stored by login)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+      
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
       const response = await apiClient('/api/admin/auth/me', {
         method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
       
-      // Handle 401 (not authenticated) gracefully
-      if (response && response.status === 401) {
+      // Handle 401/403 (not authenticated) gracefully
+      if (response && (response.status === 401 || response.status === 403)) {
+        // Clear invalid token
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('v2_access_token');
+          localStorage.removeItem('v2_user');
+        }
         return { success: false, error: 'Not authenticated' };
       }
       
-      return parseResponse(response, 'Failed to get admin user');
+      const data = await parseResponse(response, 'Failed to get admin user');
+      
+      // Transform FastAPI v2 response to expected format
+      if (data.user) {
+        return {
+          success: true,
+          user: {
+            id: data.user.id,
+            email: data.user.email,
+            firstName: data.user.full_name?.split(' ')[0] || '',
+            lastName: data.user.full_name?.split(' ').slice(1).join(' ') || '',
+            role: data.roles?.[0]?.name === 'super_admin' ? 'SUPER_ADMIN' : 'PLATFORM_ADMIN',
+          },
+        };
+      }
+      
+      return { success: false, error: 'Failed to get admin user' };
     } catch (error: any) {
       // If error message is "Not authenticated", return gracefully
       if (error.message === 'Not authenticated' || error.message?.includes('Not authenticated')) {

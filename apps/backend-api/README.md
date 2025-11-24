@@ -46,6 +46,38 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 pnpm dev:api
 ```
 
+### Database Migrations
+
+```bash
+# Run migrations to create v2 schema
+cd apps/backend-api
+alembic upgrade head
+
+# Create a new migration
+alembic revision --autogenerate -m "description"
+```
+
+### Seeding Test Data
+
+```bash
+# Seed v2 database with test data
+cd apps/backend-api
+python scripts/seed_v2.py
+```
+
+This will create:
+- 1 organization (Test PMC)
+- 4 users (super_admin, pmc_admin, landlord, tenant)
+- 1 property with 1 unit
+- 1 lease
+- 1 work order
+
+Test credentials:
+- superadmin@pinaka.com / SuperAdmin123!
+- pmcadmin@pinaka.com / PmcAdmin123!
+- landlord@pinaka.com / Landlord123!
+- tenant@pinaka.com / Tenant123!
+
 ### Production
 
 ```bash

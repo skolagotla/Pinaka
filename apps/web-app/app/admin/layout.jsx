@@ -177,7 +177,7 @@ export default function AdminLayout({ children }) {
 
   return (
     <AdminRouteGuard 
-      allowedRoles={['super_admin'] as Role[]}
+      allowedRoles={['super_admin']}
       redirectMessage="Access denied: Platform Administrator access required"
     >
       <ErrorBoundary>

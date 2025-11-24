@@ -8,14 +8,23 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from alembic import context
 from core.config import settings
 from core.database import Base
-from db.models import ServiceProvider  # Import all models
+from db.models import ServiceProvider  # Import legacy models
+from db.models_v2 import (  # Import v2 models
+    Organization, User, Role, UserRole,
+    Landlord, Tenant, Vendor, Property, Unit,
+    Lease, LeaseTenant, WorkOrder, WorkOrderAssignment,
+    WorkOrderComment, Attachment, Notification, AuditLog
+)
 
 # this is the Alembic Config object
 config = context.config
 
 # Override sqlalchemy.url with settings
-# Alembic uses synchronous SQLAlchemy, so remove asyncpg driver
+# Alembic uses synchronous SQLAlchemy, so remove asyncpg driver and schema param
 db_url = settings.DATABASE_URL.replace("+asyncpg", "")
+# Remove schema parameter (psycopg2 doesn't support it)
+if "?schema=" in db_url:
+    db_url = db_url.split("?schema=")[0]
 config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
@@ -49,19 +58,18 @@ def do_run_migrations(connection):
 
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    connectable = AsyncEngine(
-        engine_from_config(
-            config.get_section(config.config_ini_section, {}),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-            future=True,
-        )
+    # Alembic uses synchronous SQLAlchemy, so use sync engine
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+        future=True,
     )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
 
-    await connectable.dispose()
+    connectable.dispose()
 
 
 if context.is_offline_mode():

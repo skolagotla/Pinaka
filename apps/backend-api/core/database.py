@@ -7,10 +7,13 @@ from sqlalchemy.orm import declarative_base
 from core.config import settings
 
 # Create async engine
-# Ensure DATABASE_URL uses asyncpg driver
+# Ensure DATABASE_URL uses asyncpg driver and remove schema parameter (asyncpg doesn't support it)
 db_url = settings.DATABASE_URL
 if not db_url.startswith("postgresql+asyncpg://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+# Remove schema parameter if present (asyncpg doesn't support it)
+if "?schema=" in db_url:
+    db_url = db_url.split("?schema=")[0]
 
 engine = create_async_engine(
     db_url,

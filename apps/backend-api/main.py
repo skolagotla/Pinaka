@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from core.config import settings
 from core.database import engine, Base
 from routers import health, vendors, auth
+from routers import auth_v2, organizations, properties, work_orders, attachments
 from core.exceptions import setup_exception_handlers
 
 
@@ -55,6 +56,13 @@ setup_exception_handlers(app)
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(vendors.router, prefix="/api/v1/vendors", tags=["vendors"])
+
+# V2 API routers
+app.include_router(auth_v2.router, prefix="/api/v2")
+app.include_router(organizations.router, prefix="/api/v2")
+app.include_router(properties.router, prefix="/api/v2")
+app.include_router(work_orders.router, prefix="/api/v2")
+app.include_router(attachments.router, prefix="/api/v2")
 
 
 @app.get("/")

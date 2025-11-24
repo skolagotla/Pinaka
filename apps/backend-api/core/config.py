@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     
     # Database (use asyncpg for async SQLAlchemy)
     # Default matches the active Next.js API database (PT)
-    DATABASE_URL: str = "postgresql+asyncpg://skolagot@localhost:5432/PT?schema=public"
+    # Note: asyncpg doesn't support 'schema' parameter, remove it from URL
+    DATABASE_URL: str = "postgresql+asyncpg://skolagot@localhost:5432/PT"
     
     # JWT
     SECRET_KEY: str = "your-secret-key-change-in-production"

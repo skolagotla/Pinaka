@@ -15,11 +15,10 @@ export default function AdminLoginPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const errorParam = searchParams?.get('error');
-      if (errorParam) {
-        setError(decodeURIComponent(errorParam));
-      }
+    // Only run on client side to avoid hydration mismatch
+    const errorParam = searchParams?.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
     }
   }, [searchParams]);
 
@@ -29,6 +28,7 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
+      // Use FastAPI v2 endpoint (via rewrite to /api/admin/auth/login)
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: {
@@ -41,12 +41,37 @@ export default function AdminLoginPage() {
         }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
+        setError(errorData.detail || 'Login failed. Please check your credentials.');
+        return;
+      }
 
-      if (data.success && data.user) {
-        router.push('/admin/dashboard');
+      const data = await response.json();
+      
+      // FastAPI returns { access_token, token_type }
+      if (data.access_token) {
+        // Store token in localStorage for now (should use httpOnly cookie in production)
+        localStorage.setItem('v2_access_token', data.access_token);
+        
+        // Get user info
+        const meResponse = await fetch('/api/admin/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${data.access_token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (meResponse.ok) {
+          const userData = await meResponse.json();
+          // Store user data
+          localStorage.setItem('v2_user', JSON.stringify(userData));
+          router.push('/admin/dashboard');
+        } else {
+          setError('Failed to get user information');
+        }
       } else {
-        setError(data.error || 'Login failed. Please check your credentials.');
+        setError('Login failed. Invalid response from server.');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -75,7 +100,7 @@ export default function AdminLoginPage() {
                 <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/50">
                   <HiLockClosed className="h-6 w-6 text-white" />
                 </div>
-                <span className="ml-3 text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="ml-3 text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" suppressHydrationWarning>
                   Pinaka Platform Admin
                 </span>
               </div>

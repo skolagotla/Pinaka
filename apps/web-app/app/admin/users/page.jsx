@@ -1235,7 +1235,7 @@ export default function AdminUsersPage() {
   }, []);
 
   // Handle role change
-  const handleChangeRole = useCallback((user: any) => {
+  const handleChangeRole = useCallback((user) => {
     setRoleChangeUser(user);
     setSelectedRole(user.role || '');
     setRoleChangeModalVisible(true);
@@ -1270,8 +1270,8 @@ export default function AdminUsersPage() {
         setErrorMessage(data.error || 'Failed to change role');
         setSuccessMessage(null);
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to change role');
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to change role');
       setSuccessMessage(null);
     } finally {
       setChangingRole(false);
@@ -1296,8 +1296,8 @@ export default function AdminUsersPage() {
       },
       // Only show "Change Role" for super_admin
       ...(currentAdminRole === 'super_admin' || currentAdminRole === 'SUPER_ADMIN' ? [{
-        type: 'edit' as any, // Use edit type as base, but with custom icon
-        onClick: (record: any) => handleChangeRole(record),
+        type: 'edit', // Use edit type as base, but with custom icon
+        onClick: (record) => handleChangeRole(record),
         tooltip: 'Change Role',
         customIcon: <HiCog className="h-4 w-4" />,
       }] : []),
