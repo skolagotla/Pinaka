@@ -2,20 +2,23 @@
 import { useState } from "react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
-import { Card, Input, Button, Typography, Form, message, Alert } from 'antd';
-import { MailOutlined, LockOutlined } from '@ant-design/icons';
-
-const { Title, Text } = Typography;
+import { Card, TextInput, Button, Label, Alert } from 'flowbite-react';
+import { HiMail, HiLockClosed } from 'react-icons/hi';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 export default function SignInCard() {
   const router = useRouter();
-  const [form] = Form.useForm();
+  const form = useFormState();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handlePasswordLogin = async (values) => {
+  const handlePasswordLogin = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
+
+    const values = form.getFieldsValue();
 
     try {
       // Use FastAPI v2 for login
@@ -32,7 +35,7 @@ export default function SignInCard() {
           const isSuperAdmin = roles.some(r => r.name === 'super_admin');
           const isPmcAdmin = roles.some(r => r.name === 'pmc_admin');
           
-          message.success('Login successful');
+          notify.success('Login successful');
           
           if (isSuperAdmin) {
             router.push('/admin/dashboard');
@@ -50,117 +53,100 @@ export default function SignInCard() {
           const adminUser = await adminApi.getCurrentUser();
           
           if (adminUser && adminUser.user) {
-            message.success('Login successful');
+            notify.success('Login successful');
             router.push('/admin/dashboard');
             return;
           }
         } catch (adminError) {
           // Both failed
           setError('Invalid email or password');
-          message.error('Invalid email or password');
+          notify.error('Invalid email or password');
           return;
         }
       }
     } catch (err) {
       console.error('Login error:', err);
       setError('An error occurred during login');
-      message.error('An error occurred during login');
+      notify.error('An error occurred during login');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card
-      style={{
-        maxWidth: 450,
-        width: '100%',
-        margin: '0 auto',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      }}
-    >
-      <div style={{ padding: '16px' }}>
-        <Title
-          level={2}
-          style={{
-            textAlign: 'center',
-            fontWeight: 700,
-            marginBottom: 32,
-            color: '#1890ff',
-          }}
-        >
+    <Card className="max-w-md w-full mx-auto shadow-lg">
+      <div className="p-4">
+        <h2 className="text-2xl font-bold text-center mb-8 text-blue-600">
           Sign in to Pinaka
-        </Title>
+        </h2>
 
         {error && (
           <Alert
-            message={error}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            style={{ marginBottom: 24 }}
-          />
+            color="failure"
+            className="mb-6"
+            onDismiss={() => setError(null)}
+          >
+            {error}
+          </Alert>
         )}
 
-        <Form
-          form={form}
-          onFinish={handlePasswordLogin}
-          layout="vertical"
-          autoComplete="off"
-        >
-        <Form.Item
-          name="email"
-          label="User ID / Email"
-          rules={[
-            { required: true, message: 'Please enter your User ID or email' },
-          ]}
-        >
-          <Input
-            prefix={<MailOutlined />}
-            size="large"
-            placeholder="Enter your User ID or email"
-          />
-        </Form.Item>
+        <form onSubmit={handlePasswordLogin} className="space-y-4">
+          <div>
+            <Label htmlFor="email" className="mb-2">User ID / Email</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <HiMail className="h-5 w-5 text-gray-400" />
+              </div>
+              <TextInput
+                id="email"
+                name="email"
+                type="email"
+                value={form.values.email || ''}
+                onChange={(e) => form.setFieldsValue({ email: e.target.value })}
+                placeholder="Enter your User ID or email"
+                required
+                className="pl-10"
+              />
+            </div>
+          </div>
 
-          <Form.Item
-            name="password"
-            label="Password"
-            rules={[{ required: true, message: 'Please enter your password' }}
+          <div>
+            <Label htmlFor="password" className="mb-2">Password</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <HiLockClosed className="h-5 w-5 text-gray-400" />
+              </div>
+              <TextInput
+                id="password"
+                name="password"
+                type="password"
+                value={form.values.password || ''}
+                onChange={(e) => form.setFieldsValue({ password: e.target.value })}
+                placeholder="Enter your password"
+                required
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            color="blue"
+            size="lg"
+            className="w-full h-12 text-base font-medium"
+            disabled={loading}
           >
-            <Input.Password
-              prefix={<LockOutlined />}
-              size="large"
-              placeholder="Enter your password"
-            />
-          </Form.Item>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+        </form>
 
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              size="large"
-              block
-              loading={loading}
-              style={{
-                height: 48,
-                fontSize: 16,
-                fontWeight: 500,
-              }}
-            >
-              Sign In
-            </Button>
-          </Form.Item>
-        </Form>
-
-
-        <div style={{ marginTop: 24, textAlign: 'center' }}>
-          <Text type="secondary">
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link href="#" style={{ color: '#1890ff', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href="#" className="text-blue-600 hover:underline font-semibold">
               Register now
             </Link>
-          </Text>
+          </p>
         </div>
       </div>
     </Card>

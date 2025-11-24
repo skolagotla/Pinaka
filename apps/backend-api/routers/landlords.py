@@ -1,7 +1,7 @@
 """
 Landlord endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from typing import List, Optional
@@ -13,7 +13,8 @@ from core.crud_helpers import (
     check_organization_access,
     verify_organization_access_for_create,
     get_entity_or_404,
-    update_entity_fields
+    update_entity_fields,
+    apply_pagination
 )
 from schemas.landlord import Landlord, LandlordCreate, LandlordUpdate
 from db.models_v2 import Landlord as LandlordModel, User, Organization
@@ -24,14 +25,17 @@ router = APIRouter(prefix="/landlords", tags=["landlords"])
 @router.get("", response_model=List[Landlord])
 async def list_landlords(
     organization_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List landlords (scoped by organization)"""
+    """List landlords (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(LandlordModel)
     query = await apply_organization_filter(query, LandlordModel, current_user, user_roles, organization_id)
+    query = apply_pagination(query, page, limit, LandlordModel.created_at.desc())
     
     result = await db.execute(query)
     landlords = result.scalars().all()

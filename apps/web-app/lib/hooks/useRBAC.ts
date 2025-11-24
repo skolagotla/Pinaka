@@ -8,8 +8,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { hasPermission, getUserScopes, canAccess } from '@/lib/rbac';
-import { ResourceCategory, PermissionAction } from '@prisma/client';
+import { hasPermission, getUserScopes, canAccess } from '@/lib/rbac/permissions_v2';
+import { ResourceCategory, PermissionAction } from '@/lib/rbac/permissions_v2';
 
 interface UseRBACOptions {
   userId?: string;

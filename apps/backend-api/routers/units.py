@@ -4,10 +4,12 @@ Unit endpoints
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.unit import Unit, UnitCreate, UnitUpdate
 from db.models_v2 import Unit as UnitModel, Property, User
 
@@ -17,13 +19,18 @@ router = APIRouter(prefix="/units", tags=["units"])
 @router.get("", response_model=List[Unit])
 async def list_units(
     property_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List units (optionally filtered by property)"""
+    """List units (optionally filtered by property) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(UnitModel)
+    # Eager load property relationship to prevent N+1 queries
+    query = select(UnitModel).options(
+        selectinload(UnitModel.property),
+    )
     
     # Filter by property if provided
     if property_id:
@@ -33,6 +40,8 @@ async def list_units(
     if RoleEnum.SUPER_ADMIN not in user_roles:
         # Join with properties to filter by organization
         query = query.join(Property).where(Property.organization_id == current_user.organization_id)
+    
+    query = apply_pagination(query, page, limit, UnitModel.created_at.desc())
     
     result = await db.execute(query)
     units = result.scalars().all()
@@ -86,8 +95,11 @@ async def get_unit(
     """Get unit by ID"""
     user_roles = await get_user_roles(current_user, db)
     
+    # Eager load property to avoid separate query for access check
     result = await db.execute(
-        select(UnitModel).where(UnitModel.id == unit_id)
+        select(UnitModel)
+        .options(selectinload(UnitModel.property))
+        .where(UnitModel.id == unit_id)
     )
     unit = result.scalar_one_or_none()
     
@@ -97,14 +109,9 @@ async def get_unit(
             detail="Unit not found",
         )
     
-    # Check organization access through property
+    # Check organization access through property (already loaded)
     if RoleEnum.SUPER_ADMIN not in user_roles:
-        prop_result = await db.execute(
-            select(Property).where(Property.id == unit.property_id)
-        )
-        property_obj = prop_result.scalar_one_or_none()
-        
-        if property_obj and property_obj.organization_id != current_user.organization_id:
+        if unit.property and unit.property.organization_id != current_user.organization_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
@@ -178,7 +185,7 @@ async def delete_unit(
             detail="Unit not found",
         )
     
-    # Check organization access through property
+    # Load property for access check
     if RoleEnum.SUPER_ADMIN not in user_roles:
         prop_result = await db.execute(
             select(Property).where(Property.id == unit.property_id)

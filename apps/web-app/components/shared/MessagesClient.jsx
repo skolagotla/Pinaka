@@ -9,13 +9,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Card, Button, Modal, TextInput, Label, Textarea, Badge, 
-  Spinner, Avatar, List, Empty, Tooltip, Alert
+  Spinner, Avatar, List, Tooltip, Alert
 } from 'flowbite-react';
+import { Empty } from '@/components/shared';
 import { 
   HiPaperAirplane, HiChat, HiPlus, HiUser, HiX, HiDownload, 
   HiCheckCircle, HiRefresh, HiClock
 } from 'react-icons/hi';
-import { PageLayout } from './PageLayout';
+import PageLayout from './PageLayout';
 import { usePolling, useModalState } from '@/lib/hooks';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { 
@@ -299,7 +300,7 @@ export default function MessagesClient({ userRole = 'landlord' }) {
           type: 'primary',
           onClick: openNewConvoModal
         }
-      }
+      ]}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-250px)]">
         {/* Conversations List */}
@@ -441,14 +442,14 @@ export default function MessagesClient({ userRole = 'landlord' }) {
                               {showAvatar && (
                                 <div className={`text-xs font-semibold mb-1 ${
                                   isMyMessage ? 'text-white' : 'text-blue-600 dark:text-blue-400'
-                                }`]
+                                }`}>
                                   {senderName}
                                 </div>
                               )}
                               <div className="text-sm">{msg.body}</div>
-                              <div className={`text-xs mt-1 ${
+                                <div className={`text-xs mt-1 ${
                                 isMyMessage ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                              }`]
+                              }`}>
                                 {formatTimeOnly(msg.created_at)}
                               </div>
                             </div>
@@ -531,7 +532,7 @@ export default function MessagesClient({ userRole = 'landlord' }) {
                   >
                     <option value="">Select property</option>
                     {availableProperties.map(p => (
-                      <option key={p.id} value={p.id]
+                      <option key={p.id} value={p.id}>
                         {p.name || p.address_line1 || p.id}
                       </option>
                     ))}

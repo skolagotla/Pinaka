@@ -25,9 +25,8 @@
  */
 
 import React from 'react';
-import { Space } from 'antd';
 import { ActionButton } from '@/components/shared/buttons';
-import { Popconfirm } from 'antd';
+import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
 
 export function useActionButtons({ onEdit, onDelete, options = {} }) {
   const {
@@ -37,7 +36,7 @@ export function useActionButtons({ onEdit, onDelete, options = {} }) {
     deleteConfirmDescription = 'This action cannot be undone.',
     showEdit = true,
     showDelete = true,
-    size = 'middle',
+    size = 'md',
   } = options;
 
   const renderActions = (record) => {
@@ -57,27 +56,27 @@ export function useActionButtons({ onEdit, onDelete, options = {} }) {
 
     if (showDelete && onDelete) {
       buttons.push(
-        <Popconfirm
+        <FlowbitePopconfirm
           key="delete"
           title={deleteConfirmTitle}
           description={deleteConfirmDescription}
           onConfirm={() => onDelete(record)}
           okText="Yes"
           cancelText="No"
-          okButtonProps={{ danger: true }}
         >
           <ActionButton
             action="delete"
             tooltip={deleteTooltip}
             size={size}
           />
-        </Popconfirm>
+        </FlowbitePopconfirm>
       );
     }
 
-    return buttons.length > 0 ? <Space size="small">{buttons}</Space> : null;
+    return buttons.length > 0 ? (
+      <div className="flex items-center gap-2">{buttons}</div>
+    ) : null;
   };
 
   return { renderActions };
 }
-

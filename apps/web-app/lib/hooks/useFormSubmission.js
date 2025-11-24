@@ -26,8 +26,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useUnifiedApi } from './useUnifiedApi';
-import { message } from 'antd';
+import { v2Api } from '@/lib/api/v2-client';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useFormSubmission({
   endpoint,
@@ -40,9 +40,30 @@ export function useFormSubmission({
   showSuccessMessage = true,
   showErrorMessage = true
 } = {}) {
-  const { fetch } = useUnifiedApi({ 
-    showUserMessage: showErrorMessage 
-  });
+  // Create a fetch wrapper using v2Api
+  const fetch = useCallback(async (url, options = {}) => {
+    const token = v2Api.getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+    
+    const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+    
+    const response = await window.fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return response;
+  }, []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -92,7 +113,7 @@ export function useFormSubmission({
 
       // Success handling
       if (showSuccessMessage && successMessage) {
-        message.success(successMessage);
+        notify.success(successMessage);
       }
 
       if (onSuccess) {
@@ -105,7 +126,7 @@ export function useFormSubmission({
       setError(errorMsg);
 
       if (showErrorMessage && errorMessage) {
-        message.error(errorMessage);
+        notify.error(errorMessage);
       }
 
       if (onError) {
@@ -126,8 +147,7 @@ export function useFormSubmission({
     successMessage,
     errorMessage,
     showSuccessMessage,
-    showErrorMessage,
-    message
+    showErrorMessage
   ]);
 
   /**

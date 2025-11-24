@@ -6,7 +6,7 @@ import { Button } from 'flowbite-react';
 import { useRouter } from 'next/navigation';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
-  HiWrench,
+  HiCog,
   HiDocumentSearch,
   HiViewGrid,
 } from 'react-icons/hi';
@@ -88,7 +88,7 @@ export default function OperationsClient({ user, userRole, maintenanceData, insp
       key: 'maintenance',
       label: (
         <span className="flex items-center gap-2">
-          <HiWrench className="h-4 w-4" /> Maintenance
+          <HiCog className="h-4 w-4" /> Maintenance
         </span>
       ),
       component: (

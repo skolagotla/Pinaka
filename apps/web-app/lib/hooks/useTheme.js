@@ -1,6 +1,6 @@
 /**
  * useTheme Hook
- * Centralized theme management for Ant Design theme customization
+ * Centralized theme management for theme customization
  * 
  * Features:
  * - Get current user's theme
@@ -13,11 +13,10 @@
  */
 
 import { useState, useCallback } from 'react';
-import { App } from 'antd';
 import { getAllThemes } from '../themes/theme-config';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useTheme() {
-  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentTheme, setCurrentTheme] = useState('default');
@@ -62,7 +61,7 @@ export function useTheme() {
       if (res.ok) {
         const data = await res.json();
         setCurrentTheme(data.theme);
-        message.success('Theme updated successfully! Refreshing page...');
+        notify.success('Theme updated successfully! Refreshing page...');
         
         // Reload page to apply new theme
         setTimeout(() => {
@@ -77,12 +76,12 @@ export function useTheme() {
     } catch (err) {
       console.error('[useTheme] Error changing theme:', err);
       setError(err.message);
-      message.error(err.message || 'Failed to update theme');
+      notify.error(err.message || 'Failed to update theme');
       return false;
     } finally {
       setLoading(false);
     }
-  }, [message]);
+  }, []);
 
   return {
     currentTheme,
@@ -95,4 +94,3 @@ export function useTheme() {
 }
 
 export default useTheme;
-

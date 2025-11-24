@@ -41,13 +41,13 @@
  */
 
 import { useMemo, useCallback, useState } from 'react';
-import { Button, Space, Tag, Tooltip } from 'antd';
+import { Badge, Tooltip } from 'flowbite-react';
 import { 
-  EyeOutlined,
-  EditOutlined,
-  SendOutlined,
-  DownloadOutlined 
-} from '@ant-design/icons';
+  HiEye,
+  HiPencilAlt,
+  HiPaperAirplane,
+  HiDownload
+} from 'react-icons/hi';
 import TableActionButton from '@/components/shared/TableActionButton';
 
 import { useRentPayments } from './useRentPayments';
@@ -147,18 +147,18 @@ export function useRentPaymentFeature(initialData, options = {}) {
     const dueDate = new Date(payment.dueDate);
     
     if (payment.status === 'Paid' || payment.balance === 0) {
-      return <Tag color="green">Paid</Tag>;
+      return <Badge color="success">Paid</Badge>;
     }
     
     if (isDateAfter(today, dueDate) && payment.balance > 0) {
-      return <Tag color="red">Overdue</Tag>;
+      return <Badge color="failure">Overdue</Badge>;
     }
     
     if (payment.status === 'Partial' || (payment.balance > 0 && payment.balance < payment.amount)) {
-      return <Tag color="blue">Partial</Tag>;
+      return <Badge color="info">Partial</Badge>;
     }
     
-    return <Tag color="orange">Unpaid</Tag>;
+    return <Badge color="warning">Unpaid</Badge>;
   }, [getTodayUTC, isDateAfter]);
 
   // Define table columns
@@ -282,9 +282,9 @@ export function useRentPaymentFeature(initialData, options = {}) {
         fixed: 'right',
         align: 'center',
         render: (_, record) => (
-            <Space size="small">
+            <div className="flex items-center gap-2">
               <TableActionButton
-                icon={<EyeOutlined />}
+                icon={<HiEye />}
                 onClick={() => receipts.handleViewReceipt(record, apiPath)}
                 tooltip="View Receipt"
                 actionType="view"
@@ -293,7 +293,7 @@ export function useRentPaymentFeature(initialData, options = {}) {
               {userRole === 'landlord' && (
                 <>
                   <TableActionButton
-                    icon={<EditOutlined />}
+                    icon={<HiPencilAlt />}
                     onClick={() => {
                       setSelectedPayment(record);
                       setEditMode(record.balance === 0);
@@ -305,7 +305,7 @@ export function useRentPaymentFeature(initialData, options = {}) {
                   
                   {record.balance === 0 && (
                     <TableActionButton
-                      icon={<SendOutlined />}
+                      icon={<HiPaperAirplane />}
                       onClick={() => {
                         // This will be handled by the page component
                       }}
@@ -317,12 +317,12 @@ export function useRentPaymentFeature(initialData, options = {}) {
               )}
               
               <TableActionButton
-                icon={<DownloadOutlined />}
+                icon={<HiDownload />}
                 onClick={() => receipts.handleDownloadReceipt(record, apiPath)}
                 tooltip="Download Receipt"
                 actionType="download"
               />
-            </Space>
+            </div>
         ),
       }
     );

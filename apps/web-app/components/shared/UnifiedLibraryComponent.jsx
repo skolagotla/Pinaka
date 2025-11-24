@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Tabs } from 'flowbite-react';
-import { HiDocumentText, HiBanknotes, HiUser } from 'react-icons/hi';
+import { HiDocumentText, HiCurrencyDollar, HiUser } from 'react-icons/hi';
 import LTBDocumentsGrid from '@/components/shared/LTBDocumentsGrid';
 import LibraryClient from '@/components/shared/LibraryClient';
 import dynamic from 'next/dynamic';
@@ -162,7 +162,7 @@ export default function UnifiedLibraryComponent({
             </>
           ) : (
             <>
-              <Tabs.Item active={activeTab === 'business'} title="Business" icon={HiBanknotes} onClick={() => setActiveTab('business')}>
+              <Tabs.Item active={activeTab === 'business'} title="Business" icon={HiCurrencyDollar} onClick={() => setActiveTab('business')}>
                 <div className="h-full overflow-auto">
                   <DynamicLibraryClient
                     userRole={userRole}

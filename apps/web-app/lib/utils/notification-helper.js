@@ -2,7 +2,7 @@
  * Notification Helper Utility
  * 
  * Centralized notification system for consistent messaging across the application
- * Wraps Ant Design's message API with standardized patterns
+ * Uses a simple toast implementation compatible with Flowbite
  * 
  * Usage:
  * ```jsx
@@ -20,7 +20,8 @@
  * - Type-safe (if using TypeScript)
  */
 
-import { message } from 'antd';
+// Simple toast implementation using browser notifications or console
+// In production, you might want to use react-hot-toast or a custom toast component
 
 /**
  * Default durations (in seconds)
@@ -33,6 +34,48 @@ const DEFAULT_DURATIONS = {
   loading: 0, // Loading messages don't auto-dismiss
 };
 
+// Simple toast queue for browser notifications
+let toastQueue = [];
+let toastIdCounter = 0;
+
+function showToast(type, content, duration = 3) {
+  if (typeof window === 'undefined') {
+    // Server-side: just log
+    console.log(`[${type.toUpperCase()}] ${content}`);
+    return () => {};
+  }
+
+  // Client-side: use browser notification or create DOM element
+  const id = toastIdCounter++;
+  
+  // Create a simple toast element
+  const toast = document.createElement('div');
+  toast.id = `toast-${id}`;
+  toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md ${
+    type === 'success' ? 'bg-green-500 text-white' :
+    type === 'error' ? 'bg-red-500 text-white' :
+    type === 'warning' ? 'bg-yellow-500 text-white' :
+    'bg-blue-500 text-white'
+  }`;
+  toast.textContent = content;
+  
+  document.body.appendChild(toast);
+  
+  // Auto-remove after duration
+  let timeoutId;
+  if (duration > 0) {
+    timeoutId = setTimeout(() => {
+      toast.remove();
+    }, duration * 1000);
+  }
+  
+  // Return cleanup function
+  return () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    toast.remove();
+  };
+}
+
 /**
  * Notification helper object
  */
@@ -43,7 +86,7 @@ export const notify = {
    * @param {number} duration - Duration in seconds (default: 3)
    */
   success: (content, duration = DEFAULT_DURATIONS.success) => {
-    message.success(content, duration);
+    return showToast('success', content, duration);
   },
   
   /**
@@ -52,7 +95,7 @@ export const notify = {
    * @param {number} duration - Duration in seconds (default: 4)
    */
   error: (content, duration = DEFAULT_DURATIONS.error) => {
-    message.error(content, duration);
+    return showToast('error', content, duration);
   },
   
   /**
@@ -61,7 +104,7 @@ export const notify = {
    * @param {number} duration - Duration in seconds (default: 3)
    */
   warning: (content, duration = DEFAULT_DURATIONS.warning) => {
-    message.warning(content, duration);
+    return showToast('warning', content, duration);
   },
   
   /**
@@ -70,7 +113,7 @@ export const notify = {
    * @param {number} duration - Duration in seconds (default: 3)
    */
   info: (content, duration = DEFAULT_DURATIONS.info) => {
-    message.info(content, duration);
+    return showToast('info', content, duration);
   },
   
   /**
@@ -80,14 +123,16 @@ export const notify = {
    * @returns {Function} - Function to hide the loading message
    */
   loading: (content, duration = DEFAULT_DURATIONS.loading) => {
-    return message.loading(content, duration);
+    return showToast('info', content, duration);
   },
   
   /**
    * Destroy all messages
    */
   destroy: () => {
-    message.destroy();
+    // Remove all toasts
+    document.querySelectorAll('[id^="toast-"]').forEach(toast => toast.remove());
+    toastQueue = [];
   },
 };
 
@@ -147,4 +192,3 @@ export const notifyError = (action, entityName = 'Item') => {
 };
 
 export default notify;
-

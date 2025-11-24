@@ -1,10 +1,15 @@
 /**
  * Zod to Ant Design Form Rules Adapter
  * 
- * Converts Zod schemas to Ant Design Form validation rules
- * This enables using Zod schemas (Single Source of Truth) for client-side validation
+ * @deprecated This utility is for legacy Ant Design forms. 
+ * Since migrating to Flowbite, use Zod schemas directly with Flowbite form validation.
  * 
- * Usage:
+ * For Flowbite forms, validate using:
+ * - Zod's parse/parseAsync methods directly
+ * - Custom validation functions
+ * - Flowbite's built-in HTML5 validation attributes
+ * 
+ * Legacy Usage (deprecated):
  * ```tsx
  * import { zodToAntdRules } from '@/lib/utils/zod-to-antd-rules';
  * import { propertyCreateSchema } from '@/lib/schemas';
@@ -16,9 +21,20 @@
  *   <Input />
  * </Form.Item>
  * ```
+ * 
+ * New Flowbite Usage:
+ * ```tsx
+ * import { propertyCreateSchema } from '@/lib/schemas';
+ * 
+ * const handleSubmit = async (data) => {
+ *   const validated = await propertyCreateSchema.parseAsync(data);
+ *   // Submit validated data
+ * };
+ * ```
  */
 
 import { z } from 'zod';
+// @ts-ignore - Ant Design types are deprecated but kept for backward compatibility
 import type { Rule } from 'antd/es/form';
 
 type AntdRule = Rule;

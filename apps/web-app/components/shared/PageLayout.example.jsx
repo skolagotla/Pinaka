@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { Button, Table, Empty, Input } from 'antd';
-import { PlusOutlined, ReloadOutlined, HomeOutlined, TeamOutlined } from '@ant-design/icons';
+import { Button, Table } from 'flowbite-react';
+import { HiPlus, HiRefresh, HiHome, HiUserGroup } from 'react-icons/hi';
 import PageLayout, { EmptyState, TableWrapper } from './PageLayout';
 
 // ============================================
@@ -21,27 +21,32 @@ export function SimplePageExample({ data, loading }) {
 
   return (
     <PageLayout
-      headerTitle={<><HomeOutlined /> Properties</>}
+      headerTitle={<><HiHome className="inline mr-2" /> Properties</>}
       headerActions={
-        <Button key="refresh" icon={<ReloadOutlined />} size="small">Refresh</Button>,
-        <Button key="add" type="primary" icon={<PlusOutlined />} size="small">Add Property</Button>,
+        <>
+          <Button key="refresh" size="sm" className="flex items-center gap-2">
+            <HiRefresh className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button key="add" color="blue" className="flex items-center gap-2">
+            <HiPlus className="h-4 w-4" />
+            Add Property
+          </Button>
+        </>
       }
     >
       {data.length === 0 ? (
         <EmptyState
-          icon={<HomeOutlined />}
+          icon={<HiHome className="h-12 w-12 text-gray-400" />}
           title="No properties yet"
           description="Click 'Add Property' to add your first property"
         />
       ) : (
         <TableWrapper>
           <Table
-            dataSource={data}
+            data={data}
             columns={columns}
-            rowKey="id"
             loading={loading}
-            pagination={{ pageSize: 20, showSizeChanger: true }}
-            size="middle"
           />
         </TableWrapper>
       )}
@@ -57,42 +62,39 @@ export function PageWithStatsExample({ properties, units, leases, landlords }) {
     {
       title: 'Properties',
       value: properties.length,
-      prefix: <HomeOutlined />,
-      valueStyle: { color: '#1890ff' },
+      prefix: <HiHome className="h-4 w-4" />,
+      color: '#3b82f6',
     },
     {
       title: 'Total Units',
       value: units.length,
-      prefix: <HomeOutlined />,
-      valueStyle: { color: '#52c41a' },
+      prefix: <HiHome className="h-4 w-4" />,
+      color: '#22c55e',
     },
     {
       title: 'Active Leases',
       value: leases.length,
-      prefix: <TeamOutlined />,
-      valueStyle: { color: '#722ed1' },
+      prefix: <HiUserGroup className="h-4 w-4" />,
+      color: '#a855f7',
     },
     {
       title: 'Landlords',
       value: landlords.length,
-      prefix: <TeamOutlined />,
-      valueStyle: { color: '#faad14' },
+      prefix: <HiUserGroup className="h-4 w-4" />,
+      color: '#eab308',
     },
   ];
 
   return (
     <PageLayout
-      headerTitle={<><HomeOutlined /> Managed Properties</>}
+      headerTitle={<><HiHome className="inline mr-2" /> Managed Properties</>}
       stats={stats}
       statsCols={4}
     >
       <TableWrapper>
         <Table
-          dataSource={properties}
-          columns={[}
-          rowKey="id"
-          pagination={{ pageSize: 20 }}
-          size="middle"
+          data={properties}
+          columns={[]}
         />
       </TableWrapper>
     </PageLayout>
@@ -104,25 +106,25 @@ export function PageWithStatsExample({ properties, units, leases, landlords }) {
 // ============================================
 export function CustomHeaderExample() {
   const customHeader = (
-    <Card 
-      size="small" 
-      style={{ marginBottom: 12 }}
-      bodyStyle={{ padding: '8px 12px' }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+    <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-3">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
-          <Title level={4} style={{ margin: 0 }}>Custom Header</Title>
-          <div style={{ fontSize: '12px', color: '#999' }}>With subtitle</div>
+          <h4 className="text-lg font-semibold m-0">Custom Header</h4>
+          <div className="text-xs text-gray-500">With subtitle</div>
         </div>
-        <Input.Search placeholder="Search..." style={{ width: 300 }} size="small" />
+        <input
+          type="text"
+          placeholder="Search..."
+          className="w-72 px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+        />
       </div>
-    </Card>
+    </div>
   );
 
   return (
     <PageLayout header={customHeader}>
       <TableWrapper>
-        <Table dataSource={[} columns={[} />
+        <Table data={[]} columns={[]} />
       </TableWrapper>
     </PageLayout>
   );
@@ -133,31 +135,20 @@ export function CustomHeaderExample() {
 // ============================================
 export function TabsPageExample() {
   return (
-    <div style={{ padding: '12px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        items={
-          {
-            key: 'tab1',
-            label: 'Tab 1',
-            children: (
-              <div style={{ flex: 1, overflow: 'auto', paddingTop: 12 }}>
-                <PageLayout
-                  headerTitle="Tab Content"
-                  stats={[}
-                >
-                  <TableWrapper>
-                    <Table dataSource={[} columns={[} />
-                  </TableWrapper>
-                </PageLayout>
-              </div>
-            ),
-          },
-        }
-      />
+    <div className="p-3 h-full flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Tabs would be implemented using Flowbite Tabs component */}
+        <div className="flex-1 overflow-auto pt-3">
+          <PageLayout
+            headerTitle="Tab Content"
+            stats={[]}
+          >
+            <TableWrapper>
+              <Table data={[]} columns={[]} />
+            </TableWrapper>
+          </PageLayout>
+        </div>
+      </div>
     </div>
   );
 }
-

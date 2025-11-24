@@ -18,7 +18,7 @@ import {
   HiPlus, HiCheckCircle, HiClock, HiCalendar, HiPencil, HiTrash,
   HiX
 } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
@@ -30,8 +30,9 @@ import { formatDateShort } from '@/lib/utils/safe-date-formatter';
 export default function CalendarClient({ initialProperties = [] }) {
   const { user } = useV2Auth();
   const organizationId = user?.organization_id;
-  const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const [properties, setProperties] = useState(initialProperties);
+  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const { isOpen: taskModalOpen, open: openTaskModal, close: closeTaskModal, editingItem: editingTask, openForEdit: openTaskModalForEdit, openForCreate: openTaskModalForCreate } = useModalState();
@@ -120,8 +121,8 @@ export default function CalendarClient({ initialProperties = [] }) {
   const handleCompleteTask = async (taskId) => {
     try {
       // NOTE: Tasks API still uses v1 - v2 backend endpoint needed
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.tasks.update(taskId, {
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.tasks.update(taskId, {
         isCompleted: true,
         completedAt: new Date().toISOString()
       });

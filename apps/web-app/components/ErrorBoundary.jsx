@@ -1,14 +1,13 @@
 "use client";
 import React from 'react';
-import { Result, Button, Card, Typography } from 'antd';
+import { Card, Button, Alert } from 'flowbite-react';
+import { HiExclamationCircle, HiRefresh, HiDownload } from 'react-icons/hi';
 
 // Lazy load logger to avoid server-side issues
 let logger = null;
 if (typeof window !== 'undefined') {
   logger = require('@/lib/logger');
 }
-
-const { Paragraph, Text } = Typography;
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -59,40 +58,48 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '50px' }}>
-          <Result
-            status="error"
-            title="Something went wrong"
-            subTitle="An unexpected error occurred. The error has been logged."
-            extra={[
-              <Button type="primary" key="reset" onClick={this.handleReset}>
+        <div className="p-12">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="mb-6">
+              <HiExclamationCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Something went wrong
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                An unexpected error occurred. The error has been logged.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-center mb-6">
+              <Button color="blue" onClick={this.handleReset} className="flex items-center gap-2">
+                <HiRefresh className="h-4 w-4" />
                 Reload Page
-              </Button>,
-              <Button key="logs" onClick={this.handleDownloadLogs}>
+              </Button>
+              <Button color="gray" onClick={this.handleDownloadLogs} className="flex items-center gap-2">
+                <HiDownload className="h-4 w-4" />
                 Download Error Logs
               </Button>
-            ]}
-          >
-            <Card style={{ marginTop: 24, textAlign: 'left' }}>
-              <Paragraph>
-                <Text strong>Error:</Text> {this.state.error?.toString()}
-              </Paragraph>
-              {this.state.errorInfo && (
-                <Paragraph>
-                  <Text strong>Component Stack:</Text>
-                  <pre style={{ 
-                    background: '#f5f5f5', 
-                    padding: 10, 
-                    borderRadius: 4,
-                    overflow: 'auto',
-                    maxHeight: 300
-                  }}>
-                    {this.state.errorInfo.componentStack}
-                  </pre>
-                </Paragraph>
-              )}
+            </div>
+
+            <Card className="mt-6 text-left">
+              <div className="space-y-4">
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white mb-1">Error:</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {this.state.error?.toString()}
+                  </p>
+                </div>
+                {this.state.errorInfo && (
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white mb-2">Component Stack:</p>
+                    <pre className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-xs overflow-auto max-h-72">
+                      {this.state.errorInfo.componentStack}
+                    </pre>
+                  </div>
+                )}
+              </div>
             </Card>
-          </Result>
+          </div>
         </div>
       );
     }
@@ -102,4 +109,3 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
-

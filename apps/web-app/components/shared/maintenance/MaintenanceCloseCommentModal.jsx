@@ -6,11 +6,9 @@
  */
 
 "use client";
-import { Modal, Form, Input, Space, Alert, Typography } from 'antd';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
-const { TextArea } = Input;
+import { Modal, Textarea, Alert, Label, Button, Spinner } from 'flowbite-react';
+import { HiExclamationCircle } from 'react-icons/hi';
+import { useState } from 'react';
 
 /**
  * Maintenance Close Comment Modal Component
@@ -31,58 +29,75 @@ export default function MaintenanceCloseCommentModal({
   setCloseComment,
   loading = false
 }) {
+  const [comment, setComment] = useState(closeComment);
+
+  const handleOk = () => {
+    if (setCloseComment) {
+      setCloseComment(comment);
+    }
+    if (onOk) {
+      onOk();
+    }
+  };
+
   return (
     <Modal
-      title={
-        <Space size={8}>
-          <ExclamationCircleOutlined style={{ color: '#1890ff' }} />
-          <Text strong style={{ fontSize: 15 }}>Close Ticket</Text>
-        </Space>
-      }
-      open={open}
-      onOk={onOk}
-      onCancel={onCancel}
-      confirmLoading={loading}
-      okText="Close Ticket"
-      cancelText="Cancel"
-      width={480}
-      bodyStyle={{ padding: '20px 24px' }}
+      show={open}
+      onClose={onCancel}
+      size="md"
     >
-      <Space direction="vertical" style={{ width: '100%' }} size={12}>
-        <Alert
-          message={
-            <Text style={{ fontSize: 13 }}>
+      <Modal.Header>
+        <div className="flex items-center gap-2">
+          <HiExclamationCircle className="h-5 w-5 text-blue-600" />
+          <span className="font-semibold">Close Ticket</span>
+        </div>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <Alert color="info" icon={HiExclamationCircle}>
+            <p className="text-sm">
               Please provide a comment explaining why you're closing this ticket.
-            </Text>
-          }
-          type="info"
-          showIcon
-          style={{ 
-            padding: '8px 12px',
-            fontSize: 13
-          }}
-          icon={<ExclamationCircleOutlined style={{ fontSize: 14 }} />}
-        />
-        <Form.Item
-          label={<Text strong style={{ fontSize: 13 }}>Closing Comment</Text>}
-          required
-          style={{ marginBottom: 0 }}
+            </p>
+          </Alert>
+          <div>
+            <Label htmlFor="closeComment" className="mb-2 block font-semibold">
+              Closing Comment <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="closeComment"
+              rows={3}
+              placeholder="Explain why you're closing this ticket..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              className="resize-none"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {comment.length}/500 characters
+            </p>
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button color="gray" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          color="blue"
+          onClick={handleOk}
+          disabled={loading || !comment.trim()}
+          className="flex items-center gap-2"
         >
-          <TextArea
-            rows={3}
-            placeholder="Explain why you're closing this ticket..."
-            value={closeComment}
-            onChange={(e) => setCloseComment(e.target.value)}
-            style={{ 
-              resize: 'none',
-              fontSize: 13
-            }}
-            maxLength={500}
-            showCount
-          />
-        </Form.Item>
-      </Space>
+          {loading ? (
+            <>
+              <Spinner size="sm" />
+              Closing...
+            </>
+          ) : (
+            'Close Ticket'
+          )}
+        </Button>
+      </Modal.Footer>
     </Modal>
   );
 }
-

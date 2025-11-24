@@ -21,9 +21,9 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { App } from 'antd';
 import dayjs from 'dayjs';
-import { useUnifiedApi } from './useUnifiedApi';
+import { v2Api } from '@/lib/api/v2-client';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useDocumentVault({ 
   userRole, 
@@ -31,8 +31,30 @@ export function useDocumentVault({
   selectedPropertyId = null, // Property-centric: Property ID for document linking
   initialDocuments = []
 }) {
-  const { message } = App.useApp();
-  const { fetch } = useUnifiedApi();
+  // Create a fetch wrapper using v2Api
+  const fetch = useCallback(async (url, options = {}) => {
+    const token = v2Api.getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+    
+    const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+    
+    const response = await window.fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return response;
+  }, []);
   
   // State management
   const [documents, setDocuments] = useState(initialDocuments);
@@ -101,7 +123,7 @@ export function useDocumentVault({
     setLoading(true);
     try {
       // Use v1Api for document listing
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const query = {};
       
       // If landlord/PMC and tenant selected, filter by tenantId
@@ -126,7 +148,7 @@ export function useDocumentVault({
     
     try {
       // Use v1Api to get documents and calculate status
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.documents.list({ tenantId: selectedTenantId });
       const documents = response.data || response.documents || [];
       
@@ -153,18 +175,18 @@ export function useDocumentVault({
       : (selectedFile ? [selectedFile] : []);
     
     if (filesToUpload.length === 0) {
-      message.error("Please select at least one file to upload");
+      notify.error("Please select at least one file to upload");
       return false;
     }
 
     if (!category) {
-      message.error("Please select a document category");
+      notify.error("Please select a document category");
       return false;
     }
 
     // Description is mandatory only for "Other" category
     if (category === 'OTHER' && (!description || !description ? description.trim() : "")) {
-      message.error("Please provide a description for 'Other' document type");
+      notify.error("Please provide a description for 'Other' document type");
       return false;
     }
 
@@ -209,7 +231,7 @@ export function useDocumentVault({
         tags.forEach(tag => formData.append("tags", tag));
 
         // Use v1Api for batch upload - upload files sequentially
-        const { v1Api } = await import('@/lib/api/v1-client');
+        const { v2Api } = await import('@/lib/api/v2-client');
         const uploadPromises = filesToUpload.map(async (file) => {
           const singleFormData = new FormData();
           singleFormData.append("file", file);
@@ -235,7 +257,7 @@ export function useDocumentVault({
         });
         
         await Promise.all(uploadPromises);
-        message.success(`All ${filesToUpload.length} files uploaded successfully!`);
+        notify.success(`All ${filesToUpload.length} files uploaded successfully!`);
       } else {
         // SINGLE FILE UPLOAD: Use existing API
         const file = filesToUpload[0];
@@ -271,7 +293,7 @@ export function useDocumentVault({
           throw new Error(error.error || error.message || 'Failed to upload document');
         }
 
-        message.success("Document uploaded successfully");
+        notify.success("Document uploaded successfully");
       }
       
       await fetchDocuments();
@@ -284,35 +306,35 @@ export function useDocumentVault({
       return true;
     } catch (error) {
       console.error("[Library] Upload error:", error);
-      message.error("Failed to upload document");
+      notify.error("Failed to upload document");
       return false;
     } finally {
       setUploading(false);
       setUploadProgress({ current: 0, total: 0 });
     }
   }, [selectedFile, documentName, category, subcategory, description, expirationDate, tags, 
-      userRole, selectedTenantId, selectedPropertyId, message, fetchDocuments, fetchDocumentStatus]);
+      userRole, selectedTenantId, selectedPropertyId, fetchDocuments, fetchDocumentStatus]);
 
   // Delete document
   const handleDelete = useCallback(async (docId, reason = null) => {
     try {
       // Use v1Api for document deletion
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       await v1Api.documents.delete(docId);
       
       // Note: If reason is needed, it would need to be passed via update before delete
       // or a specialized endpoint would need to be created
 
-      message.success("Document deleted successfully");
+      notify.success("Document deleted successfully");
       await fetchDocuments();
       await fetchDocumentStatus();
       return true;
     } catch (error) {
       console.error('[useDocumentVault] Error deleting document:', error);
-      message.error(error.message || 'Failed to delete document');
+      notify.error(error.message || 'Failed to delete document');
       return false;
     }
-  }, [message, fetchDocuments, fetchDocumentStatus]);
+  }, [fetchDocuments, fetchDocumentStatus]);
 
   // Verify document (both landlord and tenant)
   const handleVerify = useCallback(async (docId, verificationComment = null) => {
@@ -320,7 +342,7 @@ export function useDocumentVault({
       console.log('[Library] Verifying document:', docId, 'Role:', userRole, 'Comment:', verificationComment);
       
       // Use v1Api to update document with verification
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       await v1Api.documents.update(docId, {
         isVerified: true,
         verificationComment: verificationComment || null,
@@ -328,7 +350,7 @@ export function useDocumentVault({
         rejectionReason: null,
       });
 
-      message.success("Document verified successfully");
+      notify.success("Document verified successfully");
       await fetchDocuments();
       if (userRole === 'landlord' || userRole === 'pmc') {
         await fetchDocumentStatus();
@@ -336,10 +358,10 @@ export function useDocumentVault({
       return true;
     } catch (error) {
       console.error('[useDocumentVault] Error verifying document:', error);
-      message.error(error.message || 'Failed to verify document');
+      notify.error(error.message || 'Failed to verify document');
       return false;
     }
-  }, [userRole, message, fetchDocuments, fetchDocumentStatus]);
+  }, [userRole, fetchDocuments, fetchDocumentStatus]);
 
   // Reject document (both landlord and tenant)
   const handleReject = useCallback(async (docId, rejectionReason) => {
@@ -347,7 +369,7 @@ export function useDocumentVault({
       console.log('[Library] Rejecting document:', docId, 'Role:', userRole);
       
       // Use v1Api to update document with rejection
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       await v1Api.documents.update(docId, {
         isRejected: true,
         rejectionReason: rejectionReason || null,
@@ -355,7 +377,7 @@ export function useDocumentVault({
         verificationComment: null,
       });
 
-      message.success("Document rejected. The uploader has been notified.");
+      notify.success("Document rejected. The uploader has been notified.");
       await fetchDocuments();
       if (userRole === 'landlord' || userRole === 'pmc') {
         await fetchDocumentStatus();
@@ -363,10 +385,10 @@ export function useDocumentVault({
       return true;
     } catch (error) {
       console.error('[useDocumentVault] Error rejecting document:', error);
-      message.error(error.message || 'Failed to reject document');
+      notify.error(error.message || 'Failed to reject document');
       return false;
     }
-  }, [userRole, message, fetchDocuments, fetchDocumentStatus]);
+  }, [userRole, fetchDocuments, fetchDocumentStatus]);
 
   // View document
   const handleView = useCallback((doc) => {
@@ -437,16 +459,16 @@ export function useDocumentVault({
         throw new Error(error.error || error.message || 'Failed to replace document');
       }
 
-      message.success('Document replaced successfully. Re-approval required.');
+      notify.success('Document replaced successfully. Re-approval required.');
       await fetchDocuments();
       await fetchDocumentStatus();
       return true;
     } catch (error) {
       console.error('[useDocumentVault] Error replacing document:', error);
-      message.error(error.message || 'Failed to replace document');
+      notify.error(error.message || 'Failed to replace document');
       return false;
     }
-  }, [fetch, message, fetchDocuments, fetchDocumentStatus]);
+  }, [fetchDocuments, fetchDocumentStatus]);
 
   // Refresh all data
   const refresh = useCallback(async () => {

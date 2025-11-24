@@ -1,6 +1,6 @@
 import React from 'react';
-import { Space, Tag, Button } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Badge } from 'flowbite-react';
+import { HiCheckCircle, HiXCircle, HiDownload } from 'react-icons/hi';
 import { formatDate } from './date-formatters';
 import { getCategoryById } from '../constants/document-categories';
 
@@ -15,7 +15,7 @@ import { getCategoryById } from '../constants/document-categories';
  * import { buildDocumentMetadata } from '@/lib/utils/document-metadata-builder';
  * 
  * <PDFViewerModal
- *   visible={isOpen}
+ *   open={isOpen}
  *   document={doc}
  *   metadata={buildDocumentMetadata(doc)}
  *   onClose={handleClose}
@@ -67,12 +67,12 @@ export function buildDocumentMetadata(
     {
       label: 'Uploaded By',
       value: (
-        <Space>
+        <div className="flex items-center gap-2">
           <span>{document.uploadedByName}</span>
-          <Tag color={document.uploadedBy === 'landlord' ? 'blue' : 'green'}>
+          <Badge color={document.uploadedBy === 'landlord' ? 'blue' : 'green'}>
             {document.uploadedBy === 'landlord' ? 'Landlord' : 'Tenant'}
-          </Tag>
-        </Space>
+          </Badge>
+        </div>
       ),
       span: 1,
     }
@@ -102,235 +102,49 @@ export function buildDocumentMetadata(
     }
   );
 
-  // Row 3: Approved By (if verified) or placeholder + Download
-  if (document.isVerified) {
+  // Row 3: Approval Status (if applicable)
+  if (includeApprovalDetails || document.isVerified || document.isRejected) {
     metadata.push({
-      label: 'Approved By',
-      value: (
-        <Space>
-          <span>{document.verifiedByName}</span>
-          <Tag color={document.verifiedByRole === 'landlord' ? 'blue' : 'green'}>
-            {document.verifiedByRole === 'landlord' ? 'Landlord' : 'Tenant'}
-          </Tag>
-        </Space>
-      ),
-      span: 1,
-    });
-  } else {
-    metadata.push({
-      label: '',
-      value: '',
-      span: 1,
-    });
-  }
-
-  // Download button
-  if (showDownload && onDownload) {
-    metadata.push({
-      label: 'Download',
-      value: (
-        <Button
-          type="link"
-          icon={<DownloadOutlined />}
-          onClick={onDownload}
-          style={{ padding: 0 }}
-        >
-          Download
-        </Button>
-      ),
-      span: 1,
-    });
-  } else {
-    metadata.push({
-      label: '',
-      value: '',
-      span: 1,
-    });
-  }
-
-  // Row 4: Expiration (if exists) + Status
-  if (document.expirationDate) {
-    metadata.push({
-      label: 'Expiration',
-      value: formatDate.date(document.expirationDate),
-      span: 1,
-    });
-  } else {
-    metadata.push({
-      label: '',
-      value: '',
-      span: 1,
-    });
-  }
-
-  metadata.push({
-    label: 'Status',
-    value: document.isRejected ? (
-      <Tag color="error" icon={<CloseCircleOutlined />}>Rejected</Tag>
-    ) : document.isVerified ? (
-      <Tag color="success" icon={<CheckCircleOutlined />}>Verified</Tag>
-    ) : (
-      <Tag color="warning">Pending Verification</Tag>
-    ),
-    span: 1,
-  });
-
-  // Row 5: Description (full width if exists)
-  if (document.description) {
-    metadata.push({
-      label: 'Description',
-      value: document.description,
+      label: 'Status',
+      value: (() => {
+        if (document.isVerified) {
+          return (
+            <div className="flex items-center gap-2">
+              <HiCheckCircle className="h-5 w-5 text-green-500" />
+              <span className="text-green-600">Verified</span>
+            </div>
+          );
+        }
+        if (document.isRejected) {
+          return (
+            <div className="flex items-center gap-2">
+              <HiXCircle className="h-5 w-5 text-red-500" />
+              <span className="text-red-600">Rejected</span>
+            </div>
+          );
+        }
+        return <Badge color="gray">Pending</Badge>;
+      })(),
       span: 2,
     });
   }
 
-  // Optional: Include approval/rejection details
-  if (includeApprovalDetails) {
-    if (document.verificationComment) {
-      metadata.push({
-        label: 'Approval Note',
-        value: document.verificationComment,
-        span: 2,
-      });
-    }
-
-    if (document.isRejected && document.rejectionReason) {
-      metadata.push({
-        label: 'Rejection Reason',
-        value: document.rejectionReason,
-        span: 2,
-      });
-    }
+  // Row 4: Download button (if enabled)
+  if (showDownload && onDownload) {
+    metadata.push({
+      label: 'Actions',
+      value: (
+        <button
+          onClick={onDownload}
+          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <HiDownload className="h-4 w-4" />
+          Download
+        </button>
+      ),
+      span: 2,
+    });
   }
 
   return metadata;
 }
-
-/**
- * Build carousel documents array for multi-file documents
- * Handles both batch uploads (metadata.files) and version history (metadata.versions)
- */
-export function buildDocumentCarousel(document: any) {
-  if (!document) return [];
-
-  const documents: any[] = [];
-
-  // Parse metadata if exists
-  let metadata: any = null;
-  if (document.metadata) {
-    try {
-      metadata = JSON.parse(document.metadata);
-    } catch (e) {
-      console.error('[buildDocumentCarousel] Failed to parse metadata:', e);
-    }
-  }
-
-  // Primary/current document
-  documents.push({
-    id: document.id,
-    documentHash: document.documentHash,
-    fileName: document.fileName,
-    originalName: document.originalName,
-    fileType: document.fileType,
-    fileSize: document.fileSize,
-    storagePath: document.storagePath,
-    category: document.category,
-    description: document.description,
-    uploadedBy: document.uploadedBy,
-    uploadedByName: document.uploadedByName,
-    uploadedAt: document.uploadedAt,
-    expirationDate: document.expirationDate,
-    isVerified: document.isVerified,
-    verifiedByName: document.verifiedByName,
-    verifiedByRole: document.verifiedByRole,
-    verifiedAt: document.verifiedAt,
-    verificationComment: document.verificationComment,
-    isRejected: document.isRejected,
-    rejectedByName: document.rejectedByName,
-    rejectedByRole: document.rejectedByRole,
-    rejectedAt: document.rejectedAt,
-    rejectionReason: document.rejectionReason,
-    versionLabel: metadata?.versions?.length > 0 ? 'Current Version' : undefined,
-  });
-
-  // Batch upload files (additional files in a batch)
-  if (metadata?.files && Array.isArray(metadata.files)) {
-    metadata.files.forEach((file: any, index: number) => {
-      documents.push({
-        ...document,
-        fileName: file.fileName,
-        originalName: file.originalName,
-        fileType: file.fileType,
-        fileSize: file.fileSize,
-        storagePath: file.storagePath,
-        fileIndex: index,
-        versionLabel: undefined,
-      });
-    });
-  }
-
-  // Version history (previous versions of replaced documents)
-  if (metadata?.versions && Array.isArray(metadata.versions)) {
-    metadata.versions.forEach((version: any, index: number) => {
-      documents.push({
-        ...document,
-        fileName: version.fileName,
-        originalName: version.originalName,
-        fileType: version.fileType,
-        fileSize: version.fileSize,
-        storagePath: version.storagePath,
-        uploadedBy: version.uploadedBy,
-        uploadedByName: version.uploadedByName,
-        uploadedByEmail: version.uploadedByEmail,
-        uploadedAt: version.uploadedAt,
-        versionIndex: index,
-        versionLabel: `Version ${metadata.versions.length - index}`,
-        // Previous versions don't have verification status
-        isVerified: false,
-        isRejected: false,
-      });
-    });
-  }
-
-  return documents;
-}
-
-/**
- * Get document display name
- */
-export function getDocumentDisplayName(document: any): string {
-  if (!document) return 'Document';
-  
-  // Use document name if available
-  if (document.documentName) {
-    return document.documentName;
-  }
-  
-  // Use original file name
-  if (document.originalName) {
-    return document.originalName;
-  }
-  
-  // Use category as fallback
-  const category = getCategoryById(document.category);
-  return category?.name || 'Document';
-}
-
-/**
- * Get file count for a document
- */
-export function getDocumentFileCount(document: any): number {
-  if (!document) return 0;
-  
-  if (document.metadata) {
-    try {
-      const metadata = JSON.parse(document.metadata);
-      return metadata.fileCount || metadata.files?.length || 1;
-    } catch (e) {
-      return 1;
-    }
-  }
-  
-  return 1;
-}
-

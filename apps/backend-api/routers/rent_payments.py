@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import date
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.rent_payment import RentPayment, RentPaymentCreate, RentPaymentUpdate
 from db.models_v2 import RentPayment as RentPaymentModel, User, Organization, Lease, Tenant
 
@@ -21,10 +22,12 @@ async def list_rent_payments(
     lease_id: Optional[UUID] = Query(None),
     tenant_id: Optional[UUID] = Query(None),
     status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List rent payments (scoped by organization and role)"""
+    """List rent payments (scoped by organization and role) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(RentPaymentModel)
@@ -47,6 +50,8 @@ async def list_rent_payments(
     # Role-based filtering
     if RoleEnum.TENANT in user_roles:
         query = query.where(RentPaymentModel.tenant_id == current_user.id)
+    
+    query = apply_pagination(query, page, limit, RentPaymentModel.created_at.desc())
     
     result = await db.execute(query)
     payments = result.scalars().all()

@@ -388,7 +388,7 @@ export default function PortfolioClient({ userRole, user }) {
                   data={[{
                     month: 'Current',
                     rate: Math.round((stats.occupiedUnits / (stats.occupiedUnits + stats.vacantUnits)) * 100)
-                  }} 
+                  }]} 
                 />
               )}
             </Card>
@@ -754,7 +754,7 @@ export default function PortfolioClient({ userRole, user }) {
               {tab.key === 'overview' && <OverviewTab />}
               {tab.key === 'properties' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.properties?.data || [}
+                  dataSource={portfolio?.properties?.data || []}
                   columns={propertyColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -762,7 +762,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'tenants' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.tenants?.data || [}
+                  dataSource={portfolio?.tenants?.data || []}
                   columns={tenantColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -770,7 +770,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'leases' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.leases?.data || [}
+                  dataSource={portfolio?.leases?.data || []}
                   columns={leaseColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -778,7 +778,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'landlords' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.landlords?.data || [}
+                  dataSource={portfolio?.landlords?.data || []}
                   columns={landlordColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -786,7 +786,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'vendors' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.vendors?.data || [}
+                  dataSource={portfolio?.vendors?.data || []}
                   columns={vendorColumns}
                   loading={portfolioLoading}
                   rowKey="id"

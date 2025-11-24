@@ -6,11 +6,10 @@
  */
 
 "use client";
-import { Form, Input, Select, Button, Row, Col, Tooltip } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { Select, Button, TextInput, Textarea, Tooltip, Label } from 'flowbite-react';
+import { HiSave } from 'react-icons/hi';
 import { MAINTENANCE_PRIORITIES } from '@/lib/constants/statuses';
-
-const { TextArea } = Input;
+import { useFormState } from '@/lib/hooks/useFormState';
 
 const LANDLORD_CATEGORIES = ['Rent', 'N4 Notice', 'N8 Notice', 'N12 Notice', 'Others'];
 
@@ -21,7 +20,6 @@ const LANDLORD_CATEGORIES = ['Rent', 'N4 Notice', 'N8 Notice', 'N12 Notice', 'Ot
  * @param {boolean} props.open - Modal open state
  * @param {Function} props.onCancel - Close modal handler
  * @param {Function} props.onSubmit - Submit handler
- * @param {Object} props.form - Form instance
  * @param {Array} props.tenants - Available tenants
  * @param {Array} props.tenantProperties - Properties for selected tenant
  * @param {Array} props.allProperties - All properties
@@ -36,7 +34,6 @@ export default function MaintenanceCreateTicketModal({
   open,
   onCancel,
   onSubmit,
-  form,
   tenants = [],
   tenantProperties = [],
   allProperties = [],
@@ -47,145 +44,214 @@ export default function MaintenanceCreateTicketModal({
   fetchTenants,
   loading = false
 }) {
+  const form = useFormState({
+    tenantId: '',
+    propertyId: '',
+    priority: 'Normal',
+    category: '',
+    title: '',
+    description: '',
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const values = form.getFieldsValue();
+    
+    // Validation
+    if (!values.tenantId) {
+      alert('Please select a tenant');
+      return;
+    }
+    if (!values.propertyId) {
+      alert('Property is required');
+      return;
+    }
+    if (!values.category) {
+      alert('Please select a category');
+      return;
+    }
+    if (!values.title) {
+      alert('Please enter a subject');
+      return;
+    }
+    if (!values.description) {
+      alert('Please enter details');
+      return;
+    }
+    
+    onSubmit(values);
+  };
+
+  const handleTenantChange = (e) => {
+    const tenantId = e.target.value;
+    form.setFieldsValue({ tenantId });
+    if (onTenantChange) {
+      onTenantChange(tenantId);
+    }
+  };
+
+  const handleCategoryChange = (e) => {
+    const category = e.target.value;
+    form.setFieldsValue({ category });
+    if (onCategoryChange) {
+      onCategoryChange(category);
+    }
+  };
+
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={onSubmit}
-    >
-      <Form.Item
-        name="tenantId"
-        label="Tenant"
-        rules={[{ required: true, message: 'Please select a tenant' }}
-      >
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="tenantId" className="mb-2 block">
+          Tenant <span className="text-red-500">*</span>
+        </Label>
         <Select
-          placeholder="Select tenant"
-          showSearch
-          filterOption={(input, option) =>
-            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-          }
-          options={Array.isArray(tenants) 
-            ? tenants
-                .filter(t => t && t.id != null)
-                .map(t => ({
-                  value: t.id,
-                  label: `${t.firstName} ${t.lastName} (${t.email})`
-                }))
-            : [}
-          onChange={onTenantChange}
-          onDropdownVisibleChange={(open) => {
-            if (open && (!Array.isArray(tenants) || tenants.length === 0)) {
+          id="tenantId"
+          value={form.values.tenantId}
+          onChange={handleTenantChange}
+          onFocus={() => {
+            if ((!Array.isArray(tenants) || tenants.length === 0) && fetchTenants) {
               fetchTenants();
             }
           }}
-        />
-      </Form.Item>
+          required
+        >
+          <option value="">Select tenant</option>
+          {Array.isArray(tenants) 
+            ? tenants
+                .filter(t => t && t.id != null)
+                .map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.firstName} {t.lastName} ({t.email})
+                  </option>
+                ))
+            : null}
+        </Select>
+      </div>
 
-      <Form.Item
-        name="propertyId"
-        label="Property"
-        rules={[{ required: true, message: 'Property is required' }}
-        tooltip={
-          isPropertyEditable 
-            ? (Array.isArray(tenantProperties) && tenantProperties.length > 1 
-                ? "Select from tenant's properties" 
-                : "Select property manually")
-            : "Auto-populated from tenant's active lease"
-        }
-      >
+      <div>
+        <Label htmlFor="propertyId" className="mb-2 block">
+          Property <span className="text-red-500">*</span>
+        </Label>
+        {isPropertyEditable && (
+          <Tooltip content={
+            Array.isArray(tenantProperties) && tenantProperties.length > 1 
+              ? "Select from tenant's properties" 
+              : "Select property manually"
+          }>
+            <span className="text-xs text-gray-500 ml-1">ℹ️</span>
+          </Tooltip>
+        )}
         <Select
-          placeholder={
-            isPropertyEditable
-              ? "Select property"
-              : "Auto-populated"
-          }
+          id="propertyId"
+          value={form.values.propertyId}
+          onChange={(e) => form.setFieldsValue({ propertyId: e.target.value })}
           disabled={!isPropertyEditable}
-          showSearch
-          filterOption={(input, option) =>
-            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-          }
-          options={
-            (Array.isArray(tenantProperties) && tenantProperties.length > 0 
-              ? tenantProperties 
-              : (Array.isArray(allProperties) ? allProperties : []))
+          required
+        >
+          <option value="">
+            {isPropertyEditable ? "Select property" : "Auto-populated"}
+          </option>
+          {(Array.isArray(tenantProperties) && tenantProperties.length > 0 
+            ? tenantProperties 
+            : (Array.isArray(allProperties) ? allProperties : []))
               .filter(p => p && p.id != null)
-              .map(p => ({
-                value: p.id,
-                label: p.propertyName || p.addressLine1
-              }))
-          }
+              .map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.propertyName || p.addressLine1}
+                </option>
+              ))}
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="priority" className="mb-2 block">
+            Priority <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            id="priority"
+            value={form.values.priority}
+            onChange={(e) => form.setFieldsValue({ priority: e.target.value })}
+            required
+          >
+            {MAINTENANCE_PRIORITIES.map(priority => (
+              <option key={priority} value={priority}>{priority}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="category" className="mb-2 block">
+            Category <span className="text-red-500">*</span>
+          </Label>
+          {selectedCategoryDesc && (
+            <div className="text-xs text-gray-500 mb-1">
+              📋 {selectedCategoryDesc}
+            </div>
+          )}
+          <Select 
+            id="category"
+            value={form.values.category}
+            onChange={handleCategoryChange}
+            required
+          >
+            <option value="">Select category</option>
+            {LANDLORD_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="title" className="mb-2 block">
+          Subject <span className="text-red-500">*</span>
+        </Label>
+        <TextInput
+          id="title"
+          value={form.values.title}
+          onChange={(e) => form.setFieldsValue({ title: e.target.value })}
+          placeholder="Brief description of the issue"
+          required
         />
-      </Form.Item>
+      </div>
 
-      <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item
-            name="priority"
-            label="Priority"
-            initialValue="Normal"
-            rules={[{ required: true, message: 'Please select priority' }}
-          >
-            <Select placeholder="Select priority">
-              {MAINTENANCE_PRIORITIES.map(priority => (
-                <Select.Option key={priority} value={priority}priority}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
-            name="category"
-            label="Category"
-            rules={[{ required: true, message: 'Please select a category' }}
-            extra={selectedCategoryDesc && (
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
-                📋 {selectedCategoryDesc}
-              </div>
-            )}
-          >
-            <Select 
-              placeholder="Select category"
-              onChange={onCategoryChange}
-            >
-              {LANDLORD_CATEGORIES.map(cat => (
-                <Select.Option key={cat} value={cat}cat}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Form.Item
-        name="title"
-        label="Subject"
-        rules={[{ required: true, message: 'Please enter a subject' }}
-      >
-        <Input placeholder="Brief description of the issue" />
-      </Form.Item>
-
-      <Form.Item
-        name="description"
-        label="Details"
-        rules={[{ required: true, message: 'Please enter details' }}
-      >
-        <TextArea
+      <div>
+        <Label htmlFor="description" className="mb-2 block">
+          Details <span className="text-red-500">*</span>
+        </Label>
+        <Textarea
+          id="description"
+          value={form.values.description}
+          onChange={(e) => form.setFieldsValue({ description: e.target.value })}
           rows={4}
           placeholder="Please provide detailed information about this request"
+          required
         />
-      </Form.Item>
+      </div>
 
-      <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-        <Tooltip title="Create Ticket">
+      <div className="flex justify-end">
+        <Tooltip content="Create Ticket">
           <Button 
-            type="primary" 
-            size="large"
-            htmlType="submit" 
-            loading={loading}
-            icon={<SaveOutlined />}
-          />
+            type="submit"
+            color="blue"
+            size="lg"
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Creating...
+              </>
+            ) : (
+              <>
+                <HiSave className="h-5 w-5" />
+                Create Ticket
+              </>
+            )}
+          </Button>
         </Tooltip>
-      </Form.Item>
-    </Form>
+      </div>
+    </form>
   );
 }
-

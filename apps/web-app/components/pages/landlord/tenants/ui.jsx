@@ -56,7 +56,7 @@ import {
   configureTableColumns,
   useModalState
 } from '@/lib/hooks';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { usePolling } from '@/lib/hooks/usePolling';
 import { usePermissions } from '@/lib/hooks/usePermissions';
 import { ValidationHelpers } from '@/lib/utils/unified-validation';
@@ -128,7 +128,7 @@ function TenantsClient({ initialTenants, user }) {
   const { loading: rejecting, withLoading: withRejecting } = useLoading();
   
   // API error handler
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   
   // Tenant form data management hook
   const tenantFormData = useTenantFormData({ country: 'CA' });

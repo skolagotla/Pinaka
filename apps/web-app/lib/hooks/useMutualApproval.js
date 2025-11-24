@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback } from 'react';
-import { App } from 'antd';
 import { useRouter } from 'next/navigation';
+import { notify } from '@/lib/utils/notification-helper';
 
 /**
  * useMutualApproval Hook
@@ -21,16 +21,15 @@ import { useRouter } from 'next/navigation';
  * @returns {Object} Approval handlers
  */
 export function useMutualApproval({ onSuccess } = {}) {
-  const { message } = App.useApp();
   const router = useRouter();
 
   /**
    * Approve a version change
    */
   const approveVersionChange = useCallback(async (documentId, comment = null) => {
+    const loadingDismiss = notify.loading('Recording your approval...');
+    
     try {
-      message.loading({ content: 'Recording your approval...', key: 'approve-version', duration: 0 });
-      
       // Use v1Api for mutual approval
       const res = await fetch(`/api/v1/documents/${documentId}/mutual-approve`, {
         method: 'POST',
@@ -41,7 +40,8 @@ export function useMutualApproval({ onSuccess } = {}) {
 
       if (res.ok) {
         const data = await res.json();
-        message.success({ content: data.message, key: 'approve-version' });
+        loadingDismiss();
+        notify.success(data.message || 'Document approved successfully');
         
         if (onSuccess) {
           await onSuccess();
@@ -52,23 +52,25 @@ export function useMutualApproval({ onSuccess } = {}) {
         return { success: true, data };
       } else {
         const error = await res.json();
-        message.error({ content: error.error || 'Failed to approve document', key: 'approve-version' });
+        loadingDismiss();
+        notify.error(error.error || 'Failed to approve document');
         return { success: false, error };
       }
     } catch (error) {
       console.error('[useMutualApproval] Version approval error:', error);
-      message.error({ content: 'Failed to approve document', key: 'approve-version' });
+      loadingDismiss();
+      notify.error('Failed to approve document');
       return { success: false, error };
     }
-  }, [message, router, onSuccess]);
+  }, [router, onSuccess]);
 
   /**
    * Approve a deletion request
    */
   const approveDeletion = useCallback(async (documentId, reason = null) => {
+    const loadingDismiss = notify.loading('Approving deletion...');
+    
     try {
-      message.loading({ content: 'Approving deletion...', key: 'approve-deletion', duration: 0 });
-      
       // Use v1Api for deletion approval
       const res = await fetch(`/api/v1/documents/${documentId}/approve-deletion`, {
         method: 'POST',
@@ -79,7 +81,8 @@ export function useMutualApproval({ onSuccess } = {}) {
 
       if (res.ok) {
         const data = await res.json();
-        message.success({ content: data.message, key: 'approve-deletion' });
+        loadingDismiss();
+        notify.success(data.message || 'Deletion approved successfully');
         
         if (onSuccess) {
           await onSuccess();
@@ -90,15 +93,17 @@ export function useMutualApproval({ onSuccess } = {}) {
         return { success: true, data };
       } else {
         const error = await res.json();
-        message.error({ content: error.error || 'Failed to approve deletion', key: 'approve-deletion' });
+        loadingDismiss();
+        notify.error(error.error || 'Failed to approve deletion');
         return { success: false, error };
       }
     } catch (error) {
       console.error('[useMutualApproval] Deletion approval error:', error);
-      message.error({ content: 'Failed to approve deletion', key: 'approve-deletion' });
+      loadingDismiss();
+      notify.error('Failed to approve deletion');
       return { success: false, error };
     }
-  }, [message, router, onSuccess]);
+  }, [router, onSuccess]);
 
   return {
     approveVersionChange,

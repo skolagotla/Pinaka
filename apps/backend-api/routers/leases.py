@@ -146,8 +146,16 @@ async def get_lease(
     """Get lease by ID"""
     user_roles = await get_user_roles(current_user, db)
     
+    # Eager load relationships to prevent N+1 queries
     result = await db.execute(
-        select(LeaseModel).where(LeaseModel.id == lease_id)
+        select(LeaseModel)
+        .options(
+            selectinload(LeaseModel.lease_tenants).selectinload(LeaseTenant.tenant),
+            selectinload(LeaseModel.unit),
+            selectinload(LeaseModel.property),
+            selectinload(LeaseModel.landlord),
+        )
+        .where(LeaseModel.id == lease_id)
     )
     lease = result.scalar_one_or_none()
     

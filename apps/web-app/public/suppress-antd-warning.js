@@ -1,32 +1,21 @@
 /**
- * Suppress Ant Design false positive warning
- * This runs as early as possible before React loads
+ * @deprecated Ant Design has been migrated to Flowbite.
+ * This file is no longer needed and can be removed.
+ * 
+ * Legacy: Suppress Ant Design false positive warning
+ * This was used to suppress Ant Design compatibility warnings.
+ * Since we've migrated to Flowbite, Ant Design warnings should no longer appear.
  */
 (function() {
   'use strict';
   
-  // Save original console.warn
-  const originalWarn = console.warn;
+  // This file is kept for backward compatibility but does nothing
+  // Ant Design has been fully migrated to Flowbite
+  // If you see this message, you can safely remove this file
   
-  // Override console.warn
-  console.warn = function(...args) {
-    // Check if this is the Ant Design compatibility warning
-    if (args && args.length > 0) {
-      const message = String(args[0]);
-      if (
-        message.includes('[antd: compatible]') &&
-        message.includes('antd v5 support React is 16 ~ 18')
-      ) {
-        // Silently ignore this specific warning
-        // We ARE using React 18 - this is a false positive
-        return;
-      }
-    }
-    
-    // Pass all other warnings through
-    originalWarn.apply(console, args);
-  };
-  
-  console.log('✅ Ant Design warning suppression active');
+  // No-op - Ant Design is no longer used
+  if (process.env.NODE_ENV === 'development') {
+    console.log('ℹ️  suppress-antd-warning.js is deprecated - Ant Design has been migrated to Flowbite');
+  }
 })();
 

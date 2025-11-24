@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, List, Button, Input, Space, Avatar, Tag, Empty, Modal, Form, Select, message } from 'antd';
-import { MessageOutlined, SendOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Button, Textarea, Label, Avatar, Badge, Modal, Select, Spinner } from 'flowbite-react';
+import { HiChat, HiPaperAirplane, HiPlus, HiUser } from 'react-icons/hi';
 import { ProCard } from '../shared/LazyProComponents';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useConversations, useConversation, useCreateConversation, useCreateMessage } from '@/lib/hooks/useV2Data';
-
-const { TextArea } = Input;
-const { Option } = Select;
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 /**
  * PMC Communication Channel Component
@@ -21,7 +20,11 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [createForm] = Form.useForm();
+  const createForm = useFormState({
+    subject: '',
+    propertyId: '',
+    initialMessage: '',
+  });
   
   // v2 API hooks
   const { data: conversationsData, isLoading: conversationsLoading, refetch: refetchConversations } = useConversations(organizationId);
@@ -54,7 +57,7 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
 
     try {
       if (!organizationId) {
-        message.error('Organization ID is required');
+        notify.error('Organization ID is required');
         return;
       }
       
@@ -68,14 +71,17 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
       refetchConversations();
     } catch (error) {
       console.error('[PMC Communication] Error sending message:', error);
-      message.error(error.message || 'Failed to send message');
+      notify.error(error.message || 'Failed to send message');
     }
   };
 
-  const handleCreateConversation = async (values) => {
+  const handleCreateConversation = async (e) => {
+    e.preventDefault();
+    const values = createForm.getFieldsValue();
+
     try {
       if (!organizationId) {
-        message.error('Organization ID is required');
+        notify.error('Organization ID is required');
         return;
       }
       
@@ -96,16 +102,16 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
         });
       }
 
-      message.success('Conversation created');
+      notify.success('Conversation created');
       setCreateModalVisible(false);
-      createForm.resetFields();
-      fetchConversations();
+      createForm.resetForm();
+      refetchConversations();
       if (conversation) {
         setSelectedConversation(conversation);
       }
     } catch (error) {
       console.error('[PMC Communication] Error creating conversation:', error);
-      message.error(error.message || 'Failed to create conversation');
+      notify.error(error.message || 'Failed to create conversation');
     }
   };
 
@@ -118,124 +124,135 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
 
   return (
     <div>
-      <ProCard
-        title={
-          <Space>
-            <MessageOutlined />
-            <span>PMC Communication</span>
-          </Space>
-        }
-        extra={
+      <ProCard className="mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <HiChat className="h-5 w-5" />
+            <h3 className="text-lg font-semibold">PMC Communication</h3>
+          </div>
           <Button
-            type="primary"
-            icon={<PlusOutlined />}
+            color="blue"
             onClick={() => setCreateModalVisible(true)}
+            className="flex items-center gap-2"
           >
+            <HiPlus className="h-4 w-4" />
             New Conversation
           </Button>
-        }
-      >
-        <div style={{ display: 'flex', height: '600px' }}>
+        </div>
+
+        <div className="flex h-[600px]">
           {/* Conversations List */}
-          <div style={{ width: '300px', borderRight: '1px solid #f0f0f0', padding: '16px' }}>
-            <List
-              dataSource={conversations}
-              loading={loading}
-              locale={{ emptyText: <Empty description="No conversations" /> }}
-              renderItem={(conversation) => (
-                <List.Item
-                  style={{
-                    cursor: 'pointer',
-                    backgroundColor: selectedConversation?.id === conversation.id ? '#e6f7ff' : 'transparent',
-                  }}
-                  onClick={() => setSelectedConversation(conversation)}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                    title={conversation.subject}
-                    description={
-                      <div>
-                        <div>{getParticipantName(conversation)}</div>
+          <div className="w-[300px] border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+            {loading ? (
+              <div className="flex justify-center items-center h-full">
+                <Spinner size="xl" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <Empty description="No conversations" />
+            ) : (
+              <div className="space-y-2">
+                {conversations.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    onClick={() => setSelectedConversation(conversation)}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedConversation?.id === conversation.id
+                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Avatar
+                        placeholderInitials={getParticipantName(conversation)?.[0] || 'U'}
+                        className="flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{conversation.subject}</p>
+                        <p className="text-xs text-gray-500 truncate">{getParticipantName(conversation)}</p>
                         {conversation.property && (
-                          <Tag size="small">{conversation.property.propertyName || conversation.property.addressLine1}</Tag>
+                          <Badge color="gray" size="sm" className="mt-1">
+                            {conversation.property.propertyName || conversation.property.addressLine1}
+                          </Badge>
                         )}
                         {conversation.messages?.[0] && (
-                          <div style={{ fontSize: '12px', color: '#999', marginTop: 4 }}>
+                          <p className="text-xs text-gray-400 mt-1">
                             {formatDateTimeDisplay(conversation.messages[0].createdAt)}
-                          </div>
+                          </p>
                         )}
                       </div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Messages Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="flex-1 flex flex-col">
             {selectedConversation ? (
               <>
-                <div style={{ padding: '16px', borderBottom: '1px solid #f0f0f0' }}>
-                  <h3>{selectedConversation.subject}</h3>
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold">{selectedConversation.subject}</h3>
                   {selectedConversation.property && (
-                    <Tag>{selectedConversation.property.propertyName || selectedConversation.property.addressLine1}</Tag>
+                    <Badge color="gray" className="mt-1">
+                      {selectedConversation.property.propertyName || selectedConversation.property.addressLine1}
+                    </Badge>
                   )}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
-                      style={{
-                        marginBottom: 16,
-                        textAlign: msg.senderRole === 'pmc' ? 'right' : 'left',
-                      }}
+                      className={`flex ${msg.senderRole === 'pmc' ? 'justify-end' : 'justify-start'}`}
                     >
                       <Card
-                        size="small"
-                        style={{
-                          display: 'inline-block',
-                          maxWidth: '70%',
-                          backgroundColor: msg.senderRole === 'pmc' ? '#1890ff' : '#f0f0f0',
-                          color: msg.senderRole === 'pmc' ? 'white' : 'black',
-                        }}
+                        className={`max-w-[70%] ${
+                          msg.senderRole === 'pmc'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                        }`}
                       >
-                        <div>{msg.content}</div>
-                        <div style={{ fontSize: '12px', opacity: 0.7, marginTop: 4 }}>
+                        <p>{msg.content}</p>
+                        <p className={`text-xs mt-2 ${
+                          msg.senderRole === 'pmc' ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
                           {formatDateTimeDisplay(msg.createdAt)}
-                        </div>
+                        </p>
                       </Card>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ padding: '16px', borderTop: '1px solid #f0f0f0' }}>
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input.TextArea
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex gap-2">
+                    <Textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type a message..."
                       rows={2}
-                      onPressEnter={(e) => {
-                        if (e.shiftKey) return;
-                        e.preventDefault();
-                        handleSendMessage();
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
                       }}
+                      className="flex-1"
                     />
                     <Button
-                      type="primary"
-                      icon={<SendOutlined />}
+                      color="blue"
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim()}
+                      className="flex items-center gap-2"
                     >
+                      <HiPaperAirplane className="h-4 w-4" />
                       Send
                     </Button>
-                  </Space.Compact>
+                  </div>
                 </div>
               </>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <div className="flex items-center justify-center h-full">
                 <Empty description="Select a conversation to view messages" />
               </div>
             )}
@@ -245,49 +262,78 @@ export default function PMCCommunicationChannel({ landlordId, propertyId }) {
 
       {/* Create Conversation Modal */}
       <Modal
-        title="New Conversation"
-        open={createModalVisible}
-        onCancel={() => {
+        show={createModalVisible}
+        onClose={() => {
           setCreateModalVisible(false);
-          createForm.resetFields();
+          createForm.resetForm();
         }}
-        onOk={() => createForm.submit()}
-        width={600}
+        size="md"
       >
-        <Form
-          form={createForm}
-          layout="vertical"
-          onFinish={handleCreateConversation}
-        >
-          <Form.Item
-            name="subject"
-            label="Subject"
-            rules={[{ required: true, message: 'Please enter a subject' }}
-          >
-            <Input placeholder="Conversation subject" />
-          </Form.Item>
+        <Modal.Header>New Conversation</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleCreateConversation} className="space-y-4">
+            <div>
+              <Label htmlFor="subject" className="mb-2 block">
+                Subject <span className="text-red-500">*</span>
+              </Label>
+              <input
+                id="subject"
+                type="text"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-600"
+                placeholder="Conversation subject"
+                value={createForm.values.subject}
+                onChange={(e) => createForm.setFieldsValue({ subject: e.target.value })}
+                required
+              />
+            </div>
 
-          {!propertyId && (
-            <Form.Item
-              name="propertyId"
-              label="Property (Optional)"
-            >
-              <Select placeholder="Select property" allowClear>
-                {/* Property options would be loaded here */}
-              </Select>
-            </Form.Item>
-          )}
+            {!propertyId && (
+              <div>
+                <Label htmlFor="propertyId" className="mb-2 block">
+                  Property (Optional)
+                </Label>
+                <Select
+                  id="propertyId"
+                  value={createForm.values.propertyId}
+                  onChange={(value) => createForm.setFieldsValue({ propertyId: value })}
+                >
+                  <option value="">Select property</option>
+                  {/* Property options would be loaded here */}
+                </Select>
+              </div>
+            )}
 
-          <Form.Item
-            name="initialMessage"
-            label="Initial Message"
-            rules={[{ required: true, message: 'Please enter an initial message' }}
-          >
-            <TextArea rows={4} placeholder="Start the conversation..." />
-          </Form.Item>
-        </Form>
+            <div>
+              <Label htmlFor="initialMessage" className="mb-2 block">
+                Initial Message <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="initialMessage"
+                rows={4}
+                placeholder="Start the conversation..."
+                value={createForm.values.initialMessage}
+                onChange={(e) => createForm.setFieldsValue({ initialMessage: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                color="gray"
+                onClick={() => {
+                  setCreateModalVisible(false);
+                  createForm.resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" color="blue">
+                Create
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
       </Modal>
     </div>
   );
 }
-

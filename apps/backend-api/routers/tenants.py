@@ -4,6 +4,7 @@ Tenant endpoints
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
@@ -14,7 +15,8 @@ from core.crud_helpers import (
     check_organization_access,
     verify_organization_access_for_create,
     get_entity_or_404,
-    update_entity_fields
+    update_entity_fields,
+    apply_pagination
 )
 from schemas.tenant import Tenant, TenantCreate, TenantUpdate, TenantApprovalRequest, TenantRejectionRequest
 from db.models_v2 import Tenant as TenantModel, User, Organization, Landlord, Lease, LeaseTenant, Property, Unit
@@ -25,14 +27,21 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
 @router.get("", response_model=List[Tenant])
 async def list_tenants(
     organization_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List tenants (scoped by organization)"""
+    """List tenants (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(TenantModel)
+    # Eager load relationships to prevent N+1 queries
+    query = select(TenantModel).options(
+        selectinload(TenantModel.organization),
+        selectinload(TenantModel.user),
+    )
     query = await apply_organization_filter(query, TenantModel, current_user, user_roles, organization_id)
+    query = apply_pagination(query, page, limit, TenantModel.created_at.desc())
     
     result = await db.execute(query)
     tenants = result.scalars().all()

@@ -8,8 +8,8 @@
 "use client";
 
 import { useState } from 'react';
-import { Button, Space, Tag, Popover } from 'antd';
-import { UserOutlined, LockOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { Button, Badge, Popover } from 'flowbite-react';
+import { HiUser, HiLockClosed, HiLocationMarker } from 'react-icons/hi';
 import { RoleAssignmentModal, PermissionMatrixViewer, ScopeAssignment } from './index';
 import { useRBAC } from '@/lib/hooks/useRBAC';
 
@@ -57,12 +57,15 @@ export default function AdminUsersRBACIntegration({
   }
 
   return (
-    <Space>
+    <div className="flex items-center gap-2">
       {/* Role Assignment Button */}
       <Button
-        icon={<UserOutlined />}
+        color="gray"
+        size="sm"
         onClick={() => setRoleModalVisible(true)}
+        className="flex items-center gap-2"
       >
+        <HiUser className="h-4 w-4" />
         Manage Roles
       </Button>
 
@@ -70,21 +73,25 @@ export default function AdminUsersRBACIntegration({
       {scopes.length > 0 && (
         <Popover
           content={
-            <div>
-              <strong>Current Scopes:</strong>
-              {scopes.map((scope, idx) => (
-                <Tag key={idx} color="blue" style={{ marginTop: 4 }}>
-                  {scope.propertyId ? `Property: ${scope.propertyId}` : 'Global'}
-                </Tag>
-              ))}
+            <div className="p-2">
+              <p className="font-semibold mb-2">Current Scopes:</p>
+              <div className="flex flex-wrap gap-2">
+                {scopes.map((scope, idx) => (
+                  <Badge key={idx} color="blue">
+                    {scope.propertyId ? `Property: ${scope.propertyId}` : 'Global'}
+                  </Badge>
+                ))}
+              </div>
             </div>
           }
-          title="User Scopes"
         >
           <Button
-            icon={<EnvironmentOutlined />}
+            color="gray"
+            size="sm"
             onClick={() => setScopeModalVisible(true)}
+            className="flex items-center gap-2"
           >
+            <HiLocationMarker className="h-4 w-4" />
             Manage Scopes
           </Button>
         </Popover>
@@ -92,35 +99,51 @@ export default function AdminUsersRBACIntegration({
 
       {/* Permission Matrix Viewer Button */}
       <Button
-        icon={<LockOutlined />}
+        color="gray"
+        size="sm"
         onClick={() => setPermissionViewerVisible(true)}
+        className="flex items-center gap-2"
       >
+        <HiLockClosed className="h-4 w-4" />
         View Permissions
       </Button>
 
       {/* Modals */}
-      <RoleAssignmentModal
-        visible={roleModalVisible}
-        userId={userId}
-        userType={userType}
-        userName={userName}
-        userEmail={userEmail}
-        onClose={() => setRoleModalVisible(false)}
-        onSuccess={() => {
-          setRoleModalVisible(false);
-          // Refresh user data
-        }}
-        assignedBy={currentUser.id}
-        assignedByType={currentUser.type}
-      />
+      {roleModalVisible && (
+        <RoleAssignmentModal
+          visible={roleModalVisible}
+          userId={userId}
+          userType={userType}
+          userName={userName}
+          userEmail={userEmail}
+          onClose={() => setRoleModalVisible(false)}
+          onSuccess={() => {
+            setRoleModalVisible(false);
+            // Refresh data
+          }}
+          assignedBy={currentUser.id}
+          assignedByType={currentUser.type}
+        />
+      )}
+
+      {scopeModalVisible && (
+        <ScopeAssignment
+          userId={userId}
+          userType={userType}
+          roleId="" // Will be set by modal
+          assignedBy={currentUser.id}
+          onSuccess={() => setScopeModalVisible(false)}
+        />
+      )}
 
       {permissionViewerVisible && (
         <PermissionMatrixViewer
-          roleName={undefined} // Will show selector
-          readOnly={true}
+          visible={permissionViewerVisible}
+          userId={userId}
+          userType={userType}
+          onClose={() => setPermissionViewerVisible(false)}
         />
       )}
-    </Space>
+    </div>
   );
 }
-

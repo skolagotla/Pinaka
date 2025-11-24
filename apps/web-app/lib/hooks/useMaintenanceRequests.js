@@ -27,7 +27,7 @@ export function useMaintenanceRequests({
     try {
       setLoading(true);
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.list({ page: 1, limit: 1000 });
       // v1 API returns { success: true, data: { data: [...], pagination: {...} } }
       const requestsData = response.data?.data || response.data || [];

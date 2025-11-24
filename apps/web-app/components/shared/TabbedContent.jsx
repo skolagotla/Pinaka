@@ -15,11 +15,8 @@
  * @param {Array} props.tabs - Tab configurations
  * @param {string} props.activeKey - Active tab key
  * @param {function} props.onChange - Tab change handler: (key) => void
- * @param {string} props.size - Tab size: 'small' | 'default' | 'large' (default: 'default')
- * @param {string} props.type - Tab type: 'line' | 'card' | 'editable-card' (default: 'line')
- * @param {boolean} props.lazy - Lazy load tab content (default: false)
- * @param {boolean} props.destroyInactiveTabPane - Destroy inactive tabs (default: false)
- * @param {object} props.style - Custom styles
+ * @param {string} props.size - Tab size: 'sm' | 'md' | 'lg' (default: 'md')
+ * @param {string} props.style - Custom styles
  * 
  * Tab configuration:
  * {
@@ -33,26 +30,24 @@
  * 
  * @example
  * <TabbedContent
- *   tabs={
+ *   tabs={[
  *     { key: 'all', label: 'All', children: <Table />, badge: 25 },
  *     { key: 'pending', label: 'Pending', children: <Table />, badge: 5 }
- *   }
+ *   ]}
  *   activeKey={activeTab}
  *   onChange={setActiveTab}
  * />
  */
 
 import React, { useState, useEffect } from 'react';
-import { Tabs, Badge } from 'antd';
+import { Tabs } from 'flowbite-react';
+import { Badge } from 'flowbite-react';
 
 export default function TabbedContent({
   tabs = [],
   activeKey,
   onChange,
-  size = 'default',
-  type = 'line',
-  lazy = false,
-  destroyInactiveTabPane = false,
+  size = 'md',
   style,
   ...props
 }) {
@@ -69,33 +64,31 @@ export default function TabbedContent({
     onChange?.(key);
   };
 
-  const tabItems = tabs.map(tab => ({
-    key: tab.key,
-    label: (
-      <span>
-        {tab.icon && <span style={{ marginRight: 4 }}>{tab.icon}</span>}
-        {tab.label}
-        {tab.badge !== undefined && (
-          <Badge count={tab.badge} style={{ marginLeft: 8 }} />
-        )}
-      </span>
-    ),
-    children: tab.children,
-    disabled: tab.disabled,
-    forceRender: !lazy, // Force render if not lazy
-  }));
-
   return (
     <Tabs
-      activeKey={internalActiveKey}
-      onChange={handleChange}
-      items={tabItems}
-      size={size}
-      type={type}
-      destroyInactiveTabPane={destroyInactiveTabPane}
+      activeTab={internalActiveKey}
+      onActiveTabChange={handleChange}
       style={style}
       {...props}
-    />
+    >
+      {tabs.map(tab => (
+        <Tabs.Item
+          key={tab.key}
+          title={
+            <span className="flex items-center gap-2">
+              {tab.icon && <span>{tab.icon}</span>}
+              {tab.label}
+              {tab.badge !== undefined && (
+                <Badge color="blue" size="sm">{tab.badge}</Badge>
+              )}
+            </span>
+          }
+          active={internalActiveKey === tab.key}
+          disabled={tab.disabled}
+        >
+          {tab.children}
+        </Tabs.Item>
+      ))}
+    </Tabs>
   );
 }
-

@@ -5,11 +5,11 @@
  */
 
 import {
-  WarningOutlined,
-  ClockCircleOutlined,
-  ToolOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
+  HiExclamation,
+  HiClock,
+  HiOutlineCog,
+  HiCheckCircle,
+} from 'react-icons/hi';
 import { formatDate as formatDateUtil } from '@/lib/utils/date-formatters';
 
 /**
@@ -35,15 +35,15 @@ export function getPriorityColor(priority) {
 export function getStatusIcon(status) {
   switch (status) {
     case "New":
-      return <WarningOutlined />;
+      return <HiExclamation />;
     case "Pending":
-      return <ClockCircleOutlined />;
+      return <HiClock />;
     case "In Progress":
-      return <ToolOutlined />;
+      return <HiOutlineCog />;
     case "Completed":
-      return <CheckCircleOutlined />;
+      return <HiCheckCircle />;
     default:
-      return <ToolOutlined />;
+      return <HiOutlineCog />;
   }
 }
 

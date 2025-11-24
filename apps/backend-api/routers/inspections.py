@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import date
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.inspection import Inspection, InspectionCreate, InspectionUpdate
 from db.models_v2 import Inspection as InspectionModel, User, Organization
 
@@ -20,10 +21,12 @@ async def list_inspections(
     organization_id: Optional[UUID] = Query(None),
     property_id: Optional[UUID] = Query(None),
     status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List inspections (scoped by organization)"""
+    """List inspections (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(InspectionModel)
@@ -40,6 +43,8 @@ async def list_inspections(
         query = query.where(InspectionModel.property_id == property_id)
     if status_filter:
         query = query.where(InspectionModel.status == status_filter)
+    
+    query = apply_pagination(query, page, limit, InspectionModel.created_at.desc())
     
     result = await db.execute(query)
     inspections = result.scalars().all()

@@ -6,19 +6,19 @@
  */
 
 /**
- * Optimized Ant Design icon imports
- * Instead of importing all icons, import only what you need
+ * Optimized icon imports
+ * Use react-icons/hi (Heroicons) for Flowbite-compatible icons
  * 
  * @example
- * // ❌ Bad: Imports entire icon library
- * import { HomeOutlined, UserOutlined } from '@ant-design/icons';
+ * // ✅ Good: Import only what you need from react-icons
+ * import { HiHome, HiUser, HiSearch } from 'react-icons/hi';
  * 
- * // ✅ Good: Import individual icons (if tree-shaking works)
- * import HomeOutlined from '@ant-design/icons/HomeOutlined';
- * import UserOutlined from '@ant-design/icons/UserOutlined';
+ * // ✅ Also good: Import from specific icon sets as needed
+ * import { FaHome } from 'react-icons/fa'; // Font Awesome
+ * import { MdSettings } from 'react-icons/md'; // Material Design
  * 
- * Note: Ant Design icons are already tree-shakeable, but this pattern
- * can help with other libraries that aren't.
+ * Note: react-icons are tree-shakeable and provide consistent
+ * icon styling across the application.
  */
 
 /**

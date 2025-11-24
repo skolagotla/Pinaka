@@ -3,7 +3,8 @@
  * Displays a statistic card with icon, title, value, and optional suffix
  */
 
-import { Card, Statistic } from 'antd';
+"use client";
+import { Card, Spinner } from 'flowbite-react';
 
 export default function DashboardStatCard({ 
   title, 
@@ -11,7 +12,7 @@ export default function DashboardStatCard({
   suffix, 
   prefix,
   icon,
-  color = '#1890ff',
+  color = '#3b82f6',
   loading = false,
   onClick,
   style = {}
@@ -22,39 +23,33 @@ export default function DashboardStatCard({
     ...style
   };
 
-  if (onClick) {
-    cardStyle[':hover'] = {
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      transform: 'translateY(-2px)'
-    };
-  }
-
   return (
     <Card 
+      className={onClick ? 'hover:shadow-lg hover:-translate-y-1 transition-all' : ''}
       style={cardStyle}
       onClick={onClick}
-      loading={loading}
     >
-      <Statistic
-        title={title}
-        value={value}
-        suffix={suffix}
-        prefix={prefix}
-        valueStyle={{ color }}
-      />
-      {icon && (
-        <div style={{ 
-          position: 'absolute', 
-          right: 16, 
-          top: 16,
-          fontSize: 24,
-          color: color,
-          opacity: 0.3
-        }}>
-          {icon}
+      {loading ? (
+        <div className="flex justify-center items-center py-4">
+          <Spinner size="xl" />
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{title}</p>
+          <div className="flex items-baseline gap-2">
+            {prefix && <span className="text-lg text-gray-600 dark:text-gray-300">{prefix}</span>}
+            <span className="text-2xl font-bold" style={{ color }}>
+              {value}
+            </span>
+            {suffix && <span className="text-sm text-gray-500 dark:text-gray-400">{suffix}</span>}
+          </div>
+          {icon && (
+            <div className="absolute right-4 top-4 text-2xl opacity-30" style={{ color }}>
+              {icon}
+            </div>
+          )}
         </div>
       )}
     </Card>
   );
 }
-

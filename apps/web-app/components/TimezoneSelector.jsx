@@ -16,17 +16,15 @@
 
 "use client";
 import { useState } from 'react';
-import { Select, App, Typography, Spin } from 'antd';
-import { ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Select, Label, Spinner } from 'flowbite-react';
+import { HiClock, HiCheckCircle } from 'react-icons/hi';
 import { ALL_TIMEZONES, getTimezoneLabel, getTimezoneAbbreviation } from '@/lib/constants/timezones';
 import { useTimezone } from '@/lib/context/TimezoneContext';
 import { useRouter } from 'next/navigation';
-
-const { Text, Paragraph } = Typography;
+import { notify } from '@/lib/utils/notification-helper';
 
 export default function TimezoneSelector({ currentTimezone, userId, userRole }) {
   const router = useRouter();
-  const { message } = App.useApp();
   const { setTimezone } = useTimezone();
   const [selectedTimezone, setSelectedTimezone] = useState(currentTimezone);
   const [saving, setSaving] = useState(false);
@@ -36,29 +34,25 @@ export default function TimezoneSelector({ currentTimezone, userId, userRole }) 
       setSaving(true);
       setSelectedTimezone(newTimezone);
 
-      // Use v1Api to update timezone for both tenants and landlords
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // Use v2Api to update timezone for both tenants and landlords
+      const { v2Api } = await import('@/lib/api/v2-client');
       if (userRole === 'tenant') {
-        await v1Api.tenants.update(userId, { timezone: newTimezone });
+        await v2Api.tenants.update(userId, { timezone: newTimezone });
       } else {
-        // For landlords, use v1Api.landlords
-        await v1Api.landlords.update(userId, { timezone: newTimezone });
+        // For landlords, use v2Api.landlords
+        await v2Api.landlords.update(userId, { timezone: newTimezone });
       }
 
       // Update app-wide timezone context
       setTimezone(newTimezone);
 
-      message.success({
-        content: 'Timezone updated successfully All dates will now display in your selected timezone.',
-        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-        duration: 3,
-      });
+      notify.success('Timezone updated successfully. All dates will now display in your selected timezone.');
 
       // Refresh the page to apply timezone changes everywhere
       router.refresh();
     } catch (error) {
       console.error('[TimezoneSelector] Error:', error);
-      message.error(error.message || 'Failed to update timezone');
+      notify.error(error.message || 'Failed to update timezone');
       // Revert to previous selection on error
       setSelectedTimezone(currentTimezone);
     } finally {
@@ -66,64 +60,59 @@ export default function TimezoneSelector({ currentTimezone, userId, userRole }) 
     }
   };
 
-  // Convert timezone groups to Ant Design Select format
-  const options = ALL_TIMEZONES.map(group => ({
-    label: group.label,
-    options: group.options.map(tz => ({
-      label: `${tz.label} (${tz.offset})`,
-      value: tz.value,
-      searchLabel: `${tz.label} ${tz.offset} ${tz.value}`.toLowerCase(),
-    })),
-  }));
-
   // Get current timezone abbreviation (e.g., EST, PST)
   const currentAbbr = getTimezoneAbbreviation(selectedTimezone);
 
+  // Flatten timezone options for Select
+  const timezoneOptions = ALL_TIMEZONES.flatMap(group => 
+    group.options.map(tz => ({
+      label: `${tz.label} (${tz.offset})`,
+      value: tz.value,
+    }))
+  );
+
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
-          <ClockCircleOutlined /> Select Your Timezone
-        </Text>
-        <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
+      <div className="mb-4">
+        <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+          <HiClock className="h-4 w-4" />
+          Select Your Timezone
+        </Label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
           All dates and times throughout the app will display in your selected timezone.
           Your current timezone is <strong>{currentAbbr}</strong>.
-        </Paragraph>
+        </p>
       </div>
 
       <Select
         value={selectedTimezone}
-        onChange={handleChange}
-        options={options}
-        showSearch
-        filterOption={(input, option) => {
-          // Search across label and value
-          return option.searchLabel?.includes(input.toLowerCase()) || false;
-        }}
-        placeholder="Search for a timezone..."
-        style={{ width: '100%' }}
-        size="large"
+        onChange={(e) => handleChange(e.target.value)}
         disabled={saving}
-        suffixIcon={saving ? <Spin size="small" /> : undefined}
-        optionLabelProp="label"
-      />
+        className="w-full"
+      >
+        <option value="">Search for a timezone...</option>
+        {timezoneOptions.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
 
-      <div style={{ 
-        marginTop: 12, 
-        padding: '12px 16px', 
-        backgroundColor: '#f5f5f5', 
-        borderRadius: 8,
-        border: '1px solid #d9d9d9'
-      }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
+      {saving && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+          <Spinner size="sm" />
+          <span>Saving timezone...</span>
+        </div>
+      )}
+
+      <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
           <strong>Selected:</strong> {getTimezoneLabel(selectedTimezone)}
-        </Text>
-        <br />
-        <Text type="secondary" style={{ fontSize: 11 }}>
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Current time: <strong>{new Date().toLocaleString('en-US', { timeZone: selectedTimezone })}</strong>
-        </Text>
+        </p>
       </div>
     </div>
   );
 }
-

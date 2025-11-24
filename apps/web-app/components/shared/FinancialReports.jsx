@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Table, DatePicker, Select, Button, Space, Statistic, Row, Col, Tag, message, Dropdown } from 'antd';
-import { DollarOutlined, DownloadOutlined, ReloadOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { ProCard } from '../shared/LazyProComponents';
+import { Card, Button, Select, Label, Badge, Spinner, Alert, Dropdown } from 'flowbite-react';
+import { HiCurrencyDollar, HiDownload, HiRefresh, HiDocument, HiTable } from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { exportToCSV, exportFinancialReportToPDF } from '@/lib/utils/export-utils';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useLandlords, useProperties } from '@/lib/hooks/useV2Data';
-
-const { RangePicker } = DatePicker;
-const { Option } = Select;
+import FlowbiteTable from './FlowbiteTable';
+import PageLayout from './PageLayout';
+import { notify } from '@/lib/utils/notification-helper';
+import { formatAmount } from '@/lib/currency-utils';
+import { formatDateDisplay } from '@/lib/utils/safe-date-formatter';
 
 /**
- * Financial Reports Component for PMCs
+ * Financial Reports Component for PMCs - Migrated to Flowbite
  * Generate and view financial reports by landlord/property
  */
 export default function FinancialReports() {
@@ -43,29 +44,29 @@ export default function FinancialReports() {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      // Use v1Api analytics endpoints
-      const { v1Api } = await import('@/lib/api/v1-client');
+      // Use v2Api analytics endpoints
+      const { v2Api } = await import('@/lib/api/v2-client');
       
       // Build query params
       const queryParams = {};
       if (filters.landlordId !== 'all') {
-        queryParams.landlordId = filters.landlordId;
+        queryParams.landlord_id = filters.landlordId;
       }
       if (filters.propertyId !== 'all') {
-        queryParams.propertyId = filters.propertyId;
+        queryParams.property_id = filters.propertyId;
       }
       if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
-        queryParams.startDate = filters.dateRange[0].format('YYYY-MM-DD');
-        queryParams.endDate = filters.dateRange[1].format('YYYY-MM-DD');
+        queryParams.start_date = filters.dateRange[0].format('YYYY-MM-DD');
+        queryParams.end_date = filters.dateRange[1].format('YYYY-MM-DD');
       }
       
       // TODO: Implement v2 endpoint for portfolio performance analytics
-      const response = await v1Api.analytics.getPortfolioPerformance(queryParams);
+      const response = await v2Api.getPortfolioPerformance?.(queryParams) || { data: null };
       const reportData = response.data || response;
       setReport(reportData);
     } catch (error) {
       console.error('[Financial Reports] Error:', error);
-      message.error(error.message || 'Failed to generate report');
+      notify.error(error.message || 'Failed to generate report');
     } finally {
       setLoading(false);
     }
@@ -73,14 +74,14 @@ export default function FinancialReports() {
 
   const handleExport = async (format = 'pdf') => {
     if (!report) {
-      message.warning('Please generate a report first');
+      notify.warning('Please generate a report first');
       return;
     }
 
     try {
       if (format === 'pdf') {
         await exportFinancialReportToPDF(report, 'financial-report');
-        message.success('PDF exported successfully');
+        notify.success('PDF exported successfully');
       } else if (format === 'csv') {
         // Export summary data
         const exportData = [];
@@ -98,270 +99,324 @@ export default function FinancialReports() {
         
         // Add by landlord data
         if (report.byLandlord && report.byLandlord.length > 0) {
-          report.byLandlord.forEach(item => {
+          report.byLandlord.forEach(landlord => {
             exportData.push({
               type: 'Landlord',
-              landlord: `${item.landlord?.firstName || ''} ${item.landlord?.lastName || ''}`.trim(),
-              revenue: item.revenue || 0,
-              expenses: item.expenses || 0,
-              netIncome: item.netIncome || 0,
-              propertyCount: item.propertyCount || 0,
+              landlord: landlord.name || 'Unknown',
+              totalRevenue: landlord.totalRevenue || 0,
+              totalExpenses: landlord.totalExpenses || 0,
+              netIncome: landlord.netIncome || 0,
+              propertyCount: landlord.propertyCount || 0,
             });
           });
         }
         
         // Add by property data
         if (report.byProperty && report.byProperty.length > 0) {
-          report.byProperty.forEach(item => {
+          report.byProperty.forEach(property => {
             exportData.push({
               type: 'Property',
-              property: item.property?.propertyName || item.property?.addressLine1 || '',
-              landlord: `${item.landlord?.firstName || ''} ${item.landlord?.lastName || ''}`.trim(),
-              revenue: item.revenue || 0,
-              expenses: item.expenses || 0,
-              netIncome: item.netIncome || 0,
-              unitCount: item.unitCount || 0,
+              property: property.name || 'Unknown',
+              totalRevenue: property.totalRevenue || 0,
+              totalExpenses: property.totalExpenses || 0,
+              netIncome: property.netIncome || 0,
             });
           });
         }
         
-        const csvColumns = [
-          { title: 'Type', dataIndex: 'type' },
-          { title: 'Landlord/Property', dataIndex: 'landlord' },
-          { title: 'Property', dataIndex: 'property' },
-          { title: 'Revenue', dataIndex: 'revenue' },
-          { title: 'Expenses', dataIndex: 'expenses' },
-          { title: 'Net Income', dataIndex: 'netIncome' },
-          { title: 'Properties/Units', dataIndex: 'propertyCount' },
-        ];
-        
-        exportToCSV(exportData, csvColumns, 'financial-report');
-        message.success('CSV exported successfully');
+        await exportToCSV(exportData, 'financial-report');
+        notify.success('CSV exported successfully');
       }
     } catch (error) {
       console.error('[Financial Reports] Export error:', error);
-      message.error(error.message || 'Failed to export report');
+      notify.error('Failed to export report');
     }
   };
 
-  const exportMenuItems = [
+  const statsData = report ? [
     {
-      key: 'pdf',
-      label: 'Export as PDF',
-      icon: <FilePdfOutlined />,
-      onClick: () => handleExport('pdf'),
+      title: 'Total Revenue',
+      value: formatAmount(report.summary?.totalRevenue || 0),
+      prefix: <HiCurrencyDollar className="h-5 w-5" />,
+      valueStyle: { color: '#10b981' },
     },
     {
-      key: 'csv',
-      label: 'Export as CSV (Excel)',
-      icon: <FileExcelOutlined />,
-      onClick: () => handleExport('csv'),
+      title: 'Total Expenses',
+      value: formatAmount(report.summary?.totalExpenses || 0),
+      prefix: <HiCurrencyDollar className="h-5 w-5" />,
+      valueStyle: { color: '#ef4444' },
     },
-  ];
+    {
+      title: 'Net Income',
+      value: formatAmount(report.summary?.netIncome || 0),
+      prefix: <HiCurrencyDollar className="h-5 w-5" />,
+      valueStyle: { color: report.summary?.netIncome >= 0 ? '#10b981' : '#ef4444' },
+    },
+    {
+      title: 'Properties',
+      value: report.summary?.propertyCount || 0,
+      prefix: <HiTable className="h-5 w-5" />,
+    },
+  ] : [];
 
-  const summaryColumns = [
+  const tableColumns = [
     {
       title: 'Landlord',
-      key: 'landlord',
-      render: (_, record) => (
-        <span>
-          {record.landlord.firstName} {record.landlord.lastName}
-        </span>
+      dataIndex: 'name',
+      key: 'name',
+      render: (name) => <span className="font-semibold">{name || 'N/A'}</span>,
+    },
+    {
+      title: 'Revenue',
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      render: (amount) => (
+        <span className="text-green-600 font-semibold">{formatAmount(amount || 0)}</span>
       ),
+    },
+    {
+      title: 'Expenses',
+      dataIndex: 'totalExpenses',
+      key: 'totalExpenses',
+      render: (amount) => (
+        <span className="text-red-600 font-semibold">{formatAmount(amount || 0)}</span>
+      ),
+    },
+    {
+      title: 'Net Income',
+      dataIndex: 'netIncome',
+      key: 'netIncome',
+      render: (amount) => {
+        const isPositive = (amount || 0) >= 0;
+        return (
+          <span className={`font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {formatAmount(amount || 0)}
+          </span>
+        );
+      },
     },
     {
       title: 'Properties',
       dataIndex: 'propertyCount',
       key: 'propertyCount',
-    },
-    {
-      title: 'Revenue',
-      dataIndex: 'revenue',
-      key: 'revenue',
-      render: (amount) => <Tag color="green">${amount.toLocaleString()}</Tag>,
-    },
-    {
-      title: 'Expenses',
-      dataIndex: 'expenses',
-      key: 'expenses',
-      render: (amount) => <Tag color="red">${amount.toLocaleString()}</Tag>,
-    },
-    {
-      title: 'Net Income',
-      dataIndex: 'netIncome',
-      key: 'netIncome',
-      render: (amount) => (
-        <Tag color={amount >= 0 ? 'green' : 'red'}>
-          ${amount.toLocaleString()}
-        </Tag>
-      ),
-    },
-  ];
-
-  const propertyColumns = [
-    {
-      title: 'Property',
-      key: 'property',
-      render: (_, record) => (
-        <span>
-          {record.property.propertyName || record.property.addressLine1}
-        </span>
-      ),
-    },
-    {
-      title: 'Landlord',
-      key: 'landlord',
-      render: (_, record) => (
-        <span>
-          {record.landlord.firstName} {record.landlord.lastName}
-        </span>
-      ),
-    },
-    {
-      title: 'Units',
-      dataIndex: 'unitCount',
-      key: 'unitCount',
-    },
-    {
-      title: 'Revenue',
-      dataIndex: 'revenue',
-      key: 'revenue',
-      render: (amount) => <Tag color="green">${amount.toLocaleString()}</Tag>,
-    },
-    {
-      title: 'Expenses',
-      dataIndex: 'expenses',
-      key: 'expenses',
-      render: (amount) => <Tag color="red">${amount.toLocaleString()}</Tag>,
-    },
-    {
-      title: 'Net Income',
-      dataIndex: 'netIncome',
-      key: 'netIncome',
-      render: (amount) => (
-        <Tag color={amount >= 0 ? 'green' : 'red'}>
-          ${amount.toLocaleString()}
-        </Tag>
-      ),
+      render: (count) => <Badge color="info">{count || 0}</Badge>,
     },
   ];
 
   return (
-    <div>
-      <ProCard
-        title={
-          <Space>
-            <DollarOutlined />
-            <span>Financial Reports</span>
-          </Space>
-        }
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchReport} loading={loading}>
-              Refresh
+    <PageLayout
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiDollar className="h-5 w-5" />
+          <span>Financial Reports</span>
+        </div>
+      }
+      headerActions={[
+        <Button
+          key="refresh"
+          color="gray"
+          onClick={fetchReport}
+          disabled={loading}
+        >
+          <HiRefresh className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>,
+        <Dropdown
+          key="export"
+          label={
+            <Button color="blue">
+              <HiDownload className="h-4 w-4 mr-2" />
+              Export
             </Button>
-            <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
-              <Button type="primary" icon={<DownloadOutlined />}>
-                Export
-              </Button>
-            </Dropdown>
-          </Space>
-        }
-      >
-        {/* Filters */}
-        <Card style={{ marginBottom: 24 }}>
-          <Space wrap>
+          }
+          dismissOnClick={false}
+        >
+          <Dropdown.Item onClick={() => handleExport('pdf')}>
+            <HiDocument className="h-4 w-4 mr-2" />
+            Export as PDF
+          </Dropdown.Item>
+          <Dropdown.Item onClick={() => handleExport('csv')}>
+            <HiTable className="h-4 w-4 mr-2" />
+            Export as CSV
+          </Dropdown.Item>
+        </Dropdown>,
+      ]}
+      stats={statsData}
+      statsCols={4}
+    >
+      {/* Filters */}
+      <Card className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label htmlFor="landlord-filter">Landlord</Label>
             <Select
+              id="landlord-filter"
               value={filters.landlordId}
-              onChange={(value) => setFilters({ ...filters, landlordId: value })}
-              style={{ width: 200 }}
+              onChange={(e) => setFilters({ ...filters, landlordId: e.target.value })}
             >
-              <Option value="all">All Landlords</Option>
+              <option value="all">All Landlords</option>
               {landlords.map(landlord => (
-                <Option key={landlord.id} value={landlord.id}>
+                <option key={landlord.id} value={landlord.id}>
                   {landlord.firstName} {landlord.lastName}
-                </Option>
+                </option>
               ))}
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="property-filter">Property</Label>
+            <Select
+              id="property-filter"
+              value={filters.propertyId}
+              onChange={(e) => setFilters({ ...filters, propertyId: e.target.value })}
+            >
+              <option value="all">All Properties</option>
+              {properties.map(property => (
+                <option key={property.id} value={property.id}>
+                  {property.propertyName || property.addressLine1}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="date-range">Date Range</Label>
+            <div className="flex gap-2">
+              <input
+                id="date-range"
+                type="date"
+                value={filters.dateRange[0]?.format('YYYY-MM-DD') || ''}
+                onChange={(e) => setFilters({
+                  ...filters,
+                  dateRange: [dayjs(e.target.value), filters.dateRange[1]]
+                })}
+                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                value={filters.dateRange[1]?.format('YYYY-MM-DD') || ''}
+                onChange={(e) => setFilters({
+                  ...filters,
+                  dateRange: [filters.dateRange[0], dayjs(e.target.value)]
+                })}
+                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
 
-            <RangePicker
-              value={filters.dateRange}
-              onChange={(dates) => setFilters({ ...filters, dateRange: dates })}
-            />
-          </Space>
+      {/* Report Content */}
+      {loading ? (
+        <Card>
+          <div className="text-center py-12">
+            <Spinner size="xl" />
+            <p className="mt-4 text-gray-500">Generating report...</p>
+          </div>
         </Card>
+      ) : !report ? (
+        <Card>
+          <Alert color="info">
+            <div>
+              <div className="font-semibold">No report generated</div>
+              <div className="text-sm">Select filters and click Refresh to generate a report</div>
+            </div>
+          </Alert>
+        </Card>
+      ) : (
+        <>
+          {/* Summary Card */}
+          {report.summary && (
+            <Card className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Summary</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Total Revenue</p>
+                  <p className="text-xl font-semibold text-green-600">
+                    {formatAmount(report.summary.totalRevenue || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total Expenses</p>
+                  <p className="text-xl font-semibold text-red-600">
+                    {formatAmount(report.summary.totalExpenses || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Net Income</p>
+                  <p className={`text-xl font-semibold ${report.summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatAmount(report.summary.netIncome || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Properties</p>
+                  <p className="text-xl font-semibold">{report.summary.propertyCount || 0}</p>
+                </div>
+              </div>
+            </Card>
+          )}
 
-        {/* Summary Statistics */}
-        {report?.summary && (
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
-                <Statistic
-                  title="Total Revenue"
-                  value={report.summary.totalRevenue}
-                  prefix="$"
-                  valueStyle={{ color: '#3f8600' }}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
-                <Statistic
-                  title="Total Expenses"
-                  value={report.summary.totalExpenses}
-                  prefix="$"
-                  valueStyle={{ color: '#cf1322' }}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
-                <Statistic
-                  title="Net Income"
-                  value={report.summary.netIncome}
-                  prefix="$"
-                  valueStyle={{ 
-                    color: report.summary.netIncome >= 0 ? '#3f8600' : '#cf1322' 
-                  }}
-                />
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Card>
-                <Statistic
-                  title="Properties"
-                  value={report.summary.propertyCount}
-                />
-              </Card>
-            </Col>
-          </Row>
-        )}
+          {/* By Landlord Table */}
+          {report.byLandlord && report.byLandlord.length > 0 && (
+            <Card className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">By Landlord</h3>
+              <FlowbiteTable
+                dataSource={report.byLandlord}
+                columns={tableColumns}
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+              />
+            </Card>
+          )}
 
-        {/* By Landlord */}
-        {report?.byLandlord && report.byLandlord.length > 0 && (
-          <Card title="By Landlord" style={{ marginBottom: 24 }}>
-            <Table
-              columns={summaryColumns}
-              dataSource={report.byLandlord}
-              rowKey={(record) => record.landlord.id}
-              pagination={false}
-            />
-          </Card>
-        )}
-
-        {/* By Property */}
-        {report?.byProperty && report.byProperty.length > 0 && (
-          <Card title="By Property">
-            <Table
-              columns={propertyColumns}
-              dataSource={report.byProperty}
-              rowKey={(record) => record.property.id}
-              pagination={{ pageSize: 10 }}
-            />
-          </Card>
-        )}
-      </ProCard>
-    </div>
+          {/* By Property Table */}
+          {report.byProperty && report.byProperty.length > 0 && (
+            <Card>
+              <h3 className="text-lg font-semibold mb-4">By Property</h3>
+              <FlowbiteTable
+                dataSource={report.byProperty}
+                columns={[
+                  {
+                    title: 'Property',
+                    dataIndex: 'name',
+                    key: 'name',
+                    render: (name) => <span className="font-semibold">{name || 'N/A'}</span>,
+                  },
+                  {
+                    title: 'Revenue',
+                    dataIndex: 'totalRevenue',
+                    key: 'totalRevenue',
+                    render: (amount) => (
+                      <span className="text-green-600 font-semibold">{formatAmount(amount || 0)}</span>
+                    ),
+                  },
+                  {
+                    title: 'Expenses',
+                    dataIndex: 'totalExpenses',
+                    key: 'totalExpenses',
+                    render: (amount) => (
+                      <span className="text-red-600 font-semibold">{formatAmount(amount || 0)}</span>
+                    ),
+                  },
+                  {
+                    title: 'Net Income',
+                    dataIndex: 'netIncome',
+                    key: 'netIncome',
+                    render: (amount) => {
+                      const isPositive = (amount || 0) >= 0;
+                      return (
+                        <span className={`font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatAmount(amount || 0)}
+                        </span>
+                      );
+                    },
+                  },
+                ]}
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+              />
+            </Card>
+          )}
+        </>
+      )}
+    </PageLayout>
   );
 }
-

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Spinner, Badge } from 'flowbite-react';
 import { HiBanknotes } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { safeJsonParse } from '@/lib/utils/safe-json-parser';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
 import { PageLayout, TableWrapper, EmptyState, LoadingWrapper, renderDate } from '@/components/shared';

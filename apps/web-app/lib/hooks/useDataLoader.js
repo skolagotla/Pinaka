@@ -21,7 +21,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useUnifiedApi } from './useUnifiedApi';
+import { v2Api } from '@/lib/api/v2-client';
 import { safeJsonParse } from '../utils/safe-json-parser';
 
 export function useDataLoader({ 
@@ -33,7 +33,30 @@ export function useDataLoader({
   cache = true, // Enable caching by default for better performance
   cacheTTL = 30000, // 30 seconds default cache
 } = {}) {
-  const { fetch } = useUnifiedApi({ showUserMessage: showUserMessages, cache, cacheTTL });
+  // Create a fetch wrapper using v2Api
+  const fetch = useCallback(async (url, options = {}) => {
+    const token = v2Api.getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+    
+    const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+    const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
+    
+    const response = await window.fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return response;
+  }, []);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(autoLoad);
   const [error, setError] = useState(null);

@@ -2,21 +2,22 @@
 
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { 
-  Table, Tag, Input, Select, Space, Button, Tooltip, Tabs, Badge,
-  Empty, Spin, Alert, Card
-} from 'antd';
+  Table, Badge, TextInput, Select, Button, Tooltip, Tabs, 
+  Spinner, Alert, Card
+} from 'flowbite-react';
+import { Empty } from '@/components/shared';
 import {
-  EyeOutlined,
-  DownloadOutlined,
-  GlobalOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  FilterOutlined,
-  ClearOutlined,
-  FileSearchOutlined,
-  StarOutlined,
-  FireOutlined,
-} from '@ant-design/icons';
+  HiEye,
+  HiDownload,
+  HiGlobeAlt,
+  HiDocumentText,
+  HiSearch,
+  HiFilter,
+  HiX,
+  HiDocumentSearch,
+  HiStar,
+  HiFire,
+} from 'react-icons/hi';
 import TableActionButton from './TableActionButton';
 import dynamic from 'next/dynamic';
 import { getRegionOptions, getRegionLabel } from '@/lib/constants/regions';
@@ -30,8 +31,6 @@ const PDFViewerModal = dynamic(
     loading: () => null,
   }
 );
-
-const { Search } = Input;
 
 const COUNTRIES = [
   { value: 'CA', label: 'Canada' },
@@ -87,7 +86,7 @@ function LTBDocumentsGrid({
   }, []);
   const [selectedCategory, setSelectedCategory] = useState(undefined);
   const [internalSearchQuery, setInternalSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all'); // Default to 'all' for all roles
+  const [activeTab, setActiveTab] = useState(0); // Use index for Flowbite Tabs
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -101,7 +100,6 @@ function LTBDocumentsGrid({
   const isOntarioSelected = selectedCountry === 'CA' && selectedProvince === 'ON';
 
   // Sync external search query to internal state when it changes
-  // Always sync, even if empty string, to properly clear search
   useEffect(() => {
     if (externalSearchQuery !== undefined) {
       setInternalSearchQuery(externalSearchQuery);
@@ -109,7 +107,6 @@ function LTBDocumentsGrid({
   }, [externalSearchQuery]);
 
   // Use external search query if provided, otherwise use internal
-  // Always use external if it's defined (even if empty string)
   const searchQuery = externalSearchQuery !== undefined 
     ? externalSearchQuery 
     : internalSearchQuery;
@@ -117,8 +114,9 @@ function LTBDocumentsGrid({
   // Debounce the search query for API calls (150ms for responsive search)
   const debouncedSearchQuery = useDebounce(searchQuery, 150);
 
-  // Removed role-based filtering - all roles see all documents
-  // Users can filter using the tabs (All, Landlord, Tenant, Both)
+  // Map tab index to tab key
+  const tabKeys = ['all', 'landlord', 'tenant', 'both'];
+  const activeTabKey = tabKeys[activeTab] || 'all';
 
   // Fetch documents
   const fetchDocuments = async (page = 1) => {
@@ -146,14 +144,14 @@ function LTBDocumentsGrid({
       
       if (selectedCategory) params.append('category', selectedCategory);
       
-      // Apply tab-based filtering (user-selected, not role-based)
-      if (activeTab !== 'all') {
-        params.append('audience', activeTab);
+      // Apply tab-based filtering
+      if (activeTabKey !== 'all') {
+        params.append('audience', activeTabKey);
       }
       
-      // Sanitize search query to prevent injection
+      // Sanitize search query
       if (debouncedSearchQuery) {
-        const sanitized = debouncedSearchQuery.trim().slice(0, 100); // Limit length and trim
+        const sanitized = debouncedSearchQuery.trim().slice(0, 100);
         if (sanitized) {
           params.append('search', sanitized);
         }
@@ -167,7 +165,6 @@ function LTBDocumentsGrid({
       if (response && response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Show all documents - no role-based filtering
           const filteredDocs = data.data || [];
           
           setDocuments(filteredDocs);
@@ -201,24 +198,22 @@ function LTBDocumentsGrid({
     if (mounted) {
       fetchDocuments(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCountry, selectedProvince, selectedCategory, activeTab, debouncedSearchQuery, isOntarioSelected, mounted]);
+  }, [selectedCountry, selectedProvince, selectedCategory, activeTabKey, debouncedSearchQuery, isOntarioSelected, mounted]);
 
-  // Handle view document - memoized with useCallback
+  // Handle view document
   const handleViewDocument = useCallback((doc) => {
     const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
     setSelectedDocument({ ...doc, pdfUrl: proxyUrl });
     setPdfViewerOpen(true);
   }, []);
 
-  // Handle download document - memoized with useCallback
+  // Handle download document
   const handleDownloadDocument = useCallback(async (doc) => {
     try {
       const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
       
-      // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const response = await fetch(proxyUrl, {
         credentials: 'include',
@@ -234,7 +229,6 @@ function LTBDocumentsGrid({
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Use global document object (not parameter) to avoid shadowing bug
       const anchor = globalThis.document.createElement('a');
       anchor.href = url;
       anchor.download = `${doc.formNumber}.pdf`;
@@ -244,19 +238,18 @@ function LTBDocumentsGrid({
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[LTBDocumentsGrid] Error downloading document:', err);
-      // Fallback to opening in new tab if download fails
       if (err.name !== 'AbortError') {
         window.open(doc.pdfUrl, '_blank', 'noopener,noreferrer');
       }
     }
   }, []);
 
-  // Handle open LTB portal - memoized with useCallback
+  // Handle open LTB portal
   const handleOpenLTBPortal = useCallback((doc) => {
     window.open(doc.pdfUrl, '_blank', 'noopener,noreferrer');
   }, []);
 
-  // Handle view instructions - memoized with useCallback
+  // Handle view instructions
   const handleViewInstructions = useCallback((doc) => {
     if (doc.instructionUrl) {
       window.open(doc.instructionUrl, '_blank', 'noopener,noreferrer');
@@ -272,7 +265,6 @@ function LTBDocumentsGrid({
     return { all, landlord, tenant, both };
   }, [documents]);
 
-
   // Check if any filters are active
   const hasActiveFilters = selectedCategory || searchQuery;
 
@@ -282,57 +274,17 @@ function LTBDocumentsGrid({
     setInternalSearchQuery('');
   }, []);
 
-  // Determine which tabs to show - show for all roles for consistency
-  const tabItems = useMemo(() => {
-    // All roles see the same tabs for consistency
-    return [
-      {
-        key: 'all',
-        label: (
-          <span>
-            All <Badge count={tabCounts.all} style={{ backgroundColor: '#722ed1' }} />
-          </span>
-        ),
-      },
-      {
-        key: 'landlord',
-        label: (
-          <span>
-            Landlord <Badge count={tabCounts.landlord} style={{ backgroundColor: '#1890ff' }} />
-          </span>
-        ),
-      },
-      {
-        key: 'tenant',
-        label: (
-          <span>
-            Tenant <Badge count={tabCounts.tenant} style={{ backgroundColor: '#52c41a' }} />
-          </span>
-        ),
-      },
-      {
-        key: 'both',
-        label: (
-          <span>
-            Both <Badge count={tabCounts.both} style={{ backgroundColor: '#fa8c16' }} />
-          </span>
-        ),
-      },
-    ];
-  }, [tabCounts]);
-
-  // Table columns - memoized to prevent recreation on every render
+  // Table columns
   const columns = useMemo(() => [
     {
       title: 'Form',
       dataIndex: 'formNumber',
       key: 'formNumber',
-      width: 120,
       render: (formNumber, record) => {
         let tagColor = 'cyan';
         if (record.audience === 'landlord') tagColor = 'blue';
         if (record.audience === 'tenant') tagColor = 'green';
-        if (record.audience === 'both') tagColor = 'orange';
+        if (record.audience === 'both') tagColor = 'warning';
         
         const tooltipText = 
           record.audience === 'landlord' ? 'Landlord' :
@@ -344,30 +296,26 @@ function LTBDocumentsGrid({
         const isUrgent = record.category === 'Eviction' && (formNumber === 'N4' || formNumber === 'N7');
         
         return (
-          <Space size={4}>
-            <Tooltip title={tooltipText}>
-              <Tag 
-                color={tagColor} 
-                style={{ 
-                  fontWeight: 'bold', 
-                  fontSize: '13px',
-                  border: isUrgent ? '1px solid #ff4d4f' : undefined,
-                }}
+          <div className="flex items-center gap-1">
+            <Tooltip content={tooltipText}>
+              <Badge 
+                color={tagColor}
+                className={`font-bold text-sm ${isUrgent ? 'border border-red-500' : ''}`}
               >
                 {formNumber}
-              </Tag>
+              </Badge>
             </Tooltip>
             {isCommonlyUsed && (
-              <Tooltip title="Commonly used form">
-                <StarOutlined style={{ color: '#faad14', fontSize: '12px' }} />
+              <Tooltip content="Commonly used form">
+                <HiStar className="h-3 w-3 text-yellow-500" />
               </Tooltip>
             )}
             {isUrgent && (
-              <Tooltip title="Urgent - Use when immediate action is needed">
-                <FireOutlined style={{ color: '#ff4d4f', fontSize: '12px' }} />
+              <Tooltip content="Urgent - Use when immediate action is needed">
+                <HiFire className="h-3 w-3 text-red-500" />
               </Tooltip>
             )}
-          </Space>
+          </div>
         );
       },
     },
@@ -375,9 +323,8 @@ function LTBDocumentsGrid({
       title: 'Form Name',
       dataIndex: 'name',
       key: 'name',
-      width: 250,
       render: (name) => (
-        <div style={{ fontWeight: 500, fontSize: '14px' }}>
+        <div className="font-medium text-sm">
           {name}
         </div>
       ),
@@ -386,9 +333,8 @@ function LTBDocumentsGrid({
       title: 'Description',
       dataIndex: 'description',
       key: 'description',
-      width: 300,
       render: (description, record) => (
-        <div style={{ fontSize: '13px', color: '#595959', lineHeight: '1.5' }}>
+        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
           {description || `This form is used for ${record.category.toLowerCase()} related matters.`}
         </div>
       ),
@@ -397,22 +343,16 @@ function LTBDocumentsGrid({
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      width: 150,
-      filters: CATEGORIES.filter(cat => cat.value !== undefined).map(cat => ({
-        text: cat.label,
-        value: cat.value,
-      })),
-      onFilter: (value, record) => record.category === value,
       render: (category) => {
         const categoryColors = {
           'Rent': 'blue',
           'Eviction': 'red',
           'Application': 'green',
           'Agreement': 'purple',
-          'Notice Response': 'orange',
+          'Notice Response': 'warning',
           'Tenant Rights': 'cyan',
-          'Maintenance': 'geekblue',
-          'Other': 'default',
+          'Maintenance': 'info',
+          'Other': 'gray',
         };
         const categoryIcons = {
           'Rent': '💰',
@@ -425,171 +365,137 @@ function LTBDocumentsGrid({
           'Other': '📄',
         };
         return (
-          <Tag 
-            color={categoryColors[category] || 'default'}
-            style={{ 
-              borderRadius: '4px',
-              padding: '4px 10px',
-              fontSize: '12px',
-              fontWeight: 500,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+          <Badge 
+            color={categoryColors[category] || 'gray'}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium"
           >
             <span>{categoryIcons[category] || '📄'}</span>
             <span>{category}</span>
-          </Tag>
+          </Badge>
         );
       },
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
-      fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
+        <div className="flex items-center gap-1">
           <TableActionButton
-            icon={<EyeOutlined />}
+            icon={<HiEye />}
             onClick={() => handleViewDocument(record)}
             tooltip="View PDF"
             actionType="view"
           />
           <TableActionButton
-            icon={<GlobalOutlined />}
+            icon={<HiGlobeAlt />}
             onClick={() => handleOpenLTBPortal(record)}
             tooltip="Open on LTB Website"
             actionType="website"
           />
           <TableActionButton
-            icon={<DownloadOutlined />}
+            icon={<HiDownload />}
             onClick={() => handleDownloadDocument(record)}
             tooltip="Download PDF"
             actionType="download"
           />
           {record.instructionUrl && (
             <TableActionButton
-              icon={<FileTextOutlined />}
+              icon={<HiDocumentText />}
               onClick={() => handleViewInstructions(record)}
               tooltip="View Instructions"
               actionType="instructions"
             />
           )}
-        </Space>
+        </div>
       ),
     },
-  ], [handleViewDocument, handleOpenLTBPortal, handleDownloadDocument, handleViewInstructions]);
+  ], [handleViewDocument, handleOpenLTBPortal, handleDownloadDocument, handleViewInstructions, userRole]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px' }}>
+    <div className="flex flex-col h-full p-5">
       {showTitle && (
-        <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#262626' }}>LTB Legal Documents</h2>
+        <div className="mb-5 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="m-0 text-lg font-semibold text-gray-900 dark:text-white">LTB Legal Documents</h2>
         </div>
       )}
       
       {showFilters && (
-        <div style={{ 
-          margin: '0 0 24px 0',
-          padding: '18px 24px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #e8e8e8',
-          borderRadius: '8px',
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-        }}>
-          <div style={{ 
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '16px',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
+        <Card className="mb-6">
+          <div className="flex flex-wrap gap-4 items-center justify-between">
             {/* Left: Filters */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '12px', 
-              alignItems: 'center', 
-              flexWrap: 'wrap',
-              flex: '1 1 auto',
-              minWidth: 0,
-            }}>
+            <div className="flex gap-3 items-center flex-wrap flex-1 min-w-0">
               <Select
                 value={selectedCountry}
-                onChange={handleCountryChange}
-                options={COUNTRIES}
-                style={{ width: 130, minWidth: 130 }}
-                size="middle"
-                bordered={true}
-              />
+                onChange={(e) => handleCountryChange(e.target.value)}
+                className="w-32 min-w-[130px]"
+              >
+                {COUNTRIES.map(country => (
+                  <option key={country.value} value={country.value}>{country.label}</option>
+                ))}
+              </Select>
               
               <Select
                 value={selectedProvince}
-                onChange={setSelectedProvince}
-                options={getRegionOptions(selectedCountry)}
-                placeholder={`Select ${getRegionLabel(selectedCountry)}`}
-                style={{ width: 170, minWidth: 170 }}
-                size="middle"
-                dropdownMatchSelectWidth={false}
-                dropdownStyle={{ minWidth: 250 }}
-                bordered={true}
-              />
+                onChange={(e) => setSelectedProvince(e.target.value)}
+                className="w-40 min-w-[170px]"
+              >
+                {getRegionOptions(selectedCountry).map(region => (
+                  <option key={region.value} value={region.value}>{region.label}</option>
+                ))}
+              </Select>
               
               <Select
-                value={selectedCategory}
-                onChange={setSelectedCategory}
-                options={[{ value: undefined, label: 'All Categories' }, ...CATEGORIES]}
-                placeholder="Category"
-                style={{ width: 150, minWidth: 150 }}
-                size="middle"
-                allowClear
-                bordered={true}
-              />
+                value={selectedCategory || ''}
+                onChange={(e) => setSelectedCategory(e.target.value || undefined)}
+                className="w-36 min-w-[150px]"
+              >
+                <option value="">All Categories</option>
+                {CATEGORIES.map(cat => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                ))}
+              </Select>
 
               {hasActiveFilters && (
                 <Button
-                  type="text"
-                  icon={<ClearOutlined />}
+                  color="light"
                   onClick={clearFilters}
-                  size="small"
-                  style={{ 
-                    color: '#8c8c8c', 
-                    fontSize: '12px',
-                    height: '32px',
-                    padding: '0 8px',
-                  }}
+                  size="sm"
+                  className="flex items-center gap-1 text-gray-500 text-xs h-8 px-2"
                 >
+                  <HiX className="h-3 w-3" />
                   Clear
                 </Button>
               )}
             </div>
 
-            {/* Center: Tabs - Show for all roles for consistency */}
-            {mounted && tabItems.length > 0 && (
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center',
-                alignItems: 'center',
-                flex: '0 0 auto',
-                margin: '0 16px',
-              }}>
-                <Tabs
-                  activeKey={activeTab}
-                  onChange={setActiveTab}
-                  items={tabItems}
-                  size="small"
-                  style={{ margin: 0 }}
-                />
+            {/* Center: Tabs */}
+            {mounted && (
+              <div className="flex justify-center items-center flex-shrink-0 mx-4">
+                <Tabs aria-label="Document tabs" style="underline" onActiveTabChange={setActiveTab}>
+                  <Tabs.Item active={activeTab === 0} title={
+                    <span>All <Badge color="purple">{tabCounts.all}</Badge></span>
+                  }>
+                  </Tabs.Item>
+                  <Tabs.Item active={activeTab === 1} title={
+                    <span>Landlord <Badge color="blue">{tabCounts.landlord}</Badge></span>
+                  }>
+                  </Tabs.Item>
+                  <Tabs.Item active={activeTab === 2} title={
+                    <span>Tenant <Badge color="green">{tabCounts.tenant}</Badge></span>
+                  }>
+                  </Tabs.Item>
+                  <Tabs.Item active={activeTab === 3} title={
+                    <span>Both <Badge color="warning">{tabCounts.both}</Badge></span>
+                  }>
+                  </Tabs.Item>
+                </Tabs>
               </div>
             )}
 
             {/* Right: Search */}
-            <div style={{ 
-              flexShrink: 0, 
-              minWidth: 300,
-              flex: '0 0 auto',
-            }}>
-              <Search
+            <div className="flex-shrink-0 min-w-[300px] flex-0-auto">
+              <TextInput
+                icon={HiSearch}
                 placeholder="Search forms..."
                 value={externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery}
                 onChange={(e) => {
@@ -597,112 +503,91 @@ function LTBDocumentsGrid({
                   if (externalSearchQuery === undefined) {
                     setInternalSearchQuery(value);
                   }
-                  // Search will trigger automatically via useEffect when debouncedSearchQuery changes
                 }}
-                onSearch={() => fetchDocuments(1)}
-                allowClear
-                size="middle"
-                style={{ width: '100%', maxWidth: 340 }}
-                onClear={() => {
-                  if (externalSearchQuery === undefined) {
-                    setInternalSearchQuery('');
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    fetchDocuments(1);
                   }
-                  // Clear will trigger automatically via useEffect when debouncedSearchQuery changes
                 }}
+                className="w-full max-w-[340px]"
               />
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Error Alert */}
       {error && (
-        <div style={{ marginBottom: 16 }}>
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            style={{ borderRadius: '6px' }}
-          />
+        <div className="mb-4">
+          <Alert color="failure" onDismiss={() => setError(null)}>
+            <div>
+              <p className="font-semibold">Error</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          </Alert>
         </div>
       )}
 
-
       {/* Table */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="flex-1 overflow-auto">
         {!isOntarioSelected ? (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            minHeight: 400,
-            flexDirection: 'column',
-            padding: '40px 20px',
-          }}>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 500, color: '#262626', marginBottom: 8 }}>
-                    Coming Soon: Documents for other regions
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                    Please select Canada and Ontario to view available documents.
-                  </div>
+          <div className="flex justify-center items-center min-h-[400px] flex-col py-10 px-5">
+            <Empty description={
+              <div className="text-center">
+                <div className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                  Coming Soon: Documents for other regions
                 </div>
-              }
-            />
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Please select Canada and Ontario to view available documents.
+                </div>
+              </div>
+            } />
           </div>
         ) : (
-          <Table
-            columns={columns}
-            dataSource={documents}
-            loading={loading}
-            rowKey="id"
-            pagination={{
-              ...pagination,
-              showSizeChanger: true,
-              showTotal: (total, range) => `${range[0]-${range[1] of ${total} forms`,
-              onChange: (page) => fetchDocuments(page),
-              onShowSizeChange: (current, size) => {
-                setPagination(prev => ({ ...prev, pageSize: size }));
-                fetchDocuments(1);
-              },
-              style: { marginTop: 16 },
-            }}
-            scroll={{ x: 'max-content' }}
-            size="middle"
-            style={{ backgroundColor: '#fff' }}
-            onRow={(record) => ({
-              onMouseEnter: (e) => {
-                e.currentTarget.style.backgroundColor = '#fafafa';
-                e.currentTarget.style.cursor = 'pointer';
-              },
-              onMouseLeave: (e) => {
-                e.currentTarget.style.backgroundColor = '';
-              },
-            })}
-            locale={{
-              emptyText: (
-                <Empty
-                  description={
-                    <div style={{ textAlign: 'center' }}>
-                      <FileSearchOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: 16 }} />
-                      <div style={{ fontSize: '16px', fontWeight: 500, color: '#262626', marginBottom: 8 }}>
-                        No forms found
-                      </div>
-                      <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                        {searchQuery ? 'Try adjusting your search or filters' : 'No documents match your current filters'}
-                      </div>
-                    </div>
-                  }
-                />
-              ),
-            }}
-          />
+          <div className="overflow-x-auto">
+            <Table hoverable>
+              <Table.Head>
+                {columns.map(col => (
+                  <Table.HeadCell key={col.key}>{col.title}</Table.HeadCell>
+                ))}
+              </Table.Head>
+              <Table.Body className="divide-y">
+                {loading ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={columns.length} className="text-center py-8">
+                      <Spinner size="xl" />
+                    </Table.Cell>
+                  </Table.Row>
+                ) : documents.length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={columns.length} className="text-center py-8">
+                      <Empty description={
+                        <div className="text-center">
+                          <HiDocumentSearch className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                          <div className="text-base font-medium text-gray-900 dark:text-white mb-2">
+                            No forms found
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {searchQuery ? 'Try adjusting your search or filters' : 'No documents match your current filters'}
+                          </div>
+                        </div>
+                      } />
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  documents.map((record) => (
+                    <Table.Row key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                      {columns.map((col) => (
+                        <Table.Cell key={col.key}>
+                          {col.render ? col.render(record[col.dataIndex], record) : record[col.dataIndex]}
+                        </Table.Cell>
+                      ))}
+                    </Table.Row>
+                  ))
+                )}
+              </Table.Body>
+            </Table>
+          </div>
         )}
       </div>
 
@@ -726,11 +611,9 @@ function LTBDocumentsGrid({
 
 // Memoize component to prevent unnecessary re-renders
 export default memo(LTBDocumentsGrid, (prevProps, nextProps) => {
-  // Only re-render if these props change
   return (
     prevProps.userRole === nextProps.userRole &&
     prevProps.showFilters === nextProps.showFilters &&
     prevProps.showTitle === nextProps.showTitle
   );
 });
-

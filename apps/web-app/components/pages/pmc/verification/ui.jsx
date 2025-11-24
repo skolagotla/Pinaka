@@ -26,7 +26,7 @@ import {
   HiCheck,
   HiX,
 } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 
 const DOCUMENT_TYPES = [
   { value: 'GOVERNMENT_ID', label: 'Government ID' },
@@ -68,7 +68,7 @@ export default function VerificationClient({ pmc, pmcRelationships }) {
   const [landlordFilter, setLandlordFilter] = useState('all');
   const { loading: verifying, withLoading: withVerifying } = useLoading();
   const { loading: rejecting, withLoading: withRejecting } = useLoading();
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api from @/lib/api/v2-client
 
   // Flatten all verifications from all relationships
   const allVerifications = pmcRelationships.flatMap(rel =>

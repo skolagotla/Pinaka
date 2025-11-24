@@ -1,9 +1,7 @@
 "use client";
 
-import { Space, Button, Typography, Popconfirm } from 'antd';
-import { DeleteOutlined, ExportOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { Button } from 'flowbite-react';
+import { HiDownload, HiX } from 'react-icons/hi';
 
 export default function BulkActionsToolbar({
   selectionCount,
@@ -18,22 +16,22 @@ export default function BulkActionsToolbar({
   }
 
   return (
-    <div
-      style={{
-        padding: '12px 16px',
-        background: '#e6f7ff',
-        border: '1px solid #91d5ff',
-        borderRadius: '4px',
-        marginBottom: '16px',
-      }}
-    >
-      <Space>
-        <Text strong>{selectionCount} item(s) selected</Text>
-        <span style={{ color: '#999' }}>|</span>
+    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="font-semibold text-gray-900 dark:text-white">
+          {selectionCount} item(s) selected
+        </span>
+        <span className="text-gray-400">|</span>
         
         {/* Only show export - delete and status updates removed */}
         {availableActions.includes('export') && onBulkExport && (
-          <Button icon={<ExportOutlined />} size="small" onClick={onBulkExport}>
+          <Button 
+            color="light" 
+            size="sm" 
+            onClick={onBulkExport}
+            className="flex items-center gap-2"
+          >
+            <HiDownload className="h-4 w-4" />
             Export
           </Button>
         )}
@@ -41,16 +39,16 @@ export default function BulkActionsToolbar({
         {customActions.map((action, index) => (
           <Button
             key={index}
-            icon={action.icon}
-            size="small"
-            type={action.type}
+            color={action.color || 'light'}
+            size="sm"
             onClick={() => action.onClick(selectionCount)}
+            className="flex items-center gap-2"
           >
+            {action.icon && <span>{action.icon}</span>}
             {action.label}
           </Button>
         ))}
-      </Space>
+      </div>
     </div>
   );
 }
-

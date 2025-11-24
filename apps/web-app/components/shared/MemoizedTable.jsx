@@ -7,7 +7,7 @@
  * Features:
  * - Automatic memoization of columns and dataSource
  * - Optimized for large datasets
- * - Compatible with Ant Design Table
+ * - Compatible with FlowbiteTable
  * - Supports all Table props
  * 
  * @example
@@ -21,7 +21,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Table } from 'antd';
+import FlowbiteTable from './FlowbiteTable';
 
 /**
  * Memoized Table Component
@@ -45,7 +45,7 @@ const MemoizedTable = React.memo(({
   }, [dataSource]);
   
   return (
-    <Table
+    <FlowbiteTable
       columns={memoizedColumns}
       dataSource={memoizedDataSource}
       rowKey={rowKey}
@@ -68,4 +68,3 @@ const MemoizedTable = React.memo(({
 MemoizedTable.displayName = 'MemoizedTable';
 
 export default MemoizedTable;
-

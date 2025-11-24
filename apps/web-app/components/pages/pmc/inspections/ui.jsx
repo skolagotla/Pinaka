@@ -8,14 +8,14 @@ import { PageLayout, TableWrapper, FlowbiteTable, renderDate } from '@/component
 import { renderStatus } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { notify } from '@/lib/utils/notification-helper';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useUpdateInspection } from '@/lib/hooks/useV2Data';
 import dayjs from 'dayjs';
 
 export default function PMCInspectionsClient({ initialChecklists = [] }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api from @/lib/api/v2-client
   const { user } = useV2Auth();
   const updateInspection = useUpdateInspection();
   const [checklists, setChecklists] = useState(initialChecklists);

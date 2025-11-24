@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo, memo } from 'react';
-import { Select, Tag, Space, Tooltip, Button } from 'antd';
-import { HomeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Select, Badge, Button, Tooltip } from 'flowbite-react';
+import { HiHome, HiRefresh } from 'react-icons/hi';
 import { useProperty } from '@/lib/contexts/PropertyContext';
 import { useRouter, usePathname } from 'next/navigation';
-
-const { Option } = Select;
 
 function PropertySelector({ userRole, collapsed = false }) {
   const { selectedProperty, setSelectedProperty, properties, loading, refreshProperties } = useProperty();
@@ -67,88 +65,84 @@ function PropertySelector({ userRole, collapsed = false }) {
 
   if (collapsed) {
     return (
-      <Tooltip title={selectedProperty ? selectedProperty.addressLine1 || selectedProperty.propertyName : 'Select Property'}>
+      <Tooltip content={selectedProperty ? selectedProperty.addressLine1 || selectedProperty.propertyName : 'Select Property'}>
         <Button
-          type="text"
-          icon={<HomeOutlined />}
+          color="gray"
           onClick={() => {
             // Toggle property selector on click when collapsed
             // Could show a popover or modal
           }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 40,
-            height: 40,
-          }}
-        />
+          className="flex items-center justify-center w-10 h-10 rounded-full p-0"
+        >
+          <HiHome className="h-5 w-5" />
+        </Button>
       </Tooltip>
     );
   }
 
   return (
-    <Space>
-      <Select
-        value={selectedProperty?.id || 'all'}
-        onChange={handlePropertyChange}
-        loading={loading || fetching}
-        style={{ minWidth: 250 }}
-        placeholder="Select Property"
-        suffixIcon={<HomeOutlined />}
-        dropdownRender={(menu) => (
-          <div>
-            {menu}
-            <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
-              <Button
-                type="text"
-                icon={<ReloadOutlined />}
-                onClick={fetchProperties}
-                loading={fetching}
-                style={{ width: '100%' }}
-              >
-                Refresh Properties
-              </Button>
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <Select
+          value={selectedProperty?.id || 'all'}
+          onChange={(e) => handlePropertyChange(e.target.value)}
+          disabled={loading || fetching}
+          className="min-w-[250px]"
+        >
+          <option value="all">
+            <div className="flex items-center gap-2">
+              <HiHome className="h-4 w-4" />
+              <span>All Properties</span>
+              <Badge color="gray">{properties.length}</Badge>
             </div>
-          </div>
-        )}
-      >
-        <Option value="all">
-          <Space>
-            <HomeOutlined />
-            <span>All Properties</span>
-            <Tag color="default">{properties.length}</Tag>
-          </Space>
-        </Option>
-        {properties.map(property => (
-          <Option key={property.id} value={property.id}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {property.addressLine1 || property.propertyName || 'Unnamed Property'}
-                </div>
-                {property.city && (
-                  <div style={{ fontSize: '12px', color: '#999', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {property.city}, {property.provinceState}
+          </option>
+          {properties.map(property => (
+            <option key={property.id} value={property.id}>
+              <div className="flex justify-between items-center w-full">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">
+                    {property.addressLine1 || property.propertyName || 'Unnamed Property'}
                   </div>
+                  {property.city && (
+                    <div className="text-xs text-gray-500 truncate">
+                      {property.city}, {property.provinceState}
+                    </div>
+                  )}
+                </div>
+                {property.units && (
+                  <Badge color="gray" className="ml-2">
+                    {property.units.length} units
+                  </Badge>
                 )}
               </div>
-              {property.units && (
-                <Tag style={{ marginLeft: 8 }}>{property.units.length} units</Tag>
-              )}
-            </div>
-          </Option>
-        ))}
-      </Select>
+            </option>
+          ))}
+        </Select>
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+          <HiHome className="h-4 w-4 text-gray-400" />
+        </div>
+      </div>
+      
+      <Tooltip content="Refresh Properties">
+        <Button
+          color="gray"
+          size="sm"
+          onClick={fetchProperties}
+          disabled={fetching}
+          className="flex items-center gap-2"
+        >
+          <HiRefresh className={`h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+        </Button>
+      </Tooltip>
+      
       {selectedProperty && (
-        <Tag color="blue" style={{ margin: 0 }}>
+        <Badge color="blue">
           {selectedProperty.addressLine1 || selectedProperty.propertyName}
-        </Tag>
+        </Badge>
       )}
-    </Space>
+    </div>
   );
 }
 
 // Memoize to prevent unnecessary re-renders
 export default memo(PropertySelector);
-

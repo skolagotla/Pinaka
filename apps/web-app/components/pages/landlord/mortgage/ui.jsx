@@ -1,15 +1,16 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Spinner, Badge } from 'flowbite-react';
-import { HiBanknotes } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+import { HiCurrencyDollar } from 'react-icons/hi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
 import { PageLayout, TableWrapper, EmptyState, LoadingWrapper, renderDate } from '@/components/shared';
 import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import dayjs from 'dayjs';
 
 export default function MortgageClient() {
-  const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
+  const [loading, setLoading] = useState(false);
   const [mortgageData, setMortgageData] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
@@ -40,7 +41,7 @@ export default function MortgageClient() {
 
   if (loading) {
     return (
-      <PageLayout headerTitle={<><HiBanknotes className="inline mr-2" /> Mortgage Breakdown</>}>
+      <PageLayout headerTitle={<><HiCurrencyDollar className="inline mr-2" /> Mortgage Breakdown</>}>
         <div className="flex justify-center items-center min-h-[400px]">
           <Spinner size="xl" />
         </div>
@@ -50,9 +51,9 @@ export default function MortgageClient() {
 
   if (!mortgageData || !mortgageData.properties || mortgageData.properties.length === 0) {
     return (
-      <PageLayout headerTitle={<><HiBanknotes className="inline mr-2" /> Mortgage Breakdown</>}>
+      <PageLayout headerTitle={<><HiCurrencyDollar className="inline mr-2" /> Mortgage Breakdown</>}>
         <EmptyState
-          icon={<HiBanknotes className="h-12 w-12 text-gray-400" />}
+          icon={<HiCurrencyDollar className="h-12 w-12 text-gray-400" />}
           title="No mortgage data available"
           description="Add mortgage information to your properties to see payment breakdowns here."
         />

@@ -6,17 +6,15 @@
  */
 
 "use client";
-import { Form, Input, Select, Row, Col } from 'antd';
+import { Select, TextInput, Textarea, Label } from 'flowbite-react';
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_PRIORITIES } from '@/lib/constants/statuses';
-
-const { TextArea } = Input;
+import { useFormState } from '@/lib/hooks/useFormState';
 
 /**
  * Maintenance Submit Request Modal Component
  * 
  * @param {Object} props
  * @param {Function} props.onSubmit - Submit handler
- * @param {Object} props.form - Form instance
  * @param {Array} props.properties - Available properties
  * @param {Object} props.selectedPropertyAddress - Selected property address
  * @param {Function} props.onPropertyChange - Handler when property changes
@@ -24,89 +22,147 @@ const { TextArea } = Input;
  */
 export default function MaintenanceSubmitRequestModal({
   onSubmit,
-  form,
   properties = [],
   selectedPropertyAddress = { addressLine: '', cityStateZip: '' },
   onPropertyChange,
   renderFormButtons
 }) {
+  const form = useFormState({
+    propertyId: '',
+    category: '',
+    priority: '',
+    title: '',
+    description: '',
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const values = form.getFieldsValue();
+    
+    // Validation
+    if (!values.propertyId) {
+      alert('Please select property');
+      return;
+    }
+    if (!values.category) {
+      alert('Please select category');
+      return;
+    }
+    if (!values.priority) {
+      alert('Please select priority');
+      return;
+    }
+    if (!values.title) {
+      alert('Please enter title');
+      return;
+    }
+    if (!values.description) {
+      alert('Please enter description');
+      return;
+    }
+    
+    onSubmit(values);
+  };
+
+  const handlePropertyChange = (e) => {
+    const propertyId = e.target.value;
+    form.setFieldsValue({ propertyId });
+    if (onPropertyChange) {
+      onPropertyChange(propertyId);
+    }
+  };
+
   return (
-    <Form form={form} layout="vertical" onFinish={onSubmit}>
-      <Row gutter={16}>
-        <Col span={8}>
-          <Form.Item
-            name="propertyId"
-            label="Property"
-            rules={[{ required: true, message: 'Please select property' }}
-            extra={selectedPropertyAddress.addressLine && (
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
-                <div>📍 {selectedPropertyAddress.addressLine}</div>
-                {selectedPropertyAddress.cityStateZip && (
-                  <div style={{ marginLeft: 20 }}selectedPropertyAddress.cityStateZip}</div>
-                )}
-              </div>
-            )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="propertyId" className="mb-2 block">
+            Property <span className="text-red-500">*</span>
+          </Label>
+          {selectedPropertyAddress.addressLine && (
+            <div className="text-xs text-gray-500 mb-2">
+              <div>📍 {selectedPropertyAddress.addressLine}</div>
+              {selectedPropertyAddress.cityStateZip && (
+                <div className="ml-5">{selectedPropertyAddress.cityStateZip}</div>
+              )}
+            </div>
+          )}
+          <Select 
+            id="propertyId"
+            value={form.values.propertyId}
+            onChange={handlePropertyChange}
+            required
           >
-            <Select 
-              placeholder="Select property"
-              onChange={onPropertyChange}
-            >
-              {properties.map(prop => (
-                <Select.Option key={prop.id} value={prop.id}>
-                  {prop.propertyName || prop.addressLine1}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item
-            name="category"
-            label="Category"
-            rules={[{ required: true }}
+            <option value="">Select property</option>
+            {properties.map(prop => (
+              <option key={prop.id} value={prop.id}>
+                {prop.propertyName || prop.addressLine1}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="category" className="mb-2 block">
+            Category <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            id="category"
+            value={form.values.category}
+            onChange={(e) => form.setFieldsValue({ category: e.target.value })}
+            required
           >
-            <Select>
-              {MAINTENANCE_CATEGORIES.map(cat => (
-                <Select.Option key={cat} value={cat}cat}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item
-            name="priority"
-            label="Priority"
-            rules={[{ required: true }}
+            <option value="">Select category</option>
+            {MAINTENANCE_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="priority" className="mb-2 block">
+            Priority <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            id="priority"
+            value={form.values.priority}
+            onChange={(e) => form.setFieldsValue({ priority: e.target.value })}
+            required
           >
-            <Select>
-              {MAINTENANCE_PRIORITIES.map(pri => (
-                <Select.Option key={pri} value={pri}pri}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-      </Row>
+            <option value="">Select priority</option>
+            {MAINTENANCE_PRIORITIES.map(pri => (
+              <option key={pri} value={pri}>{pri}</option>
+            ))}
+          </Select>
+        </div>
+      </div>
 
-      <Form.Item
-        name="title"
-        label="Title"
-        rules={[{ required: true, message: 'Please enter title' }}
-      >
-        <Input placeholder="Brief description of the issue" />
-      </Form.Item>
+      <div>
+        <Label htmlFor="title" className="mb-2 block">
+          Title <span className="text-red-500">*</span>
+        </Label>
+        <TextInput
+          id="title"
+          value={form.values.title}
+          onChange={(e) => form.setFieldsValue({ title: e.target.value })}
+          placeholder="Brief description of the issue"
+          required
+        />
+      </div>
 
-      <Form.Item
-        name="description"
-        label="Description"
-        rules={[{ required: true, message: 'Please enter description' }}
-      >
-        <TextArea rows={4} placeholder="Detailed description of the maintenance issue" />
-      </Form.Item>
+      <div>
+        <Label htmlFor="description" className="mb-2 block">
+          Description <span className="text-red-500">*</span>
+        </Label>
+        <Textarea
+          id="description"
+          value={form.values.description}
+          onChange={(e) => form.setFieldsValue({ description: e.target.value })}
+          rows={4}
+          placeholder="Please provide detailed information about this request"
+          required
+        />
+      </div>
 
-      <Form.Item style={{ marginBottom: 0 }}>
-        {renderFormButtons()}
-      </Form.Item>
-    </Form>
+      {renderFormButtons && renderFormButtons()}
+    </form>
   );
 }
-

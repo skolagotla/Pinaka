@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Tabs } from 'flowbite-react';
 import { trackPageView, trackTabSwitch } from '@/lib/utils/analytics';
 import {
-  HiWallet,
   HiCurrencyDollar,
   HiDocumentText,
 } from 'react-icons/hi';
@@ -98,7 +97,7 @@ export default function FinancialsClient({ user, userRole, financialData, rentPa
   return (
     <div className="p-3 h-full flex flex-col">
       <Tabs aria-label="Financials tabs" style="underline" className="flex-1 flex flex-col overflow-hidden">
-        <Tabs.Item active={activeTab === 'overview'} title="Overview" icon={HiWallet} onClick={() => handleTabChange('overview')}>
+        <Tabs.Item active={activeTab === 'overview'} title="Overview" icon={HiCurrencyDollar} onClick={() => handleTabChange('overview')}>
           <div className="flex-1 overflow-auto pt-3">
             {userRole === 'pmc' ? (
               <PMCFinancialsClient pmc={user} financialData={financialData || { expenses: [], rentPayments: [], totalRent: 0, totalExpenses: 0, netIncome: 0 }} />

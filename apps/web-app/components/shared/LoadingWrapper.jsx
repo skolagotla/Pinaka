@@ -28,8 +28,8 @@
  */
 
 import React from 'react';
-import { Spin, Alert, Button, Empty } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Spinner, Alert, Button } from 'flowbite-react';
+import { HiRefresh } from 'react-icons/hi';
 
 export default function LoadingWrapper({
   loading,
@@ -39,7 +39,7 @@ export default function LoadingWrapper({
   errorContent,
   errorMessage = 'Failed to load data',
   onRetry,
-  size = 'large',
+  size = 'xl',
 }) {
   // Error state
   if (error) {
@@ -48,20 +48,19 @@ export default function LoadingWrapper({
     }
 
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Alert
-          message={errorMessage}
-          description={error?.message || 'An error occurred while loading data'}
-          type="error"
-          showIcon
-          action={
-            onRetry && (
-              <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
-                Retry
-              </Button>
-            )
-          }
-        />
+      <div className="p-10 text-center">
+        <Alert color="failure" className="mb-4">
+          <div>
+            <h3 className="font-semibold">{errorMessage}</h3>
+            <p className="text-sm mt-1">{error?.message || 'An error occurred while loading data'}</p>
+          </div>
+        </Alert>
+        {onRetry && (
+          <Button color="gray" size="sm" onClick={onRetry} className="flex items-center gap-2 mx-auto">
+            <HiRefresh className="h-4 w-4" />
+            Retry
+          </Button>
+        )}
       </div>
     );
   }
@@ -73,8 +72,8 @@ export default function LoadingWrapper({
     }
 
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Spin size={size} />
+      <div className="p-10 text-center">
+        <Spinner size={size} />
       </div>
     );
   }
@@ -90,43 +89,20 @@ export default function LoadingWrapper({
  */
 export function TableSkeleton({ rows = 5, columns = 4 }) {
   return (
-    <div style={{ padding: '16px' }}>
+    <div className="p-4">
       {Array.from({ length: rows }).map((_, rowIndex) => (
         <div
           key={rowIndex}
-          style={{
-            display: 'flex',
-            gap: '16px',
-            marginBottom: '16px',
-            padding: '12px',
-            borderBottom: '1px solid #f0f0f0',
-          }}
+          className="flex gap-4 mb-4 p-3 border-b border-gray-200 dark:border-gray-700"
         >
           {Array.from({ length: columns }).map((_, colIndex) => (
             <div
               key={colIndex}
-              style={{
-                flex: 1,
-                height: '20px',
-                background: '#f0f0f0',
-                borderRadius: '4px',
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }}
+              className="flex-1 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"
             />
           ))}
         </div>
       ))}
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </div>
   );
 }
-

@@ -31,7 +31,7 @@ import { rules } from '@/lib/utils/validation-rules';
 import { useLoading } from '@/lib/hooks/useLoading';
 import SigningFlow from '@/components/SigningFlow';
 import dynamic from 'next/dynamic';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useResizableTable, configureTableColumns, useModalState } from '@/lib/hooks';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
@@ -45,7 +45,7 @@ const PDFViewerModal = dynamic(
 
 export default function GeneratedFormsClient({ userRole, user = null }) {
   const router = useRouter();
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api directly or React Query hooks
   const { user: v2User } = useV2Auth();
   const organizationId = v2User?.organization_id;
   const { loading, withLoading } = useLoading(true);
@@ -135,8 +135,8 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       }
       
       try {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const data = await v1Api.signatures.getSignature(undefined);
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const data = await v2Api.signatures.getSignature(undefined);
         setSignatureUrl(data.signatureUrl);
       } catch (error) {
         setSignatureUrl(null);
@@ -263,9 +263,9 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       await refetchForms();
       
       // TODO: Implement v2 endpoint for getTenantsWithOutstandingBalance
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const [tenantsWithBalanceRes] = await Promise.all([
-        v1Api.specialized.getTenantsWithOutstandingBalance().then(data => {
+        v2Api.specialized.getTenantsWithOutstandingBalance().then(data => {
           const tenants = data.tenants || data.data || [];
           return { ok: true, json: async () => ({ tenants: Array.isArray(tenants) ? tenants : [] }) };
         }).catch(() => null)
@@ -312,14 +312,15 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       }
 
     }).catch(error => {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error loading data:', error);
+      notify.error('Failed to load data');
     });
   };
 
   const fetchTenantRentData = async (tenantId) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.getTenantRentData(tenantId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const data = await v2Api.specialized.getTenantRentData(tenantId);
       
       const payments = data.rentPayments || [];
       const unpaidPayments = payments.filter(p => {
@@ -453,8 +454,8 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
       const customData = form.getFieldsValue();
       
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.forms.generateForm({
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.forms.generateForm({
         formType: selectedFormType,
         tenantId: selectedTenant,
         propertyId: selectedProperty,
@@ -464,7 +465,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
       setGeneratedFormData(response.form);
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      // Error handling updated for v2
     } finally {
       setGenerating(false);
     }
@@ -472,22 +473,22 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleFinalizeForm = async (formId) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.generatedForms.update(formId, { status: 'finalized' });
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.generatedForms.update(formId, { status: 'finalized' });
 
       notify.success('Form finalized successfully');
       loadData();
       closeWizard();
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      // Error handling updated for v2
     }
   };
 
   const handleViewForm = async (formRecord) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const blob = await v1Api.forms.downloadForm(formRecord.id);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const blob = await v2Api.forms.downloadForm(formRecord.id);
       const url = URL.createObjectURL(blob);
       
       setPdfViewerUrl(url);
@@ -504,14 +505,14 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
 
   const handleDeleteForm = async (formId) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.generatedForms.delete(formId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.generatedForms.delete(formId);
 
       notify.success('Form deleted successfully');
       loadData();
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      // Error handling updated for v2
     }
   };
 
@@ -524,8 +525,8 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
     try {
       notify.loading('Sending email to tenant...');
       
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.forms.sendForm(record.id);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.forms.sendForm(record.id);
 
       notify.success('Email sent successfully to tenant');
       
@@ -542,8 +543,8 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
         
         const customData = form.getFieldsValue();
         
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.forms.generateForm({
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const response = await v2Api.forms.generateForm({
           formType: selectedFormType,
           tenantId: selectedTenant,
           propertyId: selectedProperty,
@@ -876,7 +877,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                   <option key={ft?.value} value={ft?.value}>
                     {ft?.value} - {ft?.label}
                   </option>
-                )) : [}
+                )) : []}
               </Select>
               {selectedFormType && (
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -918,7 +919,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                             <option key={p?.id} value={p?.id}>
                               {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
                             </option>
-                          )) : [}
+                          )) : []}
                         </Select>
                       )
                     ) : (
@@ -945,7 +946,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                             <option key={p?.id} value={p?.id}>
                               {`${p?.propertyName || p?.addressLine1 || 'N/A'}${p?.city ? `, ${p.city}` : ''}`}
                             </option>
-                          )) : [}
+                          )) : []}
                         </Select>
                       )
                     )}
@@ -982,7 +983,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                                 <option key={t?.id} value={t?.id}>
                                   {formatTenantName(t)}
                                 </option>
-                              )) : [}
+                              )) : []}
                             </Select>
                           );
                         })()
@@ -1012,7 +1013,7 @@ export default function GeneratedFormsClient({ userRole, user = null }) {
                               <option key={t?.id} value={t?.id}>
                                 {formatTenantName(t, tenants)}
                               </option>
-                            )) : [}
+                            )) : []}
                           </Select>
                         )
                       )}

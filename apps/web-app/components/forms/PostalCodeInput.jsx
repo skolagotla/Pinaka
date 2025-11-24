@@ -1,6 +1,6 @@
 "use client";
-import { Input } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { TextInput } from 'flowbite-react';
+import { HiLocationMarker } from 'react-icons/hi';
 import { usePostalCodeInput } from '@/lib/hooks/useRegionalInput';
 
 /**
@@ -47,17 +47,29 @@ export default function PostalCodeInput({
   // Ensure we always return a valid React element
   try {
     return (
-      <Input
-        {...restProps}
-        value={value || ''}
-        {...safeInputProps}
-        prefix={<EnvironmentOutlined />}
-      />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiLocationMarker className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput
+          {...restProps}
+          type="text"
+          value={value || ''}
+          {...safeInputProps}
+          className="pl-10"
+        />
+      </div>
     );
   } catch (error) {
-    console.error('[PostalCodeInput] Error rendering Input:', error);
+    console.error('[PostalCodeInput] Error rendering TextInput:', error);
     // Fallback to basic input
-    return <Input {...restProps} value={value || ''} prefix={<EnvironmentOutlined />} />;
+    return (
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiLocationMarker className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput {...restProps} type="text" value={value || ''} className="pl-10" />
+      </div>
+    );
   }
 }
-

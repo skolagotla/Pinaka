@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Form, Input, Button, DatePicker, InputNumber, Select, Row, Col, Card, Typography, Alert, Spin, message } from 'antd';
-import { MailOutlined, PhoneOutlined, SaveOutlined, UserOutlined, HomeOutlined, CloseOutlined } from '@ant-design/icons';
+import { Button, Datepicker, Select, Card, Alert, Spinner, TextInput, Textarea, Label } from 'flowbite-react';
+import { HiMail, HiPhone, HiSave, HiUser, HiHome, HiX } from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { PhoneNumberInput, PostalCodeInput, AddressAutocomplete } from '@/components/forms';
 import { useCountryRegion } from '@/lib/hooks/useCountryRegion';
 import { useRequestDeduplication } from '@/lib/hooks/useRequestDeduplication';
 import { getRoleConfig } from '@/lib/config/invitation-roles';
 import { useTenantFormData } from '@/lib/hooks/useTenantFormData';
+import { useFormState } from '@/lib/hooks/useFormState';
 import CurrencyInput from '@/components/rules/CurrencyInput';
-
-const { Title, Text } = Typography;
+import { notify } from '@/lib/utils/notification-helper';
 
 const US_STATES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
@@ -27,7 +27,32 @@ const CA_PROVINCES = [
 ];
 
 export default function AcceptInvitationPage() {
-  const [form] = Form.useForm();
+  const form = useFormState({
+    email: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    companyName: '',
+    contactName: '',
+    licenseNumber: '',
+    phone: '',
+    country: 'CA',
+    provinceState: 'ON',
+    addressLine1: '',
+    currentAddress: '',
+    city: '',
+    postalZip: '',
+    services: '',
+    latitude: '',
+    longitude: '',
+    specialties: '',
+    defaultCommissionRate: '',
+    dateOfBirth: null,
+    moveInDate: null,
+    numberOfAdults: 1,
+    numberOfChildren: 0,
+    leaseTerm: '',
+  });
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -40,7 +65,7 @@ export default function AcceptInvitationPage() {
   const [error, setError] = useState(null);
   const [country, setCountry] = useState('CA');
   const [submitted, setSubmitted] = useState(false);
-  const countryRegion = useCountryRegion('CA', 'ON'); // Default to Canada with Ontario
+  const countryRegion = useCountryRegion('CA', 'ON');
   
   // Tenant form data management hook for emergency contacts and employers
   const tenantFormData = useTenantFormData({ country });
@@ -64,11 +89,11 @@ export default function AcceptInvitationPage() {
       `invitation-${token}`,
       async () => {
         // TODO: Implement v2 endpoint for public invitation by token
-        const { v1Api } = await import('@/lib/api/v1-client');
+        const { v2Api } = await import('@/lib/api/v2-client');
         const data = await v1Api.specialized.getPublicInvitationByToken(token);
         return data;
       },
-      { ttl: 10000 } // 10 second deduplication window
+      { ttl: 10000 }
     )
       .then(data => {
         if (!data) return;
@@ -83,17 +108,16 @@ export default function AcceptInvitationPage() {
               const prefill = data.data.metadata;
               form.setFieldsValue({
                 email: data.data.email,
-                firstName: prefill.firstName,
-                lastName: prefill.lastName,
-                middleName: prefill.middleName,
-                phone: prefill.phone,
+                firstName: prefill.firstName || '',
+                lastName: prefill.lastName || '',
+                middleName: prefill.middleName || '',
+                phone: prefill.phone || '',
                 country: prefill.country || 'CA',
                 provinceState: prefill.provinceState || (prefill.country === 'CA' ? 'ON' : 'NJ'),
-                postalZip: prefill.postalZip,
-                city: prefill.city,
-                addressLine1: prefill.addressLine1,
-                addressLine2: prefill.addressLine2,
-                currentAddress: prefill.currentAddress,
+                postalZip: prefill.postalZip || '',
+                city: prefill.city || '',
+                addressLine1: prefill.addressLine1 || '',
+                currentAddress: prefill.currentAddress || '',
               });
               
               if (prefill.country) {
@@ -108,7 +132,6 @@ export default function AcceptInvitationPage() {
                   countryRegion.setRegion(prefill.provinceState);
                 }
               } else {
-                // No country in prefill, ensure defaults are set
                 form.setFieldsValue({ 
                   country: 'CA',
                   provinceState: 'ON' 
@@ -142,7 +165,8 @@ export default function AcceptInvitationPage() {
       });
   }, [token, form, countryRegion]);
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!token) {
       setError('Invalid invitation token');
       return;
@@ -158,28 +182,27 @@ export default function AcceptInvitationPage() {
 
     try {
       // Format dates for API
-      // Handle both dayjs objects and string dates (from manual input)
       const formatDate = (dateValue) => {
         if (!dateValue) return null;
         if (typeof dateValue === 'string') {
-          // Already a string, validate format
           if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
             return dateValue;
           }
-          // Try to parse and format
           const parsed = dayjs(dateValue);
           if (parsed.isValid()) {
             return parsed.format('YYYY-MM-DD');
           }
           return null;
         }
-        // dayjs object
-        if (dateValue.format) {
-          return dateValue.format('YYYY-MM-DD');
+        // Date object from Datepicker
+        if (dateValue instanceof Date) {
+          return dayjs(dateValue).format('YYYY-MM-DD');
         }
         return null;
       };
 
+      const values = form.getFieldsValue();
+      
       // Prepare tenant data including emergency contacts and employers
       const baseFormData = {
         ...values,
@@ -192,7 +215,7 @@ export default function AcceptInvitationPage() {
       const formData = prepareTenantData(baseFormData);
 
       // TODO: Implement v2 endpoint for accepting public invitation
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.specialized.acceptPublicInvitation(token, formData);
 
       if (!data.success) {
@@ -204,7 +227,6 @@ export default function AcceptInvitationPage() {
       setSubmitting(false);
     } catch (err) {
       console.error('Error accepting invitation:', err);
-      // Handle rate limit errors specifically
       const errorMessage = err.message || 'Failed to accept invitation. Please try again.';
       if (errorMessage.includes('Too many requests') || errorMessage.includes('rate limit')) {
         setError('Too many requests. Please wait a few minutes before trying again.');
@@ -217,28 +239,28 @@ export default function AcceptInvitationPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16, color: '#666' }}>Loading invitation...</div>
+      <div className="flex flex-col justify-center items-center min-h-[80vh]">
+        <Spinner size="xl" />
+        <div className="mt-4 text-gray-500">Loading invitation...</div>
       </div>
     );
   }
 
   if (error && !invitation) {
     return (
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 16px' }}>
+      <div className="max-w-2xl mx-auto p-10">
         <Card>
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            action={
-              <Button size="small" onClick={() => window.location.href = '/'}>
+          <Alert color="failure">
+            <div>
+              <p className="font-semibold">Error</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+            <div className="mt-4">
+              <Button size="sm" onClick={() => window.location.href = '/'}>
                 Go Home
               </Button>
-            }
-          />
+            </div>
+          </Alert>
         </Card>
       </div>
     );
@@ -255,18 +277,18 @@ export default function AcceptInvitationPage() {
   const postalLabel = country === "CA" ? "Postal Code" : "ZIP Code";
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 16px' }}>
-      <Card style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>
+    <div className="max-w-3xl mx-auto p-10">
+      <Card className="shadow-lg">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold mb-2">
             {isLandlord ? 'Complete Your Landlord Profile' 
               : isTenant ? 'Complete Your Tenant Profile'
               : isVendor ? 'Complete Your Vendor Profile'
               : isContractor ? 'Complete Your Contractor Profile'
               : isPMC ? 'Complete Your PMC Profile'
               : 'Complete Your Profile'}
-          </Title>
-          <Text type="secondary">
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
             {invitation?.invitedByName && (
               <>
                 You've been invited by <strong>{invitation.invitedByName}</strong>.
@@ -274,47 +296,33 @@ export default function AcceptInvitationPage() {
               </>
             )}
             Please provide your information to complete your profile.
-          </Text>
+          </p>
         </div>
 
         {error && (
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            style={{ marginBottom: 24 }}
-          />
+          <Alert color="failure" onDismiss={() => setError(null)} className="mb-6">
+            <div>
+              <p className="font-semibold">Error</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          </Alert>
         )}
 
         {submitted ? (
-          <Card 
-            style={{ 
-              textAlign: 'center', 
-              padding: '48px 24px',
-              backgroundColor: '#f6ffed',
-              border: '1px solid #b7eb8f'
-            }}
-          >
-            <div style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 48, color: '#52c41a' }}>✓</Text>
+          <Card className="text-center p-12 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-800">
+            <div className="mb-6">
+              <div className="text-5xl text-green-500">✓</div>
             </div>
-            <Title level={3} style={{ marginBottom: 16 }}>
-              Thank You
-            </Title>
-            <Text style={{ fontSize: 16, display: 'block', marginBottom: 32, color: '#666', lineHeight: 1.6 }}>
+            <h3 className="text-xl font-semibold mb-4">Thank You</h3>
+            <p className="text-base mb-8 text-gray-700 dark:text-gray-300 leading-relaxed">
               {isTenant 
                 ? (() => {
-                    // Get the actual landlord or PMC name from invitation
                     const landlordName = invitation?.landlord 
                       ? `${invitation.landlord.firstName || ''} ${invitation.landlord.lastName || ''}`.trim()
                       : null;
                     const pmcName = invitation?.pmc?.companyName || invitation?.companyName || null;
                     const inviterName = invitation?.invitedByName || null;
                     
-                    // Determine who to mention - prioritize PMC, then landlord, then inviter name
                     let contactName = 'your landlord or PMC company';
                     if (pmcName) {
                       contactName = pmcName;
@@ -330,168 +338,184 @@ export default function AcceptInvitationPage() {
                 ? 'Your information has been submitted successfully. The Pinaka Team will get back to you soon.'
                 : 'Your information has been submitted successfully. We will get back to you soon.'
               }
-            </Text>
+            </p>
             <Button 
-              type="primary" 
-              size="large"
-              icon={<CloseOutlined />}
+              color="blue"
+              size="lg"
               onClick={() => {
                 if (window.opener) {
                   window.close();
                 } else {
-                  // If window can't be closed, redirect to home
                   window.location.href = '/';
                 }
               }}
+              className="flex items-center gap-2"
             >
+              <HiX className="h-5 w-5" />
               Close Window
             </Button>
           </Card>
         ) : (
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            initialValues={{
-              numberOfAdults: 1,
-              numberOfChildren: 0,
-            }}
-          >
-          {/* Email (read-only) */}
-          <Form.Item
-            name="email"
-            label="Email"
-          >
-            <Input
-              prefix={<MailOutlined />}
-              disabled
-              value={invitation?.email}
-            />
-          </Form.Item>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email (read-only) */}
+            <div>
+              <Label htmlFor="email" className="mb-2 block">Email</Label>
+              <TextInput
+                id="email"
+                icon={HiMail}
+                disabled
+                value={invitation?.email || ''}
+                readOnly
+              />
+            </div>
 
-          {/* Name Fields - Different for different roles */}
-          {!isVendor && !isContractor && !isPMC ? (
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item
-                  name="firstName"
-                  label="First Name"
-                  rules={[{ required: true, message: 'Please enter first name' }]}
-                >
-                  <Input prefix={<UserOutlined />} placeholder="First name" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="middleName"
-                  label="Middle Name"
-                >
-                  <Input prefix={<UserOutlined />} placeholder="Middle name" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="lastName"
-                  label="Last Name"
-                  rules={[{ required: true, message: 'Please enter last name' }}
-                >
-                  <Input prefix={<UserOutlined />} placeholder="Last name" />
-                </Form.Item>
-              </Col>
-            </Row>
-          ) : (
-            <>
-              {/* Vendor/Contractor/PMC: Company Name */}
-              <Form.Item
-                name="companyName"
-                label="Company Name"
-                rules={[{ required: true, message: 'Please enter company name' }}
-              >
-                <Input prefix={<UserOutlined />} placeholder="Company name" />
-              </Form.Item>
-              
-              {/* Contact Name for Vendor/Contractor */}
-              {(isVendor || isContractor) && (
-                <Form.Item
-                  name="contactName"
-                  label="Contact Name"
-                  rules={[{ required: true, message: 'Please enter contact name' }}
-                >
-                  <Input prefix={<UserOutlined />} placeholder="Contact person name" />
-                </Form.Item>
-              )}
-              
-              {/* License Number for Contractor */}
-              {isContractor && (
-                <Form.Item
-                  name="licenseNumber"
-                  label="License Number"
-                >
-                  <Input placeholder="Contractor license number (optional)" />
-                </Form.Item>
-              )}
-            </>
-          )}
+            {/* Name Fields - Different for different roles */}
+            {!isVendor && !isContractor && !isPMC ? (
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="firstName" className="mb-2 block">
+                    First Name <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="firstName"
+                    icon={HiUser}
+                    placeholder="First name"
+                    value={form.values.firstName}
+                    onChange={(e) => form.setFieldsValue({ firstName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="middleName" className="mb-2 block">Middle Name</Label>
+                  <TextInput
+                    id="middleName"
+                    icon={HiUser}
+                    placeholder="Middle name"
+                    value={form.values.middleName}
+                    onChange={(e) => form.setFieldsValue({ middleName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName" className="mb-2 block">
+                    Last Name <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="lastName"
+                    icon={HiUser}
+                    placeholder="Last name"
+                    value={form.values.lastName}
+                    onChange={(e) => form.setFieldsValue({ lastName: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="companyName" className="mb-2 block">
+                    Company Name <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="companyName"
+                    icon={HiUser}
+                    placeholder="Company name"
+                    value={form.values.companyName}
+                    onChange={(e) => form.setFieldsValue({ companyName: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                {(isVendor || isContractor) && (
+                  <div>
+                    <Label htmlFor="contactName" className="mb-2 block">
+                      Contact Name <span className="text-red-500">*</span>
+                    </Label>
+                    <TextInput
+                      id="contactName"
+                      icon={HiUser}
+                      placeholder="Contact person name"
+                      value={form.values.contactName}
+                      onChange={(e) => form.setFieldsValue({ contactName: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
+                
+                {isContractor && (
+                  <div>
+                    <Label htmlFor="licenseNumber" className="mb-2 block">License Number</Label>
+                    <TextInput
+                      id="licenseNumber"
+                      placeholder="Contractor license number (optional)"
+                      value={form.values.licenseNumber}
+                      onChange={(e) => form.setFieldsValue({ licenseNumber: e.target.value })}
+                    />
+                  </div>
+                )}
+              </>
+            )}
 
-          {/* Phone */}
-          <Form.Item
-            name="phone"
-            label="Phone Number"
-            rules={[{ required: true, message: 'Please enter phone number' }}
-          >
-            <PhoneNumberInput
-              prefix={<PhoneOutlined />}
-              placeholder="(123) 456-7890"
-            />
-          </Form.Item>
+            {/* Phone */}
+            <div>
+              <Label htmlFor="phone" className="mb-2 block">
+                Phone Number <span className="text-red-500">*</span>
+              </Label>
+              <PhoneNumberInput
+                value={form.values.phone}
+                onChange={(e) => form.setFieldsValue({ phone: e.target.value })}
+                placeholder="(123) 456-7890"
+                required
+              />
+            </div>
 
-          {/* Country and Region */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="country"
-                label="Country"
-                rules={[{ required: true, message: 'Please select country' }}
-              >
+            {/* Country and Region */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="country" className="mb-2 block">
+                  Country <span className="text-red-500">*</span>
+                </Label>
                 <Select
-                  onChange={(value) => {
+                  id="country"
+                  value={form.values.country}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    form.setFieldsValue({ country: value });
                     setCountry(value);
                     countryRegion.setCountry(value);
-                    // Set default province/state based on country
                     const defaultRegion = value === 'CA' ? 'ON' : 'NJ';
                     form.setFieldsValue({ provinceState: defaultRegion });
                     countryRegion.setRegion(defaultRegion);
                   }}
+                  required
                 >
-                  <Select.Option value="CA">Canada</Select.Option>
-                  <Select.Option value="US">United States</Select.Option>
+                  <option value="CA">Canada</option>
+                  <option value="US">United States</option>
                 </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="provinceState"
-                label={regionLabel}
-                rules={[{ required: true, message: `Please select ${regionLabel.toLowerCase()}` }}
-              >
-                <Select placeholder={`Select ${regionLabel}`}>
+              </div>
+              <div>
+                <Label htmlFor="provinceState" className="mb-2 block">
+                  {regionLabel} <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  id="provinceState"
+                  value={form.values.provinceState}
+                  onChange={(e) => form.setFieldsValue({ provinceState: e.target.value })}
+                  required
+                >
+                  <option value="">Select {regionLabel}</option>
                   {regionOptions.map(region => (
-                     <Select.Option key={region} value={region}>{region}</Select.Option>
+                    <option key={region} value={region}>{region}</option>
                   ))}
                 </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-          {/* Address Fields - Different for different roles */}
-          {isLandlord || isVendor || isContractor || isPMC ? (
-            <>
-              <Form.Item
-                name="addressLine1"
-                label="Address"
-                rules={[{ required: true, message: 'Please enter address' }}
-                tooltip="Start typing an address to see autocomplete suggestions"
-              >
+            {/* Address Fields - Different for different roles */}
+            {isLandlord || isVendor || isContractor || isPMC ? (
+              <div>
+                <Label htmlFor="addressLine1" className="mb-2 block">
+                  Address <span className="text-red-500">*</span>
+                </Label>
                 <AddressAutocomplete
                   placeholder="Type an address (e.g., 123 Main St, Toronto)"
                   country={country === 'CA' ? 'CA,US' : country === 'US' ? 'CA,US' : 'CA,US'}
@@ -509,25 +533,30 @@ export default function AcceptInvitationPage() {
                     }
                   }}
                 />
-              </Form.Item>
-            </>
-          ) : (
-            <Form.Item
-              name="currentAddress"
-              label="Current Address"
-              tooltip="Start typing an address to see autocomplete suggestions"
-            >
-              <AddressAutocomplete
-                placeholder="Type an address (e.g., 123 Main St, Toronto)"
-                country={country === 'CA' ? 'CA,US' : country === 'US' ? 'CA,US' : 'CA,US'}
-                onSelect={(addressData) => {
-                  const countryCode = addressData.country;
-                  const streetAddress = addressData.addressLine1 || addressData.formattedAddress?.split(',')[0] || '';
-                  
-                  if (countryCode === 'CA' || countryCode === 'US') {
-                    setCountry(countryCode);
-                    countryRegion.setCountry(countryCode);
-                    setTimeout(() => {
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="currentAddress" className="mb-2 block">Current Address</Label>
+                <AddressAutocomplete
+                  placeholder="Type an address (e.g., 123 Main St, Toronto)"
+                  country={country === 'CA' ? 'CA,US' : country === 'US' ? 'CA,US' : 'CA,US'}
+                  onSelect={(addressData) => {
+                    const countryCode = addressData.country;
+                    const streetAddress = addressData.addressLine1 || addressData.formattedAddress?.split(',')[0] || '';
+                    
+                    if (countryCode === 'CA' || countryCode === 'US') {
+                      setCountry(countryCode);
+                      countryRegion.setCountry(countryCode);
+                      setTimeout(() => {
+                        form.setFieldsValue({
+                          currentAddress: streetAddress,
+                          city: addressData.city,
+                          provinceState: addressData.provinceState,
+                          postalZip: addressData.postalZip,
+                          country: countryCode,
+                        });
+                      }, 50);
+                    } else {
                       form.setFieldsValue({
                         currentAddress: streetAddress,
                         city: addressData.city,
@@ -535,290 +564,254 @@ export default function AcceptInvitationPage() {
                         postalZip: addressData.postalZip,
                         country: countryCode,
                       });
-                    }, 50);
-                  } else {
-                    form.setFieldsValue({
-                      currentAddress: streetAddress,
-                      city: addressData.city,
-                      provinceState: addressData.provinceState,
-                      postalZip: addressData.postalZip,
-                      country: countryCode,
-                    });
-                  }
-                }}
-              />
-            </Form.Item>
-          )}
+                    }
+                  }}
+                />
+              </div>
+            )}
 
-          {/* City and Postal Code */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="city"
-                label="City"
-                rules={isLandlord ? [{ required: true, message: 'Please enter city' }] : [}
-              >
-                <Input placeholder="City" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="postalZip"
-                label={postalLabel}
-                rules={isLandlord ? [{ required: true, message: `Please enter ${postalLabel.toLowerCase()}` }] : [}
-              >
+            {/* City and Postal Code */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="city" className="mb-2 block">
+                  City {isLandlord && <span className="text-red-500">*</span>}
+                </Label>
+                <TextInput
+                  id="city"
+                  placeholder="City"
+                  value={form.values.city}
+                  onChange={(e) => form.setFieldsValue({ city: e.target.value })}
+                  required={isLandlord}
+                />
+              </div>
+              <div>
+                <Label htmlFor="postalZip" className="mb-2 block">
+                  {postalLabel} {isLandlord && <span className="text-red-500">*</span>}
+                </Label>
                 <PostalCodeInput
                   country={country}
                   placeholder={postalLabel}
+                  value={form.values.postalZip}
+                  onChange={(e) => form.setFieldsValue({ postalZip: e.target.value })}
+                  required={isLandlord}
                 />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          {/* Vendor-specific fields */}
-          {isVendor && (
-            <>
-              <Form.Item
-                name="services"
-                label="Services/Category"
-                rules={[{ required: true, message: 'Please enter services or category' }}
-              >
-                <Input placeholder="e.g., Plumbing, Electrical, General Maintenance" />
-              </Form.Item>
-              
-              {/* Optional location fields for global vendors (admin-invited) */}
-              {invitation?.invitedByRole === 'admin' && (
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      name="latitude"
-                      label="Latitude (Optional)"
-                      tooltip="For location-based search within 50KM radius"
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        placeholder="e.g., 43.6532"
-                        step={0.0001}
-                      />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      name="longitude"
-                      label="Longitude (Optional)"
-                      tooltip="For location-based search within 50KM radius"
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        placeholder="e.g., -79.3832"
-                        step={0.0001}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
-            </>
-          )}
-
-          {/* Contractor-specific fields */}
-          {isContractor && (
-            <>
-              <Form.Item
-                name="specialties"
-                label="Specialties"
-                rules={[{ required: true, message: 'Please enter specialties' }}
-              >
-                <Input placeholder="e.g., plumbing, electrical, hvac (comma-separated)" />
-              </Form.Item>
-              
-              {/* Optional location fields for global contractors (admin-invited) */}
-              {invitation?.invitedByRole === 'admin' && (
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      name="latitude"
-                      label="Latitude (Optional)"
-                      tooltip="For location-based search within 50KM radius"
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        placeholder="e.g., 43.6532"
-                        step={0.0001}
-                      />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      name="longitude"
-                      label="Longitude (Optional)"
-                      tooltip="For location-based search within 50KM radius"
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        placeholder="e.g., -79.3832"
-                        step={0.0001}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
-            </>
-          )}
-
-          {/* PMC-specific fields */}
-          {isPMC && (
-            <>
-              <Form.Item
-                name="defaultCommissionRate"
-                label="Default Commission Rate (%)"
-              >
-                <InputNumber
-                  min={0}
-                  max={100}
-                  style={{ width: '100%' }}
-                  placeholder="e.g., 8.5 for 8.5%"
-                />
-              </Form.Item>
-            </>
-          )}
-
-          {/* Tenant-specific fields */}
-          {isTenant && (
-            <>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="dateOfBirth"
-                    label="Date of Birth"
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      format="YYYY-MM-DD"
-                      placeholder="Select date of birth"
-                      onKeyDown={(e) => {
-                        // Prevent form submission when pressing Enter in date picker
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="moveInDate"
-                    label="Desired Move-in Date"
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      format="YYYY-MM-DD"
-                      placeholder="Select move-in date"
-                      onKeyDown={(e) => {
-                        // Prevent form submission when pressing Enter in date picker
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item
-                    name="numberOfAdults"
-                    label="Number of Adults"
-                  >
-                    <InputNumber
-                      min={1}
-                      style={{ width: '100%' }}
-                      placeholder="1"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name="numberOfChildren"
-                    label="Number of Children"
-                  >
-                    <InputNumber
-                      min={0}
-                      style={{ width: '100%' }}
-                      placeholder="0"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name="leaseTerm"
-                    label="Desired Lease Term"
-                  >
-                    <Select placeholder="Select lease term">
-                      <Select.Option value="1">1 Month</Select.Option>
-                      <Select.Option value="3">3 Months</Select.Option>
-                      <Select.Option value="6">6 Months</Select.Option>
-                      <Select.Option value="12">12 Months</Select.Option>
-                      <Select.Option value="24">24 Months</Select.Option>
-                      <Select.Option value="month-to-month">Month-to-Month</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {/* Emergency Contacts Section - Only for tenants */}
-          {isTenant && (
-            <>
-              <div style={{ marginTop: 32, marginBottom: 16 }}>
-                <Title level={4}>Emergency Contacts</Title>
-                <Text type="secondary">Please provide at least one emergency contact</Text>
               </div>
-              {emergencyContacts.map((contact, index) => (
-                <div key={index} style={{ marginBottom: index < emergencyContacts.length - 1 ? 16 : 0 }}>
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <Form.Item 
-                        label={`Contact ${index + 1} Name`}
-                        required={index === 0}
-                        style={{ marginBottom: 12 }}
-                      >
-                        <Input 
-                          placeholder="Jane Doe" 
+            </div>
+
+            {/* Vendor-specific fields */}
+            {isVendor && (
+              <>
+                <div>
+                  <Label htmlFor="services" className="mb-2 block">
+                    Services/Category <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="services"
+                    placeholder="e.g., Plumbing, Electrical, General Maintenance"
+                    value={form.values.services}
+                    onChange={(e) => form.setFieldsValue({ services: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                {invitation?.invitedByRole === 'admin' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="latitude" className="mb-2 block">Latitude (Optional)</Label>
+                      <TextInput
+                        id="latitude"
+                        type="number"
+                        step="0.0001"
+                        placeholder="e.g., 43.6532"
+                        value={form.values.latitude}
+                        onChange={(e) => form.setFieldsValue({ latitude: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="longitude" className="mb-2 block">Longitude (Optional)</Label>
+                      <TextInput
+                        id="longitude"
+                        type="number"
+                        step="0.0001"
+                        placeholder="e.g., -79.3832"
+                        value={form.values.longitude}
+                        onChange={(e) => form.setFieldsValue({ longitude: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Contractor-specific fields */}
+            {isContractor && (
+              <>
+                <div>
+                  <Label htmlFor="specialties" className="mb-2 block">
+                    Specialties <span className="text-red-500">*</span>
+                  </Label>
+                  <TextInput
+                    id="specialties"
+                    placeholder="e.g., plumbing, electrical, hvac (comma-separated)"
+                    value={form.values.specialties}
+                    onChange={(e) => form.setFieldsValue({ specialties: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                {invitation?.invitedByRole === 'admin' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="latitude" className="mb-2 block">Latitude (Optional)</Label>
+                      <TextInput
+                        id="latitude"
+                        type="number"
+                        step="0.0001"
+                        placeholder="e.g., 43.6532"
+                        value={form.values.latitude}
+                        onChange={(e) => form.setFieldsValue({ latitude: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="longitude" className="mb-2 block">Longitude (Optional)</Label>
+                      <TextInput
+                        id="longitude"
+                        type="number"
+                        step="0.0001"
+                        placeholder="e.g., -79.3832"
+                        value={form.values.longitude}
+                        onChange={(e) => form.setFieldsValue({ longitude: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* PMC-specific fields */}
+            {isPMC && (
+              <div>
+                <Label htmlFor="defaultCommissionRate" className="mb-2 block">Default Commission Rate (%)</Label>
+                <TextInput
+                  id="defaultCommissionRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="e.g., 8.5 for 8.5%"
+                  value={form.values.defaultCommissionRate}
+                  onChange={(e) => form.setFieldsValue({ defaultCommissionRate: e.target.value })}
+                />
+              </div>
+            )}
+
+            {/* Tenant-specific fields */}
+            {isTenant && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="dateOfBirth" className="mb-2 block">Date of Birth</Label>
+                    <Datepicker
+                      value={form.values.dateOfBirth}
+                      onSelectedDateChanged={(date) => form.setFieldsValue({ dateOfBirth: date })}
+                      placeholder="Select date of birth"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="moveInDate" className="mb-2 block">Desired Move-in Date</Label>
+                    <Datepicker
+                      value={form.values.moveInDate}
+                      onSelectedDateChanged={(date) => form.setFieldsValue({ moveInDate: date })}
+                      placeholder="Select move-in date"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="numberOfAdults" className="mb-2 block">Number of Adults</Label>
+                    <TextInput
+                      id="numberOfAdults"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      value={form.values.numberOfAdults}
+                      onChange={(e) => form.setFieldsValue({ numberOfAdults: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="numberOfChildren" className="mb-2 block">Number of Children</Label>
+                    <TextInput
+                      id="numberOfChildren"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={form.values.numberOfChildren}
+                      onChange={(e) => form.setFieldsValue({ numberOfChildren: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="leaseTerm" className="mb-2 block">Desired Lease Term</Label>
+                    <Select
+                      id="leaseTerm"
+                      value={form.values.leaseTerm}
+                      onChange={(e) => form.setFieldsValue({ leaseTerm: e.target.value })}
+                    >
+                      <option value="">Select lease term</option>
+                      <option value="1">1 Month</option>
+                      <option value="3">3 Months</option>
+                      <option value="6">6 Months</option>
+                      <option value="12">12 Months</option>
+                      <option value="24">24 Months</option>
+                      <option value="month-to-month">Month-to-Month</option>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Emergency Contacts Section - Only for tenants */}
+            {isTenant && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h4 className="text-lg font-semibold mb-2">Emergency Contacts</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Please provide at least one emergency contact</p>
+                </div>
+                {emergencyContacts.map((contact, index) => (
+                  <div key={index} className={index < emergencyContacts.length - 1 ? "mb-4" : ""}>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label className="mb-2 block">
+                          Contact {index + 1} Name {index === 0 && <span className="text-red-500">*</span>}
+                        </Label>
+                        <TextInput
+                          placeholder="Jane Doe"
                           value={contact.contactName}
                           onChange={(e) => {
                             const updated = [...emergencyContacts];
                             updated[index].contactName = e.target.value;
                             setEmergencyContacts(updated);
                           }}
-                          size="large"
+                          required={index === 0}
                         />
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item label={`Contact ${index + 1} Email`} style={{ marginBottom: 12 }}>
-                        <Input 
-                          placeholder="jane.doe@example.com" 
-                          prefix={<MailOutlined />}
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Contact {index + 1} Email</Label>
+                        <TextInput
+                          type="email"
+                          icon={HiMail}
+                          placeholder="jane.doe@example.com"
                           value={contact.email}
                           onChange={(e) => {
                             const updated = [...emergencyContacts];
                             updated[index].email = e.target.value;
                             setEmergencyContacts(updated);
                           }}
-                          size="large"
                         />
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item 
-                        label={`Contact ${index + 1} Phone`}
-                        required={index === 0}
-                        style={{ marginBottom: 12 }}
-                      >
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">
+                          Contact {index + 1} Phone {index === 0 && <span className="text-red-500">*</span>}
+                        </Label>
                         <PhoneNumberInput
                           country={country}
                           value={contact.phone}
@@ -827,62 +820,57 @@ export default function AcceptInvitationPage() {
                             updated[index].phone = e.target.value;
                             setEmergencyContacts(updated);
                           }}
-                          size="large"
+                          required={index === 0}
                         />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </div>
-              ))}
-            </>
-          )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
 
-          {/* Employer Section - Only for tenants */}
-          {isTenant && (
-            <>
-              <div style={{ marginTop: 32, marginBottom: 16 }}>
-                <Title level={4}>Employer Information</Title>
-                <Text type="secondary">Please provide your current employer details</Text>
-              </div>
-              {employers.map((employer, index) => (
-                <div key={index} style={{ marginBottom: 16 }}>
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <Form.Item 
-                        label="Employer Name" 
-                        required
-                        validateStatus={!employer.employerName ? 'error' : ''}
-                        help={!employer.employerName ? 'Please enter employer name' : ''}
-                        style={{ marginBottom: 12 }}
-                      >
-                        <Input 
-                          placeholder="ABC Corporation" 
+            {/* Employer Section - Only for tenants */}
+            {isTenant && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h4 className="text-lg font-semibold mb-2">Employer Information</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Please provide your current employer details</p>
+                </div>
+                {employers.map((employer, index) => (
+                  <div key={index} className="mb-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <Label className="mb-2 block">
+                          Employer Name <span className="text-red-500">*</span>
+                        </Label>
+                        <TextInput
+                          placeholder="ABC Corporation"
                           value={employer.employerName}
                           onChange={(e) => {
                             const updated = [...employers];
                             updated[index].employerName = e.target.value;
                             setEmployers(updated);
                           }}
-                          size="large"
+                          required
                         />
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item label="Job Title" style={{ marginBottom: 12 }}>
-                        <Input 
-                          placeholder="Software Engineer" 
+                        {!employer.employerName && (
+                          <p className="text-xs text-red-500 mt-1">Please enter employer name</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Job Title</Label>
+                        <TextInput
+                          placeholder="Software Engineer"
                           value={employer.jobTitle}
                           onChange={(e) => {
                             const updated = [...employers];
                             updated[index].jobTitle = e.target.value;
                             setEmployers(updated);
                           }}
-                          size="large"
                         />
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item label="Annual Income" style={{ marginBottom: 12 }}>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Annual Income</Label>
                         <CurrencyInput
                           country={country}
                           value={employer.income}
@@ -892,84 +880,84 @@ export default function AcceptInvitationPage() {
                             setEmployers(updated);
                           }}
                           style={{ width: '100%' }}
-                          size="large"
                         />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <Form.Item label="Employment Start Date" style={{ marginBottom: 12 }}>
-                        <DatePicker
-                          style={{ width: '100%' }}
-                          value={employer.startDate ? dayjs(employer.startDate) : null}
-                          onChange={(date) => {
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label className="mb-2 block">Employment Start Date</Label>
+                        <Datepicker
+                          value={employer.startDate ? new Date(employer.startDate) : null}
+                          onSelectedDateChanged={(date) => {
                             const updated = [...employers];
-                            updated[index].startDate = date ? date.format('YYYY-MM-DD') : null;
+                            updated[index].startDate = date ? dayjs(date).format('YYYY-MM-DD') : null;
                             setEmployers(updated);
                           }}
-                          size="large"
                           placeholder="Select date"
-                          format="YYYY-MM-DD"
                         />
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item label="Pay Frequency" style={{ marginBottom: 12 }}>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Pay Frequency</Label>
                         <Select
-                          value={employer.payFrequency}
-                          onChange={(value) => {
+                          value={employer.payFrequency || ''}
+                          onChange={(e) => {
                             const updated = [...employers];
-                            updated[index].payFrequency = value;
+                            updated[index].payFrequency = e.target.value;
                             setEmployers(updated);
                           }}
-                          placeholder="Select frequency"
-                          size="large"
-                          virtual={false}
                         >
-                          <Select.Option value="weekly">Weekly</Select.Option>
-                          <Select.Option value="biweekly">Bi-weekly</Select.Option>
-                          <Select.Option value="monthly">Monthly</Select.Option>
-                          <Select.Option value="semimonthly">Semi-monthly</Select.Option>
+                          <option value="">Select frequency</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="biweekly">Bi-weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="semimonthly">Semi-monthly</option>
                         </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  
-                  <Form.Item label="Employer Address" style={{ marginBottom: 12 }}>
-                    <Input.TextArea 
-                      rows={2}
-                      placeholder="123 Business St, Suite 100, City, State, ZIP" 
-                      value={employer.employerAddress}
-                      onChange={(e) => {
-                        const updated = [...employers];
-                        updated[index].employerAddress = e.target.value;
-                        setEmployers(updated);
-                      }}
-                    />
-                  </Form.Item>
-                </div>
-              ))}
-            </>
-          )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="mb-2 block">Employer Address</Label>
+                      <Textarea
+                        rows={2}
+                        placeholder="123 Business St, Suite 100, City, State, ZIP"
+                        value={employer.employerAddress}
+                        onChange={(e) => {
+                          const updated = [...employers];
+                          updated[index].employerAddress = e.target.value;
+                          setEmployers(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
 
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={submitting}
-              size="large"
-              block
-            >
-              {submitting ? 'Submitting...' : 'Complete Profile'}
-            </Button>
-          </Form.Item>
-        </Form>
+            <div>
+              <Button
+                type="submit"
+                color="blue"
+                size="lg"
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Spinner size="sm" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <HiSave className="h-5 w-5" />
+                    Complete Profile
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         )}
       </Card>
     </div>
   );
 }
-

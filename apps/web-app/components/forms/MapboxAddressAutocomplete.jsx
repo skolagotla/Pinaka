@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Input, Spin, List, Tag, Typography, Space } from 'antd';
-import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { TextInput, Spinner } from 'flowbite-react';
+import { HiSearch, HiLocationMarker } from 'react-icons/hi';
 
 /**
  * MapboxAddressAutocomplete - Address autocomplete using Mapbox Geocoding API
@@ -238,7 +236,7 @@ export default function MapboxAddressAutocomplete({
         suggestionsRef.current &&
         !suggestionsRef.current.contains(event.target) &&
         inputRef.current &&
-        !inputRef.current.input.contains(event.target)
+        !inputRef.current.contains(event.target)
       ) {
         setSuggestions([]);
       }
@@ -251,72 +249,56 @@ export default function MapboxAddressAutocomplete({
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <Input
-        {...inputProps}
-        ref={inputRef}
-        value={value}
-        onChange={handleInputChange}
-        placeholder={placeholder}
-        prefix={<SearchOutlined />}
-        suffix={loading ? <Spin size="small" /> : null}
-        style={{ width: '100%', ...style }}
-        className={className}
-      />
+    <div className="relative w-full">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiSearch className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput
+          {...inputProps}
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className={`pl-10 pr-10 ${className}`}
+          style={{ width: '100%', ...style }}
+        />
+        {loading && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <Spinner size="sm" />
+          </div>
+        )}
+      </div>
       
       {suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            backgroundColor: 'white',
-            border: '1px solid #d9d9d9',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            maxHeight: '300px',
-            overflowY: 'auto',
-            marginTop: '4px',
-          }}
+          className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-[300px] overflow-y-auto mt-1"
         >
-          <List
-            dataSource={suggestions}
-            renderItem={(feature) => {
-              const displayText = feature.place_name || feature.text || 'Unknown address';
-              
-              return (
-                <List.Item
-                  style={{
-                    cursor: 'pointer',
-                    padding: '8px 12px',
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // Prevent input blur
-                    handleSelectAddress(feature);
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f5f5f5';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'white';
-                  }}
-                >
-                  <Space>
-                    <EnvironmentOutlined style={{ color: '#1890ff' }} />
-                    <div>
-                      <Text strong>{displayText}</Text>
-                    </div>
-                  </Space>
-                </List.Item>
-              );
-            }}
-          />
+          {suggestions.map((feature, index) => {
+            const displayText = feature.place_name || feature.text || 'Unknown address';
+            
+            return (
+              <div
+                key={index}
+                className="p-3 cursor-pointer border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent input blur
+                  handleSelectAddress(feature);
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <HiLocationMarker className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-gray-900">{displayText}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-

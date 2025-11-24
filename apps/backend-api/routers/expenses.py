@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import date
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.expense import Expense, ExpenseCreate, ExpenseUpdate
 from db.models_v2 import Expense as ExpenseModel, User, Organization
 
@@ -21,10 +22,12 @@ async def list_expenses(
     property_id: Optional[UUID] = Query(None),
     category: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List expenses (scoped by organization)"""
+    """List expenses (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(ExpenseModel)
@@ -43,6 +46,8 @@ async def list_expenses(
         query = query.where(ExpenseModel.category == category)
     if status_filter:
         query = query.where(ExpenseModel.status == status_filter)
+    
+    query = apply_pagination(query, page, limit, ExpenseModel.created_at.desc())
     
     result = await db.execute(query)
     expenses = result.scalars().all()

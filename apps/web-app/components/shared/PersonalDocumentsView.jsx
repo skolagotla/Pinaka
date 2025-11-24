@@ -7,8 +7,9 @@
 
 "use client";
 
-import { Card, Space, Empty, Table, Text } from 'antd';
-import { FileProtectOutlined } from '@ant-design/icons';
+import { Card, Table, Spinner } from 'flowbite-react';
+import { Empty } from '@/components/shared';
+import { HiDocumentText } from 'react-icons/hi';
 
 export default function PersonalDocumentsView({
   userRole,
@@ -20,48 +21,52 @@ export default function PersonalDocumentsView({
   selectedTenant,
 }) {
   return (
-    <div style={{ padding: '24px' }}>
+    <div className="p-6">
       {renderDocumentChecklist && renderDocumentChecklist()}
 
-      <Card
-        title={
-          <Space>
-            <FileProtectOutlined style={{ fontSize: 18 }} />
-            <Text strong style={{ fontSize: 16 }}>
-              Documents: {displayDocuments.length}
-            </Text>
-          </Space>
-        }
-      >
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <HiDocumentText className="h-5 w-5" />
+          <h5 className="font-semibold text-base">
+            Documents: {displayDocuments.length}
+          </h5>
+        </div>
         {library.loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <Empty description="Loading documents..." />
+          <div className="text-center py-12">
+            <Spinner size="xl" />
+            <p className="mt-4 text-gray-500">Loading documents...</p>
           </div>
         ) : displayDocuments.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              userRole === 'landlord'
-                ? (selectedTenant 
-                    ? "No documents uploaded yet for this tenant." 
-                    : "No documents found. Upload documents using the + button above.")
-                : "No documents uploaded yet. Upload documents using the + button above."
-            }
-          />
+          <Empty description={
+            userRole === 'landlord'
+              ? (selectedTenant 
+                  ? "No documents uploaded yet for this tenant." 
+                  : "No documents found. Upload documents using the + button above.")
+              : "No documents uploaded yet. Upload documents using the + button above."
+          } />
         ) : (
-          <Table
-            {...tableProps}
-            dataSource={documentsSearch.filteredData}
-            rowKey="id"
-            pagination={userRole === 'tenant' ? {
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} documents`,
-            } : { pageSize: 25 }}
-          />
+          <div className="overflow-x-auto">
+            <Table hoverable>
+              <Table.Head>
+                {tableProps.columns?.map((col, idx) => (
+                  <Table.HeadCell key={col.key || idx}>{col.title}</Table.HeadCell>
+                ))}
+              </Table.Head>
+              <Table.Body className="divide-y">
+                {documentsSearch.filteredData.map((record, idx) => (
+                  <Table.Row key={record.id || idx}>
+                    {tableProps.columns?.map((col, colIdx) => (
+                      <Table.Cell key={col.key || colIdx}>
+                        {col.render ? col.render(record[col.dataIndex], record, idx) : record[col.dataIndex]}
+                      </Table.Cell>
+                    ))}
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </div>
         )}
       </Card>
     </div>
   );
 }
-

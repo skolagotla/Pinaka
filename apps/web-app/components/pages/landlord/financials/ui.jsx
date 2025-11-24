@@ -28,7 +28,7 @@ import CurrencyInput from '@/components/rules/CurrencyInput';
 import { rules } from '@/lib/utils/validation-rules';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useExpenses, useProperties, useCreateExpense } from '@/lib/hooks/useV2Data';
 import { useDataLoader, useTabNavigation, useModalState, useFormSubmission, useResizableTable } from '@/lib/hooks';
@@ -121,8 +121,8 @@ export default function FinancialsClient() {
   const handleViewTicket = useCallback(async (ticketId) => {
     await withTicketLoading(async () => {
       try {
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const ticketData = await v1Api.maintenance.get(ticketId);
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const ticketData = await v2Api.maintenance.get(ticketId);
         const ticket = ticketData.data || ticketData;
         if (ticket) {
           setSelectedTicket(ticket);
@@ -576,7 +576,7 @@ export default function FinancialsClient() {
           <HiDocumentText className="h-4 w-4" />
           Export Report
         </Button>
-      }
+      ]}
     >
       {/* All Metrics in One Row */}
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -649,7 +649,7 @@ export default function FinancialsClient() {
 
       {/* Tabs for different views */}
       <Card>
-        <Tabs aria-label="Financial tabs" onActiveTabChange={(tab) => setActiveTab(tab)}
+        <Tabs aria-label="Financial tabs" onActiveTabChange={(tab) => setActiveTab(tab)}>
           <Tabs.Item active={activeTab === 'expenses'} title="Expenses">
             <TableWrapper>
               <FlowbiteTable
@@ -683,7 +683,7 @@ export default function FinancialsClient() {
               <HiCurrencyDollar className="h-4 w-4" />
               <span>Mortgage</span>
             </div>
-          ]
+          }>
             {mortgageLoading ? (
               <div className="text-center py-12">
                 <Spinner size="xl" />
@@ -734,7 +734,7 @@ export default function FinancialsClient() {
                       dataSource={mortgageData.properties}
                       rowKey="propertyId"
                       pagination={{ pageSize: 10 }}
-                      columns={
+                      columns={[
                         {
                           title: 'Property',
                           key: 'property',
@@ -774,7 +774,7 @@ export default function FinancialsClient() {
                           key: 'frequency',
                           align: 'center',
                           render: (_, record) => (
-                            <Badge color={record.paymentFrequency === 'biweekly' ? 'success' : 'warning']
+                            <Badge color={record.paymentFrequency === 'biweekly' ? 'success' : 'warning'}>
                               {record.paymentFrequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'}
                             </Badge>
                           ),
@@ -812,7 +812,7 @@ export default function FinancialsClient() {
                             </button>
                           ),
                         },
-                      }
+                      ]}
                     />
                   </Card>
                 ) : (
@@ -831,7 +831,7 @@ export default function FinancialsClient() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge color="blue">{selectedProperty.interestRate}% interest</Badge>
-                          <Badge color={selectedProperty.paymentFrequency === 'biweekly' ? 'success' : 'warning']
+                          <Badge color={selectedProperty.paymentFrequency === 'biweekly' ? 'success' : 'warning'}>
                             {selectedProperty.paymentFrequency === 'biweekly' ? 'Bi-weekly' : 'Monthly'} payments
                           </Badge>
                         </div>
@@ -874,7 +874,7 @@ export default function FinancialsClient() {
                           showSizeChanger: true,
                           showTotal: (total) => `${total} payments made to date`
                         }}
-                        columns={
+                        columns={[
                           {
                             title: 'Payment #',
                             dataIndex: 'paymentNumber',
@@ -933,7 +933,7 @@ export default function FinancialsClient() {
                               <CurrencyDisplay value={balance} country="CA" />
                             ),
                           },
-                        }
+                        ]}
                       />
                     </Card>
                   </div>
@@ -947,7 +947,7 @@ export default function FinancialsClient() {
               <HiChartBar className="h-4 w-4" />
               <span>Charts</span>
             </div>
-          ]
+          }>
             <div className="space-y-6">
               <Card>
                 <h3 className="text-lg font-semibold mb-4">Income vs Expenses (Last 6 Months)</h3>
@@ -1043,7 +1043,7 @@ export default function FinancialsClient() {
               >
                 <option value="">Select a property</option>
                 {properties.map(prop => (
-                  <option key={prop.id} value={prop.id]
+                  <option key={prop.id} value={prop.id}>
                     {prop.propertyName || prop.addressLine1}
                   </option>
                 ))}
@@ -1164,7 +1164,7 @@ export default function FinancialsClient() {
               >
                 Cancel
               </Button>
-              <Button type="submit" color="blue" disabled={submittingExpense]
+              <Button type="submit" color="blue" disabled={submittingExpense}>
                 {submittingExpense ? (
                   <>
                     <Spinner size="sm" className="mr-2" />

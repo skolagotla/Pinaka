@@ -5,7 +5,7 @@ import { Card, Checkbox, Button, TextInput, Textarea, Label, Alert, Badge, Accor
 import Image from 'next/image';
 import { HiCheckCircle, HiClock, HiCamera, HiSave, HiDocumentText, HiTrash, HiEye } from 'react-icons/hi';
 import { PageLayout } from '@/components/shared';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { notify } from '@/lib/utils/notification-helper';
 import dayjs from 'dayjs';
@@ -41,7 +41,7 @@ const MOVE_OUT_CHECKLIST = [
 ];
 
 export default function ChecklistClient({ tenant }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api from @/lib/api/v2-client or hooks from @/lib/hooks/useV2Data
   const { loading, withLoading } = useLoading();
   const [checklistType, setChecklistType] = useState('move-in');
   const [checklistData, setChecklistData] = useState({});
@@ -813,7 +813,7 @@ export default function ChecklistClient({ tenant }) {
                                   isSubmitted ? 'line-through text-gray-500' : ''
                                 }`}
                               >
-                                {item.label.split(' - ')[0]
+                                {item.label.split(' - ')[0]}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">

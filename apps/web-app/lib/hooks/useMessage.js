@@ -1,11 +1,18 @@
 /**
- * Custom hook to use Ant Design message API with context support
- * This fixes the warning: "Static function can not consume context like dynamic theme"
+ * Custom hook to use notification helper
+ * Replaces Ant Design message API with Flowbite-compatible notifications
  */
-import { App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useMessage() {
-  const { message } = App.useApp();
-  return message;
+  return {
+    success: (content, duration, onClose) => notify.success(content, duration, onClose),
+    error: (content, duration, onClose) => notify.error(content, duration, onClose),
+    warning: (content, duration, onClose) => notify.warning(content, duration, onClose),
+    info: (content, duration, onClose) => notify.info(content, duration, onClose),
+    loading: (content, duration, onClose) => notify.loading(content, duration, onClose),
+    destroy: () => notify.destroy(),
+  };
 }
 
+export default useMessage;

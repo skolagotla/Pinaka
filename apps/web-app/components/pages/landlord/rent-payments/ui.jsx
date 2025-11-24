@@ -48,7 +48,7 @@ dayjs.extend(utc);
 import { usePinakaCRUD } from '@/lib/hooks/usePinakaCRUD';
 import { useFormButtons } from '@/lib/hooks/useFormButtons';
 import { useRentReceipts, useResizableTable, withSorter, sortFunctions, useSearch, configureTableColumns, useModalState } from '@/lib/hooks';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { rules } from '@/lib/utils/validation-rules';
 import { notify } from '@/lib/utils/notification-helper';
@@ -86,7 +86,7 @@ function generateReferenceNumber() {
 }
 
 function RentPaymentsClient({ leases, landlordCountry }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const { user } = useV2Auth();
   const organizationId = user?.organization_id;
   const form = useFormState();
@@ -307,8 +307,8 @@ function RentPaymentsClient({ leases, landlordCountry }) {
       notify.loading('Generating receipt PDF...');
       
       // TODO: Implement v2 endpoint for sending rent payment receipts
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.specialized.sendRentPaymentReceipt(payment.id);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.specialized.sendRentPaymentReceipt(payment.id);
       
       notify.success('Receipt generated and sent to tenant');
       await fetchPayments();
@@ -496,8 +496,8 @@ function RentPaymentsClient({ leases, landlordCountry }) {
                     setMarkingUnpaid(true);
                     try {
                       // TODO: Implement v2 endpoint for marking rent payment as unpaid
-                      const { v1Api } = await import('@/lib/api/v1-client');
-                      await v1Api.specialized.markRentPaymentUnpaid(payment.id);
+                      const { v2Api } = await import('@/lib/api/v2-client');
+                      await v2Api.specialized.markRentPaymentUnpaid(payment.id);
                       notify.success('Rent payment marked as unpaid');
                       await fetchPayments();
                     } catch (error) {

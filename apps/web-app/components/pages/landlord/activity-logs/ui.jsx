@@ -5,7 +5,7 @@ import { Button, Badge, Spinner } from 'flowbite-react';
 import { HiRefresh, HiClock } from 'react-icons/hi';
 import { PageLayout, TableWrapper, FilterBar, renderDate, FlowbiteTable } from '@/components/shared';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { formatDateTimeDisplay as formatDateTimeLocal } from '@/lib/utils/date-utils';
 import dayjs from 'dayjs';
 
@@ -43,7 +43,8 @@ const ACTIONS = [
 ];
 
 export default function ActivityLogsClient({ user }) {
-  const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
+  const [loading, setLoading] = useState(false);
   const [activities, setActivities] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
   const [filters, setFilters] = useState({

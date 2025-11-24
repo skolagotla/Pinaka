@@ -22,7 +22,6 @@ import {
   HiChat,
   HiDocument,
   HiShoppingBag,
-  HiWallet,
 } from 'react-icons/hi';
 
 // Debounce function

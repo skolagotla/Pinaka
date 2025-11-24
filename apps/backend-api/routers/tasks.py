@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import datetime
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.task import Task, TaskCreate, TaskUpdate
 from db.models_v2 import Task as TaskModel, User, Organization
 
@@ -20,10 +21,12 @@ async def list_tasks(
     organization_id: Optional[UUID] = Query(None),
     property_id: Optional[UUID] = Query(None),
     status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List tasks (scoped by organization and role)"""
+    """List tasks (scoped by organization and role) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(TaskModel)
@@ -44,6 +47,8 @@ async def list_tasks(
             query = query.where(TaskModel.is_completed == True)
         elif status_filter == "pending":
             query = query.where(TaskModel.is_completed == False)
+    
+    query = apply_pagination(query, page, limit, TaskModel.created_at.desc())
     
     result = await db.execute(query)
     tasks = result.scalars().all()

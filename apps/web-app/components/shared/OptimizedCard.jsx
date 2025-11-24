@@ -7,7 +7,7 @@
 
 "use client";
 
-import { Card } from 'antd';
+import { Card } from 'flowbite-react';
 import { memo } from 'react';
 
 /**
@@ -31,28 +31,32 @@ function OptimizedCard({
   className = '',
   style = {},
   hoverable = false,
-  size = 'default',
   ...rest
 }) {
+  const hoverClass = hoverable ? 'hover:shadow-lg transition-shadow' : '';
+  
   return (
     <Card
-      title={title}
-      extra={extra}
-      loading={loading}
-      hoverable={hoverable}
-      size={size}
-      className={className}
-      style={{
-        borderRadius: 8,
-        ...style,
-      }}
+      className={`rounded-lg ${hoverClass} ${className}`}
+      style={style}
       {...rest}
     >
-      {children}
+      {(title || extra) && (
+        <div className="flex items-center justify-between mb-4">
+          {title && <h3 className="text-lg font-semibold">{title}</h3>}
+          {extra && <div>{extra}</div>}
+        </div>
+      )}
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        children
+      )}
     </Card>
   );
 }
 
 // Memoize to prevent unnecessary re-renders
 export default memo(OptimizedCard);
-

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Select, Button, Alert, Space, Typography, Spin } from 'antd';
-import { DatabaseOutlined, SwapOutlined } from '@ant-design/icons';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+import { Card, Select, Button, Alert, Spinner } from 'flowbite-react';
+import { HiDatabase, HiSwitchHorizontal } from 'react-icons/hi';
+import { notify } from '@/lib/utils/notification-helper';
 
 export default function DatabaseSwitcherPage() {
   const [databases, setDatabases] = useState([]);
@@ -31,10 +29,12 @@ export default function DatabaseSwitcherPage() {
         setSelectedDb(data.data.current || '');
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to fetch databases' });
+        notify.error(data.error || 'Failed to fetch databases');
       }
     } catch (error) {
       console.error('Error fetching databases:', error);
       setMessage({ type: 'error', text: 'Failed to fetch databases' });
+      notify.error('Failed to fetch databases');
     } finally {
       setLoading(false);
     }
@@ -43,6 +43,7 @@ export default function DatabaseSwitcherPage() {
   const handleSwitch = async () => {
     if (!selectedDb || selectedDb === currentDb) {
       setMessage({ type: 'warning', text: 'Please select a different database' });
+      notify.warning('Please select a different database');
       return;
     }
 
@@ -65,6 +66,7 @@ export default function DatabaseSwitcherPage() {
           type: 'success', 
           text: data.message || 'Database switched successfully. Server is restarting...' 
         });
+        notify.success(data.message || 'Database switched successfully');
         setCurrentDb(selectedDb);
         
         // Show info about restart
@@ -76,10 +78,12 @@ export default function DatabaseSwitcherPage() {
         }, 2000);
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to switch database' });
+        notify.error(data.error || 'Failed to switch database');
       }
     } catch (error) {
       console.error('Error switching database:', error);
       setMessage({ type: 'error', text: 'Failed to switch database' });
+      notify.error('Failed to switch database');
     } finally {
       setSwitching(false);
     }
@@ -87,108 +91,87 @@ export default function DatabaseSwitcherPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh',
-        flexDirection: 'column',
-        gap: 16,
-        backgroundColor: '#f5f5f5'
-      }}>
-        <Spin size="large" />
-        <Text>Loading databases...</Text>
+      <div className="flex justify-center items-center min-h-screen flex-col gap-4 bg-gray-50 dark:bg-gray-900">
+        <Spinner size="xl" />
+        <p className="text-gray-600 dark:text-gray-400">Loading databases...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '100vh',
-      padding: '24px',
-      backgroundColor: '#f5f5f5'
-    }}>
-      <Card 
-        style={{ 
-          width: '100%', 
-          maxWidth: 500,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-        }}
-        title={
-          <Space>
-            <DatabaseOutlined />
-            <span>Database Switcher</span>
-          </Space>
-        }
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <div className="flex justify-center items-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
+      <Card className="w-full max-w-lg">
+        <div className="flex items-center gap-2 mb-6">
+          <HiDatabase className="h-6 w-6" />
+          <h2 className="text-xl font-semibold">Database Switcher</h2>
+        </div>
+
+        <div className="space-y-4">
           {message.text && (
             <Alert
-              message={message.text}
-              type={message.type}
-              showIcon
-              closable
-              onClose={() => setMessage({ type: '', text: '' })}
-            />
+              color={
+                message.type === 'error' ? 'failure' :
+                message.type === 'warning' ? 'warning' :
+                message.type === 'success' ? 'success' : 'info'
+              }
+              onDismiss={() => setMessage({ type: '', text: '' })}
+            >
+              {message.text}
+            </Alert>
           )}
 
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>
-              Current Database:
-            </Text>
-            <Text code style={{ fontSize: '16px', padding: '8px 12px', display: 'inline-block', backgroundColor: '#f0f0f0' }}>
+            <p className="font-semibold mb-2">Current Database:</p>
+            <code className="text-base px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded inline-block">
               {currentDb || 'Not set'}
-            </Text>
+            </code>
           </div>
 
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>
+            <label htmlFor="database" className="block mb-2 font-semibold">
               Select Database:
-            </Text>
+            </label>
             <Select
+              id="database"
               value={selectedDb}
-              onChange={setSelectedDb}
-              style={{ width: '100%' }}
-              placeholder="Select a database"
-              size="large"
+              onChange={(e) => setSelectedDb(e.target.value)}
+              className="w-full"
             >
+              <option value="">Select a database</option>
               {databases.map((db) => (
-                <Option key={db} value={db}>
-                  <Space>
-                    {db === currentDb && <span style={{ color: '#52c41a' }}>●</span>}
-                    <span>{db}</span>
-                    {db === currentDb && <Text type="secondary">(current)</Text>}
-                  </Space>
-                </Option>
+                <option key={db} value={db}>
+                  {db === currentDb ? '● ' : ''}{db} {db === currentDb ? '(current)' : ''}
+                </option>
               ))}
             </Select>
           </div>
 
           <Button
-            type="primary"
-            icon={<SwapOutlined />}
+            color="blue"
             onClick={handleSwitch}
-            loading={switching}
-            disabled={!selectedDb || selectedDb === currentDb}
-            block
-            size="large"
+            disabled={switching || !selectedDb || selectedDb === currentDb}
+            className="w-full flex items-center justify-center gap-2"
           >
-            Switch Database
+            {switching ? (
+              <>
+                <Spinner size="sm" />
+                Switching...
+              </>
+            ) : (
+              <>
+                <HiSwitchHorizontal className="h-4 w-4" />
+                Switch Database
+              </>
+            )}
           </Button>
 
-          <Alert
-            message="Note"
-            description="Switching databases will restart the server. This may take 30-60 seconds. Please wait and refresh the page after switching."
-            type="warning"
-            showIcon
-            style={{ marginTop: 16 }}
-          />
-        </Space>
+          <Alert color="warning">
+            <p className="text-sm">
+              <strong>Note:</strong> Switching databases will restart the server. This may take 30-60 seconds. Please wait and refresh the page after switching.
+            </p>
+          </Alert>
+        </div>
       </Card>
     </div>
   );
 }
-

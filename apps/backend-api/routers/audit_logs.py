@@ -9,6 +9,7 @@ from uuid import UUID
 from datetime import datetime
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.audit_log import AuditLog, AuditLogCreate
 from db.models_v2 import AuditLog as AuditLogModel, User
 
@@ -21,12 +22,12 @@ async def list_audit_logs(
     actor_user_id: Optional[UUID] = None,
     entity_type: Optional[str] = None,
     action: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN], require_organization=False)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List audit logs (super_admin only)"""
+    """List audit logs (super_admin only) with pagination"""
     query = select(AuditLogModel)
     
     # Apply filters
@@ -39,7 +40,7 @@ async def list_audit_logs(
     if action:
         query = query.where(AuditLogModel.action == action)
     
-    query = query.order_by(AuditLogModel.created_at.desc()).limit(limit).offset(offset)
+    query = apply_pagination(query, page, limit, AuditLogModel.created_at.desc())
     
     result = await db.execute(query)
     audit_logs = result.scalars().all()

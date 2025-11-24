@@ -1,14 +1,13 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import { Card, Input, Button, Space, Typography, Badge, Avatar, Spin, Empty, App } from 'antd';
-import { SendOutlined, MessageOutlined, UserOutlined } from '@ant-design/icons';
+import { Card, Textarea, Button, Avatar, Badge, Spinner } from 'flowbite-react';
+import { Empty } from '@/components/shared';
+import { HiChat, HiPaperAirplane, HiUser } from 'react-icons/hi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { notify } from '@/lib/utils/notification-helper';
 
 dayjs.extend(relativeTime);
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 /**
  * DocumentChat Component
@@ -22,7 +21,6 @@ const { TextArea } = Input;
  * - onClose: Callback when chat is closed
  */
 export default function DocumentChat({ documentId, document, userRole, userName, onClose }) {
-  const { message } = App.useApp();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -71,8 +69,8 @@ export default function DocumentChat({ documentId, document, userRole, userName,
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.getDocumentMessages(documentId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const data = await v2Api.specialized.getDocumentMessages(documentId);
       setMessages(data);
       setTimeout(scrollToBottom, 100);
     } catch (error) {
@@ -88,15 +86,15 @@ export default function DocumentChat({ documentId, document, userRole, userName,
 
     try {
       setSending(true);
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const sentMessage = await v1Api.specialized.sendDocumentMessage(documentId, newMessage.trim());
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const sentMessage = await v2Api.specialized.sendDocumentMessage(documentId, newMessage.trim());
       setMessages((prev) => [...prev, sentMessage]);
       setNewMessage('');
       setTimeout(scrollToBottom, 100);
-      message.success('Message sent');
+      notify.success('Message sent');
     } catch (error) {
       console.error('[DocumentChat] Error sending message:', error);
-      message.error('Failed to send message');
+      notify.error('Failed to send message');
     } finally {
       setSending(false);
     }
@@ -111,47 +109,42 @@ export default function DocumentChat({ documentId, document, userRole, userName,
   }, [documentId]);
 
   return (
-    <Card
-      title={
-        <Space>
-          <MessageOutlined />
-          <Text>Discussion</Text>
-          {unreadCount > 0 && <Badge count={unreadCount} />}
-        </Space>
-      }
-      size="small"
-      style={{ height: '400px', display: 'flex', flexDirection: 'column' }}
-      bodyStyle={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
-    >
+    <Card className="h-[400px] flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HiChat className="h-5 w-5" />
+          <h3 className="font-semibold">Discussion</h3>
+          {unreadCount > 0 && (
+            <Badge color="blue">{unreadCount}</Badge>
+          )}
+        </div>
+        {onClose && (
+          <Button color="light" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        )}
+      </div>
+
       {/* Messages Container */}
       <div
         ref={chatContainerRef}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px',
-          backgroundColor: '#fafafa',
-        }}
+        className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900"
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Spin />
+          <div className="flex justify-center items-center h-full">
+            <Spinner size="xl" />
           </div>
         ) : (() => {
           const systemMessages = getSystemMessages();
           const allMessages = [...systemMessages, ...messages];
           return allMessages.length === 0 ? (
-            <Empty
-              description="No messages yet"
-              style={{ marginTop: '40px' }}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            >
-              <Text type="secondary" style={{ fontSize: 12 }}>
+            <Empty description="No messages yet">
+              <p className="text-sm text-gray-500 mt-2">
                 Start a conversation about this document
-              </Text>
+              </p>
             </Empty>
           ) : (
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div className="space-y-3">
               {allMessages.map((msg) => {
                 const isCurrentUser = msg.senderRole === userRole;
                 const isSystemMessage = msg.isSystem;
@@ -161,48 +154,28 @@ export default function DocumentChat({ documentId, document, userRole, userName,
                   return (
                     <div
                       key={msg.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        width: '100%',
-                      }}
+                      className="flex justify-center w-full"
                     >
                       <div
-                        style={{
-                          maxWidth: '90%',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
-                          backgroundColor: msg.type === 'approved' ? '#f6ffed' : '#fff2e8',
-                          border: `1px solid ${msg.type === 'approved' ? '#b7eb8f' : '#ffbb96'}`,
-                          textAlign: 'center',
-                        }}
+                        className={`max-w-[90%] p-3 rounded-lg text-center ${
+                          msg.type === 'approved'
+                            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                            : 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
+                        }`}
                       >
-                        <Text
-                          strong
-                          style={{
-                            fontSize: 12,
-                            color: msg.type === 'approved' ? '#52c41a' : '#fa8c16',
-                            display: 'block',
-                            marginBottom: 4,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                          }}
+                        <p
+                          className={`text-xs font-semibold mb-1 uppercase tracking-wide ${
+                            msg.type === 'approved' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
+                          }`}
                         >
                           {msg.type === 'approved' ? '✓ Document Approved' : '✗ Document Rejected'}
-                        </Text>
-                        <Text style={{ fontSize: 13, color: '#595959' }}>
+                        </p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
                           {msg.message}
-                        </Text>
-                        <Text
-                          type="secondary"
-                          style={{
-                            fontSize: 11,
-                            display: 'block',
-                            marginTop: 8,
-                          }}
-                        >
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                           by {msg.senderName} • {dayjs(msg.createdAt).fromNow()}
-                        </Text>
+                        </p>
                       </div>
                     </div>
                   );
@@ -212,106 +185,87 @@ export default function DocumentChat({ documentId, document, userRole, userName,
                 return (
                   <div
                     key={msg.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: isCurrentUser ? 'flex-end' : 'flex-start',
-                      alignItems: 'flex-start',
-                    }}
+                    className={`flex items-start gap-2 ${
+                      isCurrentUser ? 'justify-end' : 'justify-start'
+                    }`}
                   >
                     {!isCurrentUser && (
                       <Avatar
-                        icon={<UserOutlined />}
-                        style={{
-                          backgroundColor: msg.senderRole === 'landlord' ? '#1890ff' : '#52c41a',
-                          marginRight: 8,
-                        }}
+                        placeholderInitials={msg.senderName?.[0] || 'U'}
+                        className={`${
+                          msg.senderRole === 'landlord' ? 'bg-blue-500' : 'bg-green-500'
+                        }`}
                       />
                     )}
                     <div
-                      style={{
-                        maxWidth: '70%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: isCurrentUser ? '#1890ff' : '#fff',
-                        color: isCurrentUser ? '#fff' : '#000',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                      }}
+                      className={`max-w-[70%] p-2 rounded-lg ${
+                        isCurrentUser
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
+                      }`}
                     >
                       {!isCurrentUser && (
-                        <Text
-                          strong
-                          style={{
-                            fontSize: 11,
-                            color: isCurrentUser ? '#fff' : '#1890ff',
-                            display: 'block',
-                            marginBottom: 4,
-                          }}
-                        >
+                        <p className="text-xs font-semibold mb-1 text-blue-600 dark:text-blue-400">
                           {msg.senderName}
-                        </Text>
+                        </p>
                       )}
-                    <Text style={{ color: isCurrentUser ? '#fff' : '#000', display: 'block' }}>
-                      {msg.message}
-                    </Text>
-                    <Text
-                      type="secondary"
-                      style={{
-                        fontSize: 10,
-                        color: isCurrentUser ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.45)',
-                        display: 'block',
-                        marginTop: 4,
-                      }}
-                    >
-                      {dayjs(msg.createdAt).fromNow()}
-                    </Text>
+                      <p className="text-sm">{msg.message}</p>
+                      <p className={`text-xs mt-1 ${
+                        isCurrentUser ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {dayjs(msg.createdAt).fromNow()}
+                      </p>
+                    </div>
+                    {isCurrentUser && (
+                      <Avatar
+                        placeholderInitials={userName?.[0] || 'U'}
+                        className={`${
+                          userRole === 'landlord' ? 'bg-blue-500' : 'bg-green-500'
+                        }`}
+                      />
+                    )}
                   </div>
-                  {isCurrentUser && (
-                    <Avatar
-                      icon={<UserOutlined />}
-                      style={{
-                        backgroundColor: msg.senderRole === 'landlord' ? '#1890ff' : '#52c41a',
-                        marginLeft: 8,
-                      }}
-                    />
-                  )}
-                </div>
                 );
               })}
               <div ref={messagesEndRef} />
-            </Space>
+            </div>
           );
         })()}
       </div>
 
       {/* Input Area */}
-      <div style={{ padding: '12px', borderTop: '1px solid #f0f0f0', backgroundColor: '#fff' }}>
-        <Space.Compact style={{ width: '100%' }}>
-          <TextArea
+      <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="flex gap-2">
+          <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
               }
             }}
             placeholder="Type a message... (Shift+Enter for new line)"
-            autoSize={{ minRows: 1, maxRows: 3 }}
-            disabled={sending}
-            style={{ resize: 'none' }}
+            rows={2}
+            className="flex-1"
           />
           <Button
-            type="primary"
-            icon={<SendOutlined />}
+            color="blue"
             onClick={handleSendMessage}
-            loading={sending}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
+            className="flex items-center gap-2"
           >
-            Send
+            {sending ? (
+              <Spinner size="sm" />
+            ) : (
+              <>
+                <HiPaperAirplane className="h-4 w-4" />
+                Send
+              </>
+            )}
           </Button>
-        </Space.Compact>
+        </div>
       </div>
     </Card>
   );
 }
-

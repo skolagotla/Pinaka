@@ -10,7 +10,7 @@ import { Card, Button, TextInput, Label, Alert, Spinner, Badge } from 'flowbite-
 import { HiCheckCircle, HiXCircle, HiExclamationTriangle } from 'react-icons/hi';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { renderStatus } from '@/components/shared/TableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
@@ -19,7 +19,7 @@ import dayjs from 'dayjs';
 
 export default function YearEndClosingClient({ user, userRole }) {
   const { formData, updateField, resetForm } = useFormState({ periodId: '' });
-  const { fetch } = useUnifiedApi({ showUserMessage: false });
+  // useUnifiedApi removed({ showUserMessage: false });
   const { loading, withLoading } = useLoading();
   const { loading: validating, withLoading: withValidating } = useLoading();
   const [validationResult, setValidationResult] = useState(null);

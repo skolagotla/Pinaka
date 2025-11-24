@@ -17,31 +17,27 @@ import {
   Table,
   Button,
   Modal,
-  Form,
-  Input,
-  message,
-  Space,
-  Tag,
-  Typography,
+  Textarea,
+  Label,
+  Badge,
   Select,
-  Descriptions,
-} from 'antd';
+  Spinner,
+} from 'flowbite-react';
 import {
-  FileTextOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ReloadOutlined,
-  EyeOutlined,
-} from '@ant-design/icons';
-
-const { Title } = Typography;
-const { TextArea } = Input;
+  HiDocumentText,
+  HiCheckCircle,
+  HiXCircle,
+  HiRefresh,
+  HiEye,
+} from 'react-icons/hi';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 // Status tag configuration - memoized outside component
 const STATUS_CONFIG: Record<string, { color: string; text: string }> = {
-  PENDING: { color: 'orange', text: 'Pending' },
-  APPROVED: { color: 'green', text: 'Approved' },
-  REJECTED: { color: 'red', text: 'Rejected' },
+  PENDING: { color: 'warning', text: 'Pending' },
+  APPROVED: { color: 'success', text: 'Approved' },
+  REJECTED: { color: 'failure', text: 'Rejected' },
 };
 
 export interface ApplicationsTableProps {
@@ -68,8 +64,8 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [approveModalVisible, setApproveModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [approveForm] = Form.useForm();
-  const [rejectForm] = Form.useForm();
+  const approveForm = useFormState({ comment: '' });
+  const rejectForm = useFormState({ reason: '', comment: '' });
   const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
 
@@ -87,12 +83,12 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
         // Ensure data.data is an array
         setApplications(Array.isArray(data.data) ? data.data : []);
       } else {
-        message.error(data.error || 'Failed to fetch applications');
+        notify.error(data.error || 'Failed to fetch applications');
         setApplications([]);
       }
     } catch (err) {
       console.error('Error fetching applications:', err);
-      message.error('Failed to fetch applications');
+      notify.error('Failed to fetch applications');
       setApplications([]);
     } finally {
       setLoading(false);
@@ -112,29 +108,30 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
   const handleApprove = useCallback((application: any) => {
     setSelectedApplication(application);
     setApproveModalVisible(true);
-    approveForm.resetFields();
+    approveForm.resetForm();
   }, [approveForm]);
 
   const handleReject = useCallback((application: any) => {
     setSelectedApplication(application);
     setRejectModalVisible(true);
-    rejectForm.resetFields();
+    rejectForm.resetForm();
   }, [rejectForm]);
 
-  const submitApprove = useCallback(async () => {
+  const submitApprove = useCallback(async (e) => {
+    e.preventDefault();
     if (!selectedApplication) {
-      message.error('Invalid application selected');
+      notify.error('Invalid application selected');
       return;
     }
     
     const invitationId = selectedApplication?.invitation?.id || selectedApplication?.id;
     if (!invitationId) {
-      message.error('Invalid application selected');
+      notify.error('Invalid application selected');
       return;
     }
     
     try {
-      const values = await approveForm.validateFields();
+      const values = approveForm.getFieldsValue();
       const endpoint = approveEndpoint.replace('{id}', invitationId);
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -143,32 +140,37 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Application approved successfully');
+        notify.success('Application approved successfully');
         setApproveModalVisible(false);
         fetchApplications();
       } else {
-        message.error(data.error || 'Failed to approve application');
+        notify.error(data.error || 'Failed to approve application');
       }
     } catch (err) {
       console.error('Error approving application:', err);
-      message.error('Failed to approve application');
+      notify.error('Failed to approve application');
     }
   }, [selectedApplication, approveForm, approveEndpoint, fetchApplications]);
 
-  const submitReject = useCallback(async () => {
+  const submitReject = useCallback(async (e) => {
+    e.preventDefault();
     if (!selectedApplication) {
-      message.error('Invalid application selected');
+      notify.error('Invalid application selected');
       return;
     }
     
     const invitationId = selectedApplication?.invitation?.id || selectedApplication?.id;
     if (!invitationId) {
-      message.error('Invalid application selected');
+      notify.error('Invalid application selected');
       return;
     }
     
     try {
-      const values = await rejectForm.validateFields();
+      const values = rejectForm.getFieldsValue();
+      if (!values.reason) {
+        notify.error('Please provide a rejection reason');
+        return;
+      }
       const endpoint = rejectEndpoint.replace('{id}', invitationId);
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -177,23 +179,23 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        message.success('Application rejected successfully');
+        notify.success('Application rejected successfully');
         setRejectModalVisible(false);
         fetchApplications();
       } else {
-        message.error(data.error || 'Failed to reject application');
+        notify.error(data.error || 'Failed to reject application');
       }
     } catch (err) {
       console.error('Error rejecting application:', err);
-      message.error('Failed to reject application');
+      notify.error('Failed to reject application');
     }
   }, [selectedApplication, rejectForm, rejectEndpoint, fetchApplications]);
 
   // Memoized status tag renderer
   const getStatusTag = useCallback((status) => {
-    if (!status) return <Tag>N/A</Tag>;
-    const config = STATUS_CONFIG[status] || { color: 'default', text: status };
-    return <Tag color={config.color}>{config.text}</Tag>;
+    if (!status) return <Badge color="gray">N/A</Badge>;
+    const config = STATUS_CONFIG[status] || { color: 'gray', text: status };
+    return <Badge color={config.color as any}>{config.text}</Badge>;
   }, []);
 
   // Memoized user data getters
@@ -233,78 +235,6 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
     return record.user?.phone || 'N/A';
   }, []);
 
-  // Memoized columns to prevent unnecessary re-renders
-  const columns = useMemo(() => [
-    {
-      title: 'Email',
-      key: 'email',
-      render: (_text, record) => getUserEmail(record),
-    },
-    ...(showTypeFilter ? [{
-      title: 'Type',
-      key: 'type',
-      render: (_text, record) => {
-        const type = record?.invitation?.type || record?.type;
-        return type ? type.toUpperCase() : 'N/A';
-      },
-    }] : []),
-    {
-      title: 'Name',
-      key: 'name',
-      render: (_text, record) => getUserName(record),
-    },
-    {
-      title: 'Phone',
-      key: 'phone',
-      render: (_text, record) => getUserPhone(record),
-    },
-    {
-      title: 'Status',
-      key: 'approvalStatus',
-      render: (_text, record) => getStatusTag(record?.approvalStatus),
-    },
-    {
-      title: 'Submitted',
-      key: 'completedAt',
-      render: (_text, record) => {
-        const date = record?.invitation?.completedAt;
-        return date ? new Date(date).toLocaleDateString() : 'N/A';
-      },
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_text, record) => (
-        <Space>
-          <Button
-            icon={<EyeOutlined />}
-            size="small"
-            onClick={() => handleViewDetails(record)}
-            title="View Details"
-          />
-          {record?.approvalStatus === 'PENDING' && (
-            <>
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                size="small"
-                onClick={() => handleApprove(record)}
-                title="Approve"
-              />
-              <Button
-                danger
-                icon={<CloseCircleOutlined />}
-                size="small"
-                onClick={() => handleReject(record)}
-                title="Reject"
-              />
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ], [applicationType, showTypeFilter, getUserName, getUserEmail, getUserPhone, getStatusTag, handleViewDetails, handleApprove, handleReject]);
-
   // Memoized detail fields renderer
   const getDetailFields = useMemo(() => {
     if (!selectedApplication) return null;
@@ -315,17 +245,15 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
     
     if (type === 'tenant') {
       return (
-        <>
-          <Descriptions.Item label="Email">{user?.email || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="First Name">{user?.firstName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Last Name">{user?.lastName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Phone">{user?.phone || 'N/A'}</Descriptions.Item>
+        <div className="grid grid-cols-2 gap-4">
+          <div><strong>Email:</strong> {user?.email || 'N/A'}</div>
+          <div><strong>First Name:</strong> {user?.firstName || 'N/A'}</div>
+          <div><strong>Last Name:</strong> {user?.lastName || 'N/A'}</div>
+          <div><strong>Phone:</strong> {user?.phone || 'N/A'}</div>
           {user?.rejectionReason && (
-            <Descriptions.Item label="Rejection Reason" span={2}>
-              {user.rejectionReason}
-            </Descriptions.Item>
+            <div className="col-span-2"><strong>Rejection Reason:</strong> {user.rejectionReason}</div>
           )}
-        </>
+        </div>
       );
     } else if (type === 'pmc') {
       const pmc = selectedApplication.user;
@@ -339,193 +267,299 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
       const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
       
       return (
-        <>
-          <Descriptions.Item label="Company ID">{pmc?.companyId || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Company Name">{pmc?.companyName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Email">{pmc?.email || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Phone">{pmc?.phone || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Address Line 1">{pmc?.addressLine1 || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Address Line 2">{pmc?.addressLine2 || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="City">{pmc?.city || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Province/State">{pmc?.provinceState || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Postal/Zip Code">{pmc?.postalZip || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Country (Legacy)">{pmc?.country || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Country">
-            {pmc?.countryFK ? `${pmc.countryFK.name} (${pmc.countryFK.code})` : pmc?.countryCode || 'N/A'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Region">
-            {pmc?.regionFK ? `${pmc.regionFK.name} (${pmc.regionFK.code})` : pmc?.regionCode || 'N/A'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Full Address" span={2}>
-            {fullAddress}
-          </Descriptions.Item>
+        <div className="grid grid-cols-2 gap-4">
+          <div><strong>Company ID:</strong> {pmc?.companyId || 'N/A'}</div>
+          <div><strong>Company Name:</strong> {pmc?.companyName || 'N/A'}</div>
+          <div><strong>Email:</strong> {pmc?.email || 'N/A'}</div>
+          <div><strong>Phone:</strong> {pmc?.phone || 'N/A'}</div>
+          <div><strong>Address Line 1:</strong> {pmc?.addressLine1 || 'N/A'}</div>
+          <div><strong>Address Line 2:</strong> {pmc?.addressLine2 || 'N/A'}</div>
+          <div><strong>City:</strong> {pmc?.city || 'N/A'}</div>
+          <div><strong>Province/State:</strong> {pmc?.provinceState || 'N/A'}</div>
+          <div><strong>Postal/Zip Code:</strong> {pmc?.postalZip || 'N/A'}</div>
+          <div><strong>Country (Legacy):</strong> {pmc?.country || 'N/A'}</div>
+          <div><strong>Country:</strong> {pmc?.countryFK ? `${pmc.countryFK.name} (${pmc.countryFK.code})` : pmc?.countryCode || 'N/A'}</div>
+          <div><strong>Region:</strong> {pmc?.regionFK ? `${pmc.regionFK.name} (${pmc.regionFK.code})` : pmc?.regionCode || 'N/A'}</div>
+          <div className="col-span-2"><strong>Full Address:</strong> {fullAddress}</div>
           {pmc?.defaultCommissionRate !== null && pmc?.defaultCommissionRate !== undefined && (
-            <Descriptions.Item label="Default Commission Rate" span={2}>
-              {(pmc.defaultCommissionRate * 100).toFixed(2)}%
-            </Descriptions.Item>
+            <div className="col-span-2"><strong>Default Commission Rate:</strong> {(pmc.defaultCommissionRate * 100).toFixed(2)}%</div>
           )}
-          <Descriptions.Item label="Status">{getStatusTag(pmc?.approvalStatus)}</Descriptions.Item>
-          <Descriptions.Item label="Created At">
-            {pmc?.createdAt ? new Date(pmc.createdAt).toLocaleString() : 'N/A'}
-          </Descriptions.Item>
-          {pmc?.approvedAt && (
-            <Descriptions.Item label="Approved At">
-              {new Date(pmc.approvedAt).toLocaleString()}
-            </Descriptions.Item>
-          )}
-          {pmc?.rejectedAt && (
-            <Descriptions.Item label="Rejected At">
-              {new Date(pmc.rejectedAt).toLocaleString()}
-            </Descriptions.Item>
-          )}
+          <div><strong>Status:</strong> {getStatusTag(pmc?.approvalStatus)}</div>
+          <div><strong>Created At:</strong> {pmc?.createdAt ? new Date(pmc.createdAt).toLocaleString() : 'N/A'}</div>
+          {pmc?.approvedAt && <div><strong>Approved At:</strong> {new Date(pmc.approvedAt).toLocaleString()}</div>}
+          {pmc?.rejectedAt && <div><strong>Rejected At:</strong> {new Date(pmc.rejectedAt).toLocaleString()}</div>}
           {pmc?.rejectionReason && (
-            <Descriptions.Item label="Rejection Reason" span={2}>
-              {pmc.rejectionReason}
-            </Descriptions.Item>
+            <div className="col-span-2"><strong>Rejection Reason:</strong> {pmc.rejectionReason}</div>
           )}
-        </>
+        </div>
       );
     } else if (type === 'landlord') {
       // Landlord details
       return (
-        <>
-          <Descriptions.Item label="Email">{user?.email || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="First Name">{user?.firstName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Last Name">{user?.lastName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Phone">{user?.phone || 'N/A'}</Descriptions.Item>
+        <div className="grid grid-cols-2 gap-4">
+          <div><strong>Email:</strong> {user?.email || 'N/A'}</div>
+          <div><strong>First Name:</strong> {user?.firstName || 'N/A'}</div>
+          <div><strong>Last Name:</strong> {user?.lastName || 'N/A'}</div>
+          <div><strong>Phone:</strong> {user?.phone || 'N/A'}</div>
           {user?.rejectionReason && (
-            <Descriptions.Item label="Rejection Reason" span={2}>
-              {user.rejectionReason}
-            </Descriptions.Item>
+            <div className="col-span-2"><strong>Rejection Reason:</strong> {user.rejectionReason}</div>
           )}
-        </>
+        </div>
       );
     } else {
       // Fallback for other types
       return (
-        <>
-          <Descriptions.Item label="Email">{user?.email || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="First Name">{user?.firstName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Last Name">{user?.lastName || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label="Phone">{user?.phone || 'N/A'}</Descriptions.Item>
+        <div className="grid grid-cols-2 gap-4">
+          <div><strong>Email:</strong> {user?.email || 'N/A'}</div>
+          <div><strong>First Name:</strong> {user?.firstName || 'N/A'}</div>
+          <div><strong>Last Name:</strong> {user?.lastName || 'N/A'}</div>
+          <div><strong>Phone:</strong> {user?.phone || 'N/A'}</div>
           {user?.rejectionReason && (
-            <Descriptions.Item label="Rejection Reason" span={2}>
-              {user.rejectionReason}
-            </Descriptions.Item>
+            <div className="col-span-2"><strong>Rejection Reason:</strong> {user.rejectionReason}</div>
           )}
-        </>
+        </div>
       );
     }
   }, [applicationType, selectedApplication, getStatusTag]);
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          <FileTextOutlined /> {title}
-        </Title>
-        <Button icon={<ReloadOutlined />} onClick={fetchApplications}>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold flex items-center gap-2">
+          <HiDocumentText className="h-6 w-6" />
+          {title}
+        </h2>
+        <Button
+          color="light"
+          onClick={fetchApplications}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <HiRefresh className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
       <Card>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Space>
+        <div className="space-y-4">
+          <div className="flex gap-2">
             <Select
-              placeholder="Filter by Status"
-              allowClear
-              style={{ width: 200 }}
-              value={filterStatus}
-              onChange={setFilterStatus}
+              value={filterStatus || ''}
+              onChange={(e) => setFilterStatus(e.target.value || undefined)}
+              className="w-48"
             >
-              <Select.Option value="PENDING">Pending</Select.Option>
-              <Select.Option value="APPROVED">Approved</Select.Option>
-              <Select.Option value="REJECTED">Rejected</Select.Option>
+              <option value="">Filter by Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
             </Select>
             {showTypeFilter && (
               <Select
-                placeholder="Filter by Type"
-                allowClear
-                style={{ width: 200 }}
-                value={filterType}
-                onChange={setFilterType}
+                value={filterType || ''}
+                onChange={(e) => setFilterType(e.target.value || undefined)}
+                className="w-48"
               >
-                <Select.Option value="landlord">Landlord</Select.Option>
-                <Select.Option value="pmc">PMC</Select.Option>
+                <option value="">Filter by Type</option>
+                <option value="landlord">Landlord</option>
+                <option value="pmc">PMC</option>
               </Select>
             )}
-          </Space>
-          <Table
-            columns={columns}
-            dataSource={applications}
-            loading={loading}
-            rowKey={(record) => record?.invitation?.id || record?.id || Math.random().toString()}
-            pagination={{ pageSize: 50 }}
-          />
-        </Space>
+          </div>
+          <div className="overflow-x-auto">
+            <Table hoverable>
+              <Table.Head>
+                <Table.HeadCell>Email</Table.HeadCell>
+                {showTypeFilter && <Table.HeadCell>Type</Table.HeadCell>}
+                <Table.HeadCell>Name</Table.HeadCell>
+                <Table.HeadCell>Phone</Table.HeadCell>
+                <Table.HeadCell>Status</Table.HeadCell>
+                <Table.HeadCell>Submitted</Table.HeadCell>
+                <Table.HeadCell>Actions</Table.HeadCell>
+              </Table.Head>
+              <Table.Body className="divide-y">
+                {loading ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={showTypeFilter ? 7 : 6} className="text-center py-8">
+                      <Spinner size="xl" />
+                    </Table.Cell>
+                  </Table.Row>
+                ) : applications.length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={showTypeFilter ? 7 : 6} className="text-center py-8">
+                      <p className="text-gray-500">No applications found</p>
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  applications.map((record) => {
+                    const type = record?.invitation?.type || record?.type;
+                    return (
+                      <Table.Row key={record?.invitation?.id || record?.id || Math.random().toString()}>
+                        <Table.Cell>{getUserEmail(record)}</Table.Cell>
+                        {showTypeFilter && (
+                          <Table.Cell>{type ? type.toUpperCase() : 'N/A'}</Table.Cell>
+                        )}
+                        <Table.Cell>{getUserName(record)}</Table.Cell>
+                        <Table.Cell>{getUserPhone(record)}</Table.Cell>
+                        <Table.Cell>{getStatusTag(record?.approvalStatus)}</Table.Cell>
+                        <Table.Cell>
+                          {record?.invitation?.completedAt
+                            ? new Date(record.invitation.completedAt).toLocaleDateString()
+                            : 'N/A'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              color="light"
+                              size="sm"
+                              onClick={() => handleViewDetails(record)}
+                              className="p-2"
+                            >
+                              <HiEye className="h-4 w-4" />
+                            </Button>
+                            {record?.approvalStatus === 'PENDING' && (
+                              <>
+                                <Button
+                                  color="success"
+                                  size="sm"
+                                  onClick={() => handleApprove(record)}
+                                  className="p-2"
+                                >
+                                  <HiCheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  color="failure"
+                                  size="sm"
+                                  onClick={() => handleReject(record)}
+                                  className="p-2"
+                                >
+                                  <HiXCircle className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })
+                )}
+              </Table.Body>
+            </Table>
+          </div>
+        </div>
       </Card>
 
       {/* Detail Modal */}
       <Modal
-        title="Application Details"
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={null}
-        width={800}
+        show={detailModalVisible}
+        onClose={() => setDetailModalVisible(false)}
+        size="2xl"
       >
-        {selectedApplication && (
-          <Descriptions column={2} bordered>
-            {getDetailFields}
-            <Descriptions.Item label="Status">{getStatusTag(selectedApplication?.approvalStatus)}</Descriptions.Item>
-            <Descriptions.Item label="Submitted">
-              {selectedApplication?.invitation?.completedAt 
-                ? new Date(selectedApplication.invitation.completedAt).toLocaleString() 
-                : 'N/A'}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
+        <Modal.Header>Application Details</Modal.Header>
+        <Modal.Body>
+          {selectedApplication && (
+            <div className="space-y-4">
+              {getDetailFields}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div><strong>Status:</strong> {getStatusTag(selectedApplication?.approvalStatus)}</div>
+                <div>
+                  <strong>Submitted:</strong>{' '}
+                  {selectedApplication?.invitation?.completedAt 
+                    ? new Date(selectedApplication.invitation.completedAt).toLocaleString() 
+                    : 'N/A'}
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
       </Modal>
 
       {/* Approve Modal */}
       <Modal
-        title="Approve Application"
-        open={approveModalVisible}
-        onOk={submitApprove}
-        onCancel={() => setApproveModalVisible(false)}
+        show={approveModalVisible}
+        onClose={() => setApproveModalVisible(false)}
+        size="md"
       >
-        <Form form={approveForm} layout="vertical">
-          <Form.Item
-            name="comment"
-            label="Comment (Optional)"
-          >
-            <TextArea rows={4} placeholder="Add any comments about this approval..." />
-          </Form.Item>
-        </Form>
+        <Modal.Header>Approve Application</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={submitApprove} className="space-y-4">
+            <div>
+              <Label htmlFor="comment" className="mb-2 block">
+                Comment (Optional)
+              </Label>
+              <Textarea
+                id="comment"
+                rows={4}
+                placeholder="Add any comments about this approval..."
+                value={approveForm.values.comment}
+                onChange={(e) => approveForm.setFieldsValue({ comment: e.target.value })}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                color="gray"
+                onClick={() => setApproveModalVisible(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" color="success">
+                Approve
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
       </Modal>
 
       {/* Reject Modal */}
       <Modal
-        title="Reject Application"
-        open={rejectModalVisible}
-        onOk={submitReject}
-        onCancel={() => setRejectModalVisible(false)}
+        show={rejectModalVisible}
+        onClose={() => setRejectModalVisible(false)}
+        size="md"
       >
-        <Form form={rejectForm} layout="vertical">
-          <Form.Item
-            name="reason"
-            label="Rejection Reason"
-            rules={[{ required: true, message: 'Please provide a rejection reason' }]}
-          >
-            <TextArea rows={4} placeholder="Explain why this application is being rejected..." />
-          </Form.Item>
-          <Form.Item
-            name="comment"
-            label="Additional Comments (Optional)"
-          >
-            <TextArea rows={3} placeholder="Any additional comments..." />
-          </Form.Item>
-        </Form>
+        <Modal.Header>Reject Application</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={submitReject} className="space-y-4">
+            <div>
+              <Label htmlFor="reason" className="mb-2 block">
+                Rejection Reason <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="reason"
+                rows={4}
+                placeholder="Explain why this application is being rejected..."
+                value={rejectForm.values.reason}
+                onChange={(e) => rejectForm.setFieldsValue({ reason: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="comment" className="mb-2 block">
+                Additional Comments (Optional)
+              </Label>
+              <Textarea
+                id="comment"
+                rows={3}
+                placeholder="Any additional comments..."
+                value={rejectForm.values.comment}
+                onChange={(e) => rejectForm.setFieldsValue({ comment: e.target.value })}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                color="gray"
+                onClick={() => setRejectModalVisible(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                color="failure"
+                disabled={!rejectForm.values.reason}
+              >
+                Reject
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
       </Modal>
     </div>
   );
@@ -534,4 +568,3 @@ const ApplicationsTable = React.memo(function ApplicationsTable({
 ApplicationsTable.displayName = 'ApplicationsTable';
 
 export default ApplicationsTable;
-

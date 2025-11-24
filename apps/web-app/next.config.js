@@ -9,7 +9,13 @@ const nextConfig = {
   // Transpile packages from monorepo workspace
   // Note: pdf-lib and pdfkit are in serverExternalPackages (server-only)
   transpilePackages: [
-    'antd',
+    // Legacy Ant Design packages (being phased out - remove after full migration)
+    // 'antd',
+    // '@ant-design/charts',
+    // '@ant-design/icons',
+    // '@ant-design/pro-card',
+    // '@ant-design/pro-components',
+    // '@ant-design/pro-layout',
     'dayjs',
     'lodash',
     'react-pdf',
@@ -18,14 +24,9 @@ const nextConfig = {
     'web-vitals',
     'json-rules-engine',
     'dotenv',
-    '@ant-design/charts',
-    '@ant-design/icons',
-    '@ant-design/pro-card',
-    '@ant-design/pro-components',
-    '@ant-design/pro-layout',
+    'react-icons', // Flowbite-compatible icons
     '@pinaka/domain-common',
     '@pinaka/generated',
-    '@pinaka/schemas',
     '@pinaka/shared-utils',
     '@pinaka/ui',
   ],
@@ -62,11 +63,13 @@ const nextConfig = {
   
   experimental: {
     optimizePackageImports: [
-      'antd',
-      '@ant-design/icons',
-      '@ant-design/pro-components',
-      '@ant-design/pro-layout',
-      '@ant-design/charts',
+      // Legacy Ant Design packages (being phased out - remove after full migration)
+      // 'antd',
+      // '@ant-design/icons',
+      // '@ant-design/pro-components',
+      // '@ant-design/pro-layout',
+      // '@ant-design/charts',
+      'react-icons', // Flowbite-compatible icons
       'dayjs',
       'recharts',
       'lodash',
@@ -141,16 +144,24 @@ const nextConfig = {
           cacheGroups: {
             default: false,
             vendors: false,
-            antdPro: {
-              name: 'antd-pro',
-              test: /[\\/]node_modules[\\/]@ant-design[\\/]pro-/,
-              chunks: 'all',
-              priority: 30,
-              reuseExistingChunk: true,
-            },
-            antd: {
-              name: 'antd',
-              test: /[\\/]node_modules[\\/]antd[\\/]/,
+            // Legacy Ant Design chunks (being phased out - remove after full migration)
+            // antdPro: {
+            //   name: 'antd-pro',
+            //   test: /[\\/]node_modules[\\/]@ant-design[\\/]pro-/,
+            //   chunks: 'all',
+            //   priority: 30,
+            //   reuseExistingChunk: true,
+            // },
+            // antd: {
+            //   name: 'antd',
+            //   test: /[\\/]node_modules[\\/]antd[\\/]/,
+            //   chunks: 'all',
+            //   priority: 25,
+            //   reuseExistingChunk: true,
+            // },
+            reactIcons: {
+              name: 'react-icons',
+              test: /[\\/]node_modules[\\/]react-icons[\\/]/,
               chunks: 'all',
               priority: 25,
               reuseExistingChunk: true,

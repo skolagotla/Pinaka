@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Typography } from 'antd';
 
 // Lazy load rules engine to avoid SSR issues
 let rulesEngine = null;
@@ -11,8 +10,6 @@ function getRulesEngine() {
   }
   return rulesEngine;
 }
-
-const { Text } = Typography;
 
 /**
  * CurrencyDisplay Component
@@ -26,9 +23,8 @@ export default function CurrencyDisplay({
   value, 
   country = 'CA',
   strong = false,
-  type,
+  className = '',
   style,
-  className,
   ...props 
 }) {
   const [formattedValue, setFormattedValue] = useState('');
@@ -56,16 +52,16 @@ export default function CurrencyDisplay({
     formatValue();
   }, [value, country]);
 
+  const Tag = strong ? 'strong' : 'span';
+  const classes = strong ? `font-semibold ${className}` : className;
+
   return (
-    <Text 
-      strong={strong} 
-      type={type}
+    <Tag 
+      className={classes}
       style={style}
-      className={className}
       {...props}
     >
       {formattedValue}
-    </Text>
+    </Tag>
   );
 }
-

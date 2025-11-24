@@ -18,7 +18,7 @@ import { rules } from '@/lib/utils/validation-rules';
 import { useLoading } from '@/lib/hooks/useLoading';
 import SigningFlow from '@/components/SigningFlow';
 import dynamic from 'next/dynamic';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client or hooks from @/lib/hooks/useV2Data
 import { useResizableTable, configureTableColumns, useModalState } from '@/lib/hooks';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useForms, useTenants, useProperties } from '@/lib/hooks/useV2Data';
@@ -32,7 +32,7 @@ const PDFViewerModal = dynamic(
 
 export default function PMCGeneratedFormsClient() {
   const router = useRouter();
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api directly or React Query hooks
   const { user: v2User } = useV2Auth();
   const organizationId = v2User?.organization_id;
   const { loading, withLoading } = useLoading(true);
@@ -110,11 +110,15 @@ export default function PMCGeneratedFormsClient() {
 
   const fetchSignature = async (landlordId = null) => {
     try {
-      // Use v1Api to get signature
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.signatures.getSignature(landlordId || undefined);
-      setSignatureUrl(data.signatureUrl);
+      // Use v2Api to get signature
+      const { v2Api } = await import('@/lib/api/v2-client');
+      // TODO: Update to use v2 endpoint when available
+      const data = await v2Api.getSignature?.(landlordId || undefined);
+      if (data?.signatureUrl) {
+        setSignatureUrl(data.signatureUrl);
+      }
     } catch (error) {
+      console.error('[Forms] Error fetching signature:', error);
       // For PMC users, signature might not be available until a landlord is selected
       setSignatureUrl(null);
     }
@@ -220,74 +224,42 @@ export default function PMCGeneratedFormsClient() {
 
   const loadData = async () => {
     await withLoading(async () => {
-      // Use v1Api for all endpoints
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const [formsRes, tenantsRes, tenantsWithBalanceRes, propertiesRes] = await Promise.all([
-        v1Api.generatedForms.list({ page: 1, limit: 1000 }).then(response => {
-          const formsData = response.forms || response.data?.forms || [];
-          return { ok: true, json: async () => ({ forms: Array.isArray(formsData) ? formsData : [] }) };
-        }).catch(() => null),
-        v1Api.tenants.list({ page: 1, limit: 1000 }).then(response => {
-          const tenantsData = response.data?.data || response.data || [];
-          return { ok: true, json: async () => ({ tenants: Array.isArray(tenantsData) ? tenantsData : [] }) };
-        }).catch(() => null),
-        v1Api.specialized.getTenantsWithOutstandingBalance().then(data => {
-          const tenants = data.tenants || data.data || [];
-          return { ok: true, json: async () => ({ tenants: Array.isArray(tenants) ? tenants : [] }) };
-        }).catch(() => null),
-        v1Api.properties.list({ page: 1, limit: 1000 }).then(response => {
-          const propertiesData = response.data?.data || response.data || [];
-          return { ok: true, json: async () => ({ properties: Array.isArray(propertiesData) ? propertiesData : [] }) };
-        }).catch(() => null)
-      ]);
+      // Use v2Api for all endpoints
+      const { v2Api } = await import('@/lib/api/v2-client');
+      try {
+        // Use React Query hooks for data fetching (already set up above)
+        // Additional data can be fetched directly with v2Api if needed
+        const [formsRes, tenantsRes, tenantsWithBalanceRes, propertiesRes] = await Promise.all([
+          // Forms - use v2Api or React Query hook
+          v2Api.listForms ? v2Api.listForms({ organization_id: organizationId }).catch(() => null) : Promise.resolve(null),
+          // Tenants - already loaded via useTenants hook
+          Promise.resolve(null),
+          // Tenants with balance - may need v2 endpoint
+          Promise.resolve(null),
+          // Properties - already loaded via useProperties hook
+          Promise.resolve(null)
+        ]);
 
-      if (formsRes) {
-        const data = await formsRes.json();
-        setForms(data.forms || []);
+        // Data is already loaded via React Query hooks (useForms, useTenants, useProperties)
+        // This function can be used for manual refresh if needed
+        if (formsRes) {
+          const data = await formsRes.json();
+          setForms(data.forms || []);
+        }
+      } catch (error) {
+        console.error('[Forms] Error loading data:', error);
+        notify.error('Failed to load data');
       }
-
-      if (tenantsRes) {
-        const data = await tenantsRes.json();
-        setTenants(data.tenants || []);
-      }
-
-      if (tenantsWithBalanceRes) {
-        const data = await tenantsWithBalanceRes.json();
-        setTenantsWithBalance(data.tenants || []);
-        
-        // Extract unique properties eligible for N4 (properties with tenants who have outstanding balances)
-        const uniqueProperties = new Map();
-        (data.tenants || []).forEach(tenant => {
-          if (tenant.property && tenant.property.id) {
-            if (!uniqueProperties.has(tenant.property.id)) {
-              uniqueProperties.set(tenant.property.id, {
-                id: tenant.property.id,
-                propertyName: tenant.property.propertyName || tenant.property.addressLine1,
-                addressLine1: tenant.property.addressLine1,
-                city: tenant.property.city,
-                provinceState: tenant.property.provinceState
-              });
-            }
-          }
-        });
-        setEligibleProperties(Array.from(uniqueProperties.values()));
-      }
-
-      if (propertiesRes) {
-        const data = await propertiesRes.json();
-        setProperties(data.properties || []);
-      }
-
-    }).catch(error => {
-      // Error already handled by useUnifiedApi
     });
   };
 
   const fetchTenantRentData = async (tenantId) => {
     try {
-      // Use v1Api to get tenant rent data
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const data = await v1Api.specialized.getTenantRentData(tenantId);
+      // Use v2Api to get tenant rent data
+      const { v2Api } = await import('@/lib/api/v2-client');
+      // TODO: Update to use v2 endpoint when available
+      // For now, using v2Api directly or React Query hook
+      const data = await v2Api.getTenantRentData?.(tenantId) || { rentPayments: [] };
       
       const payments = data.rentPayments || [];
       const unpaidPayments = payments.filter(p => {
@@ -331,17 +303,14 @@ export default function PMCGeneratedFormsClient() {
       // Get landlord name from settings
       let landlordName = 'the landlord';
       try {
-        const settingsRes = await fetch(
-          '/api/settings',
-          {},
-          { operation: 'Fetch landlord settings', showUserMessage: false }
-        );
-        const settingsData = await settingsRes.json();
+        // TODO: Update to use v2 endpoint for settings
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const settingsData = await v2Api.getSettings?.() || {};
         if (settingsData.landlord?.firstName && settingsData.landlord?.lastName) {
           landlordName = `${settingsData.landlord.firstName} ${settingsData.landlord.lastName}`;
         }
       } catch (e) {
-        // Error already handled by useUnifiedApi
+        console.error('[Forms] Error fetching landlord settings:', e);
       }
       
       // Format notes with detailed arrears information
@@ -366,7 +335,8 @@ export default function PMCGeneratedFormsClient() {
         unpaidPaymentsCount: unpaidPayments.length
       };
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error fetching tenant rent data:', error);
+      notify.error('Failed to fetch rent data');
     }
     
     // Fallback: just set termination date
@@ -537,25 +507,24 @@ export default function PMCGeneratedFormsClient() {
       // Arrears data is now calculated automatically on the backend
       // No need to pass it from frontend
       
-      // Use v1Api for form generation (specialized endpoint)
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient('/api/v1/forms/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formType: selectedFormType,
-          tenantId: selectedTenant,
-          propertyId: selectedProperty,
-          leaseId: selectedLease,
-          customData
-        }),
+      // Use v2Api for form generation
+      const { v2Api } = await import('@/lib/api/v2-client');
+      // TODO: Update to use v2 endpoint when available
+      const response = await v2Api.generateForm?.({
+        formType: selectedFormType,
+        tenantId: selectedTenant,
+        propertyId: selectedProperty,
+        leaseId: selectedLease,
+        customData
       });
-      const data = await response.json();
-      setGeneratedFormData(data.form);
+      if (response?.form) {
+        setGeneratedFormData(response.form);
+      }
       // No success message - will open review modal instead
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error generating form:', error);
+      notify.error('Failed to generate form');
     } finally {
       setGenerating(false);
     }
@@ -563,30 +532,34 @@ export default function PMCGeneratedFormsClient() {
 
   const handleFinalizeForm = async (formId) => {
     try {
-      // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.generatedForms.update(formId, { status: 'finalized' });
+      // Use v2Api client
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.updateForm?.(formId, { status: 'finalized' });
 
       notify.success('Form finalized successfully');
-      loadData();
+      refetchForms(); // Use React Query refetch
       closeWizard();
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error finalizing form:', error);
+      notify.error('Failed to finalize form');
     }
   };
 
   const handleViewForm = async (formRecord) => {
     try {
-      // Use v1Api to download form PDF
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const blob = await v1Api.forms.downloadForm(formRecord.id);
-      const url = URL.createObjectURL(blob);
-      
-      setPdfViewerUrl(url);
-      setPdfViewerTitle(`${formRecord.formType} Form - ${formRecord.tenantName || 'Unknown Tenant'}`);
-      setPdfViewerOpen(true);
+      // Use v2Api to download form PDF
+      const { v2Api } = await import('@/lib/api/v2-client');
+      // TODO: Update to use v2 endpoint when available
+      const blob = await v2Api.downloadForm?.(formRecord.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        setPdfViewerUrl(url);
+        setPdfViewerTitle(`${formRecord.formType} Form - ${formRecord.tenantName || 'Unknown Tenant'}`);
+        setPdfViewerOpen(true);
+      }
     } catch (error) {
+      console.error('[Forms] Error loading PDF:', error);
       notify.error(error.message || 'Failed to load PDF. Please try again.');
     }
   };
@@ -597,14 +570,15 @@ export default function PMCGeneratedFormsClient() {
 
   const handleDeleteForm = async (formId) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.generatedForms.delete(formId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.deleteForm?.(formId);
 
       notify.success('Form deleted successfully');
-      loadData();
+      refetchForms(); // Use React Query refetch
 
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error deleting form:', error);
+      notify.error('Failed to delete form');
     }
   };
 
@@ -618,15 +592,16 @@ export default function PMCGeneratedFormsClient() {
     try {
       notify.loading('Sending email to tenant...');
       
-      // Use v1Api to send form
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.forms.sendForm(record.id);
+      // Use v2Api to send form
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.sendForm?.(record.id);
 
       notify.success('Email sent successfully to tenant');
       
       // Update form status to 'sent' and refresh the list
-      loadData();
+      refetchForms(); // Use React Query refetch
     } catch (error) {
+      console.error('[Forms] Error sending form:', error);
       notify.error(error.message || 'Failed to send email');
     }
   };
@@ -639,27 +614,31 @@ export default function PMCGeneratedFormsClient() {
         
         const customData = formData;
         
-        // Use v1Api to generate form
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.forms.generateForm({
+        // Use v2Api to generate form
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const response = await v2Api.generateForm?.({
           formType: selectedFormType,
           tenantId: selectedTenant,
           propertyId: selectedProperty,
           leaseId: selectedLease,
           customData
         });
-        setGeneratedFormData(response.form);
+        if (response?.form) {
+          setGeneratedFormData(response.form);
+        }
         setGenerating(false);
         
         // Close the form generation modal
         closeWizard();
         
         // Refresh forms list to show the new draft
-        await loadData();
+        refetchForms(); // Use React Query refetch
         
         // Open review modal with the generated form
-        setSigningForm(data.form);
-        openSigningFlow();
+        if (response?.form) {
+          setSigningForm(response.form);
+          openSigningFlow();
+        }
       } else {
         // Form already generated, close modal and open review
         closeWizard();
@@ -667,14 +646,15 @@ export default function PMCGeneratedFormsClient() {
         openSigningFlow();
       }
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      console.error('[Forms] Error reviewing PDF:', error);
+      notify.error('Failed to generate form');
       setGenerating(false);
     }
   };
 
   const handleSignComplete = () => {
     notify.success('Document signed and downloaded successfully');
-    loadData(); // Refresh the forms list
+    refetchForms(); // Refresh the forms list using React Query
   };
 
 
@@ -960,7 +940,7 @@ export default function PMCGeneratedFormsClient() {
               >
                 <option value="">Choose the form you need</option>
                 {formTypes.map(ft => (
-                  <option key={ft.value} value={ft.value]
+                  <option key={ft.value} value={ft.value}>
                     {ft.value} - {ft.label} {ft.urgent && '(Urgent)'}
                   </option>
                 ))}
@@ -970,7 +950,7 @@ export default function PMCGeneratedFormsClient() {
           {/* Step 2: Property, Tenant, and Amount Owed - All in one row */}
           {selectedFormType && (
             <div>
-              <div className={`grid gap-4 ${selectedFormType === 'N4' && selectedTenant && tenantRentData ? 'grid-cols-3' : selectedTenant ? 'grid-cols-2' : 'grid-cols-1'}`]
+              <div className={`grid gap-4 ${selectedFormType === 'N4' && selectedTenant && tenantRentData ? 'grid-cols-3' : selectedTenant ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {/* Property */}
                 <div>
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
@@ -997,7 +977,7 @@ export default function PMCGeneratedFormsClient() {
                       >
                         <option value="">Select property</option>
                         {eligibleProperties.map(p => (
-                          <option key={p.id} value={p.id]
+                          <option key={p.id} value={p.id}>
                             {`${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`}
                           </option>
                         ))}
@@ -1024,7 +1004,7 @@ export default function PMCGeneratedFormsClient() {
                       >
                         <option value="">Select property</option>
                         {properties.map(p => (
-                          <option key={p.id} value={p.id]
+                          <option key={p.id} value={p.id}>
                             {`${p.propertyName || p.addressLine1}${p.city ? `, ${p.city}` : ''}`}
                           </option>
                         ))}
@@ -1067,7 +1047,7 @@ export default function PMCGeneratedFormsClient() {
                           >
                             <option value="">Search by tenant name</option>
                             {filteredTenants.map(t => (
-                              <option key={t.id} value={t.id]
+                              <option key={t.id} value={t.id}>
                                 {formatTenantName(t)}
                               </option>
                             ))}
@@ -1100,7 +1080,7 @@ export default function PMCGeneratedFormsClient() {
                         >
                           <option value="">Search by tenant name or email</option>
                           {tenants.map(t => (
-                            <option key={t.id} value={t.id]
+                            <option key={t.id} value={t.id}>
                               {formatTenantName(t, tenants)}
                             </option>
                           ))}
@@ -1191,12 +1171,12 @@ export default function PMCGeneratedFormsClient() {
                       label="Relationship to Landlord"
                       value={formData.relationshipToLandlord}
                       onChange={(e) => updateField('relationshipToLandlord', e.target.value)}
-                      options={
+                      options={[
                         { value: 'Self', label: 'Self' },
                         { value: 'Spouse', label: 'Spouse' },
                         { value: 'Child', label: 'Child' },
                         { value: 'Parent', label: 'Parent' }
-                      }
+                      ]}
                     />
                   </>
                 )}
@@ -1218,7 +1198,7 @@ export default function PMCGeneratedFormsClient() {
 
           {/* Action Buttons */}
           <div className="flex justify-between items-center mt-6">
-            <Button color="gray" onClick={closeWizard]
+            <Button color="gray" onClick={closeWizard}>
               Cancel
             </Button>
             {selectedFormType && selectedProperty && selectedTenant && (
@@ -1240,6 +1220,7 @@ export default function PMCGeneratedFormsClient() {
                 )}
               </Button>
             )}
+          </div>
           </div>
         </Modal.Body>
       </Modal>

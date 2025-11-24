@@ -105,7 +105,12 @@ async def get_current_user_v2(
 
 
 async def get_user_roles(user: User, db: AsyncSession) -> List[str]:
-    """Get list of role names for a user"""
+    """Get list of role names for a user (optimized with eager loading)"""
+    # If user already has roles loaded, use them (avoids query)
+    if hasattr(user, 'user_roles') and user.user_roles:
+        return [ur.role.name for ur in user.user_roles if ur.role]
+    
+    # Otherwise, query with eager loading
     result = await db.execute(
         select(Role.name)
         .join(UserRole)

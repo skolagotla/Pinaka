@@ -730,6 +730,18 @@ export function useCreateRentPayment() {
   });
 }
 
+export function useUpdateRentPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof v2Api.updateRentPayment>[1] }) =>
+      v2Api.updateRentPayment(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2', 'rent-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['v2', 'rent-payments', variables.id] });
+    },
+  });
+}
+
 // Expenses
 export function useExpenses(organizationId?: string, propertyId?: string, category?: string, statusFilter?: string) {
   return useQuery({

@@ -14,10 +14,10 @@
 
 "use client";
 
-// Using Ant Design Modal, not MUI Dialog
+// Using Flowbite Modal
 import { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Empty, Space, Spin } from 'antd';
-import { DownloadOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
+import { Modal, Button, Spinner } from 'flowbite-react';
+import { HiDownload, HiX, HiEye } from 'react-icons/hi';
 
 export default function PDFViewerModal({
   open,
@@ -100,17 +100,18 @@ export default function PDFViewerModal({
       })
       .catch((err) => {
         clearTimeout(timeoutId);
-        // Don't set error if fetch was aborted (component unmounted or timeout)
-        if (err.name !== 'AbortError') {
-          console.error('[PDFViewerModal] Error fetching PDF:', err);
+        if (err.name === 'AbortError') {
+          setError('Request timed out. Please try again.');
+        } else {
           setError(err.message || 'Failed to load PDF');
         }
+        console.error('Error fetching PDF:', err);
       })
       .finally(() => {
         setLoading(false);
       });
 
-    // Cleanup function: revoke blob URL and abort fetch if component unmounts
+    // Cleanup function
     return () => {
       clearTimeout(timeoutId);
       controller.abort();
@@ -124,165 +125,75 @@ export default function PDFViewerModal({
   const handleDownload = () => {
     if (onDownload) {
       onDownload();
-    } else if (pdfUrl) {
-      // Default download behavior
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = downloadFileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    } else if (blobUrl || pdfUrl) {
+      const link = document.createElement('a');
+      link.href = blobUrl || pdfUrl;
+      link.download = downloadFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
-  // Don't render anything if there's no valid PDF URL
-  if (!open || !pdfUrl) {
-    return null;
-  }
-
-  // Validate that pdfUrl is a string and looks like a valid path/URL
-  const isValidUrl = typeof pdfUrl === 'string' && pdfUrl.length > 0;
-  if (!isValidUrl) {
-    return null;
-  }
-
-  // Check if PDF URL is external (cross-origin)
-  const isExternalUrl = pdfUrl && (
-    pdfUrl.startsWith('http://') || 
-    pdfUrl.startsWith('https://')
-  ) && typeof window !== 'undefined' && !pdfUrl.includes(window.location.hostname);
-
-  // Use blob URL if available, otherwise use original URL
   const displayUrl = blobUrl || pdfUrl;
-  const pdfUrlWithParams = displayUrl.includes('#') ? displayUrl : `${displayUrl}#view=FitH`;
-
-  const handleOpenInNewTab = () => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
 
   return (
-    <Modal
-      title={title}
-      open={open}
-      onCancel={onClose}
-      width={width}
-      footer={null}
-      centered
-      destroyOnClose
-      closeIcon={<CloseOutlined />}
-    >
-      <div style={{ 
-        height: `${height}px`, 
-        width: '100%',
-        display: 'flex', 
-        flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* For external URLs, show message and button to open in new tab */}
-        {isExternalUrl ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            padding: '40px',
-            textAlign: 'center'
-          }}>
-            <Empty 
-              description={
-                <div>
-                  <p style={{ marginBottom: 16 }}>
-                    This PDF is hosted on an external website and cannot be displayed inline due to browser security restrictions.
-                  </p>
-                  <Space>
-                    <Button 
-                      type="primary" 
-                      icon={<EyeOutlined />}
-                      onClick={handleOpenInNewTab}
-                      size="large"
-                    >
-                      Open in New Tab
-                    </Button>
-                    <Button 
-                      icon={<DownloadOutlined />}
-                      onClick={handleDownload}
-                      size="large"
-                    >
-                      Download PDF
-                    </Button>
-                  </Space>
-                </div>
-              }
+    <Modal show={open} onClose={onClose} size="7xl">
+      <Modal.Header>{title || 'PDF Viewer'}</Modal.Header>
+      <Modal.Body>
+        <div className="relative" style={{ minHeight: height }}>
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+              <div className="text-center">
+                <Spinner size="xl" />
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading PDF...</p>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="text-center">
+                <HiX className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <p className="text-red-600 dark:text-red-400 font-semibold">Error loading PDF</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && displayUrl && (
+            <iframe
+              src={displayUrl}
+              className="w-full border-0 rounded-lg"
+              style={{ height: `${height}px`, minHeight: '500px' }}
+              title={title || 'PDF Viewer'}
             />
-          </div>
-        ) : (
-          <>
-            {loading ? (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                padding: '40px',
-                textAlign: 'center'
-              }}>
-                <Spin size="large" />
-                <p style={{ marginTop: 16 }}>Loading PDF...</p>
+          )}
+
+          {!loading && !error && !displayUrl && (
+            <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="text-center">
+                <HiEye className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">No PDF URL provided</p>
               </div>
-            ) : error ? (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                padding: '40px',
-                textAlign: 'center'
-              }}>
-                <Empty 
-                  description={
-                    <div>
-                      <p style={{ marginBottom: 8, fontWeight: 500 }}>Error loading PDF</p>
-                      <p style={{ marginBottom: 16, color: '#8c8c8c', fontSize: '12px' }}>{error}</p>
-                      <Space>
-                        <Button 
-                          type="primary" 
-                          icon={<EyeOutlined />}
-                          onClick={handleOpenInNewTab}
-                        >
-                          Open on LTB Website
-                        </Button>
-                        <Button 
-                          icon={<DownloadOutlined />}
-                          onClick={handleDownload}
-                        >
-                          Download PDF
-                        </Button>
-                      </Space>
-                    </div>
-                  }
-                />
-              </div>
-            ) : (
-              /* Browser's Native PDF Viewer using iframe (better for authenticated endpoints) */
-              <iframe
-                src={pdfUrlWithParams}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none'
-                }}
-                title={title || 'PDF Document'}
-              />
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <div className="flex justify-between items-center w-full">
+          <Button color="gray" onClick={onClose} className="flex items-center gap-2">
+            <HiX className="h-4 w-4" />
+            Close
+          </Button>
+          {(blobUrl || pdfUrl) && (
+            <Button color="blue" onClick={handleDownload} className="flex items-center gap-2">
+              <HiDownload className="h-4 w-4" />
+              Download
+            </Button>
+          )}
+        </div>
+      </Modal.Footer>
     </Modal>
   );
 }

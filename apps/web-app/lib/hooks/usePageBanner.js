@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PlusOutlined } from '@ant-design/icons';
+import { HiPlus } from 'react-icons/hi';
 import PageBanner from '@/components/shared/PageBanner';
 import PageHeader from '@/components/PageHeader';
 import { useSearch } from './useSearch';
@@ -76,7 +76,7 @@ export function usePageBanner({
     
     if (actions.onAdd) {
       acts.push({
-        icon: actions.addIcon || <PlusOutlined />,
+        icon: actions.addIcon || <HiPlus />,
         tooltip: actions.addTooltip || 'Add',
         onClick: actions.onAdd,
         type: 'primary',

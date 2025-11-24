@@ -28,7 +28,7 @@ export function useMaintenanceActions({
   const createRequest = useCallback(async (formData) => {
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.create(formData);
       const request = response.data || response;
       if (request) {
@@ -48,7 +48,7 @@ export function useMaintenanceActions({
   const handleUpdate = useCallback(async (requestId, updates) => {
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.update(requestId, updates);
       const request = response.data || response;
       if (request) {
@@ -68,7 +68,7 @@ export function useMaintenanceActions({
   const handleDelete = useCallback(async (requestId) => {
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       await v1Api.maintenance.delete(requestId);
       
       removeRequest(requestId);
@@ -114,7 +114,7 @@ export function useMaintenanceActions({
   const handleAddComment = useCallback(async (requestId, comment) => {
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.specialized.addMaintenanceComment(requestId, comment);
       const request = data.request || data.data || data;
       if (request) {

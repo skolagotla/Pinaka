@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Input, Spin, List, Tag, Typography, Space } from 'antd';
-import { SearchOutlined, EnvironmentOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { TextInput, Spinner, Badge } from 'flowbite-react';
+import { HiSearch, HiLocationMarker } from 'react-icons/hi';
 
 /**
  * NominatimAddressAutocomplete - Address autocomplete using Nominatim (OpenStreetMap) API
@@ -148,7 +146,7 @@ export default function NominatimAddressAutocomplete({
         suggestionsRef.current &&
         !suggestionsRef.current.contains(event.target) &&
         inputRef.current &&
-        !inputRef.current.input.contains(event.target)
+        !inputRef.current.contains(event.target)
       ) {
         setSuggestions([]);
       }
@@ -266,84 +264,66 @@ export default function NominatimAddressAutocomplete({
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <Input
-        {...inputProps}
-        ref={inputRef}
-        value={value}
-        onChange={handleInputChange}
-        placeholder={placeholder}
-        prefix={<SearchOutlined />}
-        suffix={loading ? <Spin size="small" /> : null}
-      />
+    <div className="relative w-full">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiSearch className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput
+          {...inputProps}
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          className="pl-10 pr-10"
+        />
+        {loading && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <Spinner size="sm" />
+          </div>
+        )}
+      </div>
 
       {/* Suggestions Dropdown */}
       {suggestions.length > 0 && value && value.length >= 3 && (
         <div
           ref={suggestionsRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            backgroundColor: '#fff',
-            border: '1px solid #d9d9d9',
-            borderRadius: '4px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            maxHeight: '300px',
-            overflowY: 'auto',
-            marginTop: '4px',
-          }}
+          className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-[300px] overflow-y-auto mt-1"
         >
-          <List
-            dataSource={suggestions}
-            renderItem={(place) => {
-              const address = place.address || {};
-              const formatted = place.display_name || '';
-              const city = address.city || address.town || address.village || '';
-              const state = address.state || address.state_code || '';
-              
-              return (
-                <List.Item
-                  style={{
-                    padding: '12px 16px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #f0f0f0',
-                  }}
-                  onClick={() => handleSelectAddress(place)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f5f5f5';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#fff';
-                  }}
-                >
-                  <List.Item.Meta
-                    avatar={<EnvironmentOutlined style={{ fontSize: 20, color: '#1890ff' }} />}
-                    title={
-                      <Space>
-                        <Text strong>{formatted}</Text>
-                        {place.importance && (
-                          <Tag color="green" size="small">
-                            {Math.round(place.importance * 100)}% relevance
-                          </Tag>
-                        )}
-                      </Space>
-                    }
-                    description={
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        {city && state ? `${city}, ${state}` : formatted}
-                      </Text>
-                    }
-                  />
-                </List.Item>
-              );
-            }}
-          />
+          {suggestions.map((place, index) => {
+            const address = place.address || {};
+            const formatted = place.display_name || '';
+            const city = address.city || address.town || address.village || '';
+            const state = address.state || address.state_code || '';
+            
+            return (
+              <div
+                key={index}
+                className="p-3 cursor-pointer border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                onClick={() => handleSelectAddress(place)}
+              >
+                <div className="flex items-start gap-3">
+                  <HiLocationMarker className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">{formatted}</span>
+                      {place.importance && (
+                        <Badge color="success" size="sm">
+                          {Math.round(place.importance * 100)}% relevance
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {city && state ? `${city}, ${state}` : formatted}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-

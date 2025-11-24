@@ -1,43 +1,18 @@
 /**
- * Ant Design Compatibility Patch
- * Patches Ant Design's internal React version check to prevent false positive warning
+ * @deprecated Ant Design has been migrated to Flowbite.
+ * This file is no longer needed and can be removed.
+ * 
+ * Legacy: Ant Design Compatibility Patch
+ * This was used to patch Ant Design's internal React version check.
+ * Since we've migrated to Flowbite, this patch is no longer necessary.
  */
 
-// This must run before Ant Design loads
+// This file is kept for backward compatibility but does nothing
+// Ant Design has been fully migrated to Flowbite
 if (typeof window !== 'undefined') {
-  // Method 1: Suppress the warning at console level
-  const originalWarn = console.warn;
-  console.warn = function(...args) {
-    if (args && args.length > 0) {
-      const message = String(args[0]);
-      if (
-        message.includes('[antd: compatible]') ||
-        message.includes('antd v5 support React')
-      ) {
-        // Suppress - we ARE using React 18
-        return;
-      }
-    }
-    originalWarn.apply(console, args);
-  };
-
-  // Method 2: Mock React version check if needed
-  // Some versions of Ant Design check React.version directly
-  try {
-    const React = require('react');
-    if (React && React.version) {
-      // Ensure version is recognized as compatible
-      Object.defineProperty(React, 'version', {
-        get() {
-          return '18.3.1';
-        },
-        configurable: true
-      });
-    }
-  } catch (e) {
-    // React not loaded yet, that's fine
+  // No-op - Ant Design is no longer used
+  if (process.env.NODE_ENV === 'development') {
+    console.log('ℹ️  antd-compat-patch.js is deprecated - Ant Design has been migrated to Flowbite');
   }
-
-  console.log('🔧 Ant Design compatibility patch applied');
 }
 

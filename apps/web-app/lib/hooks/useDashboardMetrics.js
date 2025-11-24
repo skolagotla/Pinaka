@@ -17,10 +17,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useDashboardMetrics({ userRole, apiEndpoint, autoRefresh = false, refreshInterval = 30000 }) {
-  const { message } = App.useApp();
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +43,11 @@ export function useDashboardMetrics({ userRole, apiEndpoint, autoRefresh = false
     } catch (err) {
       console.error('[useDashboardMetrics] Error:', err);
       setError(err.message);
-      message.error('Failed to load dashboard data');
+      notify.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, message]);
+  }, [apiEndpoint]);
 
   // Refresh metrics
   const refreshMetrics = useCallback(() => {
@@ -100,7 +99,6 @@ export function useDashboardMetrics({ userRole, apiEndpoint, autoRefresh = false
     loading,
     error,
     refreshMetrics,
-    // Helper functions
     formatCurrency,
     formatPercent,
     calculateTrend,
@@ -108,4 +106,3 @@ export function useDashboardMetrics({ userRole, apiEndpoint, autoRefresh = false
 }
 
 export default useDashboardMetrics;
-

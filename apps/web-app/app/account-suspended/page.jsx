@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Result, Button, Card, Typography, Space } from 'antd';
-import { StopOutlined, CustomerServiceOutlined, HomeOutlined } from '@ant-design/icons';
+import { Card, Button, Alert } from 'flowbite-react';
+import { HiStop, HiSupport, HiHome } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
-
-const { Title, Paragraph, Text } = Typography;
 
 export default function AccountSuspendedPage() {
   const router = useRouter();
@@ -67,62 +65,65 @@ export default function AccountSuspendedPage() {
   const message = getStatusMessage();
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      padding: '24px',
-      background: '#f0f2f5'
-    }}>
-      <Card style={{ maxWidth: 600, width: '100%' }}>
-        <Result
-          icon={<StopOutlined style={{ color: '#ff4d4f' }} />}
-          title={message.title}
-          subTitle={message.subTitle}
-          extra={
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              {organizationInfo && (
-                <div style={{ textAlign: 'left', background: '#fafafa', padding: '16px', borderRadius: '4px' }}>
-                  <Text strong>Organization Details:</Text>
-                  <div style={{ marginTop: '8px' }}>
-                    <Text type="secondary">Name: </Text>
-                    <Text>{organizationInfo.name}</Text>
-                  </div>
-                  {organizationInfo.plan && (
-                    <div>
-                      <Text type="secondary">Plan: </Text>
-                      <Text>{organizationInfo.plan}</Text>
-                    </div>
-                  )}
-                  {organizationInfo.trialEndsAt && (
-                    <div>
-                      <Text type="secondary">Trial Ended: </Text>
-                      <Text>{new Date(organizationInfo.trialEndsAt).toLocaleDateString()}</Text>
-                    </div>
-                  )}
-                </div>
-              )}
-              <Space>
-                <Button 
-                  type="primary" 
-                  icon={<CustomerServiceOutlined />}
-                  onClick={() => window.open('mailto:support@pinaka.com', '_blank')}
-                >
-                  Contact Support
-                </Button>
-                <Button 
-                  icon={<HomeOutlined />}
-                  onClick={() => router.push('/')}
-                >
-                  Go Home
-                </Button>
-              </Space>
-            </Space>
-          }
-        />
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+      <Card className="max-w-2xl w-full">
+        <div className="text-center mb-6">
+          <HiStop className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {message.title}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {message.subTitle}
+          </p>
+        </div>
+
+        {organizationInfo && (
+          <Alert color="info" className="mb-6">
+            <div className="text-left">
+              <p className="font-semibold mb-2">Organization Details:</p>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="text-gray-500">Name: </span>
+                  <span className="font-medium">{organizationInfo.name}</span>
+                </p>
+                {organizationInfo.plan && (
+                  <p>
+                    <span className="text-gray-500">Plan: </span>
+                    <span className="font-medium">{organizationInfo.plan}</span>
+                  </p>
+                )}
+                {organizationInfo.trialEndsAt && (
+                  <p>
+                    <span className="text-gray-500">Trial Ended: </span>
+                    <span className="font-medium">
+                      {new Date(organizationInfo.trialEndsAt).toLocaleDateString()}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        <div className="flex gap-3 justify-center">
+          <Button
+            color="blue"
+            onClick={() => window.open('mailto:support@pinaka.com', '_blank')}
+            className="flex items-center gap-2"
+          >
+            <HiSupport className="h-4 w-4" />
+            Contact Support
+          </Button>
+          <Button
+            color="gray"
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2"
+          >
+            <HiHome className="h-4 w-4" />
+            Go Home
+          </Button>
+        </div>
       </Card>
     </div>
   );
 }
-

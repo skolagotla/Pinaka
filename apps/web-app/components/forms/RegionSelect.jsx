@@ -1,6 +1,6 @@
 "use client";
-import { Select } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { Select } from 'flowbite-react';
+import { HiLocationMarker } from 'react-icons/hi';
 import { getRegionOptions, getRegionLabel } from '@/lib/constants/regions';
 
 /**
@@ -26,7 +26,7 @@ export default function RegionSelect({
   value, 
   onChange, 
   country,
-  style,
+  className = '',
   ...restProps 
 }) {
   const options = getRegionOptions(country);
@@ -34,30 +34,41 @@ export default function RegionSelect({
 
   if (!country || (country !== 'CA' && country !== 'US')) {
     return (
-      <Select
-        {...restProps}
-        value={value}
-        onChange={onChange}
-        placeholder="Select country first"
-        disabled
-        style={{ width: '100%', ...style }}
-      />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiLocationMarker className="h-5 w-5 text-gray-400" />
+        </div>
+        <Select
+          {...restProps}
+          value={value || ''}
+          onChange={onChange}
+          disabled
+          className={`pl-10 ${className}`}
+        >
+          <option value="">Select country first</option>
+        </Select>
+      </div>
     );
   }
 
   return (
-    <Select
-      {...restProps}
-      value={value}
-      onChange={onChange}
-      placeholder={`Select ${label}`}
-      options={options}
-      showSearch
-      filterOption={(input, option) =>
-        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-      }
-      style={{ width: '100%', ...style }}
-    />
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none z-10">
+        <HiLocationMarker className="h-5 w-5 text-gray-400" />
+      </div>
+      <Select
+        {...restProps}
+        value={value || ''}
+        onChange={onChange}
+        className={`pl-10 ${className}`}
+      >
+        <option value="">Select {label}</option>
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </div>
   );
 }
-

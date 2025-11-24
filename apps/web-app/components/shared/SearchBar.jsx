@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { Input, Button, Tooltip } from 'antd';
-import { SearchOutlined, CloseOutlined } from '@ant-design/icons';
+import { TextInput, Button, Tooltip } from 'flowbite-react';
+import { HiSearch, HiX } from 'react-icons/hi';
 
 /**
  * Reusable SearchBar Component
@@ -33,8 +33,8 @@ function SearchBar({
   useEffect(() => {
     if (isExpanded && autoFocus && searchInputRef.current) {
       try {
-        // Use input property if available (Ant Design Input component)
-        const inputElement = searchInputRef.current.input || searchInputRef.current;
+        // Flowbite TextInput uses native input element
+        const inputElement = searchInputRef.current;
         if (inputElement && typeof inputElement.focus === 'function') {
           inputElement.focus();
         }
@@ -93,59 +93,61 @@ function SearchBar({
       }}
     >
       {isExpanded ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-          <Input
-            ref={searchInputRef}
-            size="large"
-            placeholder={placeholder}
-            prefix={<SearchOutlined style={{ color: '#1890ff' }} />}
-            value={value}
-            onChange={handleChange}
-            allowClear
-            onClear={handleClear}
-            autoComplete="off"
-            data-form-type="search"
-            style={{
-              flex: 1,
-              borderRadius: '8px',
-              border: '2px solid #1890ff',
-            }}
-            onPressEnter={(e) => {
-              try {
-                e.target.blur();
-              } catch (error) {
-                // Silently ignore blur errors
-              }
-            }}
-          />
-          <Tooltip title="Close">
-            <Button
-              shape="circle"
-              size="large"
-              icon={<CloseOutlined />}
-              onClick={handleClear}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+        <div className="flex items-center gap-2 w-full">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <HiSearch className="h-5 w-5 text-blue-600" />
+            </div>
+            <TextInput
+              ref={searchInputRef}
+              type="text"
+              placeholder={placeholder}
+              value={value}
+              onChange={handleChange}
+              autoComplete="off"
+              data-form-type="search"
+              className="pl-10 border-2 border-blue-600 rounded-lg"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  try {
+                    e.target.blur();
+                  } catch (error) {
+                    // Silently ignore blur errors
+                  }
+                }
               }}
             />
+            {value && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              >
+                <HiX className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          <Tooltip content="Close">
+            <Button
+              size="lg"
+              color="gray"
+              onClick={handleClear}
+              className="flex items-center justify-center flex-shrink-0 rounded-full p-2"
+            >
+              <HiX className="h-5 w-5" />
+            </Button>
           </Tooltip>
         </div>
       ) : (
-        <Tooltip title="Search">
+        <Tooltip content="Search">
           <Button
-            shape="circle"
-            size="large"
-            icon={<SearchOutlined />}
+            size="lg"
+            color="gray"
             onClick={handleToggle}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          />
+            className="flex items-center justify-center rounded-full p-2"
+          >
+            <HiSearch className="h-5 w-5" />
+          </Button>
         </Tooltip>
       )}
     </div>

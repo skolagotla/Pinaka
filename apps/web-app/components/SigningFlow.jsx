@@ -61,8 +61,8 @@ export default function SigningFlow({
     try {
       // TODO: Add PDF preview endpoint to v2 backend
       // For now, use v1 API as fallback
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.specialized.previewForm(formId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.specialized.previewForm(formId);
       if (!response.ok) {
         throw new Error('Failed to load PDF preview');
       }
@@ -90,8 +90,8 @@ export default function SigningFlow({
 
       // TODO: Get signed PDF from v2 backend
       // For now, use v1 API as fallback
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const blob = await v1Api.forms.downloadForm(formId);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const blob = await v2Api.forms.downloadForm(formId);
       const url = URL.createObjectURL(blob);
       
       setSignedPdfUrl(url);

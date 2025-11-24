@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Alert, Button, Space } from 'antd';
-import { WarningOutlined, StopOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Alert, Button } from 'flowbite-react';
+import { HiExclamation, HiStop, HiClock } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 
 /**
@@ -42,12 +42,12 @@ export default function OrganizationStatusBanner() {
   if (organization.status === 'SUSPENDED') {
     alerts.push({
       key: 'suspended',
-      type: 'error',
-      icon: <StopOutlined />,
+      color: 'failure',
+      icon: HiStop,
       message: 'Account Suspended',
       description: 'Your organization account has been suspended. Please contact support for assistance.',
       action: (
-        <Button size="small" onClick={() => router.push('/settings')}>
+        <Button size="sm" onClick={() => router.push('/settings')}>
           View Details
         </Button>
       ),
@@ -58,12 +58,12 @@ export default function OrganizationStatusBanner() {
   if (organization.status === 'CANCELLED') {
     alerts.push({
       key: 'cancelled',
-      type: 'warning',
-      icon: <StopOutlined />,
+      color: 'warning',
+      icon: HiStop,
       message: 'Account Cancelled',
       description: 'Your organization account has been cancelled. Please contact support to reactivate.',
       action: (
-        <Button size="small" onClick={() => router.push('/settings')}>
+        <Button size="sm" onClick={() => router.push('/settings')}>
           View Details
         </Button>
       ),
@@ -74,12 +74,12 @@ export default function OrganizationStatusBanner() {
   if (trialStatus?.hasTrial && trialStatus.isExpired) {
     alerts.push({
       key: 'trial-expired',
-      type: 'error',
-      icon: <StopOutlined />,
+      color: 'failure',
+      icon: HiStop,
       message: 'Trial Expired',
       description: 'Your trial period has ended. Please upgrade to a paid plan to continue using the service.',
       action: (
-        <Button size="small" type="primary" onClick={() => router.push('/settings')}>
+        <Button size="sm" color="blue" onClick={() => router.push('/settings')}>
           Upgrade Plan
         </Button>
       ),
@@ -90,12 +90,12 @@ export default function OrganizationStatusBanner() {
   if (trialStatus?.hasTrial && !trialStatus.isExpired && trialStatus.daysRemaining !== null && trialStatus.daysRemaining <= 3) {
     alerts.push({
       key: 'trial-warning',
-      type: 'warning',
-      icon: <ClockCircleOutlined />,
+      color: 'warning',
+      icon: HiClock,
       message: `Trial Ending Soon - ${trialStatus.daysRemaining} days remaining`,
       description: `Your trial period ends on ${trialStatus.expiresAt?.toLocaleDateString()}. Please upgrade to avoid service interruption.`,
       action: (
-        <Button size="small" type="primary" onClick={() => router.push('/settings')}>
+        <Button size="sm" color="blue" onClick={() => router.push('/settings')}>
           Upgrade Now
         </Button>
       ),
@@ -106,12 +106,12 @@ export default function OrganizationStatusBanner() {
   if (limits && !limits.withinLimits && limits.exceededLimits.length > 0) {
     alerts.push({
       key: 'limits-exceeded',
-      type: 'warning',
-      icon: <WarningOutlined />,
+      color: 'warning',
+      icon: HiExclamation,
       message: 'Usage Limits Exceeded',
       description: `You have exceeded the following limits: ${limits.exceededLimits.join(', ')}. Please upgrade your plan.`,
       action: (
-        <Button size="small" onClick={() => router.push('/settings')}>
+        <Button size="sm" onClick={() => router.push('/settings')}>
           View Usage
         </Button>
       ),
@@ -122,12 +122,12 @@ export default function OrganizationStatusBanner() {
   if (apiStats && apiStats.remaining !== null && apiStats.remaining <= 100) {
     alerts.push({
       key: 'api-limit-warning',
-      type: 'warning',
-      icon: <WarningOutlined />,
+      color: 'warning',
+      icon: HiExclamation,
       message: 'API Rate Limit Warning',
       description: `You have ${apiStats.remaining} API calls remaining this month. Limit resets on ${apiStats.resetAt?.toLocaleDateString()}.`,
       action: (
-        <Button size="small" onClick={() => router.push('/settings')}>
+        <Button size="sm" onClick={() => router.push('/settings')}>
           View Details
         </Button>
       ),
@@ -139,20 +139,23 @@ export default function OrganizationStatusBanner() {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 16 }}>
+    <div className="space-y-3 mb-4">
       {alerts.map(alert => (
         <Alert
           key={alert.key}
-          message={alert.message}
-          description={alert.description}
-          type={alert.type}
-          icon={alert.icon}
-          showIcon
-          action={alert.action}
-          style={{ borderRadius: 8 }}
-        />
+          color={alert.color}
+          icon={alert.icon ? <alert.icon className="h-5 w-5" /> : undefined}
+          onDismiss={() => {}}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">{alert.message}</h3>
+              <p className="text-sm">{alert.description}</p>
+            </div>
+            {alert.action && <div className="ml-4">{alert.action}</div>}
+          </div>
+        </Alert>
       ))}
-    </Space>
+    </div>
   );
 }
-

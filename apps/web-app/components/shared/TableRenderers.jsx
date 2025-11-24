@@ -12,65 +12,63 @@
  */
 
 import React from 'react';
-import { Tag, Typography, Tooltip, Space } from 'antd';
-import { CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Badge, Tooltip } from 'flowbite-react';
+import { HiCheckCircle, HiExclamation, HiXCircle } from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateDisplay } from '@/lib/utils/safe-date-formatter';
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 
-const { Text } = Typography;
-
 /**
- * StatusTag Component - Memoized for performance
+ * StatusBadge Component - Memoized for performance
  * Prevents unnecessary re-renders when status value hasn't changed
  */
-const StatusTag = React.memo(({ status, showIcon = true, customColors = {} }) => {
+const StatusBadge = React.memo(({ status, showIcon = true, customColors = {} }) => {
   const defaultColors = {
     'Paid': 'success',
-    'Partial': 'processing',
+    'Partial': 'info',
     'Unpaid': 'warning',
-    'Overdue': 'error',
+    'Overdue': 'failure',
     'Active': 'success',
-    'Inactive': 'default',
+    'Inactive': 'gray',
     'Pending': 'warning',
-    'In Progress': 'processing',
+    'In Progress': 'info',
     'Completed': 'success',
-    'Cancelled': 'error',
-    'New': 'default',
+    'Cancelled': 'failure',
+    'New': 'gray',
     'Rented': 'success',
     'Vacant': 'warning',
   };
   
   const icons = {
-    'Paid': <CheckCircleOutlined />,
-    'Completed': <CheckCircleOutlined />,
-    'Active': <CheckCircleOutlined />,
-    'Overdue': <WarningOutlined />,
-    'Unpaid': <CloseCircleOutlined />,
+    'Paid': <HiCheckCircle className="h-3 w-3" />,
+    'Completed': <HiCheckCircle className="h-3 w-3" />,
+    'Active': <HiCheckCircle className="h-3 w-3" />,
+    'Overdue': <HiExclamation className="h-3 w-3" />,
+    'Unpaid': <HiXCircle className="h-3 w-3" />,
   };
   
-  const color = customColors[status] || defaultColors[status] || 'default';
+  const color = customColors[status] || defaultColors[status] || 'gray';
   const icon = showIcon ? icons[status] : null;
   
   return (
-    <Tag color={color} icon={icon}>
+    <Badge color={color} icon={icon}>
       {status}
-    </Tag>
+    </Badge>
   );
 });
 
-StatusTag.displayName = 'StatusTag';
+StatusBadge.displayName = 'StatusBadge';
 
 /**
  * Render status badge with appropriate color and icon
  * @param {string} status - Status value
  * @param {Object} options - Additional options (icon, customColors)
- * @returns {JSX.Element} Status tag
+ * @returns {JSX.Element} Status badge
  */
 export function renderStatus(status, options = {}) {
-  return <StatusTag status={status} {...options} />;
+  return <StatusBadge status={status} {...options} />;
 }
 
 /**
@@ -80,13 +78,13 @@ export function renderStatus(status, options = {}) {
  * @returns {JSX.Element} Formatted date
  */
 export function renderDate(date, format = 'MMM D, YYYY') {
-  if (!date) return <Text type="secondary">—</Text>;
+  if (!date) return <span className="text-gray-400">—</span>;
   
   try {
-    return <Text>{formatDateDisplay(date)}</Text>;
+    return <span>{formatDateDisplay(date)}</span>;
   } catch (error) {
     console.error('Date formatting error:', error);
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
 }
 
@@ -100,11 +98,11 @@ export function renderCurrency(amount, options = {}) {
   const { currency = '$', color, strong = false, showZero = true, country = 'CA' } = options;
   
   if (amount === null || amount === undefined) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   if (!showZero && amount === 0) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   // Use rules engine pattern: thousand separator (comma) and 2 decimal places
@@ -115,10 +113,13 @@ export function renderCurrency(amount, options = {}) {
     useGrouping: true
   });
   
+  const style = color ? { color } : undefined;
+  const className = strong ? 'font-semibold' : '';
+  
   return (
-    <Text strong={strong} style={color ? { color } : undefined}>
+    <span className={className} style={style}>
       {currency === '$' ? `$${formattedValue}` : `${currency}${formattedValue}`}
-    </Text>
+    </span>
   );
 }
 
@@ -129,7 +130,7 @@ export function renderCurrency(amount, options = {}) {
  * @returns {JSX.Element} Formatted balance
  */
 export function renderBalance(balance, currency = '$') {
-  const color = balance > 0 ? '#ff4d4f' : '#52c41a';
+  const color = balance > 0 ? '#ef4444' : '#10b981';
   return renderCurrency(balance, { currency, color, strong: true });
 }
 
@@ -137,20 +138,20 @@ export function renderBalance(balance, currency = '$') {
  * PropertyDisplay Component - Memoized for performance
  */
 const PropertyDisplay = React.memo(({ property, unit }) => {
-  if (!property) return <Text type="secondary">—</Text>;
+  if (!property) return <span className="text-gray-400">—</span>;
   
   const propertyName = property.propertyName || property.addressLine1 || 'Unknown Property';
   const unitName = unit?.unitName;
   
   if (unitName) {
     return (
-      <Text>
+      <span>
         {propertyName} - {unitName}
-      </Text>
+      </span>
     );
   }
   
-  return <Text>{propertyName}</Text>;
+  return <span>{propertyName}</span>;
 });
 
 PropertyDisplay.displayName = 'PropertyDisplay';
@@ -169,13 +170,13 @@ export function renderProperty(property, unit = null) {
  * TenantDisplay Component - Memoized for performance
  */
 const TenantDisplay = React.memo(({ tenant }) => {
-  if (!tenant) return <Text type="secondary">—</Text>;
+  if (!tenant) return <span className="text-gray-400">—</span>;
   
   const name = tenant.firstName && tenant.lastName
     ? `${tenant.firstName} ${tenant.lastName}`
     : tenant.email || 'Unknown Tenant';
   
-  return <Text>{name}</Text>;
+  return <span>{name}</span>;
 });
 
 TenantDisplay.displayName = 'TenantDisplay';
@@ -195,20 +196,14 @@ export function renderTenant(tenant) {
  * @returns {JSX.Element} Formatted receipt number
  */
 export function renderReceiptNumber(receiptNumber) {
-  if (!receiptNumber) return <Text type="secondary">—</Text>;
+  if (!receiptNumber) return <span className="text-gray-400">—</span>;
   
   return (
-    <Text 
-      strong 
-      style={{ 
-        fontFamily: 'monospace', 
-        fontSize: 12,
-        textAlign: 'center',
-        display: 'block'
-      }}
+    <span 
+      className="font-mono text-xs text-center block font-semibold"
     >
       {receiptNumber}
-    </Text>
+    </span>
   );
 }
 
@@ -219,27 +214,14 @@ export function renderReceiptNumber(receiptNumber) {
  */
 export function renderEmail(email) {
   if (!email) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   return (
-    <Tooltip
-      title={email}
-      placement="top"
-      overlayStyle={{
-        maxWidth: '300px',
-        wordBreak: 'break-word',
-      }}
-    >
-      <Text
-        style={{
-          cursor: 'help',
-          textDecoration: 'underline',
-          textDecorationStyle: 'dotted',
-        }}
-      >
+    <Tooltip content={email}>
+      <span className="cursor-help underline decoration-dotted">
         {email}
-      </Text>
+      </span>
     </Tooltip>
   );
 }
@@ -252,7 +234,7 @@ export function renderEmail(email) {
  */
 export function renderPhone(phone) {
   if (!phone) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   // Use rules engine format: (XXX)XXX-XXXX
@@ -268,7 +250,7 @@ export function renderPhone(phone) {
     formatted = `(${limited.slice(0, 3)})${limited.slice(3, 6)}-${limited.slice(6)}`;
   }
   
-  return <Text>{formatted}</Text>;
+  return <span>{formatted}</span>;
 }
 
 /**
@@ -278,7 +260,7 @@ export function renderPhone(phone) {
  */
 export function renderAddress(address) {
   if (!address) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   const parts = [
@@ -288,19 +270,19 @@ export function renderAddress(address) {
     address.postalZip,
   ].filter(Boolean);
   
-  return <Text>{parts.join(', ')}</Text>;
+  return <span>{parts.join(', ')}</span>;
 }
 
 /**
  * Render boolean as Yes/No badge
  * @param {boolean} value - Boolean value
- * @returns {JSX.Element} Yes/No tag
+ * @returns {JSX.Element} Yes/No badge
  */
 export function renderBoolean(value) {
   return (
-    <Tag color={value ? 'success' : 'default'}>
+    <Badge color={value ? 'success' : 'gray'}>
       {value ? 'Yes' : 'No'}
-    </Tag>
+    </Badge>
   );
 }
 
@@ -311,20 +293,20 @@ export function renderBoolean(value) {
  */
 export function renderPriority(priority) {
   const config = {
-    'High': { color: 'error', icon: '🔴' },
+    'High': { color: 'failure', icon: '🔴' },
     'Medium': { color: 'warning', icon: '🟡' },
-    'Low': { color: 'default', icon: '🟢' },
+    'Low': { color: 'gray', icon: '🟢' },
   };
   
   const { color, icon } = config[priority] || config['Low'];
   
   return (
-    <Tag color={color}>
-      <Space size={4}>
+    <Badge color={color}>
+      <span className="flex items-center gap-1">
         <span>{icon}</span>
         <span>{priority}</span>
-      </Space>
-    </Tag>
+      </span>
+    </Badge>
   );
 }
 
@@ -335,21 +317,15 @@ export function renderPriority(priority) {
  */
 export function renderTicketNumber(ticketNumber) {
   if (!ticketNumber) {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
   
   return (
-    <Text 
-      strong 
-      style={{ 
-        fontFamily: 'monospace', 
-        fontSize: 12,
-        textAlign: 'center',
-        display: 'block'
-      }}
+    <span 
+      className="font-mono text-xs text-center block font-semibold"
     >
       {ticketNumber}
-    </Text>
+    </span>
   );
 }
 
@@ -361,9 +337,9 @@ export function renderTicketNumber(ticketNumber) {
  */
 export function renderValue(value, display) {
   if (value === null || value === undefined || value === '') {
-    return <Text type="secondary">—</Text>;
+    return <span className="text-gray-400">—</span>;
   }
-  return <Text>{display || value}</Text>;
+  return <span>{display || value}</span>;
 }
 
 /**

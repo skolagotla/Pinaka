@@ -6,7 +6,7 @@ import { StandardModal, FormTextInput, FormSelect } from '@/components/shared';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
 import { HiChat, HiPaperAirplane, HiPlus, HiUser, HiUserGroup, HiHome } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import FlowbiteStatistic from '@/components/shared/FlowbiteStatistic';
 import { formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
@@ -29,7 +29,7 @@ export default function PMCMessagesClient() {
   const { isOpen: createModalVisible, open: openCreateModal, close: closeCreateModal, openForCreate: openCreateModalForCreate } = useModalState();
   const createForm = useFormState();
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'landlords', 'tenants'
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   
   // v2 API hooks
   const { data: conversationsData, isLoading: conversationsLoading, refetch: refetchConversations } = useConversations(organizationId);

@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { Spin, Button, Space } from 'antd';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { Button, Spinner } from 'flowbite-react';
+import { HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 
 // Configure PDF.js worker (use local worker for reliability)
 if (typeof window !== 'undefined' && pdfjs.GlobalWorkerOptions) {
@@ -51,162 +51,82 @@ export default function PDFViewerModal({ receipt, onClose, pdfUrl }) {
   
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0, 0, 0, 0.7)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 10000,
-        padding: 20
-      }}
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black bg-opacity-70 p-5"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          width: "90%",
-          maxWidth: 1200,
-          height: "90%",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
-        }}
+        className="bg-white dark:bg-gray-800 rounded-xl w-[90%] max-w-6xl h-[90%] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{
-          padding: "16px 24px",
-          borderBottom: "1px solid #e8eaed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "#202124" }}>
+            <h3 className="m-0 text-lg font-semibold text-gray-900 dark:text-white">
               Rent Receipt
             </h3>
-            <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#5f6368", fontFamily: "monospace" }}>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-mono">
               {receipt.receiptNumber ? `#${receipt.receiptNumber}` : 'N/A'}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              border: "none",
-              background: "#f1f3f4",
-              cursor: "pointer",
-              fontSize: 20,
-              color: "#5f6368",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.2s"
-            }}
-            onMouseEnter={(e) => e.target.style.background = "#e8eaed"}
-            onMouseLeave={(e) => e.target.style.background = "#f1f3f4"}
-            aria-label="Close"
-          >
-            ×
-          </button>
+          <Button color="light" onClick={onClose}>
+            Close
+          </Button>
         </div>
 
-        {/* PDF Viewer with react-pdf */}
-        <div style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
-          <div style={{ 
-            flex: 1, 
-            overflow: 'auto', 
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            padding: '20px',
-            backgroundColor: '#f5f5f5'
-          }}>
-            {loadError ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px',
-                color: '#666'
-              }}>
-                <p>Unable to load PDF</p>
-                <p style={{ fontSize: 12, marginTop: 8 }}>Please try downloading instead</p>
-              </div>
-            ) : (
-              <Document
-                file={pdfUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={
-                  <Space direction="vertical" align="center" style={{ padding: 40 }}>
-                    <Spin size="large" />
-                    <div style={{ marginTop: 16, color: '#666' }}>Rendering PDF...</div>
-                  </Space>
-                }
-              >
-                <Page 
-                  pageNumber={pageNumber}
-                  width={1000}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                />
-              </Document>
-            )}
-          </div>
-
-          {/* Page Navigation */}
-          {numPages && numPages > 1 && (
-            <div style={{ 
-              padding: '16px 24px',
-              borderTop: '1px solid #e8eaed',
-              display: 'flex', 
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 16,
-              backgroundColor: '#fafafa'
-            }}>
-              <Button
-                icon={<LeftOutlined />}
-                disabled={pageNumber <= 1}
-                onClick={previousPage}
-                size="middle"
-              >
-                Previous
-              </Button>
-              <span style={{ 
-                fontSize: 14, 
-                color: '#595959', 
-                minWidth: 100, 
-                textAlign: 'center',
-                fontWeight: 500
-              }}>
-                Page {pageNumber} of {numPages}
-              </span>
-              <Button
-                icon={<RightOutlined />}
-                disabled={pageNumber >= numPages}
-                onClick={nextPage}
-                size="middle"
-              >
-                Next
-              </Button>
+        {/* PDF Content */}
+        <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+          {loadError ? (
+            <div className="text-center">
+              <p className="text-red-600 dark:text-red-400">Error loading PDF</p>
             </div>
+          ) : (
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div className="flex justify-center items-center h-full">
+                  <Spinner size="xl" />
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="shadow-lg"
+              />
+            </Document>
           )}
         </div>
+
+        {/* Footer with Navigation */}
+        {numPages && (
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <Button
+              color="light"
+              onClick={previousPage}
+              disabled={pageNumber <= 1}
+              className="flex items-center gap-2"
+            >
+              <HiChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Page {pageNumber} of {numPages}
+            </span>
+            <Button
+              color="light"
+              onClick={nextPage}
+              disabled={pageNumber >= numPages}
+              className="flex items-center gap-2"
+            >
+              Next
+              <HiChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

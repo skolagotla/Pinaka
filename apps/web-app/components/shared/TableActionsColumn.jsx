@@ -24,7 +24,7 @@
  * @param {boolean} props.fixed - Fixed column position
  * @param {string} props.size - Button size: 'small' | 'middle' | 'large' (default: 'small')
  * 
- * @returns {Object} Ant Design table column definition
+ * @returns {Object} Table column definition
  * 
  * @example
  * const actionsColumn = TableActionsColumn({
@@ -32,9 +32,9 @@
  *   onEdit: (record) => handleEdit(record),
  *   onDelete: (record) => handleDelete(record.id),
  *   canEdit: (record) => record.status !== 'archived',
- *   customActions: >{
- *     { type: 'approve', onClick: (record) => handleApprove(record), condition: (record) => record.status === 'pending' }
- *   ]
+ *   customActions: [{
+ *     type: 'approve', onClick: (record) => handleApprove(record), condition: (record) => record.status === 'pending'
+ *   }]
  * });
  * 
  * const columns = [
@@ -45,7 +45,7 @@
  */
 
 import React from 'react';
-import { Space, Popconfirm } from 'antd';
+import FlowbitePopconfirm from './FlowbitePopconfirm';
 import { ActionButton } from './buttons';
 import { useGridActions } from '@/lib/hooks/useGridActions';
 
@@ -110,4 +110,3 @@ export default function TableActionsColumn({
     render: (_, record) => renderActions(record),
   };
 }
-

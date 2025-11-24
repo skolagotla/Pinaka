@@ -1,17 +1,14 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Drawer, Button, Table, Tag, Space, Input, Select, Typography, Tooltip } from 'antd';
+import { Drawer, Button, Table, Badge, TextInput, Select, Spinner } from 'flowbite-react';
 import {
-  BugOutlined,
-  DownloadOutlined,
-  DeleteOutlined,
-  FilterOutlined,
-  EyeOutlined,
-} from '@ant-design/icons';
+  HiBug,
+  HiDownload,
+  HiTrash,
+  HiFilter,
+  HiEye,
+} from 'react-icons/hi';
 const logger = require('@/lib/logger');
-
-const { Search } = Input;
-const { Title, Text } = Typography;
 
 export default function LogViewer() {
   const [visible, setVisible] = useState(false);
@@ -72,176 +69,170 @@ export default function LogViewer() {
     applyFilters(logs, levelFilter, categoryFilter, value);
   };
 
+  const getLevelColor = (level) => {
+    const colors = {
+      INFO: 'blue',
+      ACTION: 'green',
+      WARN: 'yellow',
+      ERROR: 'red',
+    };
+    return colors[level] || 'gray';
+  };
+
   const columns = [
     {
       title: 'Time',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      width: 100,
       render: (time) => new Date(time).toLocaleTimeString(),
     },
     {
       title: 'Level',
       dataIndex: 'level',
       key: 'level',
-      width: 80,
-      render: (level) => {
-        const colors = {
-          INFO: 'blue',
-          ACTION: 'green',
-          WARN: 'orange',
-          ERROR: 'red',
-        };
-        return <Tag color={colors[level] || 'default'}level}</Tag>;
-      },
+      render: (level) => (
+        <Badge color={getLevelColor(level)}>{level}</Badge>
+      ),
     },
     {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
-      render: (category) => <Tag>{category}</Tag>,
+      render: (category) => <span className="text-sm">{category || 'N/A'}</span>,
     },
     {
       title: 'Message',
       dataIndex: 'message',
       key: 'message',
-      ellipsis: true,
+      render: (message) => <span className="text-sm">{message}</span>,
     },
     {
       title: 'Data',
       dataIndex: 'data',
       key: 'data',
-      width: 80,
-      render: (data) => {
-        const hasData = data && Object.keys(data).length > 0;
-        return hasData ? (
-          <Tooltip title={<pre style={{ fontSize: 10 }}JSON.stringify(data, null, 2)}</pre>}>
-            <EyeOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
-          </Tooltip>
-        ) : null;
-      },
+      render: (data) => (
+        <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded max-w-xs overflow-auto">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      ),
     },
   ];
 
+  const exportLogs = () => {
+    const dataStr = JSON.stringify(filteredLogs, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `logs-${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearLogs = () => {
+    if (confirm('Are you sure you want to clear all logs?')) {
+      logger.clearLogs();
+      refreshLogs();
+    }
+  };
+
+  const uniqueCategories = [...new Set(logs.map(log => log.category))].filter(Boolean);
+
   return (
     <>
-      {/* Floating Log Button */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 9999,
-        }}
+      <Button
+        color="light"
+        onClick={() => setVisible(true)}
+        className="flex items-center gap-2"
       >
-        <Tooltip title="View Application Logs">
-          <Button
-            type="primary"
-            shape="circle"
-            size="large"
-            icon={<BugOutlined />}
-            onClick={() => setVisible(true)}
-            style={{
-              width: 56,
-              height: 56,
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}
-          />
-        </Tooltip>
-      </div>
+        <HiBug className="h-4 w-4" />
+        View Logs
+      </Button>
 
-      {/* Log Viewer Drawer */}
       <Drawer
-        title={
-          <Space>
-            <BugOutlined />
-            <span>Application Logs</span>
-            <Tag color="blue">{filteredLogs.length} logs</Tag>
-          </Space>
-        }
-        placement="right"
-        width="80%"
         open={visible}
         onClose={() => setVisible(false)}
-        extra={
-          <Space>
-            <Button
-              icon={<DownloadOutlined />}
-              onClick={() => logger.downloadLogs()}
-            >
-              Download
-            </Button>
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => {
-                logger.clearLogs();
-                refreshLogs();
-              }}
-            >
-              Clear
-            </Button>
-          </Space>
+        title={
+          <div className="flex items-center gap-2">
+            <HiBug className="h-5 w-5" />
+            <span>Application Logs</span>
+          </div>
         }
+        position="right"
+        size="xl"
       >
-        <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
-          <Space style={{ width: '100%' }}>
-            <FilterOutlined />
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            <TextInput
+              icon={HiFilter}
+              placeholder="Search logs..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="flex-1 min-w-[200px]"
+            />
             <Select
               value={levelFilter}
-              onChange={handleLevelFilterChange}
-              style={{ width: 120 }}
-              options={
-                { label: 'All Levels', value: 'ALL' },
-                { label: 'Info', value: 'INFO' },
-                { label: 'Action', value: 'ACTION' },
-                { label: 'Warning', value: 'WARN' },
-                { label: 'Error', value: 'ERROR' },
-              }
-            />
+              onChange={(e) => handleLevelFilterChange(e.target.value)}
+              className="w-32"
+            >
+              <option value="ALL">All Levels</option>
+              <option value="INFO">Info</option>
+              <option value="ACTION">Action</option>
+              <option value="WARN">Warning</option>
+              <option value="ERROR">Error</option>
+            </Select>
             <Select
               value={categoryFilter}
-              onChange={handleCategoryFilterChange}
-              style={{ width: 150 }}
-              options={
-                { label: 'All Categories', value: 'ALL' },
-                { label: 'User Actions', value: 'user' },
-                { label: 'Navigation', value: 'navigation' },
-                { label: 'API Calls', value: 'api' },
-                { label: 'Forms', value: 'form' },
-                { label: 'Modals', value: 'modal' },
-                { label: 'State', value: 'state' },
-                { label: 'Errors', value: 'error' },
-              }
-            />
-            <Search
-              placeholder="Search logs..."
-              onSearch={handleSearch}
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ flex: 1 }}
-            />
-          </Space>
+              onChange={(e) => handleCategoryFilterChange(e.target.value)}
+              className="w-40"
+            >
+              <option value="ALL">All Categories</option>
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </Select>
+            <Button color="light" onClick={exportLogs} className="flex items-center gap-2">
+              <HiDownload className="h-4 w-4" />
+              Export
+            </Button>
+            <Button color="failure" onClick={clearLogs} className="flex items-center gap-2">
+              <HiTrash className="h-4 w-4" />
+              Clear
+            </Button>
+          </div>
 
-          <Text type="secondary">
-            Logs refresh automatically every 2 seconds. Access full logger via <code>window.__appLogger</code> in console.
-          </Text>
-        </Space>
-
-        <Table
-          columns={columns}
-          dataSource={filteredLogs.slice().reverse().map((log, index) => ({ ...log, _id: `${log.timestamp}-${index}` }))} // Newest first with unique ID
-          rowKey="_id"
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} logs`,
-          }}
-          size="small"
-          scroll={{ x: true }}
-        />
+          {/* Logs Table */}
+          <div className="overflow-auto max-h-[calc(100vh-200px)]">
+            <Table>
+              <Table.Head>
+                {columns.map(col => (
+                  <Table.HeadCell key={col.key}>{col.title}</Table.HeadCell>
+                ))}
+              </Table.Head>
+              <Table.Body>
+                {filteredLogs.length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={columns.length} className="text-center py-8">
+                      <p className="text-gray-500">No logs found</p>
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  filteredLogs.map((log, index) => (
+                    <Table.Row key={index}>
+                      {columns.map(col => (
+                        <Table.Cell key={col.key}>
+                          {col.render ? col.render(log[col.dataIndex], log, index) : log[col.dataIndex]}
+                        </Table.Cell>
+                      ))}
+                    </Table.Row>
+                  ))
+                )}
+              </Table.Body>
+            </Table>
+          </div>
+        </div>
       </Drawer>
     </>
   );
 }
-

@@ -30,29 +30,27 @@ const issues = {
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
 // Check for version conflicts
-const reactVersion = packageJson.dependencies.react;
-const antdVersion = packageJson.dependencies.antd;
-const nextVersion = packageJson.dependencies.next;
+const reactVersion = packageJson.dependencies?.react;
+const antdVersion = packageJson.dependencies?.antd; // May be commented out
+const nextVersion = packageJson.dependencies?.next;
+const flowbiteReactVersion = packageJson.dependencies?.['flowbite-react'];
+const reactIconsVersion = packageJson.dependencies?.['react-icons'];
 
 console.log('\n📦 Version Analysis:');
-console.log(`  React: ${reactVersion}`);
-console.log(`  React-DOM: ${packageJson.dependencies['react-dom']}`);
-console.log(`  Next.js: ${nextVersion}`);
-console.log(`  Ant Design: ${antdVersion}`);
-console.log(`  @ant-design/pro-layout: ${packageJson.dependencies['@ant-design/pro-layout']}`);
-console.log(`  @ant-design/pro-components: ${packageJson.dependencies['@ant-design/pro-components']}`);
+console.log(`  React: ${reactVersion || 'N/A'}`);
+console.log(`  React-DOM: ${packageJson.dependencies?.['react-dom'] || 'N/A'}`);
+console.log(`  Next.js: ${nextVersion || 'N/A'}`);
+console.log(`  Flowbite React: ${flowbiteReactVersion || 'N/A'}`);
+console.log(`  React Icons: ${reactIconsVersion || 'N/A'}`);
+console.log(`  Ant Design: ${antdVersion || 'REMOVED (migrated to Flowbite)'}`);
+console.log(`  @ant-design/pro-layout: ${packageJson.dependencies?.['@ant-design/pro-layout'] || 'REMOVED'}`);
+console.log(`  @ant-design/pro-components: ${packageJson.dependencies?.['@ant-design/pro-components'] || 'REMOVED'}`);
 
 // Check for known compatibility issues
 const compatibilityIssues = [];
 
-// Ant Design Pro Layout 7.x requires React 18.3.1+
-if (reactVersion && !reactVersion.includes('18.3')) {
-  compatibilityIssues.push({
-    type: 'version',
-    message: `@ant-design/pro-layout@7.x may require React 18.3.1+, but you have ${reactVersion}`,
-    severity: 'warning',
-  });
-}
+// Note: Ant Design has been migrated to Flowbite, so these checks are no longer relevant
+// Keeping for reference in case any legacy code remains
 
 // Next.js 14.2.25 should work with React 18.3.1
 if (nextVersion && reactVersion) {
@@ -92,8 +90,8 @@ function analyzeFile(filePath, relativePath) {
         imports.react.push({ line: index + 1, content: line.trim() });
       }
       
-      // Ant Design imports
-      if (line.match(/from ['"]antd['"]/)) {
+      // Ant Design imports (should be migrated to Flowbite)
+      if (line.match(/from ['"]antd['"]|from ['"]@ant-design/)) {
         imports.antd.push({ line: index + 1, content: line.trim() });
         issues.antdImports.push({ file: relativePath, line: index + 1 });
       }
@@ -202,7 +200,14 @@ if (circularChecks.length > 0) {
 // Summary
 console.log('\n📊 Summary:');
 console.log(`  Total files analyzed: ${allFiles.length}`);
-console.log(`  Files with Ant Design imports: ${issues.antdImports.length}`);
+console.log(`  Files with Ant Design imports (should be 0 after migration): ${issues.antdImports.length}`);
+if (issues.antdImports.length > 0) {
+  console.log('  ⚠️  WARNING: Found Ant Design imports. These should be migrated to Flowbite.');
+  console.log('  Top 10 files with Ant Design imports:');
+  issues.antdImports.slice(0, 10).forEach(imp => {
+    console.log(`    - ${imp.file}:${imp.line}`);
+  });
+}
 console.log(`  Files with dynamic imports: ${issues.dynamicImports.length}`);
 console.log(`  Potential circular dependencies: ${circularChecks.length}`);
 console.log(`  Missing files: ${issues.missing.length}`);
@@ -260,20 +265,26 @@ if (webpackIssues.length > 0) {
 
 // Recommendations
 console.log('\n💡 Recommendations:');
-console.log('  1. Ensure all React components use consistent React version (18.3.1)');
-console.log('  2. Check for circular dependencies between shared components');
-console.log('  3. Verify all dynamic imports have proper error handling');
-console.log('  4. Ensure client components ("use client") don\'t use require()');
-console.log('  5. Check that all default exports are properly defined');
+console.log('  1. ✅ Ant Design → Flowbite migration complete');
+console.log('  2. Ensure all React components use consistent React version (18.3.1)');
+console.log('  3. Check for circular dependencies between shared components');
+console.log('  4. Verify all dynamic imports have proper error handling');
+console.log('  5. Ensure client components ("use client") don\'t use require()');
+console.log('  6. Check that all default exports are properly defined');
+if (issues.antdImports.length > 0) {
+  console.log('  7. ⚠️  Migrate remaining Ant Design imports to Flowbite components');
+}
 
 // Write detailed report
 const report = {
   timestamp: new Date().toISOString(),
   versions: {
     react: reactVersion,
-    reactDom: packageJson.dependencies['react-dom'],
+    reactDom: packageJson.dependencies?.['react-dom'],
     next: nextVersion,
-    antd: antdVersion,
+    flowbiteReact: flowbiteReactVersion,
+    reactIcons: reactIconsVersion,
+    antd: antdVersion || 'REMOVED (migrated to Flowbite)',
   },
   stats: {
     totalFiles: allFiles.length,

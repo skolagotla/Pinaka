@@ -65,7 +65,7 @@ export default function AdminInvitationsPage() {
     try {
       const values = formState.values;
       // TODO: Implement v2 endpoint for admin invitation creation
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.invitations.create({
         email: values.email,
         type: values.type || 'landlord',

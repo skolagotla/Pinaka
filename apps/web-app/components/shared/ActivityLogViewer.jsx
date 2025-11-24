@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Tag, Space, Select, Card, Empty } from 'antd';
-import { HistoryOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Badge, Select, Card } from 'flowbite-react';
+import { HiClock, HiEye } from 'react-icons/hi';
 import { ProCard } from './LazyProComponents';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
-
-const { Option } = Select;
 
 /**
  * Activity Log Viewer Component
@@ -66,111 +64,110 @@ export default function ActivityLogViewer({ propertyId, userRole, limit = 50 }) 
   const getActionColor = (action) => {
     const colors = {
       view: 'blue',
-      edit_attempt: 'orange',
+      edit_attempt: 'yellow',
       approval_request: 'purple',
       approval_approved: 'green',
       approval_rejected: 'red',
       create: 'cyan',
       delete: 'red',
     };
-    return colors[action] || 'default';
+    return colors[action] || 'gray';
   };
 
-  const columns = [
-    {
-      title: 'Action',
-      key: 'action',
-      render: (_, record) => (
-        <Tag color={getActionColor(record.action)}>
-          {record.action.replace(/_/g, ' ').toUpperCase()}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Entity',
-      key: 'entity',
-      render: (_, record) => (
-        <Space>
-          <span>{record.entityType}</span>
-          {record.entityId && (
-            <Tag>{record.entityId.substring(0, 8)}...</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: 'Property',
-      key: 'property',
-      render: (_, record) => (
-        record.property ? (
-          <span>{record.property.propertyName || record.property.addressLine1}</span>
-        ) : '-'
-      ),
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Date',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => date ? formatDateTimeDisplay(date) : '-',
-    },
-  ];
-
   return (
-    <ProCard
-      title={
-        <Space>
-          <HistoryOutlined />
-          <span>Activity Log</span>
-        </Space>
-      }
-      extra={
-        <Space>
+    <ProCard className="mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HiClock className="h-5 w-5" />
+          <h3 className="text-lg font-semibold">Activity Log</h3>
+        </div>
+        <div className="flex items-center gap-2">
           <Select
-            placeholder="Filter by Action"
-            allowClear
-            style={{ width: 150 }}
-            value={filter.action}
-            onChange={(value) => setFilter({ ...filter, action: value })}
+            value={filter.action || ''}
+            onChange={(e) => setFilter({ ...filter, action: e.target.value || null })}
+            className="w-40"
           >
-            <Option value="view">View</Option>
-            <Option value="edit_attempt">Edit Attempt</Option>
-            <Option value="approval_request">Approval Request</Option>
-            <Option value="approval_approved">Approved</Option>
-            <Option value="approval_rejected">Rejected</Option>
-            <Option value="create">Create</Option>
-            <Option value="delete">Delete</Option>
+            <option value="">Filter by Action</option>
+            <option value="view">View</option>
+            <option value="edit_attempt">Edit Attempt</option>
+            <option value="approval_request">Approval Request</option>
+            <option value="approval_approved">Approved</option>
+            <option value="approval_rejected">Rejected</option>
+            <option value="create">Create</option>
+            <option value="delete">Delete</option>
           </Select>
           <Select
-            placeholder="Filter by User Type"
-            allowClear
-            style={{ width: 150 }}
-            value={filter.userType}
-            onChange={(value) => setFilter({ ...filter, userType: value })}
+            value={filter.userType || ''}
+            onChange={(e) => setFilter({ ...filter, userType: e.target.value || null })}
+            className="w-40"
           >
-            <Option value="pmc">PMC</Option>
-            <Option value="landlord">Landlord</Option>
-            <Option value="tenant">Tenant</Option>
+            <option value="">Filter by User Type</option>
+            <option value="pmc">PMC</option>
+            <option value="landlord">Landlord</option>
+            <option value="tenant">Tenant</option>
           </Select>
-        </Space>
-      }
-    >
-      <Table
-        columns={columns}
-        dataSource={logs}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-        locale={{
-          emptyText: <Empty description="No activity logs found" />,
-        }}
-      />
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table hoverable>
+          <Table.Head>
+            <Table.HeadCell>Action</Table.HeadCell>
+            <Table.HeadCell>Entity</Table.HeadCell>
+            <Table.HeadCell>Property</Table.HeadCell>
+            <Table.HeadCell>Description</Table.HeadCell>
+            <Table.HeadCell>Date</Table.HeadCell>
+          </Table.Head>
+          <Table.Body className="divide-y">
+            {loading ? (
+              <Table.Row>
+                <Table.Cell colSpan={5} className="text-center py-8">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            ) : logs.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={5} className="text-center py-8">
+                  <Empty description="No activity logs found" />
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              logs.map((log) => (
+                <Table.Row key={log.id}>
+                  <Table.Cell>
+                    <Badge color={getActionColor(log.action)}>
+                      {log.action.replace(/_/g, ' ').toUpperCase()}
+                    </Badge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center gap-2">
+                      <span>{log.entityType}</span>
+                      {log.entityId && (
+                        <Badge color="gray" size="sm">
+                          {log.entityId.substring(0, 8)}...
+                        </Badge>
+                      )}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {log.property ? (
+                      <span>{log.property.propertyName || log.property.addressLine1}</span>
+                    ) : '-'}
+                  </Table.Cell>
+                  <Table.Cell className="max-w-xs truncate">
+                    {log.description}
+                  </Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">
+                    {log.createdAt ? formatDateTimeDisplay(log.createdAt) : '-'}
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
+          </Table.Body>
+        </Table>
+      </div>
     </ProCard>
   );
 }
-

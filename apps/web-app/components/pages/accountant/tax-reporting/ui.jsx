@@ -10,7 +10,7 @@ import { Card, Button, TextInput, Label, Select, Alert, Badge, Spinner } from 'f
 import { HiDownload, HiDocumentText } from 'react-icons/hi';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { PageLayout, TableWrapper, FlowbiteTable } from '@/components/shared';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
@@ -22,7 +22,7 @@ export default function TaxReportingClient({ user, userRole }) {
     taxYear: new Date().getFullYear() - 1, // Previous year by default
     propertyIds: [],
   });
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const { loading, withLoading } = useLoading();
   const [report, setReport] = useState(null);
 

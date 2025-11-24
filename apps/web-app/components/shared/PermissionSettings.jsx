@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, Switch, Form, Button, Space, Alert, message, Spin } from 'antd';
-import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { ProCard } from './LazyProComponents';
+import { Card, ToggleSwitch, Button, Alert, Spinner } from 'flowbite-react';
+import { HiLockClosed, HiCheckCircle } from 'react-icons/hi';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 /**
  * Permission Settings Component
@@ -13,7 +14,14 @@ export default function PermissionSettings({ relationshipId }) {
   const [permissions, setPermissions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form] = Form.useForm();
+  const form = useFormState({
+    canManageProperties: false,
+    canManageTenants: false,
+    canManageLeases: false,
+    canManageMaintenance: false,
+    canManageFinancials: false,
+    canViewReports: false,
+  });
 
   useEffect(() => {
     if (relationshipId) {
@@ -44,13 +52,16 @@ export default function PermissionSettings({ relationshipId }) {
       }
     } catch (error) {
       console.error('[Permission Settings] Error:', error);
-      message.error(error.message || 'Failed to load permissions');
+      notify.error(error.message || 'Failed to load permissions');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (values) => {
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const values = form.getFieldsValue();
+
     try {
       setSaving(true);
       // Use direct fetch for permissions (no v1 equivalent yet)
@@ -75,12 +86,12 @@ export default function PermissionSettings({ relationshipId }) {
       
       const data = await response.json();
       if (data.success || data) {
-        message.success('Permissions updated successfully');
+        notify.success('Permissions updated successfully');
         setPermissions(values);
       }
     } catch (error) {
       console.error('[Permission Settings] Error:', error);
-      message.error(error.message || 'Failed to update permissions');
+      notify.error(error.message || 'Failed to update permissions');
     } finally {
       setSaving(false);
     }
@@ -88,110 +99,81 @@ export default function PermissionSettings({ relationshipId }) {
 
   if (loading) {
     return (
-      <ProCard>
-        <Spin />
-      </ProCard>
+      <Card>
+        <div className="flex justify-center items-center py-8">
+          <Spinner size="xl" />
+        </div>
+      </Card>
     );
   }
 
+  const permissionFields = [
+    { key: 'canManageProperties', label: 'Manage Properties', description: 'Allow PMC to create, edit, and delete properties' },
+    { key: 'canManageTenants', label: 'Manage Tenants', description: 'Allow PMC to add, remove, and manage tenant information' },
+    { key: 'canManageLeases', label: 'Manage Leases', description: 'Allow PMC to create and manage lease agreements' },
+    { key: 'canManageMaintenance', label: 'Manage Maintenance', description: 'Allow PMC to create and manage maintenance requests' },
+    { key: 'canManageFinancials', label: 'Manage Financials', description: 'Allow PMC to manage rent payments and financial records' },
+    { key: 'canViewReports', label: 'View Reports', description: 'Allow PMC to view property and financial reports' },
+  ];
+
   return (
-    <ProCard
-      title={
-        <Space>
-          <LockOutlined />
-          <span>PMC Permissions</span>
-        </Space>
-      }
-    >
-      <Alert
-        message="Configure what your PMC can do"
-        description="These settings control what actions your Property Management Company can perform on your behalf."
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
+    <Card>
+      <div className="flex items-center gap-2 mb-4">
+        <HiLockClosed className="h-5 w-5" />
+        <h3 className="text-lg font-semibold">Permission Settings</h3>
+      </div>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSave}
-        initialValues={permissions}
-      >
-        <Card title="Property Management" style={{ marginBottom: 16 }}>
-          <Form.Item
-            name="canEditProperties"
-            valuePropName="checked"
-            label="Allow PMC to edit properties"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="canEditTenants"
-            valuePropName="checked"
-            label="Allow PMC to edit tenant information"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="canEditLeases"
-            valuePropName="checked"
-            label="Allow PMC to modify leases"
-          >
-            <Switch />
-          </Form.Item>
-        </Card>
+      <Alert color="info" className="mb-4">
+        <div>
+          <p className="text-sm">
+            Configure what actions your PMC can perform on your behalf. Changes take effect immediately.
+          </p>
+        </div>
+      </Alert>
 
-        <Card title="Maintenance & Expenses" style={{ marginBottom: 16 }}>
-          <Form.Item
-            name="canEditMaintenance"
-            valuePropName="checked"
-            label="Allow PMC to edit maintenance requests"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="canApproveExpenses"
-            valuePropName="checked"
-            label="PMC can approve expenses (requires your approval)"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="canApproveMaintenance"
-            valuePropName="checked"
-            label="PMC can approve maintenance (requires your approval)"
-          >
-            <Switch />
-          </Form.Item>
-        </Card>
+      <form onSubmit={handleSave} className="space-y-4">
+        {permissionFields.map((field) => (
+          <div key={field.key} className="flex items-start justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+                {field.label}
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {field.description}
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={form.values[field.key] || false}
+              onChange={(checked) => form.setFieldsValue({ [field.key]: checked })}
+              className="ml-4"
+            />
+          </div>
+        ))}
 
-        <Card title="Viewing Permissions" style={{ marginBottom: 16 }}>
-          <Form.Item
-            name="canViewFinancials"
-            valuePropName="checked"
-            label="PMC can view financial information"
+        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button color="gray" onClick={() => form.setFieldsValue(permissions || {})}>
+            Reset
+          </Button>
+          <Button
+            type="submit"
+            color="blue"
+            disabled={saving}
+            className="flex items-center gap-2"
           >
-            <Switch disabled />
-          </Form.Item>
-          <Form.Item
-            name="canViewReports"
-            valuePropName="checked"
-            label="PMC can view reports"
-          >
-            <Switch disabled />
-          </Form.Item>
-        </Card>
-
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={saving} icon={<CheckCircleOutlined />}>
-              Save Permissions
-            </Button>
-            <Button onClick={() => form.resetFields()}>Reset</Button>
-          </Space>
-        </Form.Item>
-      </Form>
-    </ProCard>
+            {saving ? (
+              <>
+                <Spinner size="sm" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <HiCheckCircle className="h-4 w-4" />
+                Save Permissions
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }
-

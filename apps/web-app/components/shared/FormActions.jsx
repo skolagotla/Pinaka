@@ -37,7 +37,6 @@
  */
 
 import React from 'react';
-import { Space, Divider } from 'antd';
 import { ActionButton } from './buttons';
 
 export default function FormActions({
@@ -56,14 +55,14 @@ export default function FormActions({
   size = 'large',
 }) {
   const justifyContent = {
-    left: 'flex-start',
-    center: 'center',
-    right: 'flex-end',
+    left: 'justify-start',
+    center: 'justify-center',
+    right: 'justify-end',
   }[align];
 
   return (
-    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-      <Space style={{ width: '100%', justifyContent }} size="middle">
+    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className={`flex items-center gap-3 ${justifyContent}`}>
         {showReset && onReset && (
           <>
             <ActionButton
@@ -73,7 +72,7 @@ export default function FormActions({
               size={size}
               tooltip={resetText}
             />
-            <Divider type="vertical" />
+            <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
           </>
         )}
         {showCancel && onCancel && canCancel && (
@@ -94,8 +93,7 @@ export default function FormActions({
             tooltip={saveText}
           />
         )}
-      </Space>
+      </div>
     </div>
   );
 }
-

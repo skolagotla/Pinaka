@@ -4,11 +4,9 @@
  * Shared between landlord and tenant document vaults
  */
 
-import { Upload, App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useDocumentUpload({ category, selectedFile, setSelectedFile, getCategoryById }) {
-  const { message } = App.useApp();
-
   const uploadProps = {
     name: 'file',
     multiple: true, // Allow multiple files for all categories
@@ -28,15 +26,15 @@ export function useDocumentUpload({ category, selectedFile, setSelectedFile, get
       // Check file type
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (!categoryDetails.allowedFileTypes.includes(ext)) {
-        message.error(`${file.name}: Invalid file type. Allowed: ${categoryDetails.allowedFileTypes.join(', ')}`);
-        return Upload.LIST_IGNORE;
+        notify.error(`${file.name}: Invalid file type. Allowed: ${categoryDetails.allowedFileTypes.join(', ')}`);
+        return false; // Prevent upload
       }
       
       // Check file size
       if (file.size > categoryDetails.maxFileSize) {
         const maxSizeMB = (categoryDetails.maxFileSize / (1024 * 1024)).toFixed(0);
-        message.error(`${file.name}: File size must be less than ${maxSizeMB}MB`);
-        return Upload.LIST_IGNORE;
+        notify.error(`${file.name}: File size must be less than ${maxSizeMB}MB`);
+        return false; // Prevent upload
       }
       
       return false; // Prevent auto upload
@@ -47,4 +45,3 @@ export function useDocumentUpload({ category, selectedFile, setSelectedFile, get
 }
 
 export default useDocumentUpload;
-

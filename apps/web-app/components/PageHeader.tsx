@@ -1,11 +1,8 @@
 "use client";
 import React from 'react';
-import { Typography, Space } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { HiRefresh } from 'react-icons/hi';
 import SearchBar from './shared/SearchBar';
 import { ActionButton, IconButton } from './shared/buttons';
-
-const { Title, Text } = Typography;
 
 interface Stat {
   label: string;
@@ -45,36 +42,28 @@ export default function PageHeader({
   extra = null 
 }: PageHeaderProps) {
   return (
-    <div style={{ marginBottom: 24, background: '#fff', padding: '20px 24px', borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'auto 1px 1fr 1px auto',
-        gap: '24px',
-        alignItems: 'center'
-      }}>
+    <div className="mb-6 bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm">
+      <div className="grid grid-cols-[auto_1px_1fr_1px_auto] gap-6 items-center">
         {/* SECTION 1: Title */}
-        <div style={{ minWidth: 200 }}>
-          <Title level={2} style={{ margin: 0, fontSize: 24 }}>{title}</Title>
+        <div className="min-w-[200px]">
+          <h2 className="text-2xl font-semibold m-0">{title}</h2>
           {subtitle && (
-            <Text type="secondary" style={{ fontSize: 14 }}>{subtitle}</Text>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
           )}
         </div>
 
         {/* DIVIDER 1 */}
-        <div style={{ 
-          width: '1px', 
-          height: '40px', 
-          background: '#e8e8e8',
-          alignSelf: 'center'
-        }} />
+        <div className="w-px h-10 bg-gray-300 dark:bg-gray-600 self-center" />
 
         {/* SECTION 2: Stats */}
         {stats && stats.length > 0 ? (
-          <div style={{ display: 'flex', gap: 24, alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex gap-6 items-center justify-center">
             {stats.map((stat, index) => (
-              <div key={index} style={{ textAlign: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{stat.label}</Text>
-                <Text strong style={{ fontSize: 20, color: stat.color || '#1890ff' }}>{stat.value}</Text>
+              <div key={index} className="text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                <p className="text-xl font-semibold" style={{ color: stat.color || '#3b82f6' }}>
+                  {stat.value}
+                </p>
               </div>
             ))}
           </div>
@@ -83,15 +72,10 @@ export default function PageHeader({
         )}
 
         {/* DIVIDER 2 */}
-        <div style={{ 
-          width: '1px', 
-          height: '40px', 
-          background: '#e8e8e8',
-          alignSelf: 'center'
-        }} />
+        <div className="w-px h-10 bg-gray-300 dark:bg-gray-600 self-center" />
 
         {/* SECTION 3: Actions */}
-        <Space size={8}>
+        <div className="flex items-center gap-2">
           {/* Search First */}
           {onSearchChange && (
             <SearchBar
@@ -107,7 +91,7 @@ export default function PageHeader({
           {/* Refresh */}
           {onRefresh && (
             <IconButton
-              icon={<ReloadOutlined />}
+              icon={<HiRefresh />}
               onClick={onRefresh}
               tooltip="Refresh"
               showText={false}
@@ -129,7 +113,7 @@ export default function PageHeader({
 
           {/* Extra Actions */}
           {extra}
-        </Space>
+        </div>
       </div>
     </div>
   );

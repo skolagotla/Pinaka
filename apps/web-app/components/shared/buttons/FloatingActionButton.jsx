@@ -17,13 +17,13 @@
  */
 
 import React from 'react';
-import { Button, Tooltip } from 'antd';
+import { Button, Tooltip } from 'flowbite-react';
 
-const POSITION_STYLES = {
-  'bottom-right': { bottom: 24, right: 24 },
-  'bottom-left': { bottom: 24, left: 24 },
-  'top-right': { top: 24, right: 24 },
-  'top-left': { top: 24, left: 24 },
+const POSITION_CLASSES = {
+  'bottom-right': 'bottom-6 right-6',
+  'bottom-left': 'bottom-6 left-6',
+  'top-right': 'top-6 right-6',
+  'top-left': 'top-6 left-6',
 };
 
 export default function FloatingActionButton({
@@ -32,40 +32,43 @@ export default function FloatingActionButton({
   tooltip,
   position = 'bottom-right',
   offset = 24,
-  type = 'primary',
-  size = 'large',
+  color = 'blue',
+  size = 'lg',
   loading = false,
   disabled = false,
+  className = '',
   style = {},
   ...restProps
 }) {
-  const positionStyle = POSITION_STYLES[position] || POSITION_STYLES['bottom-right'];
+  const positionClass = POSITION_CLASSES[position] || POSITION_CLASSES['bottom-right'];
   const finalStyle = {
     position: 'fixed',
     zIndex: 1000,
-    ...positionStyle,
-    bottom: positionStyle.bottom !== undefined ? offset : undefined,
-    right: positionStyle.right !== undefined ? offset : undefined,
-    top: positionStyle.top !== undefined ? offset : undefined,
-    left: positionStyle.left !== undefined ? offset : undefined,
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
     ...style,
   };
 
   const button = (
     <Button
-      type={type}
-      shape="circle"
+      color={color}
       size={size}
-      icon={icon}
       onClick={onClick}
-      loading={loading}
-      disabled={disabled}
+      disabled={loading || disabled}
+      className={`rounded-full ${positionClass} ${className}`}
       style={finalStyle}
       {...restProps}
-    />
+    >
+      {loading ? (
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+      ) : (
+        icon
+      )}
+    </Button>
   );
 
-  return tooltip ? <Tooltip title={tooltip}>{button}</Tooltip> : button;
+  return tooltip ? (
+    <Tooltip content={tooltip} style="dark" placement="top">
+      {button}
+    </Tooltip>
+  ) : button;
 }
-

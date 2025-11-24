@@ -26,4 +26,6 @@ export { default as TableActionsColumn } from './TableActionsColumn';
 export { default as TabbedContent } from './TabbedContent';
 export { default as FormActions } from './FormActions';
 export { default as DeleteConfirmButton } from './DeleteConfirmButton';
+export { default as FlowbiteTable } from './FlowbiteTable';
+export { default as Empty } from './Empty';
 

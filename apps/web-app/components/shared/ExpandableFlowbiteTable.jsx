@@ -156,7 +156,7 @@ export default function ExpandableFlowbiteTable({
                 >
                   {allColumns.map((col, colIdx) => (
                     <TableCell key={colIdx}>
-                      {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey}
+                      {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey]}
                     </TableCell>
                   ))}
                 </TableRow>

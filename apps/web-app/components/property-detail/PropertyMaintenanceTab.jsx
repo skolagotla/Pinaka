@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Tag, Space, Button, Empty, message } from 'antd';
-import { ToolOutlined, EyeOutlined } from '@ant-design/icons';
+import { Badge, Button, Spinner } from 'flowbite-react';
+import { HiWrench, HiEye } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
-import { ProCard } from '../shared/LazyProComponents';
+import { Card } from 'flowbite-react';
+import FlowbiteTable from '../shared/FlowbiteTable';
+import { notify } from '@/lib/utils/notification-helper';
 
 export default function PropertyMaintenanceTab({ property }) {
   const router = useRouter();
@@ -21,49 +23,58 @@ export default function PropertyMaintenanceTab({ property }) {
   const fetchMaintenanceRequests = async () => {
     try {
       setLoading(true);
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.maintenance.list({ propertyId: property.id });
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.maintenance.list({ propertyId: property.id });
       const requests = response.data?.data || response.data || [];
       setRequests(requests);
     } catch (error) {
       console.error('Error fetching maintenance requests:', error);
-      message.error('Error loading maintenance requests');
+      notify.error('Error loading maintenance requests');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <ProCard loading />;
+    return (
+      <Card>
+        <div className="flex justify-center items-center py-12">
+          <Spinner size="xl" />
+        </div>
+      </Card>
+    );
   }
 
   if (!requests.length) {
     return (
-      <ProCard>
-        <Empty description="No maintenance requests found for this property" />
-      </ProCard>
+      <Card>
+        <div className="text-center py-12">
+          <HiWrench className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No maintenance requests found for this property</p>
+        </div>
+      </Card>
     );
   }
 
   const getPriorityColor = (priority) => {
     const colors = {
-      Low: 'default',
-      Medium: 'blue',
-      High: 'orange',
-      Urgent: 'red',
+      Low: 'gray',
+      Medium: 'info',
+      High: 'warning',
+      Urgent: 'failure',
     };
-    return colors[priority] || 'default';
+    return colors[priority] || 'gray';
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      New: 'blue',
-      Pending: 'orange',
-      'In Progress': 'processing',
+      New: 'info',
+      Pending: 'warning',
+      'In Progress': 'info',
       Resolved: 'success',
-      Closed: 'default',
+      Closed: 'gray',
     };
-    return colors[status] || 'default';
+    return colors[status] || 'gray';
   };
 
   const columns = [
@@ -71,7 +82,7 @@ export default function PropertyMaintenanceTab({ property }) {
       title: 'Ticket #',
       dataIndex: 'ticketNumber',
       key: 'ticketNumber',
-      render: (ticket) => <Tag>{ticket}</Tag>,
+      render: (ticket) => <Badge color="gray">{ticket}</Badge>,
     },
     {
       title: 'Title',
@@ -82,14 +93,14 @@ export default function PropertyMaintenanceTab({ property }) {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      render: (cat) => <Tag>{cat}</Tag>,
+      render: (cat) => <Badge color="gray">{cat}</Badge>,
     },
     {
       title: 'Priority',
       dataIndex: 'priority',
       key: 'priority',
       render: (priority) => (
-        <Tag color={getPriorityColor(priority)}priority}</Tag>
+        <Badge color={getPriorityColor(priority)}>{priority}</Badge>
       ),
     },
     {
@@ -97,7 +108,7 @@ export default function PropertyMaintenanceTab({ property }) {
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={getStatusColor(status)}status}</Tag>
+        <Badge color={getStatusColor(status)}>{status}</Badge>
       ),
     },
     {
@@ -111,10 +122,12 @@ export default function PropertyMaintenanceTab({ property }) {
       key: 'action',
       render: (_, record) => (
         <Button
-          type="link"
-          icon={<EyeOutlined />}
+          color="light"
+          size="sm"
           onClick={() => router.push(`/operations?tab=maintenance&ticketId=${record.id}`)}
+          className="flex items-center gap-2"
         >
+          <HiEye className="h-4 w-4" />
           View
         </Button>
       ),
@@ -122,14 +135,13 @@ export default function PropertyMaintenanceTab({ property }) {
   ];
 
   return (
-    <ProCard>
-      <Table
+    <Card>
+      <FlowbiteTable
         columns={columns}
         dataSource={requests}
         rowKey="id"
         pagination={{ pageSize: 10 }}
       />
-    </ProCard>
+    </Card>
   );
 }
-

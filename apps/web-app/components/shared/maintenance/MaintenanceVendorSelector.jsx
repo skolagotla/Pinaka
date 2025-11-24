@@ -6,14 +6,11 @@
  */
 
 "use client";
-import { useState } from 'react';
 import {
-  Modal, Input, Space, Tag, Card, Row, Col, Button, Spin, Typography, Tooltip, Rate, Select, Empty
-} from 'antd';
-import { ToolOutlined, SearchOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
-const { Search } = Input;
+  Modal, TextInput, Badge, Card, Button, Spinner, Tooltip, Select
+} from 'flowbite-react';
+import { HiWrench, HiSearch } from 'react-icons/hi';
+import StarRating from '@/components/shared/StarRating';
 
 /**
  * Maintenance Vendor Selector Component
@@ -61,10 +58,10 @@ export default function MaintenanceVendorSelector({
       : 'unknown';
     
     const sourceLabels = {
-      admin: { label: 'Admin-Approved', color: 'green' },
-      landlord: { label: 'Landlord-Added', color: 'blue' },
+      admin: { label: 'Admin-Approved', color: 'success' },
+      landlord: { label: 'Landlord-Added', color: 'info' },
       pmc: { label: 'PMC Team', color: 'purple' },
-      unknown: { label: 'Unknown', color: 'default' },
+      unknown: { label: 'Unknown', color: 'gray' },
     };
     
     return sourceLabels[vendorSource] || sourceLabels.unknown;
@@ -112,166 +109,151 @@ export default function MaintenanceVendorSelector({
 
   return (
     <Modal
-      title={
-        <Space>
-          <ToolOutlined />
-          <Text strong>Select Vendor</Text>
-          {selectedRequest?.category && (
-            <Tag color="blue">{selectedRequest.category}</Tag>
-          )}
-        </Space>
-      }
-      open={open}
-      onCancel={onCancel}
-      footer={null}
-      width={700}
+      show={open}
+      onClose={onCancel}
+      size="3xl"
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <Space style={{ width: '100%' }} size="middle">
-          <Input
-            placeholder="Search vendors by name, business, or category..."
-            value={vendorSearchText}
-            onChange={(e) => setVendorSearchText(e.target.value)}
-            allowClear
-            prefix={<SearchOutlined />}
-            style={{ flex: 1 }}
-          />
-          <Select
-            value={vendorSourceFilter}
-            onChange={setVendorSourceFilter}
-            style={{ width: 150 }}
-          >
-            <Select.Option value="all">All Sources</Select.Option>
-            <Select.Option value="admin">Admin-Approved</Select.Option>
-            <Select.Option value="landlord">Landlord-Added</Select.Option>
-            <Select.Option value="pmc">PMC Team</Select.Option>
-          </Select>
-        </Space>
+      <Modal.Header>
+        <div className="flex items-center gap-2">
+          <HiWrench className="h-5 w-5" />
+          <span className="font-semibold">Select Vendor</span>
+          {selectedRequest?.category && (
+            <Badge color="info">{selectedRequest.category}</Badge>
+          )}
+        </div>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <TextInput
+              icon={HiSearch}
+              placeholder="Search vendors by name, business, or category..."
+              value={vendorSearchText}
+              onChange={(e) => setVendorSearchText(e.target.value)}
+              className="flex-1"
+            />
+            <Select
+              value={vendorSourceFilter}
+              onChange={(e) => setVendorSourceFilter(e.target.value)}
+              className="w-[150px]"
+            >
+              <option value="all">All Sources</option>
+              <option value="admin">Admin-Approved</option>
+              <option value="landlord">Landlord-Added</option>
+              <option value="pmc">PMC Team</option>
+            </Select>
+          </div>
 
-        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          <Spin spinning={loadingAllVendors}>
-            {filteredVendors.length === 0 ? (
-              <Empty 
-                description="No vendors found"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                style={{ padding: '24px 0' }}
-              />
+          <div className="max-h-[400px] overflow-y-auto">
+            {loadingAllVendors ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="xl" />
+              </div>
+            ) : filteredVendors.length === 0 ? (
+              <div className="text-center py-12">
+                <HiWrench className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No vendors found</p>
+              </div>
             ) : (
-              filteredVendors.map((vendor) => {
-                const sourceInfo = getVendorSourceInfo(vendor);
-                const stats = vendor?.id ? vendorUsageStats[vendor.id] : null;
-                const loadingStats = vendor?.id ? loadingVendorStats[vendor.id] : false;
-                const isSuggested = Array.isArray(suggestedVendors) && suggestedVendors.some(sv => sv && sv.id === vendor.id);
+              <div className="space-y-2">
+                {filteredVendors.map((vendor) => {
+                  const sourceInfo = getVendorSourceInfo(vendor);
+                  const stats = vendor?.id ? vendorUsageStats[vendor.id] : null;
+                  const loadingStats = vendor?.id ? loadingVendorStats[vendor.id] : false;
+                  const isSuggested = Array.isArray(suggestedVendors) && suggestedVendors.some(sv => sv && sv.id === vendor.id);
 
-                return (
-                  <Card
-                    key={vendor.id}
-                    size="small"
-                    hoverable
-                    style={{
-                      marginBottom: 8,
-                      border: isSuggested ? '2px solid #1890ff' : '1px solid #e8e8e8',
-                      borderRadius: 6
-                    }}
-                    bodyStyle={{ padding: '12px' }}
-                    onMouseEnter={() => {
-                      if (!stats && vendor?.id && !loadingStats) {
-                        fetchVendorUsageStats(vendor.id);
-                      }
-                    }}
-                  >
-                      <Row gutter={12} align="middle">
-                        <Col flex="auto">
-                          <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                            <div>
-                              <Space>
-                                <Text strong style={{ fontSize: 13 }}>
-                                  {vendor?.businessName || vendor?.name || 'Unknown Vendor'}
-                                </Text>
-                                <Tag color={sourceInfo.color} style={{ fontSize: 10 }}>
-                                  {sourceInfo.label}
-                                </Tag>
-                                {vendor?.category && (
-                                  <Tag color="blue" style={{ fontSize: 10 }}>
-                                    {vendor.category}
-                                  </Tag>
-                                )}
-                              </Space>
-                            </div>
+                  return (
+                    <Card
+                      key={vendor.id}
+                      className={`cursor-pointer hover:shadow-md transition-shadow ${
+                        isSuggested ? 'border-2 border-blue-500' : 'border border-gray-200'
+                      }`}
+                      onMouseEnter={() => {
+                        if (!stats && vendor?.id && !loadingStats) {
+                          fetchVendorUsageStats(vendor.id);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold text-sm">
+                              {vendor?.businessName || vendor?.name || 'Unknown Vendor'}
+                            </span>
+                            <Badge color={sourceInfo.color} size="sm">
+                              {sourceInfo.label}
+                            </Badge>
+                            {vendor?.category && (
+                              <Badge color="info" size="sm">
+                                {vendor.category}
+                              </Badge>
+                            )}
+                          </div>
                           {vendor?.name && (
-                            <Text type="secondary" style={{ fontSize: 11 }}>
-                              {vendor.name}
-                            </Text>
+                            <p className="text-xs text-gray-500 mb-2">{vendor.name}</p>
                           )}
-                          <Space size={12} wrap>
+                          <div className="flex flex-wrap items-center gap-3 text-xs">
                             {vendor?.rating && (
-                              <Space size={4}>
-                                <Rate disabled value={vendor.rating} style={{ fontSize: 11 }} />
-                                <Text type="secondary" style={{ fontSize: 11 }}>
-                                  {vendor.rating.toFixed(1)}
-                                </Text>
-                              </Space>
+                              <div className="flex items-center gap-1">
+                                <StarRating value={vendor.rating} max={5} size="xs" />
+                                <span className="text-gray-500">{vendor.rating.toFixed(1)}</span>
+                              </div>
                             )}
                             {stats?.averageRating && (
-                              <Tooltip title={`Average rating from ${stats.completedCount} completed jobs`}>
-                                <Space size={4}>
-                                  <Text type="secondary" style={{ fontSize: 10 }}>
-                                    Avg: {stats.averageRating.toFixed(1)}
-                                  </Text>
-                                </Space>
+                              <Tooltip content={`Average rating from ${stats.completedCount} completed jobs`}>
+                                <span className="text-gray-500">
+                                  Avg: {stats.averageRating.toFixed(1)}
+                                </span>
                               </Tooltip>
                             )}
                             {vendor?.hourlyRate && vendor.hourlyRate > 0 && (
-                              <Tooltip title="Hourly rate">
-                                <Text strong style={{ fontSize: 11, color: '#1890ff' }}>
+                              <Tooltip content="Hourly rate">
+                                <span className="font-semibold text-blue-600">
                                   ${vendor.hourlyRate}/hr
-                                </Text>
+                                </span>
                               </Tooltip>
                             )}
                             {stats?.averageCost && (
-                              <Tooltip title={`Average cost per job (${stats.completedCount || 0} completed)`}>
-                                <Text type="secondary" style={{ fontSize: 10 }}>
+                              <Tooltip content={`Average cost per job (${stats.completedCount || 0} completed)`}>
+                                <span className="text-gray-500">
                                   Avg Cost: ${stats.averageCost.toFixed(2)}
-                                </Text>
+                                </span>
                               </Tooltip>
                             )}
                             {stats?.usageCount > 0 && (
-                              <Tooltip title={`Used ${stats.usageCount} time${stats.usageCount !== 1 ? 's' : ''}`}>
-                                <Text type="secondary" style={{ fontSize: 10 }}>
+                              <Tooltip content={`Used ${stats.usageCount} time${stats.usageCount !== 1 ? 's' : ''}`}>
+                                <span className="text-gray-500">
                                   Used {stats.usageCount}x
-                                </Text>
+                                </span>
                               </Tooltip>
                             )}
                             {vendor?.phone && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>
+                              <span className="text-gray-500">
                                 📞 {vendor.phone}
-                              </Text>
+                              </span>
                             )}
-                          </Space>
-                        </Space>
-                      </Col>
-                        <Col>
-                          <Button
-                            type="primary"
-                            size="small"
-                            onClick={() => {
-                              if (vendor?.id) {
-                                onAssignVendor(vendor.id);
-                              }
-                            }}
-                          >
-                            Assign
-                          </Button>
-                        </Col>
-                    </Row>
-                  </Card>
-                );
-              })
+                          </div>
+                        </div>
+                        <Button
+                          color="blue"
+                          size="sm"
+                          onClick={() => {
+                            if (vendor?.id) {
+                              onAssignVendor(vendor.id);
+                            }
+                          }}
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
-          </Spin>
+          </div>
         </div>
-      </Space>
+      </Modal.Body>
     </Modal>
   );
 }
-

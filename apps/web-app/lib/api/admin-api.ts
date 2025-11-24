@@ -486,7 +486,7 @@ export const adminApi = {
    */
   async getLandlords(query?: { search?: string; limit?: number; page?: number }) {
     console.warn('[adminApi.getLandlords] Deprecated: Use v1Api.landlords.list() instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.landlords.list({
       page: query?.page || 1,
       limit: query?.limit || 50,
@@ -500,7 +500,7 @@ export const adminApi = {
    */
   async createLandlord(data: any) {
     console.warn('[adminApi.createLandlord] Deprecated: Use v1Api.landlords.create() instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.landlords.create(data);
   },
 
@@ -510,7 +510,7 @@ export const adminApi = {
    */
   async getLandlord(id: string) {
     console.warn('[adminApi.getLandlord] Deprecated: Use v1Api.landlords.getById() instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     // Use the landlords API resource
     const response = await (v1Api as any).landlords.getById(id);
     return response;
@@ -522,7 +522,7 @@ export const adminApi = {
    */
   async updateLandlord(id: string, data: any) {
     console.warn('[adminApi.updateLandlord] Deprecated: Use v1Api.landlords.update() instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.landlords.update(id, data);
   },
 
@@ -596,7 +596,7 @@ export const adminApi = {
    */
   async getContractors(query?: { search?: string; category?: string; isActive?: boolean }) {
     console.warn('[adminApi.getContractors] Deprecated: Use v1Api.vendors.list({ type: "contractor" }) instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.vendors.list({
       page: 1,
       limit: 50,
@@ -611,7 +611,7 @@ export const adminApi = {
    */
   async searchContractorsGlobal(searchTerm: string) {
     console.warn('[adminApi.searchContractorsGlobal] Deprecated: Use v1Api.vendors.list({ type: "contractor", search }) instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.vendors.list({
       page: 1,
       limit: 50,
@@ -636,7 +636,7 @@ export const adminApi = {
    */
   async softDeleteContractor(contractorId: string) {
     console.warn('[adminApi.softDeleteContractor] Deprecated: Use v1Api.vendors.delete() instead');
-    const { v1Api } = await import('@/lib/api/v1-client');
+    const { v2Api } = await import('@/lib/api/v2-client');
     return v1Api.vendors.delete(contractorId);
   },
 

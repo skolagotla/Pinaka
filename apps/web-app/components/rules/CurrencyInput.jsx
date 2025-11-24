@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { InputNumber } from 'antd';
+import { TextInput } from 'flowbite-react';
 
 // Lazy load rules engine to avoid SSR issues
 let rulesEngine = null;
@@ -37,6 +37,7 @@ export default function CurrencyInput({
 }) {
   const [formatter, setFormatter] = useState(() => (val) => val);
   const [parser, setParser] = useState(() => (val) => val);
+  const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
     // Load formatting rules from the rules engine (client-side only)
@@ -56,21 +57,40 @@ export default function CurrencyInput({
     loadRules();
   }, [country]);
 
+  useEffect(() => {
+    // Format the value for display
+    if (value !== undefined && value !== null) {
+      const formatted = formatter(value);
+      setDisplayValue(formatted);
+    } else {
+      setDisplayValue('');
+    }
+  }, [value, formatter]);
+
+  const handleChange = (e) => {
+    const inputValue = e.target.value;
+    // Remove currency symbols and parse
+    const parsed = parser(inputValue);
+    
+    if (onChange) {
+      // Validate min/max
+      let numValue = parseFloat(parsed) || 0;
+      if (min !== undefined && numValue < min) numValue = min;
+      if (max !== undefined && numValue > max) numValue = max;
+      onChange(numValue);
+    }
+  };
+
   return (
-    <InputNumber
-      value={value}
-      onChange={onChange}
-      min={min}
-      max={max}
+    <TextInput
+      type="text"
+      value={displayValue}
+      onChange={handleChange}
       disabled={disabled}
       style={style}
-      placeholder={placeholder}
-      prefix="$"
-      precision={2}
-      formatter={formatter}
-      parser={parser}
+      placeholder={placeholder || '$0.00'}
+      addon="$"
       {...props}
     />
   );
 }
-

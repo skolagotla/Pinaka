@@ -15,14 +15,12 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-import { Typography } from 'antd';
+"use client";
 import { formatPhoneNumber } from '@/lib/utils/formatters';
 
-const { Text } = Typography;
-
-export default function PhoneDisplay({ phone, fallback = '—', ...props }) {
+export default function PhoneDisplay({ phone, fallback = '—', className = '', ...props }) {
   if (!phone || (typeof phone === 'string' && phone.trim() === '')) {
-    return <Text type="secondary" {...props}>{fallback}</Text>;
+    return <span className={`text-gray-500 dark:text-gray-400 ${className}`} {...props}>{fallback}</span>;
   }
   
   // Handle object phone values (from forms)
@@ -35,9 +33,8 @@ export default function PhoneDisplay({ phone, fallback = '—', ...props }) {
   const formatted = formatPhoneNumber(phoneValue);
   
   if (!formatted) {
-    return <Text type="secondary" {...props}>{fallback}</Text>;
+    return <span className={`text-gray-500 dark:text-gray-400 ${className}`} {...props}>{fallback}</span>;
   }
   
-  return <Text {...props}>{formatted}</Text>;
+  return <span className={className} {...props}>{formatted}</span>;
 }
-

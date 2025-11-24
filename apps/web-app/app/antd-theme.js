@@ -1,7 +1,19 @@
 'use client';
 
-// Ant Design Pro Theme Configuration for Pinaka Property Management
-// Enhanced with Pro Design System standards
+/**
+ * @deprecated This file is no longer used. Ant Design has been migrated to Flowbite.
+ * Theme configuration is now handled via Tailwind CSS and Flowbite's theme system.
+ * 
+ * This file is kept for reference only and can be safely removed.
+ * 
+ * For Flowbite theming, use:
+ * - Tailwind CSS configuration in tailwind.config.js
+ * - Flowbite theme provider (if needed)
+ * - CSS variables for custom colors
+ */
+
+// Legacy Ant Design Pro Theme Configuration (deprecated)
+// This is kept for reference only - not used in the application
 const antdTheme = {
   token: {
     // Primary Colors - Ant Design Pro Standard

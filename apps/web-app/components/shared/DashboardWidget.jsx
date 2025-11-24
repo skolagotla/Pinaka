@@ -1,10 +1,8 @@
 "use client";
 
-import { Card, Typography, Space, Button } from 'antd';
-import { EditOutlined, CloseOutlined } from '@ant-design/icons';
+import { Card, Button, Tooltip } from 'flowbite-react';
+import { HiPencil, HiX } from 'react-icons/hi';
 import { useState } from 'react';
-
-const { Title, Text } = Typography;
 
 export default function DashboardWidget({
   id,
@@ -20,45 +18,46 @@ export default function DashboardWidget({
 
   return (
     <Card
-      style={{
-        height: '100%',
-        position: 'relative',
-        ...style,
-      }}
+      className="h-full relative"
+      style={style}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      title={
-        <Space>
-          {icon}
-          <span>{title}</span>
-        </Space>
-      }
-      extra={
-        editable && isHovered && (
-          <Space>
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {icon && <span>{icon}</span>}
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        {editable && isHovered && (
+          <div className="flex items-center gap-2">
             {onEdit && (
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={onEdit}
-              />
+              <Tooltip content="Edit">
+                <Button
+                  color="light"
+                  size="sm"
+                  onClick={onEdit}
+                  className="p-2"
+                >
+                  <HiPencil className="h-4 w-4" />
+                </Button>
+              </Tooltip>
             )}
             {onRemove && (
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={onRemove}
-              />
+              <Tooltip content="Remove">
+                <Button
+                  color="light"
+                  size="sm"
+                  onClick={onRemove}
+                  className="p-2 text-red-600 hover:text-red-700"
+                >
+                  <HiX className="h-4 w-4" />
+                </Button>
+              </Tooltip>
             )}
-          </Space>
-        )
-      }
-    >
+          </div>
+        )}
+      </div>
       {children}
     </Card>
   );
 }
-

@@ -5,20 +5,19 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Button, message, Image, Card, Typography, Space, Alert, Tabs, Input, Select } from 'antd';
-import { UploadOutlined, DeleteOutlined, EditOutlined, EditFilled, ClearOutlined, FontSizeOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Button, Card, Alert, Tabs, TextInput, Select, Label, FileInput } from 'flowbite-react';
+import { HiUpload, HiTrash, HiPencil, HiPencilAlt, HiX, HiPencil as HiFont, HiCheckCircle } from 'react-icons/hi';
 import SignatureCanvas from 'react-signature-canvas';
 import SignatureFontProvider from './SignatureFontProvider';
-
-const { Title, Text, Paragraph } = Typography;
+import { notify } from '@/lib/utils/notification-helper';
+import Image from 'next/image';
 
 function SignatureUploadContent() {
   const [loading, setLoading] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState(null);
   const [hasSignature, setHasSignature] = useState(false);
-  const [activeTab, setActiveTab] = useState('type');
+  const [activeTab, setActiveTab] = useState(0);
   const sigCanvas = useRef(null);
-  const typeCanvas = useRef(null);
   
   // State for typed signature
   const [typedName, setTypedName] = useState('');
@@ -31,9 +30,9 @@ function SignatureUploadContent() {
 
   const fetchSignature = async () => {
     try {
-      // Use v1Api client for signature operations
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.signatures.getSignature();
+      // Use v2Api client for signature operations
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.signatures.getSignature();
       const data = response.data || response;
       setSignatureUrl(data.signatureUrl);
       setHasSignature(true);
@@ -51,7 +50,7 @@ function SignatureUploadContent() {
 
   const handleSaveDrawnSignature = async () => {
     if (sigCanvas.current.isEmpty()) {
-      message.warning('Please draw your signature first');
+      notify.warning('Please draw your signature first');
       return;
     }
 
@@ -61,43 +60,40 @@ function SignatureUploadContent() {
       // Convert canvas to blob
       const canvas = sigCanvas.current.getCanvas();
       canvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('signature', blob, 'signature.png');
-
-        // Use v1Api client for signature upload
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.signatures.uploadSignature(blob);
+        // Use v2Api client for signature upload
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const response = await v2Api.signatures.uploadSignature(blob);
         const data = response.data || response;
         setSignatureUrl(data.signatureUrl);
         setHasSignature(true);
-        message.success('✅ Signature saved successfully');
+        notify.success('✅ Signature saved successfully');
         handleClearCanvas();
         setLoading(false);
       }, 'image/png');
     } catch (error) {
       console.error('Save error:', error);
-      message.error('Failed to save signature');
+      notify.error('Failed to save signature');
       setLoading(false);
     }
   };
 
-  const handleUpload = async ({ file }) => {
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
     setLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('signature', file);
-
-      // Use v1Api client for signature upload
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.signatures.uploadSignature(file);
+      // Use v2Api client for signature upload
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.signatures.uploadSignature(file);
       const data = response.data || response;
       setSignatureUrl(data.signatureUrl);
       setHasSignature(true);
-      message.success('✅ Signature uploaded successfully');
+      notify.success('✅ Signature uploaded successfully');
     } catch (error) {
       console.error('[SignatureUpload] Error uploading signature:', error);
-      message.error(error.message || 'Failed to upload signature');
+      notify.error(error.message || 'Failed to upload signature');
     } finally {
       setLoading(false);
     }
@@ -107,16 +103,16 @@ function SignatureUploadContent() {
     setLoading(true);
     
     try {
-      // Use v1Api client for signature deletion
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.signatures.deleteSignature();
+      // Use v2Api client for signature deletion
+      const { v2Api } = await import('@/lib/api/v2-client');
+      await v2Api.signatures.deleteSignature();
 
       setSignatureUrl(null);
       setHasSignature(false);
-      message.success('✅ Signature removed successfully');
+      notify.success('✅ Signature removed successfully');
     } catch (error) {
       console.error('[SignatureUpload] Error deleting signature:', error);
-      message.error(error.message || 'Failed to delete signature');
+      notify.error(error.message || 'Failed to delete signature');
     } finally {
       setLoading(false);
     }
@@ -124,7 +120,7 @@ function SignatureUploadContent() {
 
   const handleSaveTypedSignature = async () => {
     if (!typedName.trim()) {
-      message.warning('Please enter your name');
+      notify.warning('Please enter your name');
       return;
     }
 
@@ -132,7 +128,6 @@ function SignatureUploadContent() {
 
     try {
       // Create a canvas with dimensions optimized for signature sizing
-      // The API will crop white space automatically
       const canvas = document.createElement('canvas');
       canvas.width = 500;
       canvas.height = 150;
@@ -142,8 +137,7 @@ function SignatureUploadContent() {
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Set text properties - use smaller font size for more compact signature
-      // The signature will be cropped and scaled in the PDF, so smaller font = smaller final image
+      // Set text properties
       ctx.fillStyle = 'black';
       ctx.font = `50px "${selectedFont}", cursive`;
       ctx.textAlign = 'center';
@@ -154,22 +148,19 @@ function SignatureUploadContent() {
 
       // Convert canvas to blob
       canvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('signature', blob, 'signature.png');
-
-        // Use v1Api client for signature upload
-        const { v1Api } = await import('@/lib/api/v1-client');
-        const response = await v1Api.signatures.uploadSignature(blob);
+        // Use v2Api client for signature upload
+        const { v2Api } = await import('@/lib/api/v2-client');
+        const response = await v2Api.signatures.uploadSignature(blob);
         const data = response.data || response;
         setSignatureUrl(data.signatureUrl);
         setHasSignature(true);
-        message.success('✅ Signature saved successfully');
+        notify.success('✅ Signature saved successfully');
         setTypedName('');
         setLoading(false);
       }, 'image/png');
     } catch (error) {
       console.error('Save error:', error);
-      message.error('Failed to save signature');
+      notify.error('Failed to save signature');
       setLoading(false);
     }
   };
@@ -186,313 +177,274 @@ function SignatureUploadContent() {
     { value: 'Tangerine', label: 'Tangerine (Professional)' },
   ];
 
-  // Tabs for drawing or uploading signature
-  const signatureTabs = [
-    {
-      key: 'type',
-      label: (
-        <span>
-          <FontSizeOutlined /> Type Signature
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '16px' }}>
-          <Alert
-            message="Type Your Signature"
-            description="Enter your name and choose a font style. Your signature will be generated automatically in your selected font."
-            type="info"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-          
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <div>
-              <Text strong>Enter Your Name:</Text>
-              <Input
-                size="large"
-                placeholder="e.g., John Smith"
-                value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
-                style={{ marginTop: '8px' }}
-                maxLength={50}
-              />
-            </div>
-
-            <div>
-              <Text strong>Choose Font Style:</Text>
-              <Select
-                size="large"
-                value={selectedFont}
-                onChange={setSelectedFont}
-                style={{ width: '100%', marginTop: '8px' }}
-                options={signatureFonts}
-              />
-            </div>
-
-            {typedName && (
-              <div>
-                <Text strong>Preview:</Text>
-                <div
-                  style={{
-                    border: '1px solid #d9d9d9',
-                    borderRadius: '4px',
-                    background: 'white',
-                    padding: '32px',
-                    textAlign: 'center',
-                    marginTop: '8px',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: `"${selectedFont}", cursive`,
-                      fontSize: '48px',
-                      color: 'black',
-                    }}
-                  >
-                    {typedName}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div style={{ textAlign: 'center', marginTop: '16px' }}>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={handleSaveTypedSignature}
-                loading={loading}
-                size="large"
-                disabled={!typedName.trim()}
-              >
-                Save Signature
-              </Button>
-            </div>
-          </Space>
-
-          <div style={{ marginTop: '16px' }}>
-            <Text type="secondary">
-              💡 Tip: Try different fonts to find the style that best represents your signature.
-            </Text>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'draw',
-      label: (
-        <span>
-          <EditFilled /> Draw Signature
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '16px' }}>
-          <Alert
-            message="Draw Your Signature"
-            description="Use your mouse, touchpad, or stylus to sign your name below. For best results, sign naturally as you would on paper."
-            type="info"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-          
-          <div
-            style={{
-              border: '2px dashed #d9d9d9',
-              borderRadius: '4px',
-              background: 'white',
-              padding: '16px',
-              textAlign: 'center',
-            }}
-          >
-            <SignatureCanvas
-              ref={sigCanvas}
-              canvasProps={{
-                width: 500,
-                height: 200,
-                className: 'signature-canvas',
-                style: {
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px',
-                  width: '100%',
-                  maxWidth: '500px',
-                  height: '200px',
-                },
-              }}
-              backgroundColor="white"
-            />
-          </div>
-
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <Space>
-              <Button
-                icon={<ClearOutlined />}
-                onClick={handleClearCanvas}
-                disabled={loading}
-              >
-                Clear
-              </Button>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={handleSaveDrawnSignature}
-                loading={loading}
-                size="large"
-              >
-                Save Signature
-              </Button>
-            </Space>
-          </div>
-
-          <div style={{ marginTop: '16px' }}>
-            <Text type="secondary">
-              💡 Tip: Sign naturally as you would on paper. You can clear and redraw as many times as needed.
-            </Text>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'upload',
-      label: (
-        <span>
-          <UploadOutlined /> Upload Image
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '16px' }}>
-          <Alert
-            message="Upload Signature Image"
-            description="Upload a PNG, JPG, or GIF file (max 5MB). For best results, use a scanned image of your handwritten signature."
-            type="info"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-          
-          <div style={{ textAlign: 'center', padding: '24px' }}>
-            <Upload
-              accept="image/png,image/jpeg,image/jpg,image/gif"
-              showUploadList={false}
-              customRequest={handleUpload}
-              disabled={loading}
-            >
-              <Button
-                type="primary"
-                icon={<UploadOutlined />}
-                size="large"
-                loading={loading}
-              >
-                Choose File
-              </Button>
-            </Upload>
-          </div>
-
-          <Card
-            title="📝 Preparation Tips"
-            style={{ background: '#fafafa' }}
-            size="small"
-          >
-            <ul style={{ marginBottom: 0, paddingLeft: '20px' }}>
-              <li><Text>Sign your name on white paper with a dark pen</Text></li>
-              <li><Text>Take a clear photo or scan it</Text></li>
-              <li><Text>Crop the image to show only your signature</Text></li>
-              <li><Text>For best quality, use a transparent PNG file</Text></li>
-            </ul>
-          </Card>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginBottom: 8 }}>
-          <EditOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+      <div className="mb-6">
+        <h4 className="text-xl font-semibold mb-2 flex items-center gap-2">
+          <HiPencil className="h-5 w-5 text-blue-600" />
           Digital Signature
-        </Title>
-        <Paragraph type="secondary" style={{ fontSize: 15 }}>
+        </h4>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
           Create or upload your signature to automatically sign N4 forms. Your signature will be added to all generated N4 notices with a professional DocuSign-like experience.
-        </Paragraph>
+        </p>
       </div>
 
       {hasSignature && signatureUrl ? (
-        <>
-          <Card
-            title={
-              <Space>
-                <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                <span>Signature Active</span>
-              </Space>
-            }
-            extra={
-              <Space>
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => {
-                    setHasSignature(false);
-                    setActiveTab('type');
-                  }}
-                  disabled={loading}
-                >
-                  Replace
-                </Button>
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={handleDelete}
-                  loading={loading}
-                >
-                  Remove
-                </Button>
-              </Space>
-            }
-            style={{ marginTop: '24px', border: '2px solid #52c41a' }}
-          >
-            <div style={{ textAlign: 'left', padding: '24px' }}>
-              <div
-                style={{
-                  width: '240px',
-                  height: '75px',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px',
-                  padding: '8px',
-                  background: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  position: 'relative',
-                  overflow: 'hidden',
+        <Card className="mt-6 border-2 border-green-500">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <HiCheckCircle className="h-5 w-5 text-green-500" />
+              <h5 className="font-semibold">Signature Active</h5>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                color="light"
+                onClick={() => {
+                  setHasSignature(false);
+                  setActiveTab(0);
                 }}
+                disabled={loading}
+                className="flex items-center gap-2"
               >
-                <Image
-                  src={signatureUrl}
-                  alt="Your Signature"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    objectPosition: 'left center',
-                  }}
-                  preview={false}
-                />
-              </div>
-              <Alert
-                message="Signature Ready"
-                description="Your signature will be automatically placed on all N4 forms when you download them. The signing process includes a guided review and confirmation step."
-                type="success"
-                showIcon
-                style={{ marginTop: '16px' }}
+                <HiPencil className="h-4 w-4" />
+                Replace
+              </Button>
+              <Button
+                color="failure"
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <HiTrash className="h-4 w-4" />
+                Remove
+              </Button>
+            </div>
+          </div>
+          <div className="text-left p-6">
+            <div className="w-60 h-20 border border-gray-300 rounded-lg p-2 bg-white flex items-center justify-start relative overflow-hidden">
+              <img
+                src={signatureUrl}
+                alt="Your Signature"
+                className="max-w-full max-h-full object-contain object-left-center"
               />
             </div>
-          </Card>
-        </>
+            <Alert color="success" className="mt-4">
+              <div>
+                <p className="font-semibold">Signature Ready</p>
+                <p className="text-sm mt-1">
+                  Your signature will be automatically placed on all N4 forms when you download them. The signing process includes a guided review and confirmation step.
+                </p>
+              </div>
+            </Alert>
+          </div>
+        </Card>
       ) : (
-        <Card style={{ marginTop: '24px' }}>
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={signatureTabs}
-            size="large"
-          />
+        <Card className="mt-6">
+          <Tabs aria-label="Signature creation tabs" style="underline" onActiveTabChange={setActiveTab}>
+            <Tabs.Item active={activeTab === 0} title={
+              <span className="flex items-center gap-2">
+                <HiFont className="h-4 w-4" />
+                Type Signature
+              </span>
+            }>
+              <div className="p-4">
+                <Alert color="info" className="mb-4">
+                  <div>
+                    <p className="font-semibold">Type Your Signature</p>
+                    <p className="text-sm mt-1">
+                      Enter your name and choose a font style. Your signature will be generated automatically in your selected font.
+                    </p>
+                  </div>
+                </Alert>
+                
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="typedName" className="mb-2 block font-semibold">
+                      Enter Your Name:
+                    </Label>
+                    <TextInput
+                      id="typedName"
+                      type="text"
+                      placeholder="e.g., John Smith"
+                      value={typedName}
+                      onChange={(e) => setTypedName(e.target.value)}
+                      maxLength={50}
+                      sizing="lg"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="fontSelect" className="mb-2 block font-semibold">
+                      Choose Font Style:
+                    </Label>
+                    <Select
+                      id="fontSelect"
+                      value={selectedFont}
+                      onChange={(e) => setSelectedFont(e.target.value)}
+                      sizing="lg"
+                    >
+                      {signatureFonts.map(font => (
+                        <option key={font.value} value={font.value}>{font.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {typedName && (
+                    <div>
+                      <Label className="mb-2 block font-semibold">Preview:</Label>
+                      <div className="border border-gray-300 rounded-lg bg-white p-8 text-center">
+                        <div
+                          className="text-5xl text-black"
+                          style={{ fontFamily: `"${selectedFont}", cursive` }}
+                        >
+                          {typedName}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-center mt-4">
+                    <Button
+                      color="blue"
+                      onClick={handleSaveTypedSignature}
+                      disabled={loading || !typedName.trim()}
+                      size="lg"
+                      className="flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <HiPencil className="h-4 w-4" />
+                          Save Signature
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    💡 Tip: Try different fonts to find the style that best represents your signature.
+                  </p>
+                </div>
+              </div>
+            </Tabs.Item>
+
+            <Tabs.Item active={activeTab === 1} title={
+              <span className="flex items-center gap-2">
+                <HiPencilAlt className="h-4 w-4" />
+                Draw Signature
+              </span>
+            }>
+              <div className="p-4">
+                <Alert color="info" className="mb-4">
+                  <div>
+                    <p className="font-semibold">Draw Your Signature</p>
+                    <p className="text-sm mt-1">
+                      Use your mouse, touchpad, or stylus to sign your name below. For best results, sign naturally as you would on paper.
+                    </p>
+                  </div>
+                </Alert>
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg bg-white p-4 text-center">
+                  <SignatureCanvas
+                    ref={sigCanvas}
+                    canvasProps={{
+                      width: 500,
+                      height: 200,
+                      className: 'signature-canvas',
+                      style: {
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '4px',
+                        width: '100%',
+                        maxWidth: '500px',
+                        height: '200px',
+                      },
+                    }}
+                    backgroundColor="white"
+                  />
+                </div>
+
+                <div className="mt-4 text-center flex justify-center gap-2">
+                  <Button
+                    color="light"
+                    onClick={handleClearCanvas}
+                    disabled={loading}
+                    className="flex items-center gap-2"
+                  >
+                    <HiX className="h-4 w-4" />
+                    Clear
+                  </Button>
+                  <Button
+                    color="blue"
+                    onClick={handleSaveDrawnSignature}
+                    disabled={loading}
+                    size="lg"
+                    className="flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <HiPencil className="h-4 w-4" />
+                        Save Signature
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    💡 Tip: Sign naturally as you would on paper. You can clear and redraw as many times as needed.
+                  </p>
+                </div>
+              </div>
+            </Tabs.Item>
+
+            <Tabs.Item active={activeTab === 2} title={
+              <span className="flex items-center gap-2">
+                <HiUpload className="h-4 w-4" />
+                Upload Image
+              </span>
+            }>
+              <div className="p-4">
+                <Alert color="info" className="mb-4">
+                  <div>
+                    <p className="font-semibold">Upload Signature Image</p>
+                    <p className="text-sm mt-1">
+                      Upload a PNG, JPG, or GIF file (max 5MB). For best results, use a scanned image of your handwritten signature.
+                    </p>
+                  </div>
+                </Alert>
+                
+                <div className="text-center py-6">
+                  <FileInput
+                    accept="image/png,image/jpeg,image/jpg,image/gif"
+                    onChange={handleUpload}
+                    disabled={loading}
+                    helperText="Choose a signature image file (PNG, JPG, or GIF, max 5MB)"
+                  />
+                </div>
+
+                <Card className="bg-gray-50 dark:bg-gray-800">
+                  <h6 className="font-semibold mb-2">📝 Preparation Tips</h6>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li>Sign your name on white paper with a dark pen</li>
+                    <li>Take a clear photo or scan it</li>
+                    <li>Crop the image to show only your signature</li>
+                    <li>For best quality, use a transparent PNG file</li>
+                  </ul>
+                </Card>
+              </div>
+            </Tabs.Item>
+          </Tabs>
         </Card>
       )}
     </div>
@@ -507,4 +459,3 @@ export default function SignatureUpload() {
     </SignatureFontProvider>
   );
 }
-

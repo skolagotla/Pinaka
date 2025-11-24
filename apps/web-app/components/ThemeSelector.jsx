@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Card, Radio, Row, Col, Spin } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Spinner } from 'flowbite-react';
+import { HiCheckCircle } from 'react-icons/hi';
 import { useTheme } from '@/lib/hooks';
 
 export default function ThemeSelector({ currentTheme, onThemeChange }) {
@@ -28,95 +28,63 @@ export default function ThemeSelector({ currentTheme, onThemeChange }) {
 
   return (
     <div>
-      <Radio.Group 
-        value={selectedTheme} 
-        onChange={(e) => handleThemeSelect(e.target.value)}
-        style={{ width: '100%' }}
-      >
-        <Row gutter={[16, 16]}>
-          {availableThemes.map((theme) => {
-            const isSelected = selectedTheme === theme.id;
-            const primaryColor = theme.config.token.colorPrimary;
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {availableThemes.map((theme) => {
+          const isSelected = selectedTheme === theme.id;
+          const primaryColor = theme.config.token?.colorPrimary || '#3b82f6';
 
-            return (
-              <Col key={theme.id} xs={24} sm={12} md={8} lg={6}>
-                <Card
-                  hoverable
+          return (
+            <Card
+              key={theme.id}
+              className={`cursor-pointer hover:shadow-lg transition-all ${
+                isSelected ? 'border-2' : 'border'
+              }`}
+              style={{
+                borderColor: isSelected ? primaryColor : undefined,
+                backgroundColor: theme.id === 'dark' ? '#141414' : '#ffffff',
+              }}
+              onClick={() => handleThemeSelect(theme.id)}
+            >
+              <div className="flex flex-col gap-2">
+                {/* Theme Preview */}
+                <div
+                  className="w-full h-16 rounded-lg flex items-center justify-center relative mb-2"
                   style={{
-                    border: isSelected ? `3px solid ${primaryColor}` : '1px solid #d9d9d9',
-                    borderRadius: '12px',
-                    position: 'relative',
-                    transition: 'all 0.3s ease',
-                    backgroundColor: theme.id === 'dark' ? '#141414' : '#ffffff',
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}aa 100%)`,
                   }}
-                  bodyStyle={{ padding: '16px' }}
                 >
-                  <Radio value={theme.id} style={{ width: '100%' }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '8px',
-                      color: theme.id === 'dark' ? '#ffffff' : '#000000',
-                    }}>
-                      {/* Theme Preview */}
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '60px',
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}aa 100%)`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: '8px',
-                          position: 'relative',
-                        }}
-                      >
-                        {isSelected && (
-                          <CheckCircleOutlined 
-                            style={{ 
-                              fontSize: '32px', 
-                              color: '#ffffff',
-                              position: 'absolute',
-                            }} 
-                          />
-                        )}
-                      </div>
+                  {isSelected && (
+                    <HiCheckCircle 
+                      className="h-8 w-8 text-white absolute"
+                    />
+                  )}
+                </div>
 
-                      {/* Theme Name */}
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>
-                        {theme.name}
-                      </div>
+                {/* Theme Name */}
+                <div className="font-semibold text-sm" style={{
+                  color: theme.id === 'dark' ? '#ffffff' : '#000000',
+                }}>
+                  {theme.name}
+                </div>
 
-                      {/* Theme Description */}
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: theme.id === 'dark' ? '#a0a0a0' : '#666666',
-                        lineHeight: '1.4',
-                      }}>
-                        {theme.description}
-                      </div>
-                    </div>
-                  </Radio>
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
-      </Radio.Group>
+                {/* Theme Description */}
+                <div className="text-xs" style={{
+                  color: theme.id === 'dark' ? '#a0a0a0' : '#666666',
+                }}>
+                  {theme.description}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
       {saving && (
-        <div style={{ 
-          textAlign: 'center', 
-          marginTop: '20px',
-          padding: '12px',
-          background: '#e6f7ff',
-          borderRadius: '8px',
-        }}>
-          <Spin /> <span style={{ marginLeft: '8px' }}>Applying theme...</span>
+        <div className="text-center mt-5 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <Spinner size="sm" className="mr-2" />
+          <span className="text-sm">Applying theme...</span>
         </div>
       )}
     </div>
   );
 }
-

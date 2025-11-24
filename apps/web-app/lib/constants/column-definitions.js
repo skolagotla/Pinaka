@@ -19,12 +19,12 @@
 import { STANDARD_COLUMNS, customizeColumn } from './standard-columns';
 import { renderStatus, renderDate, renderCurrency, renderEmail, renderPhone, renderProperty, renderTenant, renderTicketNumber, renderPriority } from '@/components/shared/TableRenderers';
 import { formatDateDisplay } from '../utils/unified-date-formatter';
-import { Typography, Tag, Space, Rate } from 'antd';
-import { PhoneOutlined, MailOutlined, ToolOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Button, Tooltip, Popconfirm } from 'antd';
+import { Badge, Tooltip } from 'flowbite-react';
+import { HiPhone, HiMail, HiOutlineCog, HiPencilAlt, HiTrash } from 'react-icons/hi';
+import { Button } from 'flowbite-react';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
-
-const { Text } = Typography;
+import StarRating from '@/components/shared/StarRating';
+import { FlowbitePopconfirm } from '@/components/shared/FlowbitePopconfirm';
 
 /**
  * Tenant Column Definitions
@@ -35,7 +35,7 @@ export const TENANT_COLUMNS = {
       const name = record.firstName && record.lastName 
         ? `${record.firstName} ${record.lastName}`
         : record.name || record.tenantName || '—';
-      return <Text strong>{name}</Text>;
+      return <span className="font-semibold">{name}</span>;
     },
   }),
 
@@ -68,7 +68,7 @@ export const VENDOR_COLUMNS = {
     key: 'name',
     width: 150,
     align: 'center',
-    render: (name) => <Text strong>{name}</Text>,
+    render: (name) => <span className="font-semibold">{name}</span>,
   },
 
   BUSINESS_NAME: {
@@ -77,31 +77,31 @@ export const VENDOR_COLUMNS = {
     key: 'businessName',
     width: 180,
     align: 'center',
-    render: (businessName) => businessName || <Text type="secondary">N/A</Text>,
+    render: (businessName) => businessName || <span className="text-gray-500 dark:text-gray-400">N/A</span>,
   },
 
   CATEGORY: customizeColumn(STANDARD_COLUMNS.CATEGORY, {
     render: (category) => (
-      <Tag color="blue" icon={<ToolOutlined />}>{category}</Tag>
+      <Badge color="info" icon={HiOutlineCog}>{category}</Badge>
     ),
   }),
 
   PHONE: customizeColumn(STANDARD_COLUMNS.PHONE, {
     render: (phone) => (
-      <Space>
-        <PhoneOutlined />
-        <Text>{phone}</Text>
-      </Space>
+      <div className="flex items-center gap-2">
+        <HiPhone />
+        <span>{phone}</span>
+      </div>
     ),
   }),
 
   EMAIL: customizeColumn(STANDARD_COLUMNS.EMAIL, {
     render: (email) => email ? (
-      <Space>
-        <MailOutlined />
-        <Text>{email}</Text>
-      </Space>
-    ) : <Text type="secondary">N/A</Text>,
+      <div className="flex items-center gap-2">
+        <HiMail />
+        <span>{email}</span>
+      </div>
+    ) : <span className="text-gray-500 dark:text-gray-400">N/A</span>,
   }),
 
   RATING: {
@@ -110,7 +110,7 @@ export const VENDOR_COLUMNS = {
     key: 'rating',
     width: 150,
     align: 'center',
-    render: (rating) => rating ? <Rate disabled value={rating} /> : <Text type="secondary">No ratings yet</Text>,
+    render: (rating) => rating ? <StarRating value={rating} showValue /> : <span className="text-gray-500 dark:text-gray-400">No ratings yet</span>,
   },
 
   HOURLY_RATE: {
@@ -120,8 +120,8 @@ export const VENDOR_COLUMNS = {
     width: 130,
     align: 'right',
     render: (rate) => rate ? (
-      <Text strong>${rate}/hr</Text>
-    ) : <Text type="secondary">N/A</Text>,
+      <span className="font-semibold">${rate}/hr</span>
+    ) : <span className="text-gray-500 dark:text-gray-400">N/A</span>,
   },
 
   ACTIONS: STANDARD_COLUMNS.ACTIONS,
@@ -133,23 +133,23 @@ export const VENDOR_COLUMNS = {
 export const PROPERTY_COLUMNS = {
   NAME: customizeColumn(STANDARD_COLUMNS.PROPERTY_NAME, {
     render: (_, property) => (
-      <Text strong>{property.propertyName || property.addressLine1}</Text>
+      <span className="font-semibold">{property.propertyName || property.addressLine1}</span>
     ),
   }),
 
   ADDRESS: customizeColumn(STANDARD_COLUMNS.ADDRESS, {
-    render: (_, property) => <Text>{property.addressLine1}</Text>,
+    render: (_, property) => <span>{property.addressLine1}</span>,
   }),
 
   CITY_STATE: customizeColumn(STANDARD_COLUMNS.CITY_STATE, {
     render: (_, property) => (
-      <Text>{property.city}, {property.provinceState}</Text>
+      <span>{property.city}, {property.provinceState}</span>
     ),
   }),
 
   TYPE: customizeColumn(STANDARD_COLUMNS.TYPE, {
     dataIndex: 'propertyType',
-    render: (type) => type ? <Tag color="blue">{type}</Tag> : <Text type="secondary">—</Text>,
+    render: (type) => type ? <Badge color="info">{type}</Badge> : <span className="text-gray-500 dark:text-gray-400">—</span>,
   }),
 
   STATUS: customizeColumn(STANDARD_COLUMNS.STATUS, {
@@ -158,9 +158,9 @@ export const PROPERTY_COLUMNS = {
       const hasActiveLease = activeLeases.length > 0;
       
       return hasActiveLease ? (
-        <Tag color="success">Rented</Tag>
+        <Badge color="success">Rented</Badge>
       ) : (
-        <Tag color="default">Vacant</Tag>
+        <Badge color="gray">Vacant</Badge>
       );
     },
   }),
@@ -182,18 +182,18 @@ export const LEASE_COLUMNS = {
       const unit = units.find(u => u.id === lease.unitId);
       const property = unit?.property;
       
-      if (!property) return <Text type="secondary">—</Text>;
+      if (!property) return <span className="text-gray-500 dark:text-gray-400">—</span>;
       
       const propertyName = property.propertyName || property.addressLine1;
       
       // Single unit: show property name only
       if (property.unitCount === 1) {
-        return <Text>{propertyName}</Text>;
+        return <span>{propertyName}</span>;
       }
       
       // Multiple units: show "Unit# - Property Name"
       const unitName = unit?.unitName || '';
-      return <Text>{unitName} - {propertyName}</Text>;
+      return <span>{unitName} - {propertyName}</span>;
     },
   },
 
@@ -202,7 +202,7 @@ export const LEASE_COLUMNS = {
       const tenantNames = lease.leaseTenants?.map(lt => 
         `${lt.tenant?.firstName || ''} ${lt.tenant?.lastName || ''}`.trim()
       ).filter(Boolean).join(', ') || '—';
-      return <Text>{tenantNames}</Text>;
+      return <span>{tenantNames}</span>;
     },
   }),
 
@@ -212,7 +212,7 @@ export const LEASE_COLUMNS = {
 
   END_DATE: customizeColumn(STANDARD_COLUMNS.END_DATE, {
     render: (_, lease) => (
-      <Text>{lease.leaseEnd ? formatDateDisplay(lease.leaseEnd) : 'Month-to-month'}</Text>
+      <span>{lease.leaseEnd ? formatDateDisplay(lease.leaseEnd) : 'Month-to-month'}</span>
     ),
   }),
 
@@ -248,7 +248,11 @@ export const MAINTENANCE_COLUMNS = {
   }),
 
   TITLE: customizeColumn(STANDARD_COLUMNS.TITLE, {
-    render: (title) => <Text ellipsis={{ tooltip: title }}>{title}</Text>,
+    render: (title) => (
+      <Tooltip content={title}>
+        <span className="truncate block max-w-xs">{title}</span>
+      </Tooltip>
+    ),
   }),
 
   PROPERTY: {
@@ -261,7 +265,7 @@ export const MAINTENANCE_COLUMNS = {
   },
 
   CATEGORY: customizeColumn(STANDARD_COLUMNS.CATEGORY, {
-    render: (category) => <Tag color="blue">{category}</Tag>,
+    render: (category) => <Badge color="info">{category}</Badge>,
   }),
 
   PRIORITY: customizeColumn(STANDARD_COLUMNS.PRIORITY, {
@@ -293,15 +297,15 @@ export const RENT_PAYMENT_COLUMNS = {
       const property = payment.lease?.unit?.property;
       const unit = payment.lease?.unit;
       
-      if (!property) return <Text type="secondary">—</Text>;
+      if (!property) return <span className="text-gray-500 dark:text-gray-400">—</span>;
       
       const propertyName = property.propertyName || property.addressLine1;
       const unitName = property.unitCount === 1 ? '' : (unit?.unitName || '');
       
       return (
-        <Text>
+        <span>
           {unitName ? `${unitName} - ` : ''}{propertyName}
-        </Text>
+        </span>
       );
     },
   },
@@ -309,8 +313,8 @@ export const RENT_PAYMENT_COLUMNS = {
   TENANT: customizeColumn(STANDARD_COLUMNS.TENANT_NAME, {
     render: (_, payment) => {
       const tenant = payment.lease?.leaseTenants?.[0]?.tenant;
-      if (!tenant) return <Text type="secondary">—</Text>;
-      return <Text>{`${tenant.firstName} ${tenant.lastName}`}</Text>;
+      if (!tenant) return <span className="text-gray-500 dark:text-gray-400">—</span>;
+      return <span>{`${tenant.firstName} ${tenant.lastName}`}</span>;
     },
   }),
 
@@ -371,7 +375,7 @@ export function createActionColumn(onEdit, onDelete, options = {}) {
 
   // Import ActionButton components directly (can't use hooks in non-component function)
   const React = require('react');
-  const { Space, Popconfirm, Tooltip } = require('antd');
+  const { FlowbitePopconfirm } = require('@/components/shared/FlowbitePopconfirm');
   const { ActionButton } = require('@/components/shared/buttons');
 
   return {
@@ -393,25 +397,24 @@ export function createActionColumn(onEdit, onDelete, options = {}) {
 
       if (showDelete && onDelete) {
         buttons.push(
-          <Popconfirm
+          <FlowbitePopconfirm
             key="delete"
             title={deleteConfirmTitle}
             description={deleteConfirmDescription}
             onConfirm={() => onDelete(record.id)}
             okText="Yes"
             cancelText="No"
-            okButtonProps={{ danger: true }}
           >
             <ActionButton
               action="delete"
               tooltip={deleteTooltip}
               size="middle"
             />
-          </Popconfirm>
+          </FlowbitePopconfirm>
         );
       }
 
-      return buttons.length > 0 ? <Space size="small">{buttons}</Space> : null;
+      return buttons.length > 0 ? <div className="flex items-center gap-2">{buttons}</div> : null;
     },
   };
 }

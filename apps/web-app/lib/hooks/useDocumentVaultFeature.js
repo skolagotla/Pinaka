@@ -36,15 +36,15 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { Button, Space, Tag, Tooltip } from 'antd';
+import { Badge, Tooltip } from 'flowbite-react';
 import { 
-  EyeOutlined, 
-  DownloadOutlined, 
-  CheckOutlined, 
-  CloseOutlined,
-  DeleteOutlined,
-  SwapOutlined 
-} from '@ant-design/icons';
+  HiEye, 
+  HiDownload, 
+  HiCheck, 
+  HiX,
+  HiTrash,
+  HiSwitchHorizontal
+} from 'react-icons/hi';
 
 import { useDocumentVault } from './useDocumentVault';
 import { useDocumentModals } from './useDocumentModals';
@@ -108,15 +108,15 @@ export function useDocumentVaultFeature({
   // Get status tag
   const getStatusTag = useCallback((doc) => {
     if (doc.isDeleted) {
-      return <Tag color="default">Deleted</Tag>;
+      return <Badge color="gray">Deleted</Badge>;
     }
     if (doc.rejectionReason) {
-      return <Tag color="red">Rejected</Tag>;
+      return <Badge color="failure">Rejected</Badge>;
     }
     if (doc.verified) {
-      return <Tag color="green">Verified</Tag>;
+      return <Badge color="success">Verified</Badge>;
     }
-    return <Tag color="orange">Pending</Tag>;
+    return <Badge color="warning">Pending</Badge>;
   }, []);
 
   // Get uploaded by label with role
@@ -211,9 +211,9 @@ export function useDocumentVaultFeature({
         render: (_, record) => {
           const TableActionButton = require('@/components/shared/TableActionButton').default;
           return (
-            <Space size="small">
+            <div className="flex items-center gap-2">
               <TableActionButton
-                icon={<EyeOutlined />}
+                icon={<HiEye />}
                 onClick={() => vault.handleView(record)}
                 tooltip="View"
                 actionType="view"
@@ -224,13 +224,13 @@ export function useDocumentVaultFeature({
                   {userRole === 'landlord' && !record.verified && !record.rejectionReason && (
                     <>
                       <TableActionButton
-                        icon={<CheckOutlined />}
+                        icon={<HiCheck />}
                         onClick={() => vault.handleVerify(record.id)}
                         tooltip="Approve"
                         actionType="approve"
                       />
                       <TableActionButton
-                        icon={<CloseOutlined />}
+                        icon={<HiX />}
                         onClick={() => vault.handleReject(record.id, 'Please review and reupload')}
                         tooltip="Reject"
                         actionType="reject"
@@ -239,14 +239,14 @@ export function useDocumentVaultFeature({
                   )}
                   
                   <TableActionButton
-                    icon={<DownloadOutlined />}
+                    icon={<HiDownload />}
                     onClick={() => vault.handleDownload(record)}
                     tooltip="Download"
                     actionType="download"
                   />
                   
                   <TableActionButton
-                    icon={<SwapOutlined />}
+                    icon={<HiSwitchHorizontal />}
                     onClick={() => {
                       // This will be handled by the page component
                       // through a custom handler
@@ -256,14 +256,14 @@ export function useDocumentVaultFeature({
                   />
                   
                   <TableActionButton
-                    icon={<DeleteOutlined />}
+                    icon={<HiTrash />}
                     onClick={() => modals.openDeleteModal(record)}
                     tooltip="Delete"
                     actionType="delete"
                   />
                 </>
               )}
-            </Space>
+            </div>
           );
         },
       },

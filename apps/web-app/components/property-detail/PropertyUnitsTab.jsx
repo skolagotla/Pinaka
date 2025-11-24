@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Tag, Space, Button, Empty } from 'antd';
-import { HomeOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons';
-import { ProCard } from '../shared/LazyProComponents';
+import { Badge } from 'flowbite-react';
+import { HiHome, HiDocumentText, HiUserGroup } from 'react-icons/hi';
+import { Card } from 'flowbite-react';
+import FlowbiteTable from '../shared/FlowbiteTable';
 
 export default function PropertyUnitsTab({ property }) {
   const [units, setUnits] = useState(property?.units || []);
 
   if (!property || !units.length) {
     return (
-      <ProCard>
-        <Empty description="No units found for this property" />
-      </ProCard>
+      <Card>
+        <div className="text-center py-12">
+          <HiHome className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No units found for this property</p>
+        </div>
+      </Card>
     );
   }
 
@@ -21,10 +25,10 @@ export default function PropertyUnitsTab({ property }) {
       title: 'Unit',
       key: 'unitName',
       render: (_, record) => (
-        <Space>
-          <HomeOutlined />
-          <strong>{record.unitName || 'Unnamed Unit'}</strong>
-        </Space>
+        <div className="flex items-center gap-2">
+          <HiHome className="h-4 w-4 text-gray-500" />
+          <span className="font-semibold">{record.unitName || 'Unnamed Unit'}</span>
+        </div>
       ),
     },
     {
@@ -55,9 +59,9 @@ export default function PropertyUnitsTab({ property }) {
       render: (_, record) => {
         const hasActiveLease = record.leases?.some(l => l.status === 'Active');
         return hasActiveLease ? (
-          <Tag color="green">Occupied</Tag>
+          <Badge color="success">Occupied</Badge>
         ) : (
-          <Tag color="default">Vacant</Tag>
+          <Badge color="gray">Vacant</Badge>
         );
       },
     },
@@ -67,10 +71,10 @@ export default function PropertyUnitsTab({ property }) {
       render: (_, record) => {
         const activeLeases = record.leases?.filter(l => l.status === 'Active') || [];
         return (
-          <Space>
-            <FileTextOutlined />
+          <div className="flex items-center gap-2">
+            <HiDocumentText className="h-4 w-4 text-gray-500" />
             <span>{activeLeases.length}</span>
-          </Space>
+          </div>
         );
       },
     },
@@ -83,24 +87,23 @@ export default function PropertyUnitsTab({ property }) {
         ) || [];
         const uniqueTenants = [...new Map(tenants.map(t => [t.id, t])).values()];
         return (
-          <Space>
-            <TeamOutlined />
+          <div className="flex items-center gap-2">
+            <HiUserGroup className="h-4 w-4 text-gray-500" />
             <span>{uniqueTenants.length}</span>
-          </Space>
+          </div>
         );
       },
     },
   ];
 
   return (
-    <ProCard>
-      <Table
+    <Card>
+      <FlowbiteTable
         columns={columns}
         dataSource={units}
         rowKey="id"
         pagination={{ pageSize: 10 }}
       />
-    </ProCard>
+    </Card>
   );
 }
-

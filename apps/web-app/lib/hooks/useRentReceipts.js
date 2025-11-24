@@ -4,10 +4,9 @@
  */
 
 import { useState } from 'react';
-import { App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useRentReceipts() {
-  const { message } = App.useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [pdfUrl, setPdfUrl] = useState('');
@@ -33,11 +32,11 @@ export function useRentReceipts() {
         const url = URL.createObjectURL(blob);
         setPdfUrl(url);
       } else {
-        message.error('Failed to load receipt');
+        notify.error('Failed to load receipt');
       }
     } catch (error) {
       console.error('[useRentReceipts] View error:', error);
-      message.error('Failed to load receipt');
+      notify.error('Failed to load receipt');
     } finally {
       setPdfLoading(false);
     }
@@ -64,13 +63,13 @@ export function useRentReceipts() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        message.success('Receipt downloaded');
+        notify.success('Receipt downloaded');
       } else {
-        message.error('Failed to download receipt');
+        notify.error('Failed to download receipt');
       }
     } catch (error) {
       console.error('[useRentReceipts] Download error:', error);
-      message.error('Failed to download receipt');
+      notify.error('Failed to download receipt');
     }
   }
 

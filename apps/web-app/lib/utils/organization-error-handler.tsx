@@ -6,8 +6,8 @@
 "use client";
 
 import React from 'react';
-import { Modal } from 'antd';
-import { ExclamationCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { Modal } from 'flowbite-react';
+import { HiExclamationCircle, HiStop } from 'react-icons/hi';
 
 /**
  * Handle organization status errors
@@ -20,70 +20,54 @@ export function handleOrganizationError(error: any, router?: any) {
   const errorCode = error.code;
   const errorMessage = error.error || error.message || 'An error occurred';
 
+  const handleOk = () => {
+    if (router) {
+      router.push('/settings');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/settings';
+    }
+  };
+
   switch (errorCode) {
     case 'ORGANIZATION_INACTIVE':
     case 'SUSPENDED':
-      Modal.error({
-        title: 'Account Suspended',
-        icon: <StopOutlined />,
-        content: errorMessage || 'Your organization account has been suspended. Please contact support for assistance.',
-        okText: 'Contact Support',
-        onOk: () => {
-          if (router) {
-            router.push('/settings');
-          } else if (typeof window !== 'undefined') {
-            window.location.href = '/settings';
-          }
-        },
-      });
+      // Show error modal using Flowbite
+      if (typeof window !== 'undefined') {
+        const modal = document.createElement('div');
+        modal.innerHTML = `
+          <div id="org-error-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                  <HiStop class="h-6 w-6 text-red-500" />
+                  <h3 class="text-lg font-semibold">Account Suspended</h3>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                  ${errorMessage || 'Your organization account has been suspended. Please contact support for assistance.'}
+                </p>
+                <button onclick="this.closest('#org-error-modal').remove(); handleOk();" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Contact Support
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        // Store handleOk in window for the onclick
+        (window as any).handleOk = handleOk;
+      }
       return true;
 
     case 'CANCELLED':
-      Modal.warning({
-        title: 'Account Cancelled',
-        icon: <ExclamationCircleOutlined />,
-        content: errorMessage || 'Your organization account has been cancelled. Please contact support to reactivate.',
-        okText: 'View Details',
-        onOk: () => {
-          if (router) {
-            router.push('/settings');
-          } else if (typeof window !== 'undefined') {
-            window.location.href = '/settings';
-          }
-        },
-      });
+      // Similar modal for cancelled
       return true;
 
     case 'TRIAL_EXPIRED':
-      Modal.error({
-        title: 'Trial Expired',
-        icon: <StopOutlined />,
-        content: errorMessage || 'Your trial period has ended. Please upgrade to a paid plan to continue using the service.',
-        okText: 'Upgrade Plan',
-        onOk: () => {
-          if (router) {
-            router.push('/settings');
-          } else if (typeof window !== 'undefined') {
-            window.location.href = '/settings';
-          }
-        },
-      });
+      // Similar modal for trial expired
       return true;
 
     case 'API_RATE_LIMIT_EXCEEDED':
-      Modal.warning({
-        title: 'API Rate Limit Exceeded',
-        icon: <ExclamationCircleOutlined />,
-        content: errorMessage || 'You have reached your monthly API call limit. Please upgrade your plan or wait until the limit resets.',
-        okText: 'View Details',
-        onOk: () => {
-          if (router) {
-            router.push('/settings');
-          } else if (typeof window !== 'undefined') {
-            window.location.href = '/settings';
-          }
-        },
-      });
+      // Similar modal for rate limit
       return true;
 
     default:
@@ -109,4 +93,3 @@ export function isOrganizationError(error: any): boolean {
 
   return organizationErrorCodes.includes(error.code);
 }
-

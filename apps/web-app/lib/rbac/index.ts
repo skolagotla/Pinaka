@@ -11,14 +11,17 @@ if (typeof window === 'undefined') {
   require('./autoInitialize');
 }
 
-// Core permission functions
+// Core permission functions - V2 API version
+// @deprecated './permissions' uses Prisma - use './permissions_v2' for FastAPI v2
 export {
   hasPermission,
   canAccess,
   getUserScopes,
   filterByScope,
-  logPermissionCheck,
-} from './permissions';
+} from './permissions_v2';
+
+// Legacy Prisma-based functions (deprecated)
+// export { logPermissionCheck } from './permissions';
 
 // Middleware
 export {
@@ -149,15 +152,36 @@ export {
   generateTestReport,
 } from './testing';
 
-// Types - Export as both type and value for compatibility
+// Types - Export from v2 permissions (no Prisma dependency)
 export {
   ResourceCategory,
   PermissionAction,
-  RBACRole,
-  ScopeType,
-} from '@prisma/client';
-export type {
-  ApprovalWorkflowType,
-  ApprovalRequestStatus,
-} from '@prisma/client';
+} from './permissions_v2';
+
+// Legacy Prisma types (deprecated - kept for backward compatibility)
+// These may not be available if Prisma is removed
+try {
+  const prismaTypes = require('@prisma/client');
+  export const RBACRole = prismaTypes.RBACRole;
+  export const ScopeType = prismaTypes.ScopeType;
+  export type ApprovalWorkflowType = prismaTypes.ApprovalWorkflowType;
+  export type ApprovalRequestStatus = prismaTypes.ApprovalRequestStatus;
+} catch (e) {
+  // Prisma not available - define minimal types
+  export enum RBACRole {
+    SUPER_ADMIN = 'SUPER_ADMIN',
+    PMC_ADMIN = 'PMC_ADMIN',
+    PM = 'PM',
+    LANDLORD = 'LANDLORD',
+    TENANT = 'TENANT',
+    VENDOR = 'VENDOR',
+  }
+  export enum ScopeType {
+    PORTFOLIO = 'PORTFOLIO',
+    PROPERTY = 'PROPERTY',
+    UNIT = 'UNIT',
+  }
+  export type ApprovalWorkflowType = string;
+  export type ApprovalRequestStatus = string;
+}
 

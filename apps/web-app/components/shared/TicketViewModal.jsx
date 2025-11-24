@@ -5,48 +5,49 @@
  */
 
 "use client";
-import { Modal, Card, Row, Col, Badge, Tag, Button, Input, Select, Space, Divider, Tooltip, Avatar, Typography, Spin, Empty, Alert, Timeline, Rate, Table, Upload, message } from 'antd';
+import { Modal, Card, Badge, Button, Textarea, Select, Tooltip, Spinner, Alert, Table } from 'flowbite-react';
 import { 
-  CloseOutlined, 
-  SendOutlined, 
-  CheckOutlined, 
-  CloseCircleOutlined,
-  UserOutlined,
-  DownloadOutlined,
-  ToolOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  PlusOutlined,
-  PaperClipOutlined,
-  EyeOutlined,
-  UploadOutlined
-} from '@ant-design/icons';
+  HiX, 
+  HiPaperAirplane, 
+  HiCheck, 
+  HiXCircle,
+  HiUser,
+  HiDownload,
+  HiCog,
+  HiClock,
+  HiCurrencyDollar,
+  HiPlus,
+  HiPaperClip,
+  HiEye,
+  HiCloudUpload
+} from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { useState, useEffect } from 'react';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useExpenses, useUpdateExpense } from '@/lib/hooks/useV2Data';
-
-const { TextArea } = Input;
-const { Text } = Typography;
+import FlowbiteTable from './FlowbiteTable';
+import SimpleTimeline from './SimpleTimeline';
+import PDFViewerModal from './PDFViewerModal';
+import { notify } from '@/lib/utils/notification-helper';
 
 // Helper function to get priority color (same as MaintenanceClient)
 function getPriorityColor(priority, userRole = 'landlord') {
   if (userRole === 'landlord') {
     switch (priority) {
-      case 'Urgent': return 'red';
-      case 'High': return 'orange';
-      case 'Normal': return 'blue';
-      case 'Low': return 'default';
-      default: return 'default';
+      case 'Urgent': return 'failure';
+      case 'High': return 'warning';
+      case 'Normal': return 'info';
+      case 'Low': return 'gray';
+      default: return 'gray';
     }
   } else {
     switch (priority) {
-      case 'Urgent': return '#ff4d4f';
-      case 'High': return '#fa8c16';
-      case 'Normal': return '#1890ff';
-      case 'Low': return '#1890ff';
-      default: return '#1890ff';
+      case 'Urgent': return 'failure';
+      case 'High': return 'warning';
+      case 'Normal': return 'info';
+      case 'Low': return 'info';
+      default: return 'info';
     }
   }
 }
@@ -54,75 +55,95 @@ function getPriorityColor(priority, userRole = 'landlord') {
 // Helper function to render comment text with styled status (same as MaintenanceClient)
 function renderCommentText(text) {
   const statusColors = {
-    'Pending': '#fa8c16', // Orange
-    'In Progress': '#1890ff', // Blue
-    'Closed': '#52c41a', // Green
-    'Close': '#52c41a', // Green (for "Close" word)
-    'New': '#8c8c8c'
+    'Pending': '#f59e0b', // Orange
+    'In Progress': '#3b82f6', // Blue
+    'Closed': '#10b981', // Green
+    'Close': '#10b981', // Green (for "Close" word)
+    'New': '#6b7280'
   };
 
   // Check for full phrases first
   if (text.includes('Ticket Acknowledged: Pending')) {
     const parts = text.split('Ticket Acknowledged: Pending');
     return (
-      <Text>
-        {parts[0]
-        Ticket Acknowledged: <Text strong style={{ color: statusColors['Pending'], fontWeight: 700 }}>Pending</Text>
-        {parts[1]
-      </Text>
+      <span>
+        {parts[0]}
+        Ticket Acknowledged: <span className="font-bold" style={{ color: statusColors['Pending'] }}>Pending</span>
+        {parts[1]}
+      </span>
     );
   }
   if (text.includes('In Progress')) {
     const parts = text.split('In Progress');
     return (
-      <Text>
-        {parts[0]
-        <Text strong style={{ color: statusColors['In Progress'], fontWeight: 700 }}>In Progress</Text>
-        {parts[1]
-      </Text>
+      <span>
+        {parts[0]}
+        <span className="font-bold" style={{ color: statusColors['In Progress'] }}>In Progress</span>
+        {parts[1]}
+      </span>
     );
   }
   if (text.includes('Status: Pending')) {
     const parts = text.split('Status: Pending');
     return (
-      <Text>
-        {parts[0]
-        Status: <Text strong style={{ color: statusColors['Pending'], fontWeight: 700 }}>Pending</Text>
-        {parts[1]
-      </Text>
+      <span>
+        {parts[0]}
+        Status: <span className="font-bold" style={{ color: statusColors['Pending'] }}>Pending</span>
+        {parts[1]}
+      </span>
     );
   }
   if (text.includes('Status: In Progress')) {
     const parts = text.split('Status: In Progress');
     return (
-      <Text>
-        {parts[0]
-        Status: <Text strong style={{ color: statusColors['In Progress'], fontWeight: 700 }}>In Progress</Text>
-        {parts[1]
-      </Text>
+      <span>
+        {parts[0]}
+        Status: <span className="font-bold" style={{ color: statusColors['In Progress'] }}>In Progress</span>
+        {parts[1]}
+      </span>
     );
   }
   if (text.includes('Status: Closed') || text.includes('Status: Close')) {
     const parts = text.split(/Status: (Closed|Close)/);
     return (
-      <Text>
-        {parts[0]
-        Status: <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}parts[1]</Text>
-        {parts[2}
-      </Text>
+      <span>
+        {parts[0]}
+        Status: <span className="font-bold" style={{ color: statusColors['Closed'] }}>{parts[1]}</span>
+        {parts[2]}
+      </span>
     );
   }
   if (text.includes('Closed') || text.includes('Close')) {
     const parts = text.split(/(Closed|Close)/);
     return (
-      <Text>
-        {parts[0]
-        <Text strong style={{ color: statusColors['Closed'], fontWeight: 700 }}parts[1]</Text>
-        {parts[2}
-      </Text>
+      <span>
+        {parts[0]}
+        <span className="font-bold" style={{ color: statusColors['Closed'] }}>{parts[1]}</span>
+        {parts[2]}
+      </span>
     );
   }
-  return <Text>{text}</Text>;
+  return <span>{text}</span>;
+}
+
+// Simple Star Rating Component (replaces Ant Design Rate)
+function StarRating({ value, max = 5, size = 'sm' }) {
+  const fullStars = Math.floor(value);
+  const hasHalfStar = value % 1 >= 0.5;
+  const emptyStars = max - fullStars - (hasHalfStar ? 1 : 0);
+  
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: fullStars }).map((_, i) => (
+        <span key={i} className="text-yellow-400">★</span>
+      ))}
+      {hasHalfStar && <span className="text-yellow-400">☆</span>}
+      {Array.from({ length: emptyStars }).map((_, i) => (
+        <span key={i} className="text-gray-300">★</span>
+      ))}
+      <span className="ml-2 text-sm text-gray-600">{value.toFixed(1)}</span>
+    </div>
+  );
 }
 
 export default function TicketViewModal({
@@ -149,7 +170,7 @@ export default function TicketViewModal({
   const [expenseLoading, setExpenseLoading] = useState(false);
   const [invoiceUploadModalOpen, setInvoiceUploadModalOpen] = useState(false);
   const [uploadingExpenseId, setUploadingExpenseId] = useState(null);
-  const [invoiceFileList, setInvoiceFileList] = useState([]);
+  const [invoiceFile, setInvoiceFile] = useState(null);
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const [invoiceViewModalOpen, setInvoiceViewModalOpen] = useState(false);
   const [viewingInvoiceUrl, setViewingInvoiceUrl] = useState(null);
@@ -164,9 +185,9 @@ export default function TicketViewModal({
   async function fetchExpenses(ticketId) {
     try {
       setExpenseLoading(true);
-      // Use v1Api for expenses filtered by maintenance request
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const response = await v1Api.expenses.list({ 
+      // Use v2Api for expenses filtered by maintenance request
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const response = await v2Api.expenses.list({ 
         maintenanceRequestId: ticketId,
         page: 1,
         limit: 1000,
@@ -187,8 +208,8 @@ export default function TicketViewModal({
 
   // Handle invoice upload for existing expense
   async function handleUploadInvoice() {
-    if (!uploadingExpenseId || !invoiceFileList || invoiceFileList.length === 0 || !invoiceFileList[0].originFileObj) {
-      message.warning('Please select an invoice file');
+    if (!uploadingExpenseId || !invoiceFile) {
+      notify.warning('Please select an invoice file');
       return;
     }
 
@@ -196,7 +217,7 @@ export default function TicketViewModal({
     try {
       // First upload the file
       const formData = new FormData();
-      formData.append('invoice', invoiceFileList[0].originFileObj);
+      formData.append('invoice', invoiceFile);
       
       // Use v1 API for expense invoice upload
       const uploadResponse = await fetch(
@@ -232,16 +253,16 @@ export default function TicketViewModal({
               : exp
           )
         );
-        message.success('Invoice uploaded successfully');
+        notify.success('Invoice uploaded successfully');
         setInvoiceUploadModalOpen(false);
-        setInvoiceFileList([]);
+        setInvoiceFile(null);
         setUploadingExpenseId(null);
       } else {
         throw new Error('Failed to update expense');
       }
     } catch (error) {
       console.error('[TicketViewModal] Invoice upload error:', error);
-      message.error('Failed to upload invoice');
+      notify.error('Failed to upload invoice');
     } finally {
       setUploadingInvoice(false);
     }
@@ -253,56 +274,85 @@ export default function TicketViewModal({
     window.open(`/api/v1/maintenance/${ticket.id}/download-pdf`, '_blank');
   });
 
+  // Build timeline items
+  const timelineItems = [
+    {
+      color: 'blue',
+      children: (
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-white">Ticket Created</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {formatDateTimeDisplay(ticket.createdAt, ' • ')}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Status: {ticket.status}
+          </p>
+        </div>
+      )
+    },
+    ...(ticket.comments || []).map((comment) => {
+      const isStatusUpdate = comment.comment.includes('Status:') || 
+                            comment.comment.includes('Ticket Acknowledged') ||
+                            comment.comment.includes('In Progress') ||
+                            comment.comment.includes('assigned to');
+      return {
+        color: isStatusUpdate ? 'green' : 'gray',
+        children: (
+          <div>
+            <p className="font-semibold text-gray-900 dark:text-white">{comment.authorName || 'Unknown'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {formatDateTimeDisplay(comment.createdAt, ' • ')}
+            </p>
+            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+              {renderCommentText(comment.comment)}
+            </div>
+          </div>
+        )
+      };
+    }),
+    ...(ticket.status === 'Closed' && ticket.landlordApproved && ticket.tenantApproved ? [{
+      color: 'green',
+      children: (
+        <div>
+          <p className="font-semibold text-gray-900 dark:text-white">Ticket Closed</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Approved by both parties
+          </p>
+        </div>
+      )
+    }] : [])
+  ];
+
   return (
     <>
-    <Modal
-      title={
-        <Row align="middle" justify="space-between" style={{ padding: '8px 0', paddingRight: '40px' }}>
-          <Col>
-            <Text type="secondary" style={{ fontSize: 13, fontFamily: 'monospace' }}>
-              Ticket# {ticket?.ticketNumber || ticket?.id}
-            </Text>
-          </Col>
-          <Col flex="auto" style={{ textAlign: 'center', padding: '0 24px' }}>
-            <Text strong style={{ fontSize: 16 }}>
-              {ticket?.title}
-            </Text>
-          </Col>
-          <Col>
-            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              Ticket Opened : {ticket?.createdAt ? formatDateTimeDisplay(ticket.createdAt, ', ') : ''}
-            </Text>
-          </Col>
-        </Row>
-      }
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={1000}
-      destroyOnClose
-    >
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" />
-          <div style={{ marginTop: 16 }}>
-            <Text>Loading ticket details...</Text>
-          </div>
+    <Modal show={open} onClose={onClose} size="7xl">
+      <Modal.Header>
+        <div className="flex items-center justify-between w-full pr-10">
+          <span className="text-xs font-mono text-gray-500">
+            Ticket# {ticket?.ticketNumber || ticket?.id}
+          </span>
+          <h3 className="text-lg font-semibold flex-1 text-center px-6">
+            {ticket?.title}
+          </h3>
+          <span className="text-xs text-gray-500 whitespace-nowrap">
+            Ticket Opened: {ticket?.createdAt ? formatDateTimeDisplay(ticket.createdAt, ', ') : ''}
+          </span>
         </div>
-      ) : (
-        <div>
-          {/* Status Bar */}
-          <div style={{ 
-            background: '#fafafa', 
-            padding: '12px 16px', 
-            marginBottom: 24,
-            borderRadius: 8,
-            border: '1px solid #f0f0f0'
-          }}>
-            <Row gutter={24} align="middle">
-              <Col>
-                <Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Opened by :</Text>
-                  <Text strong>
+      </Modal.Header>
+      <Modal.Body>
+        {loading ? (
+          <div className="text-center py-12">
+            <Spinner size="xl" />
+            <p className="mt-4 text-gray-600">Loading ticket details...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Status Bar */}
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Opened by:</span>
+                  <span className="font-semibold text-sm">
                     {userRole === 'landlord' ? (
                       ticket.initiatedBy === 'landlord'
                         ? `${userName || 'Landlord'}`
@@ -316,69 +366,60 @@ export default function TicketViewModal({
                           : 'Landlord')
                         : (user ? `${user.firstName} ${user.lastName}` : 'Tenant')
                     )}
-                  </Text>
-                  <Tag color="default" style={{ margin: 0, fontSize: 11 }}>
+                  </span>
+                  <Badge color="gray" size="sm">
                     {ticket.initiatedBy === 'landlord' ? 'Landlord' : 'Tenant'}
-                  </Tag>
-                </Space>
-              </Col>
-              <Col>
-                <Space size={4}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Category:</Text>
-                  <Text strong>{ticket.category}</Text>
-                </Space>
-              </Col>
-              <Col>
-                <Space size={4}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Priority:</Text>
-                  <Tag color={getPriorityColor(ticket.priority, userRole)} style={{ margin: 0 }}>
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Category:</span>
+                  <span className="font-semibold text-sm">{ticket.category}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Priority:</span>
+                  <Badge color={getPriorityColor(ticket.priority, userRole)} size="sm">
                     {ticket.priority}
-                  </Tag>
-                </Space>
-              </Col>
-              <Col>
-                <Space size={4}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Status:</Text>
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Status:</span>
                   {ticket.status === 'Closed' && 
                    ticket.landlordApproved && 
                    ticket.tenantApproved ? (
-                    <Badge 
-                      status="success"
-                      text="Closed"
-                    />
+                    <Badge color="success" size="sm">Closed</Badge>
                   ) : ticket.status === 'Closed' && 
                       !(ticket.landlordApproved && ticket.tenantApproved) ? (
-                    <Badge 
-                      status="processing"
-                      text="In Progress"
-                    />
+                    <Badge color="info" size="sm">In Progress</Badge>
                   ) : readOnly ? (
                     <Badge 
-                      status={ticket.status === 'In Progress' ? 'processing' : ticket.status === 'Pending' ? 'warning' : 'default'}
-                      text={ticket.status}
-                    />
+                      color={
+                        ticket.status === 'In Progress' ? 'info' : 
+                        ticket.status === 'Pending' ? 'warning' : 
+                        'gray'
+                      } 
+                      size="sm"
+                    >
+                      {ticket.status}
+                    </Badge>
                   ) : (
                     <Select
                       value={ticket.status === 'Closed' && !(ticket.landlordApproved && ticket.tenantApproved) ? 'In Progress' : ticket.status}
-                      onChange={onStatusChange}
-                      style={{ minWidth: 140 }}
-                      size="small"
+                      onChange={(e) => onStatusChange && onStatusChange(e.target.value)}
+                      className="min-w-[140px]"
                       disabled={
                         ticket.status === 'Closed' && 
                         ticket.landlordApproved && 
                         ticket.tenantApproved
                       }
                     >
-                      <Select.Option value="Pending">Pending</Select.Option>
-                      <Select.Option value="In Progress">In Progress</Select.Option>
-                      <Select.Option value="Closed">Close</Select.Option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Closed">Close</option>
                     </Select>
                   )}
-                </Space>
-              </Col>
-              <Col flex="auto" style={{ textAlign: 'right' }}>
-                <Space size="small">
-                  {/* Approve/Reject buttons - show when other party has requested closure */}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  {/* Approve/Reject buttons */}
                   {!readOnly && ticket.status === 'Closed' && 
                    !(ticket.landlordApproved && ticket.tenantApproved) && 
                    (() => {
@@ -387,394 +428,274 @@ export default function TicketViewModal({
                      return awaitingMyApproval;
                    })() && (
                     <>
-                      <Tooltip title="Approve & Close">
+                      <Tooltip content="Approve & Close">
                         <Button 
-                          type="primary" 
-                          icon={<CheckOutlined />}
-                          shape="circle"
+                          color="success"
+                          size="sm"
                           onClick={() => onApprove && onApprove(true)}
-                          loading={statusUpdateLoading}
-                          style={{ 
-                            background: '#52c41a', 
-                            borderColor: '#52c41a'
-                          }}
-                        />
+                          disabled={statusUpdateLoading}
+                          className="flex items-center justify-center w-10 h-10 rounded-full"
+                        >
+                          <HiCheck className="h-5 w-5" />
+                        </Button>
                       </Tooltip>
-                      <Tooltip title="Reject & Continue Work">
+                      <Tooltip content="Reject & Continue Work">
                         <Button 
-                          danger
-                          icon={<CloseOutlined />}
-                          shape="circle"
+                          color="failure"
+                          size="sm"
                           onClick={() => onReject && onReject(false)}
-                          loading={statusUpdateLoading}
-                        />
+                          disabled={statusUpdateLoading}
+                          className="flex items-center justify-center w-10 h-10 rounded-full"
+                        >
+                          <HiX className="h-5 w-5" />
+                        </Button>
                       </Tooltip>
                     </>
                   )}
-                  <Tooltip title="Download PDF">
+                  <Tooltip content="Download PDF">
                     <Button 
-                      type="primary" 
-                      icon={<DownloadOutlined />}
-                      shape="circle"
+                      color="blue"
+                      size="sm"
                       onClick={handleDownload}
-                    />
+                      className="flex items-center justify-center w-10 h-10 rounded-full"
+                    >
+                      <HiDownload className="h-5 w-5" />
+                    </Button>
                   </Tooltip>
-                </Space>
-              </Col>
-            </Row>
-          </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Description */}
-          <Card size="small" title="Description" style={{ marginBottom: 16 }}>
-            <Text>{ticket.description || 'No description provided'}</Text>
-          </Card>
-
-          {/* Select Vendor Button (Landlord Only) */}
-          {userRole === 'landlord' && ticket.category && !ticket.assignedToVendorId && (
-            <Card 
-              size="small" 
-              style={{ marginBottom: 16 }}
-              bodyStyle={{ padding: '12px' }}
-            >
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Space>
-                  <ToolOutlined />
-                  <Text strong>Assign Vendor</Text>
-                  <Tag color="blue" size="small">
-                    {ticket.category}
-                  </Tag>
-                </Space>
-                {!readOnly ? (
-                  <Button
-                    type="primary"
-                    icon={<ToolOutlined />}
-                    onClick={() => {
-                      // In read-only mode, this won't be called, but we can navigate to maintenance page
-                      if (readOnly) {
-                        window.location.href = `/operations?ticketId=${ticket.id}&tab=maintenance`;
-                      }
-                    }}
-                  >
-                    Select Vendor
-                  </Button>
-                ) : (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Go to Maintenance page to assign vendor
-                  </Text>
-                )}
-              </Space>
+            {/* Description */}
+            <Card>
+              <h5 className="text-lg font-semibold mb-2">Description</h5>
+              <p className="text-gray-700 dark:text-gray-300">
+                {ticket.description || 'No description provided'}
+              </p>
             </Card>
-          )}
 
-          {/* Vendor Info Card (Tenant View) */}
-          {userRole === 'tenant' && ticket.assignedToVendorId && ticket.assignedToVendor && (
-            <Card 
-              size="small" 
-              style={{ marginBottom: 16, border: '2px solid #1890ff', background: '#f0f7ff' }}
-              title={
-                <Space>
-                  <ToolOutlined style={{ color: '#1890ff' }} />
-                  <Text strong style={{ color: '#1890ff' }}>Assigned Contractor</Text>
-                </Space>
-              }
-            >
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Space direction="vertical" size={8}>
+            {/* Select Vendor Button (Landlord Only) */}
+            {userRole === 'landlord' && ticket.category && !ticket.assignedToVendorId && (
+              <Card>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <HiCog className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold">Assign Vendor</span>
+                    <Badge color="info" size="sm">{ticket.category}</Badge>
+                  </div>
+                  {!readOnly ? (
+                    <Button
+                      color="blue"
+                      onClick={() => {
+                        window.location.href = `/operations?ticketId=${ticket.id}&tab=maintenance`;
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <HiCog className="h-4 w-4" />
+                      Select Vendor
+                    </Button>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      Go to Maintenance page to assign vendor
+                    </span>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Vendor Info Card (Tenant View) */}
+            {userRole === 'tenant' && ticket.assignedToVendorId && ticket.assignedToVendor && (
+              <Card className="border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <HiWrench className="h-5 w-5 text-blue-600" />
+                  <h5 className="text-lg font-semibold text-blue-600">Assigned Contractor</h5>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
                     <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Business Name:</Text>
-                      <br />
-                      <Text strong style={{ fontSize: 14 }}>
+                      <p className="text-xs text-gray-500 mb-1">Business Name:</p>
+                      <p className="font-semibold text-sm">
                         {ticket.assignedToVendor.businessName || ticket.assignedToVendor.name}
-                      </Text>
+                      </p>
                     </div>
                     <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Contact Person:</Text>
-                      <br />
-                      <Text>{ticket.assignedToVendor.name}</Text>
+                      <p className="text-xs text-gray-500 mb-1">Contact Person:</p>
+                      <p className="text-sm">{ticket.assignedToVendor.name}</p>
                     </div>
                     {ticket.assignedToVendor.rating && (
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Rating:</Text>
-                        <br />
-                        <Rate disabled value={ticket.assignedToVendor.rating} style={{ fontSize: 14 }} />
-                        <Text style={{ marginLeft: 8 }}ticket.assignedToVendor.rating.toFixed(1)}</Text>
+                        <p className="text-xs text-gray-500 mb-1">Rating:</p>
+                        <StarRating value={ticket.assignedToVendor.rating} />
                       </div>
                     )}
-                  </Space>
-                </Col>
-                <Col span={12}>
-                  <Space direction="vertical" size={8}>
+                  </div>
+                  <div className="space-y-3">
                     {ticket.assignedToVendor.phone && (
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Phone:</Text>
-                        <br />
-                        <Text strong style={{ fontSize: 14, color: '#1890ff' }}>
+                        <p className="text-xs text-gray-500 mb-1">Phone:</p>
+                        <p className="font-semibold text-sm text-blue-600">
                           {ticket.assignedToVendor.phone}
-                        </Text>
+                        </p>
                       </div>
                     )}
                     {ticket.assignedToVendor.email && (
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Email:</Text>
-                        <br />
-                        <Text strong style={{ fontSize: 14, color: '#1890ff' }}>
+                        <p className="text-xs text-gray-500 mb-1">Email:</p>
+                        <p className="font-semibold text-sm text-blue-600">
                           {ticket.assignedToVendor.email}
-                        </Text>
+                        </p>
                       </div>
                     )}
                     {ticket.assignedToVendor.hourlyRate && ticket.assignedToVendor.hourlyRate > 0 && (
                       <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Hourly Rate:</Text>
-                        <br />
-                        <Text strong style={{ fontSize: 14 }}>
+                        <p className="text-xs text-gray-500 mb-1">Hourly Rate:</p>
+                        <p className="font-semibold text-sm">
                           ${ticket.assignedToVendor.hourlyRate}/hr
-                        </Text>
+                        </p>
                       </div>
                     )}
-                  </Space>
-                </Col>
-              </Row>
-              <Alert
-                message="Please contact the contractor to schedule an appointment"
-                type="info"
-                showIcon
-                style={{ marginTop: 12 }}
-              />
-            </Card>
-          )}
+                  </div>
+                </div>
+                <Alert color="info" className="mt-4">
+                  <p className="text-sm">Please contact the contractor to schedule an appointment</p>
+                </Alert>
+              </Card>
+            )}
 
-          {/* Timeline View (Tenant) */}
-          {userRole === 'tenant' && (
-            <Card 
-              size="small" 
-              title={
-                <Space>
-                  <ClockCircleOutlined />
-                  <Text strong>Timeline</Text>
-                </Space>
-              }
-              style={{ marginBottom: 16 }}
-            >
-              <Timeline
-                items={
-                  {
-                    color: 'blue',
-                    children: (
-                      <div>
-                        <Text strong>Ticket Created</Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {formatDateTimeDisplay(ticket.createdAt, ' • ')}
-                        </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Status: {ticket.status}
-                        </Text>
-                      </div>
-                    )
-                  },
-                  ...(ticket.comments || []).map((comment, idx) => {
-                    const isStatusUpdate = comment.comment.includes('Status:') || 
-                                          comment.comment.includes('Ticket Acknowledged') ||
-                                          comment.comment.includes('In Progress') ||
-                                          comment.comment.includes('assigned to');
-                    return {
-                      color: isStatusUpdate ? 'green' : 'gray',
-                      children: (
-                        <div>
-                          <Text strong>{comment.authorName || 'Unknown'}</Text>
-                          <br />
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {formatDateTimeDisplay(comment.createdAt, ' • ')}
-                          </Text>
-                          <br />
-                          <div style={{ 
-                            marginTop: 4,
-                            padding: '8px 12px',
-                            background: '#fafafa',
-                            borderRadius: 4,
-                            fontSize: 13
-                          }}>
-                            {renderCommentText(comment.comment)}
-                          </div>
-                        </div>
-                      )
-                    };
-                  }),
-                  ...(ticket.status === 'Closed' && ticket.landlordApproved && ticket.tenantApproved ? [{
-                    color: 'green',
-                    children: (
-                      <div>
-                        <Text strong>Ticket Closed</Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Approved by both parties
-                        </Text>
-                      </div>
-                    )
-                  }] : [])
-                }
-              />
-            </Card>
-          )}
+            {/* Timeline View (Tenant) */}
+            {userRole === 'tenant' && (
+              <Card>
+                <div className="flex items-center gap-2 mb-4">
+                  <HiClock className="h-5 w-5" />
+                  <h5 className="text-lg font-semibold">Timeline</h5>
+                </div>
+                <SimpleTimeline items={timelineItems} />
+              </Card>
+            )}
 
-          {/* Comments Section */}
-          <Card 
-            size="small" 
-            title={
-              <Space>
-                <Text strong>Activity</Text>
-                <Badge 
-                  count={ticket.comments?.length || 0} 
-                  showZero 
-                  style={{ backgroundColor: '#1890ff' }}
-                />
-              </Space>
-            }
-          >
-            <div style={{ 
-              maxHeight: '350px', 
-              overflowY: 'auto',
-              marginBottom: 16
-            }}>
-              {ticket.comments && ticket.comments.length > 0 ? (
-                <div>
-                  {[...ticket.comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((comment, idx) => {
-                    const isCurrentUser = userRole === 'landlord'
-                      ? comment.authorEmail === userEmail
-                      : comment.authorEmail === user?.email;
-                    
-                    return (
-                      <div key={idx} style={{ marginBottom: idx < ticket.comments.length - 1 ? 24 : 0 }}>
-                        <Row gutter={12}>
-                          <Col>
-                            <Avatar 
-                              icon={<UserOutlined />} 
-                              style={{ 
-                                background: isCurrentUser 
-                                  ? (userRole === 'landlord' ? '#1890ff' : '#8c8c8c')
-                                  : (userRole === 'landlord' ? '#8c8c8c' : '#1890ff')
-                              }}
-                            />
-                          </Col>
-                          <Col flex="auto">
-                            <div>
-                              <Space align="center" style={{ marginBottom: 4 }}>
-                                <Text strong style={{ fontSize: 14 }}>
+            {/* Comments Section */}
+            <Card>
+              <div className="flex items-center gap-2 mb-4">
+                <h5 className="text-lg font-semibold">Activity</h5>
+                <Badge color="info">{ticket.comments?.length || 0}</Badge>
+              </div>
+              <div className="max-h-[350px] overflow-y-auto mb-4">
+                {ticket.comments && ticket.comments.length > 0 ? (
+                  <div className="space-y-4">
+                    {[...ticket.comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((comment, idx) => {
+                      const isCurrentUser = userRole === 'landlord'
+                        ? comment.authorEmail === userEmail
+                        : comment.authorEmail === user?.email;
+                      
+                      return (
+                        <div key={idx} className={idx < ticket.comments.length - 1 ? 'pb-4 border-b border-gray-200 dark:border-gray-700' : ''}>
+                          <div className="flex items-start gap-3">
+                            <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                              isCurrentUser 
+                                ? (userRole === 'landlord' ? 'bg-blue-500' : 'bg-gray-500')
+                                : (userRole === 'landlord' ? 'bg-gray-500' : 'bg-blue-500')
+                            }`}>
+                              <HiUser className="h-5 w-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-semibold text-sm text-gray-900 dark:text-white">
                                   {comment.authorName || 'Unknown'}
-                                </Text>
-                                {isCurrentUser ? (
-                                  <Tag color={userRole === 'landlord' ? 'blue' : 'default'} style={{ margin: 0, fontSize: 11 }}>
-                                    {userRole === 'landlord' ? 'Landlord' : 'Tenant'}
-                                  </Tag>
-                                ) : (
-                                  <Tag color={userRole === 'landlord' ? 'default' : 'blue'} style={{ margin: 0, fontSize: 11 }}>
-                                    {userRole === 'landlord' ? 'Tenant' : 'Landlord'}
-                                  </Tag>
-                                )}
-                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                </span>
+                                <Badge 
+                                  color={isCurrentUser ? (userRole === 'landlord' ? 'info' : 'gray') : (userRole === 'landlord' ? 'gray' : 'info')} 
+                                  size="sm"
+                                >
+                                  {isCurrentUser ? (userRole === 'landlord' ? 'Landlord' : 'Tenant') : (userRole === 'landlord' ? 'Tenant' : 'Landlord')}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
                                   {formatDateTimeDisplay(comment.createdAt, ' • ')}
-                                </Text>
-                              </Space>
-                              <div style={{ 
-                                background: '#fafafa',
-                                padding: '12px 16px',
-                                borderRadius: 8,
-                                border: '1px solid #f0f0f0',
-                                marginTop: 8
-                              }}>
+                                </span>
+                              </div>
+                              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
                                 {renderCommentText(comment.comment)}
                               </div>
                             </div>
-                          </Col>
-                        </Row>
-                        {idx < ticket.comments.length - 1 && (
-                          <Divider style={{ margin: '16px 0' }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <Empty 
-                  description="No activity yet" 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  style={{ padding: '32px 0' }}
-                />
-              )}
-            </div>
-
-            {/* Comment Input Section - only show if ticket is not fully closed and not read-only */}
-            {!readOnly && !(ticket.status === 'Closed' && ticket.landlordApproved && ticket.tenantApproved) && (
-              <div style={{ paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-                <Space.Compact style={{ width: '100%' }}>
-                  <TextArea
-                    rows={2}
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => onCommentChange && onCommentChange(e.target.value)}
-                    style={{ resize: 'none' }}
-                  />
-                  <Button 
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={() => onAddComment && onAddComment()}
-                    loading={commentLoading}
-                    disabled={!newComment.trim()}
-                    style={{ height: 'auto' }}
-                  >
-                    Send
-                  </Button>
-                </Space.Compact>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <HiPaperClip className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No activity yet</p>
+                  </div>
+                )}
               </div>
-            )}
-          </Card>
 
-          {/* Expense Tracking Section (Landlord Only - always show for landlords) */}
-          {userRole === 'landlord' && (
-            <Card 
-              size="small" 
-              title={
-                <Space>
-                  <DollarOutlined />
-                  <Text strong>Expenses</Text>
-                  <Badge 
-                    count={expenses.length} 
-                    showZero 
-                    style={{ backgroundColor: '#1890ff' }}
-                  />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Total: ${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
-                  </Text>
-                </Space>
-              }
-              extra={
-                !readOnly ? (
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      // Navigate to maintenance page to add expense
-                      window.location.href = `/operations?tab=maintenance&ticketId=${ticket.id}`;
-                    }}
-                  >
-                    Add Expense
-                  </Button>
-                ) : null
-              }
-              style={{ marginTop: 16 }}
-            >
-              <Spin spinning={expenseLoading}>
-                {expenses.length > 0 ? (
-                  <Table
+              {/* Comment Input Section */}
+              {!readOnly && !(ticket.status === 'Closed' && ticket.landlordApproved && ticket.tenantApproved) && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex gap-2">
+                    <Textarea
+                      rows={2}
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => onCommentChange && onCommentChange(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      color="blue"
+                      onClick={() => onAddComment && onAddComment()}
+                      disabled={commentLoading || !newComment.trim()}
+                      className="flex items-center gap-2"
+                    >
+                      {commentLoading ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <>
+                          <HiPaperAirplane className="h-4 w-4" />
+                          Send
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Expense Tracking Section (Landlord Only) */}
+            {userRole === 'landlord' && (
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <HiCurrencyDollar className="h-5 w-5" />
+                    <h5 className="text-lg font-semibold">Expenses</h5>
+                    <Badge color="info">{expenses.length}</Badge>
+                    <span className="text-sm text-gray-500">
+                      Total: ${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+                    </span>
+                  </div>
+                  {!readOnly && (
+                    <Button
+                      color="blue"
+                      size="sm"
+                      onClick={() => {
+                        window.location.href = `/operations?tab=maintenance&ticketId=${ticket.id}`;
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <HiPlus className="h-4 w-4" />
+                      Add Expense
+                    </Button>
+                  )}
+                </div>
+                {expenseLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Spinner size="xl" />
+                  </div>
+                ) : expenses.length > 0 ? (
+                  <FlowbiteTable
                     dataSource={expenses}
                     rowKey="id"
-                    size="small"
                     pagination={false}
-                    scroll={{ x: 'max-content' }}
-                    columns={
+                    columns={[
                       {
                         title: 'Date',
                         dataIndex: 'date',
@@ -798,9 +719,9 @@ export default function TicketViewModal({
                         dataIndex: 'amount',
                         key: 'amount',
                         render: (amount) => (
-                          <Text strong style={{ color: '#ff4d4f' }}>
+                          <span className="font-semibold text-red-600">
                             ${amount.toFixed(2)}
-                          </Text>
+                          </span>
                         ),
                         width: 100,
                         align: 'right'
@@ -816,48 +737,47 @@ export default function TicketViewModal({
                         key: 'invoice',
                         width: 150,
                         align: 'center',
-                        fixed: 'right',
                         render: (_, record) => {
                           if (!record.receiptUrl) {
-                            // Show upload button if no invoice and not read-only
                             if (!readOnly && userRole === 'landlord') {
                               return (
                                 <Button
-                                  type="link"
-                                  icon={<UploadOutlined />}
-                                  size="small"
+                                  color="light"
+                                  size="sm"
                                   onClick={() => {
                                     setUploadingExpenseId(record.id);
-                                    setInvoiceFileList([]);
+                                    setInvoiceFile(null);
                                     setInvoiceUploadModalOpen(true);
                                   }}
+                                  className="flex items-center gap-2"
                                 >
+                                  <HiCloudUpload className="h-4 w-4" />
                                   Upload
                                 </Button>
                               );
                             }
-                            return <Text type="secondary">—</Text>;
+                            return <span className="text-gray-400">—</span>;
                           }
                           return (
-                            <Space size="small">
-                              <Tooltip title="View Invoice">
+                            <div className="flex items-center gap-2 justify-center">
+                              <Tooltip content="View Invoice">
                                 <Button
-                                  type="link"
-                                  icon={<EyeOutlined />}
-                                  size="small"
+                                  color="light"
+                                  size="sm"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     setViewingInvoiceUrl(record.receiptUrl);
                                     setInvoiceViewModalOpen(true);
                                   }}
-                                />
+                                >
+                                  <HiEye className="h-4 w-4" />
+                                </Button>
                               </Tooltip>
-                              <Tooltip title="Download Invoice">
+                              <Tooltip content="Download Invoice">
                                 <Button
-                                  type="link"
-                                  icon={<DownloadOutlined />}
-                                  size="small"
+                                  color="light"
+                                  size="sm"
                                   onClick={() => {
                                     const link = document.createElement('a');
                                     link.href = record.receiptUrl;
@@ -867,124 +787,102 @@ export default function TicketViewModal({
                                     link.click();
                                     document.body.removeChild(link);
                                   }}
-                                />
+                                >
+                                  <HiDownload className="h-4 w-4" />
+                                </Button>
                               </Tooltip>
-                            </Space>
+                            </div>
                           );
                         }
                       }
-                    }
+                    ]}
                   />
                 ) : (
-                  <Empty 
-                    description="No expenses recorded yet" 
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    style={{ padding: '16px 0' }}
-                  />
+                  <div className="text-center py-8">
+                    <HiCurrencyDollar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No expenses recorded yet</p>
+                  </div>
                 )}
-              </Spin>
-            </Card>
-          )}
-        </div>
-      )}
-
+              </Card>
+            )}
+          </div>
+        )}
+      </Modal.Body>
     </Modal>
 
-    {/* Invoice Upload Modal - Separate modal */}
+    {/* Invoice Upload Modal */}
     <Modal
-      title="Upload Invoice"
-      open={invoiceUploadModalOpen}
-      onCancel={() => {
+      show={invoiceUploadModalOpen}
+      onClose={() => {
         setInvoiceUploadModalOpen(false);
-        setInvoiceFileList([]);
+        setInvoiceFile(null);
         setUploadingExpenseId(null);
       }}
-      footer={
+      size="md"
+    >
+      <Modal.Header>Upload Invoice</Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <div>
+            <p className="font-semibold text-gray-900 dark:text-white mb-1">Select Invoice File</p>
+            <p className="text-xs text-gray-500">
+              Supported formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
+            </p>
+          </div>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
         <Button
-          key="cancel"
+          color="gray"
           onClick={() => {
             setInvoiceUploadModalOpen(false);
-            setInvoiceFileList([]);
+            setInvoiceFile(null);
             setUploadingExpenseId(null);
           }}
         >
           Cancel
-        </Button>,
-        <Button
-          key="upload"
-          type="primary"
-          icon={<UploadOutlined />}
-          loading={uploadingInvoice}
-          onClick={handleUploadInvoice}
-          disabled={!invoiceFileList || invoiceFileList.length === 0}
-        >
-          Upload
         </Button>
-      }
-      width={500}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <div>
-          <Text strong>Select Invoice File</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Supported formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
-          </Text>
-        </div>
-        <Upload
-          beforeUpload={() => false}
-          maxCount={1}
-          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-          fileList={invoiceFileList}
-          onChange={({ fileList }) => {
-            setInvoiceFileList(fileList);
-          }}
-          onRemove={() => {
-            setInvoiceFileList([]);
-          }}
+        <Button
+          color="blue"
+          onClick={handleUploadInvoice}
+          disabled={uploadingInvoice || !invoiceFile}
+          className="flex items-center gap-2"
         >
-          <Button icon={<UploadOutlined />}>Select File</Button>
-        </Upload>
-      </Space>
+          {uploadingInvoice ? (
+            <>
+              <Spinner size="sm" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <HiCloudUpload className="h-4 w-4" />
+              Upload
+            </>
+          )}
+        </Button>
+      </Modal.Footer>
     </Modal>
 
-    {/* Invoice View Modal with iframe */}
-    <Modal
-      title="Invoice"
-      open={invoiceViewModalOpen}
-      onCancel={() => {
-        setInvoiceViewModalOpen(false);
-        setViewingInvoiceUrl(null);
-      }}
-      footer={
-        <Button
-          key="close"
-          onClick={() => {
-            setInvoiceViewModalOpen(false);
-            setViewingInvoiceUrl(null);
-          }}
-        >
-          Close
-        </Button>
-      }
-      width="90%"
-      style={{ top: 20 }}
-      styles={{ body: { height: 'calc(100vh - 200px)', padding: 0 } }}
-    >
-      {viewingInvoiceUrl && (
-        <iframe
-          src={`${viewingInvoiceUrl}#view=FitH`}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none'
-          }}
-          title="Invoice"
-          type="application/pdf"
-        />
-      )}
-    </Modal>
+    {/* Invoice View Modal */}
+    {viewingInvoiceUrl && (
+      <PDFViewerModal
+        open={invoiceViewModalOpen}
+        title="Invoice"
+        pdfUrl={viewingInvoiceUrl}
+        onClose={() => {
+          setInvoiceViewModalOpen(false);
+          setViewingInvoiceUrl(null);
+        }}
+        width={1200}
+        height={800}
+      />
+    )}
     </>
   );
 }
-

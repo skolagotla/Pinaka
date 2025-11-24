@@ -21,7 +21,7 @@ import PaymentStatusTag from '@/components/shared/PaymentStatusTag';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { notify } from '@/lib/utils/notification-helper';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useRentReceipts, useResizableTable } from '@/lib/hooks';
 import { configureTableColumns } from '@/lib/utils/table-config';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
@@ -38,7 +38,7 @@ const PDFViewerModal = dynamic(
 );
 
 export default function PaymentsClient() {
-  const { fetch } = useUnifiedApi({ showUserMessage: false });
+  // useUnifiedApi removed - use v2Api from @/lib/api/v2-client or hooks from @/lib/hooks/useV2Data
   const { user } = useV2Auth();
   const tenantId = user?.id;
   const { data: rentPaymentsData, isLoading: rentPaymentsLoading, refetch: refetchRentPayments } = useRentPayments(undefined, undefined, tenantId);

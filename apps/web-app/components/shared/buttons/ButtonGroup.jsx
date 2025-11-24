@@ -12,7 +12,6 @@
  */
 
 import React from 'react';
-import { Space } from 'antd';
 import ActionButton from './ActionButton';
 import IconButton from './IconButton';
 
@@ -20,10 +19,14 @@ export default function ButtonGroup({
   buttons = [],
   direction = 'horizontal',
   gap = 8,
+  className = '',
   ...restProps
 }) {
+  const flexDirection = direction === 'vertical' ? 'flex-col' : 'flex-row';
+  const gapClass = `gap-${gap / 4}`; // Convert px to Tailwind spacing (gap-2 = 8px)
+  
   return (
-    <Space direction={direction} size={gap} {...restProps}>
+    <div className={`flex ${flexDirection} ${className}`} style={{ gap: `${gap}px` }} {...restProps}>
       {buttons.map((buttonConfig, index) => {
         const { component, ...props } = buttonConfig;
         
@@ -42,7 +45,6 @@ export default function ButtonGroup({
         
         return null;
       })}
-    </Space>
+    </div>
   );
 }
-

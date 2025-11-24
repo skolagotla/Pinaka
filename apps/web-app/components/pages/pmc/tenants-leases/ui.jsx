@@ -22,7 +22,7 @@ import {
   useBulkOperations,
   useSearch
 } from '@/lib/hooks';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { ValidationHelpers } from '@/lib/utils/unified-validation';
 import { LEASE_STATUSES } from '@/lib/constants/statuses';
@@ -113,7 +113,7 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
   const { sanitizeFormData } = useFormDataSanitizer({ country: tenantCountry });
   
   // API error handler
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api from @/lib/api/v2-client
 
   // Legacy pinaka hook kept for compatibility but using v2 hooks above
   const pinaka = {
@@ -295,8 +295,8 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
 
   async function handleEditTenantClick(tenant) {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const fullTenant = await v1Api.tenants.get(tenant.id);
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const fullTenant = await v2Api.tenants.get(tenant.id);
       openAddTenantModalForEdit(fullTenant);
       
       const tenantCountryValue = fullTenant.country || 'CA';
@@ -348,10 +348,10 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
       
       const sanitizedData = sanitizeFormData(tenantData, { mode: 'storage' });
       
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const updatedTenant = isEditing
-        ? await v1Api.tenants.update(editingTenant.id, sanitizedData)
-        : await v1Api.tenants.create(sanitizedData);
+        ? await v2Api.tenants.update(editingTenant.id, sanitizedData)
+        : await v2Api.tenants.create(sanitizedData);
       
       notify.success(
         `Tenant ${updatedTenant.firstName} ${updatedTenant.lastName} ${isEditing ? 'updated' : 'added'} successfully`
@@ -366,7 +366,7 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
       setTenantCountry('CA');
       countryRegion.setCountry('CA');
     } catch (error) {
-      // Error already handled by useUnifiedApi
+      // Error handling updated for v2
     }
   }
 
@@ -966,7 +966,7 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
             description="This action cannot be undone."
             onConfirm={async () => {
               try {
-                const { v1Api } = await import('@/lib/api/v1-client');
+                const { v2Api } = await import('@/lib/api/v2-client');
                 await deleteTenant.mutateAsync(tenant.id);
                 await refetchTenants();
                 notify.success('Tenant deleted successfully');
@@ -1040,7 +1040,7 @@ export default function PMCTenantsLeasesClient({ units, tenants: initialTenants,
                 onEditTenant={handleEditTenantClick}
                 onDeleteTenant={async (tenantId) => {
                   try {
-                    const { v1Api } = await import('@/lib/api/v1-client');
+                    const { v2Api } = await import('@/lib/api/v2-client');
                     await deleteTenant.mutateAsync(tenantId);
                     await refetchTenants();
                     notify.success('Tenant deleted successfully');

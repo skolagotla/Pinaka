@@ -16,8 +16,10 @@
  */
 
 import { useMemo } from 'react';
-import { BgColorsOutlined, UserOutlined, ClockCircleOutlined, EditOutlined, TeamOutlined } from '@ant-design/icons';
-import { Typography, Card, Divider, Button } from 'antd';
+import { HiColorSwatch, HiUser, HiClock, HiPencilAlt, HiUserGroup } from 'react-icons/hi';
+import { Card, Button } from 'flowbite-react';
+// Divider component - use a simple hr element instead
+const Divider = () => <hr className="my-4 border-gray-200 dark:border-gray-700" />;
 import ThemeSelector from '@/components/ThemeSelector';
 import TimezoneSelector from '@/components/TimezoneSelector';
 import SignatureUpload from '@/components/SignatureUpload';
@@ -25,7 +27,6 @@ import LandlordOrganizationSettings from '@/components/settings/LandlordOrganiza
 import PMCOrganizationSettings from '@/components/settings/PMCOrganizationSettings';
 import { useRouter } from 'next/navigation';
 
-const { Title, Text, Paragraph } = Typography;
 
 export function useSettings({ user, userRole, pmcData }) {
   // Generate settings tabs configuration
@@ -39,18 +40,18 @@ export function useSettings({ user, userRole, pmcData }) {
       {
         key: 'appearance',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <BgColorsOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiColorSwatch className="h-4 w-4" />
             <span>Appearance</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
-            <Title level={4}>Choose Your Theme</Title>
-            <Paragraph type="secondary">
+          <div className="p-8">
+            <h4 className="text-xl font-semibold mb-2">Choose Your Theme</h4>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
               Personalize your experience by selecting a theme that suits your style.
               Changes will take effect immediately after selection.
-            </Paragraph>
+            </p>
             
             <Divider />
             
@@ -61,51 +62,51 @@ export function useSettings({ user, userRole, pmcData }) {
       {
         key: 'profile',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <UserOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiUser className="h-4 w-4" />
             <span>Profile</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
-            <Title level={4}>Profile Information</Title>
+          <div className="p-8">
+            <h4 className="text-xl font-semibold mb-4">Profile Information</h4>
             <Card>
-              <div style={{ marginBottom: '16px' }}>
-                <Text strong>Name:</Text>
+              <div className="mb-4">
+                <span className="font-semibold">Name:</span>
                 <br />
-                <Text>{user?.firstName || ''} {user?.middleName && `${user.middleName}. `}{user?.lastName || ''}</Text>
+                <span>{user?.firstName || ''} {user?.middleName && `${user.middleName}. `}{user?.lastName || ''}</span>
               </div>
               {userRole === 'landlord' && user?.landlordId && (
-                <div style={{ marginBottom: '16px' }}>
-                  <Text strong>Landlord ID:</Text>
+                <div className="mb-4">
+                  <span className="font-semibold">Landlord ID:</span>
                   <br />
-                  <Text code style={{ fontSize: '14px', fontFamily: 'monospace' }}>{user.landlordId}</Text>
+                  <code className="text-sm font-mono">{user.landlordId}</code>
                 </div>
               )}
               {userRole === 'tenant' && user?.tenantId && (
-                <div style={{ marginBottom: '16px' }}>
-                  <Text strong>Tenant ID:</Text>
+                <div className="mb-4">
+                  <span className="font-semibold">Tenant ID:</span>
                   <br />
-                  <Text code style={{ fontSize: '14px', fontFamily: 'monospace' }}>{user.tenantId}</Text>
+                  <code className="text-sm font-mono">{user.tenantId}</code>
                 </div>
               )}
-              <div style={{ marginBottom: '16px' }}>
-                <Text strong>Email:</Text>
+              <div className="mb-4">
+                <span className="font-semibold">Email:</span>
                 <br />
-                <Text>{user?.email || 'N/A'}</Text>
+                <span>{user?.email || 'N/A'}</span>
               </div>
               {user?.phone && (
-                <div style={{ marginBottom: '16px' }}>
-                  <Text strong>Phone:</Text>
+                <div className="mb-4">
+                  <span className="font-semibold">Phone:</span>
                   <br />
-                  <Text>{user.phone}</Text>
+                  <span>{user.phone}</span>
                 </div>
               )}
               {userRole === 'landlord' && user?.addressLine1 && (
                 <div>
-                  <Text strong>Address:</Text>
+                  <span className="font-semibold">Address:</span>
                   <br />
-                  <Text>
+                  <span>
                     {user.addressLine1}
                     {user.addressLine2 && `, ${user.addressLine2}`}
                     <br />
@@ -113,14 +114,14 @@ export function useSettings({ user, userRole, pmcData }) {
                     {user.provinceState || ''} {user.postalZip || ''}
                     <br />
                     {user.country || ''}
-                  </Text>
+                  </span>
                 </div>
               )}
               {userRole === 'tenant' && user?.currentAddress && (
                 <div>
-                  <Text strong>Current Address:</Text>
+                  <span className="font-semibold">Current Address:</span>
                   <br />
-                  <Text>{user.currentAddress}</Text>
+                  <span>{user.currentAddress}</span>
                 </div>
               )}
             </Card>
@@ -130,17 +131,17 @@ export function useSettings({ user, userRole, pmcData }) {
       {
         key: 'preferences',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <ClockCircleOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiClock className="h-4 w-4" />
             <span>Preferences</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
-            <Title level={4}>Date & Time Preferences</Title>
-            <Paragraph type="secondary">
+          <div className="p-8">
+            <h4 className="text-xl font-semibold mb-2">Date & Time Preferences</h4>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
               Set your timezone to ensure all dates and times display correctly for your location.
-            </Paragraph>
+            </p>
             
             <Divider />
             
@@ -159,13 +160,13 @@ export function useSettings({ user, userRole, pmcData }) {
       baseTabs.push({
         key: 'organization',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <TeamOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiUserGroup className="h-4 w-4" />
             <span>Organization</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
+          <div className="p-8">
             <LandlordOrganizationSettings />
           </div>
         ),
@@ -175,13 +176,13 @@ export function useSettings({ user, userRole, pmcData }) {
       baseTabs.push({
         key: 'signature',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <EditOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiPencilAlt className="h-4 w-4" />
             <span>Signature</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
+          <div className="p-8">
             <SignatureUpload />
           </div>
         ),
@@ -211,13 +212,13 @@ export function useSettings({ user, userRole, pmcData }) {
       baseTabs.push({
         key: 'organization',
         label: (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <TeamOutlined style={{ fontSize: '16px' }} />
+          <span className="flex items-center gap-2 py-1">
+            <HiUserGroup className="h-4 w-4" />
             <span>Organization</span>
           </span>
         ),
         children: (
-          <div style={{ padding: '32px' }}>
+          <div className="p-8">
             <LandlordOrganizationSettings />
           </div>
         ),

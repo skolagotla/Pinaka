@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { message } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useBulkOperations(options = {}) {
   const {
@@ -28,7 +28,7 @@ export function useBulkOperations(options = {}) {
 
   const handleBulkAction = useCallback(async (action, actionParams = {}) => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Please select at least one item');
+      notify.warning('Please select at least one item');
       return;
     }
 
@@ -36,13 +36,13 @@ export function useBulkOperations(options = {}) {
       setLoading(true);
       const result = await onBulkAction(action, selectedRowKeys, actionParams);
       if (result) {
-        message.success(successMessage);
+        notify.success(successMessage);
         setSelectedRowKeys([]);
       }
       return result;
     } catch (error) {
       console.error('Bulk operation error:', error);
-      message.error(errorMessage);
+      notify.error(errorMessage);
       throw error;
     } finally {
       setLoading(false);
@@ -66,4 +66,3 @@ export function useBulkOperations(options = {}) {
 }
 
 export default useBulkOperations;
-

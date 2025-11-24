@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Popconfirm } from 'antd';
+import FlowbitePopconfirm from './FlowbitePopconfirm';
 import { ActionButton } from './buttons';
 
 /**
@@ -42,19 +42,19 @@ export function DeleteConfirmButton({
   size = 'small',
   type = 'text',
   buttonProps = {},
-  ...popconfirmProps
+  popconfirmProps = {},
 }) {
   const defaultDescription = description || 
     `This will permanently delete this ${entityName}. This action cannot be undone.`;
 
   return (
-    <Popconfirm
+    <FlowbitePopconfirm
       title={`Delete ${entityName}?`}
       description={defaultDescription}
       onConfirm={onConfirm}
-      okText="Yes"
-      cancelText="No"
-      okButtonProps={{ danger: true }}
+      okText={popconfirmProps.okText || "Yes"}
+      cancelText={popconfirmProps.cancelText || "No"}
+      danger={danger}
       {...popconfirmProps}
     >
       <ActionButton
@@ -64,7 +64,7 @@ export function DeleteConfirmButton({
         type={type}
         {...buttonProps}
       />
-    </Popconfirm>
+    </FlowbitePopconfirm>
   );
 }
 

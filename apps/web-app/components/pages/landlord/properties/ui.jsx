@@ -32,7 +32,7 @@ import {
   sortFunctions, 
   configureTableColumns
 } from '@/lib/hooks';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { rules } from '@/lib/utils/validation-rules';
 import { PostalCodeInput, AddressAutocomplete } from '@/components/forms';
@@ -53,7 +53,7 @@ import { formatDateForAPI } from '@/lib/utils/safe-date-formatter';
 
 // Memoize component to prevent unnecessary re-renders
 const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient({ landlordId, initialProperties, landlordData }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const { user } = useV2Auth();
   const searchParams = useSearchParams();
   const propertyForm = useFormState({ 
@@ -623,7 +623,7 @@ const PropertiesWithUnitsClient = React.memo(function PropertiesWithUnitsClient(
                 >
                   {unitColumns.map((col, colIdx) => (
                     <Table.Cell key={colIdx} className={col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}>
-                      {col.render ? col.render(unit[col.dataIndex], unit, 0) : unit[col.dataIndex}
+                      {col.render ? col.render(unit[col.dataIndex], unit, 0) : unit[col.dataIndex]}
                     </Table.Cell>
                   ))}
                 </Table.Row>

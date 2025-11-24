@@ -9,18 +9,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { 
-  Typography, Button, Row, Col, Card, Tag, Select, Modal, Space, Empty,
-  Table, Popconfirm, Tooltip, Progress, Alert, Badge, DatePicker, Divider,
-  Descriptions, Statistic, List, Avatar, Upload, Input, App
-} from 'antd';
+  Button, Card, Badge, Select, Modal,
+  Table, Tooltip, Progress, Alert, Datepicker, Divider,
+  Avatar, FileInput, TextInput, Textarea, Label
+} from 'flowbite-react';
+import { Empty } from '@/components/shared';
 import {
-  PlusOutlined, EyeOutlined, DownloadOutlined, DeleteOutlined, CloudUploadOutlined,
-  FilePdfOutlined, FileImageOutlined, FileWordOutlined, FileTextOutlined, InboxOutlined,
-  CheckCircleOutlined, CheckCircleFilled, ClockCircleFilled, ClockCircleOutlined, WarningOutlined, ExclamationCircleOutlined,
-  SaveOutlined, CloseOutlined, FileProtectOutlined, SafetyCertificateOutlined,
-  CalendarOutlined, UserOutlined, TeamOutlined, FileDoneOutlined, CloseCircleOutlined,
-  FormOutlined, LockOutlined, ReloadOutlined,
-} from '@ant-design/icons';
+  HiPlus, HiEye, HiDownload, HiTrash, HiCloudUpload,
+  HiDocumentText, HiPhotograph, HiDocument, HiInbox,
+  HiCheckCircle, HiClock, HiExclamation, HiExclamationCircle,
+  HiSave, HiX, HiShieldCheck, HiLockClosed,
+  HiCalendar, HiUser, HiUserGroup, HiCheck,
+  HiPencilAlt, HiRefresh,
+} from 'react-icons/hi';
+import FlowbitePopconfirm from './FlowbitePopconfirm';
+import { notify } from '@/lib/utils/notification-helper';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
@@ -58,9 +61,6 @@ const {
 
 // Note: Legal forms and LTBDocumentsGrid are handled by parent components (admin/library or documents page)
 
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
-const { Dragger } = Upload;
 
 /**
  * Unified Library Client Component
@@ -82,7 +82,6 @@ export default function LibraryClient({
   externalSearchTerm = ''
 }) {
   const router = useRouter();
-  const { message } = App.useApp();
   
   // Mutual approval hook for version changes and deletions
   const mutualApproval = useMutualApproval({
@@ -300,7 +299,7 @@ export default function LibraryClient({
     if (userRole !== 'tenant') return false;
     
     try {
-      message.loading({ content: 'Uploading document...', key: 'upload', duration: 0 });
+      const loadingToast = notify.loading('Uploading document...');
       
       const existingDoc = library.documents?.find(doc => doc.category === categoryId);
       
@@ -324,7 +323,8 @@ export default function LibraryClient({
           throw new Error(error.error || error.message || 'Failed to replace document');
         }
         
-        message.success({ content: 'Document replaced successfully Version history saved.', key: 'upload' });
+        loadingToast();
+        notify.success('Document replaced successfully. Version history saved.');
         router.refresh();
         return true;
       } else {
@@ -348,13 +348,15 @@ export default function LibraryClient({
           throw new Error(error.error || error.message || 'Failed to upload document');
         }
         
-        message.success({ content: 'Document uploaded successfully', key: 'upload' });
+        loadingToast();
+        notify.success('Document uploaded successfully');
         router.refresh();
         return true;
       }
     } catch (error) {
       console.error(`[${userRole === 'landlord' ? 'Landlord' : 'Tenant'} Library] Direct upload error:`, error);
-      message.error({ content: 'Failed to upload document', key: 'upload' });
+      loadingToast();
+      notify.error('Failed to upload document');
       return false;
     }
   };
@@ -362,7 +364,7 @@ export default function LibraryClient({
   // Handle upload button click (landlord needs tenant selection)
   const handleUploadClick = () => {
     if (userRole === 'landlord' && !selectedTenant) {
-      message.warning('Please select a tenant first to upload documents.');
+      notify.warning('Please select a tenant first to upload documents.');
       return;
     }
     library.openUploadModal();
@@ -374,16 +376,16 @@ export default function LibraryClient({
       customizeColumn(STANDARD_COLUMNS.DOCUMENT_ID, {
         key: 'documentId',
         render: (_, doc) => (
-          <Space size="small">
-            <Text key="doc-id" strong style={{ fontFamily: 'monospace', fontSize: 13 }}>
+          <div className="flex items-center gap-2">
+            <span key="doc-id" className="font-mono text-sm font-semibold">
               {doc.documentHash || (doc.id ? `[${doc.id.substring(0, 12)}]` : '[No ID]')}
-            </Text>
+            </span>
             {!doc.documentHash && (
-              <Tooltip key="warning" title="This document needs migration to new hash format">
-                <WarningOutlined style={{ color: '#faad14', fontSize: 12 }} />
+              <Tooltip key="warning" content="This document needs migration to new hash format">
+                <HiExclamation className="h-3 w-3 text-yellow-500" />
               </Tooltip>
             )}
-          </Space>
+          </div>
         ),
         width: 150,
       }),
@@ -391,9 +393,9 @@ export default function LibraryClient({
         render: (_, doc) => {
           const categoryInfo = getCategoryById(doc.category);
           return (
-            <Text style={{ fontSize: 13 }}>
+            <span className="text-sm">
               {categoryInfo?.name || doc.category}
-            </Text>
+            </span>
           );
         },
         width: 180,
@@ -405,16 +407,16 @@ export default function LibraryClient({
       baseColumns.push(
         customizeColumn(STANDARD_COLUMNS.UPLOADED_BY, {
           render: (_, doc) => (
-            <Space size="small">
-              <Text key="uploader-name" strong style={{ fontSize: 13 }}>{doc.uploadedByName}</Text>
-              <Tag 
+            <div className="flex items-center gap-2">
+              <span key="uploader-name" className="text-sm font-semibold">{doc.uploadedByName}</span>
+              <Badge 
                 key="uploader-role"
-                color={doc.uploadedBy === 'landlord' ? 'blue' : 'green'}
-                style={{ fontSize: 11 }}
+                color={doc.uploadedBy === 'landlord' ? 'blue' : 'success'}
+                className="text-xs"
               >
                 {doc.uploadedBy === 'landlord' ? 'Landlord' : 'Tenant'}
-              </Tag>
-            </Space>
+              </Badge>
+            </div>
           ),
           width: 200,
         })
@@ -426,9 +428,9 @@ export default function LibraryClient({
           title: 'Tenant',
           key: 'tenant',
           render: (_, doc) => (
-            <Text style={{ fontSize: 13 }}>
+            <span className="text-sm">
               {doc.tenantName || 'N/A'}
-            </Text>
+            </span>
           ),
           width: 150,
         });
@@ -440,25 +442,25 @@ export default function LibraryClient({
           render: (_, doc) => {
             if (doc.isVerified) {
               return (
-                <Tag icon={<CheckCircleFilled />} color="success" style={{ fontSize: 11 }}>
+                <Badge icon={HiCheckCircle} color="success" className="text-xs">
                   Verified
-                </Tag>
+                </Badge>
               );
             }
             
             const expStatus = doc.expirationDate ? library.getExpirationStatus(doc.expirationDate) : null;
             if (expStatus && (expStatus.status === 'expired' || expStatus.status === 'urgent')) {
               return (
-                <Tag color="error" style={{ fontSize: 11 }}>
+                <Badge color="failure" className="text-xs">
                   {expStatus.status === 'expired' ? 'Expired' : 'Expiring Soon'}
-                </Tag>
+                </Badge>
               );
             }
 
             return (
-              <Tag style={{ fontSize: 11 }}>
+              <Badge color="gray" className="text-xs">
                 Pending
-              </Tag>
+              </Badge>
             );
           },
           width: 120,
@@ -470,32 +472,29 @@ export default function LibraryClient({
     baseColumns.push(
       customizeColumn(STANDARD_COLUMNS.UPLOADED_DATE, {
         render: (date) => (
-          <Text style={{ fontSize: 13 }}>
+          <span className="text-sm">
             {formatDate.datetime(date)}
-          </Text>
+          </span>
         ),
         width: 180,
       }),
       customizeColumn(STANDARD_COLUMNS.EXPIRATION_DATE, {
         render: (date) => {
-          if (!date) return <Text type="secondary" style={{ fontSize: 12 }}>No expiration</Text>;
+          if (!date) return <span className="text-xs text-gray-500 dark:text-gray-400">No expiration</span>;
           const expStatus = library.getExpirationStatus(date);
           if (!expStatus) return null;
           
           return (
-            <Space size="small">
-              <Text key="exp-date" style={{ 
-                color: expStatus.status === 'expired' ? '#ff4d4f' : undefined,
-                fontSize: 13
-              }}>
+            <div className="flex items-center gap-2">
+              <span key="exp-date" className={`text-sm ${expStatus.status === 'expired' ? 'text-red-600' : ''}`}>
                 {formatDateDisplay(date)}
-              </Text>
+              </span>
               {(expStatus.status === 'expired' || expStatus.status === 'urgent' || expStatus.status === 'warning') && (
-                <Tag key="exp-status" color={expStatus.color} style={{ fontSize: 11 }}>
+                <Badge key="exp-status" color={expStatus.color} className="text-xs">
                   {expStatus.status === 'expired' ? 'Expired' : `${expStatus.daysRemaining}d`}
-                </Tag>
+                </Badge>
               )}
-            </Space>
+            </div>
           );
         },
         width: 170,
@@ -506,14 +505,14 @@ export default function LibraryClient({
           const actions = [
             <TableActionButton
               key="view"
-              icon={<EyeOutlined />}
+              icon={<HiEye />}
               onClick={() => library.handleView(doc)}
               tooltip="View"
               actionType="view"
             />,
             <TableActionButton
               key="download"
-              icon={<DownloadOutlined />}
+              icon={<HiDownload />}
               onClick={() => library.handleDownload(doc)}
               tooltip="Download"
               actionType="download"
@@ -525,25 +524,17 @@ export default function LibraryClient({
             // Status indicator
             if (doc.isVerified) {
               actions.push(
-                <Tooltip key="status" title="Verified">
-                  <CheckCircleFilled
-                    style={{ 
-                      color: '#52c41a',
-                      fontSize: '18px',
-                      cursor: 'help'
-                    }}
+                <Tooltip key="status" content="Verified">
+                  <HiCheckCircle
+                    className="h-5 w-5 text-green-600 cursor-help"
                   />
                 </Tooltip>
               );
             } else if (doc.uploadedBy === 'tenant') {
               actions.push(
-                <Tooltip key="status" title="Pending verification - Click 'View' to review and verify">
-                  <CheckCircleFilled
-                    style={{ 
-                      color: '#faad14',
-                      fontSize: '18px',
-                      cursor: 'help'
-                    }}
+                <Tooltip key="status" content="Pending verification - Click 'View' to review and verify">
+                  <HiCheckCircle
+                    className="h-5 w-5 text-yellow-500 cursor-help"
                   />
                 </Tooltip>
               );
@@ -554,7 +545,7 @@ export default function LibraryClient({
               actions.push(
                 <TableActionButton
                   key="delete"
-                  icon={<DeleteOutlined />}
+                  icon={<HiTrash />}
                   onClick={() => library.openDeleteModal(doc)}
                   tooltip={doc.uploadedBy === 'tenant' ? "Cannot delete tenant's document" : "Delete"}
                   actionType="delete"
@@ -566,7 +557,7 @@ export default function LibraryClient({
             // Tenant-specific actions
             if (doc.uploadedBy === 'tenant') {
               actions.push(
-                <Popconfirm
+                <FlowbitePopconfirm
                   key="delete"
                   title="Delete Document"
                   description="Are you sure you want to delete this document?"
@@ -575,16 +566,16 @@ export default function LibraryClient({
                   cancelText="No"
                 >
                   <TableActionButton
-                    icon={<DeleteOutlined />}
+                    icon={<HiTrash />}
                     tooltip="Delete"
                     actionType="delete"
                   />
-                </Popconfirm>
+                </FlowbitePopconfirm>
               );
             }
           }
 
-          return <Space>{actions}</Space>;
+          return <div className="flex items-center gap-2">{actions}</div>;
         },
         width: userRole === 'landlord' ? 200 : 150,
       })
@@ -633,7 +624,7 @@ export default function LibraryClient({
       dataIndex: 'category',
       key: 'category',
       width: 150,
-      render: (category) => <Tag color="blue">{category}</Tag>,
+      render: (category) => <Badge color="blue">{category}</Badge>,
       filters: userRole === 'landlord' 
         ? [
             { text: 'Eviction', value: 'Eviction', key: 'eviction' },
@@ -658,9 +649,9 @@ export default function LibraryClient({
       render: (_, record) => {
         const TableActionButton = require('./TableActionButton').default;
         return (
-          <Space size="small">
+          <div className="flex items-center gap-2">
             <TableActionButton
-              icon={<EyeOutlined />}
+              icon={<HiEye />}
               onClick={() => {
                 openPdfViewerForForm(record);
               }}
@@ -668,7 +659,7 @@ export default function LibraryClient({
               actionType="view"
             />
             <TableActionButton
-              icon={<DownloadOutlined />}
+              icon={<HiDownload />}
               onClick={() => {
                 const a = document.createElement('a');
                 a.href = record.link;
@@ -680,7 +671,7 @@ export default function LibraryClient({
               tooltip="Download"
               actionType="download"
             />
-          </Space>
+          </div>
         );
       },
     },
@@ -721,44 +712,39 @@ export default function LibraryClient({
       : getPreLeaseRequiredDocuments();
 
     return (
-      <Card 
-        size="small"
-        style={{ marginBottom: 24 }}
-        title={
-          <Space>
-            <FileDoneOutlined style={{ fontSize: 16, color: '#1890ff' }} />
-            <Text strong>
+      <Card className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <HiDocumentText className="h-4 w-4 text-blue-600" />
+            <h5 className="font-semibold">
               {userRole === 'landlord' 
                 ? `Document Checklist for ${selectedTenant.firstName} ${selectedTenant.lastName}`
                 : 'Document Checklist'}
-            </Text>
-          </Space>
-        }
-        extra={
-          userRole === 'tenant' ? (
-            <Space size="small">
-              <Tag color="success" style={{ fontSize: 12, padding: '4px 12px' }}>
+            </h5>
+          </div>
+          {userRole === 'tenant' ? (
+            <div className="flex items-center gap-2">
+              <Badge color="success" className="text-xs px-3 py-1">
                 ✓ {documentStatus.verifiedCount || 0} Approved
-              </Tag>
+              </Badge>
               {documentStatus.pendingCount > 0 && (
-                <Tag color="warning" style={{ fontSize: 12, padding: '4px 12px' }}>
+                <Badge color="warning" className="text-xs px-3 py-1">
                   ⏱ {documentStatus.pendingCount} Pending
-                </Tag>
+                </Badge>
               )}
-              <Tag color="default" style={{ fontSize: 12, padding: '4px 12px' }}>
+              <Badge color="gray" className="text-xs px-3 py-1">
                 {documentStatus.submittedRequired || 0} / {documentStatus.totalRequired || 0} Total
-              </Tag>
-            </Space>
+              </Badge>
+            </div>
           ) : (
-            <Tag 
+            <Badge 
               color={documentStatus.allRequiredDocumentsSubmitted ? 'success' : 'warning'}
-              style={{ fontSize: 12, padding: '4px 12px' }}
+              className="text-xs px-3 py-1"
             >
               {documentStatus.submittedRequired || 0} / {documentStatus.totalRequired || 0} Required
-            </Tag>
-          )
-        }
-      >
+            </Badge>
+          )}
+        </div>
         <div style={{ 
           display: 'flex', 
           gap: '12px', 
@@ -781,27 +767,27 @@ export default function LibraryClient({
               borderColor = '2px dashed #1890ff';
               iconColor = '#1890ff';
               textColor = '#1890ff';
-              icon = <CloudUploadOutlined style={{ fontSize: 16, color: iconColor }} />;
+              icon = <HiCloudUpload className="h-4 w-4" style={{ color: iconColor }} />;
             } else if (isVerified) {
               bgColor = '#f6ffed';
               borderColor = '1px solid #b7eb8f';
               iconColor = '#52c41a';
               textColor = '#52c41a';
-              icon = <CheckCircleFilled style={{ fontSize: 16, color: iconColor }} />;
+              icon = <HiCheckCircle className="h-4 w-4" style={{ color: iconColor }} />;
             } else if (isPending) {
               bgColor = '#fff7e6';
               borderColor = '1px solid #ffd591';
               iconColor = '#fa8c16';
               textColor = '#fa8c16';
-              icon = <ClockCircleFilled style={{ fontSize: 16, color: iconColor }} />;
+              icon = <HiClock className="h-4 w-4" style={{ color: iconColor }} />;
             } else {
               bgColor = '#fafafa';
               borderColor = '1px solid #e8e8e8';
               iconColor = '#1890ff';
               textColor = '#1890ff';
               icon = userRole === 'tenant' 
-                ? <CloudUploadOutlined style={{ fontSize: 16, color: iconColor }} />
-                : <CloseCircleOutlined style={{ fontSize: 16, color: '#d9d9d9' }} />;
+                ? <HiCloudUpload className="h-4 w-4" style={{ color: iconColor }} />
+                : <HiX className="h-4 w-4" style={{ color: '#d9d9d9' }} />;
             }
             
             return (
@@ -872,43 +858,44 @@ export default function LibraryClient({
                   }}
                 >
                   {icon}
-                  <Text style={{ 
-                    fontSize: 13,
+                  <span className={`text-sm ${isDragOver ? 'text-blue-600' : ''}`} style={{ 
                     color: isDragOver ? '#1890ff' : textColor,
                     fontWeight: isVerified ? 500 : (isPending ? 500 : 400)
                   }}>
                     {category.name}
-                  </Text>
+                  </span>
                   
                   {matchingDoc && userRole === 'tenant' && (
-                    <Space size={4} style={{ marginLeft: 8 }}>
-                      <Tooltip title="View document">
+                    <div className="flex items-center gap-1 ml-2">
+                      <Tooltip content="View document">
                         <Button
-                          type="text"
-                          size="small"
-                          icon={<EyeOutlined />}
-                          className="action-button"
+                          color="light"
+                          size="xs"
+                          className="action-button p-1 h-5"
                           onClick={(e) => {
                             e.stopPropagation();
                             library.handleView(matchingDoc);
                           }}
-                          style={{ padding: '0 4px', height: 20, fontSize: 12, color: textColor }}
-                        />
+                          style={{ color: textColor }}
+                        >
+                          <HiEye className="h-3 w-3" />
+                        </Button>
                       </Tooltip>
-                      <Tooltip title="Replace document">
+                      <Tooltip content="Replace document">
                         <Button
-                          type="text"
-                          size="small"
-                          icon={<ReloadOutlined />}
-                          className="action-button"
+                          color="light"
+                          size="xs"
+                          className="action-button p-1 h-5"
                           onClick={(e) => {
                             e.stopPropagation();
                             library.openUploadModal(category.id);
                           }}
-                          style={{ padding: '0 4px', height: 20, fontSize: 12, color: textColor }}
-                        />
+                          style={{ color: textColor }}
+                        >
+                          <HiRefresh className="h-3 w-3" />
+                        </Button>
                       </Tooltip>
-                    </Space>
+                    </div>
                   )}
                 </div>
               </div>
@@ -927,25 +914,19 @@ export default function LibraryClient({
       
       {renderDocumentChecklist()}
 
-      <Card
-        title={
-          <Space>
-            <FileProtectOutlined style={{ fontSize: 16, color: '#595959' }} />
-            <Text strong style={{ fontSize: '15px', color: '#262626' }}>
-              Documents: {displayDocuments.length}
-            </Text>
-          </Space>
-        }
-        style={{ borderRadius: '6px', border: '1px solid #f0f0f0' }}
-        bodyStyle={{ padding: '16px' }}
-      >
+      <Card className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <HiShieldCheck className="h-4 w-4 text-gray-600" />
+          <h5 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+            Documents: {displayDocuments.length}
+          </h5>
+        </div>
         {library.loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
+          <div className="text-center py-12">
             <Empty description="Loading documents..." />
           </div>
         ) : displayDocuments.length === 0 ? (
           <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               userRole === 'landlord'
                 ? (selectedTenant 
@@ -955,16 +936,24 @@ export default function LibraryClient({
             }
           />
         ) : (
-          <Table
-            {...tableProps}
-            dataSource={documentsSearch.filteredData}
-            rowKey="id"
-            pagination={userRole === 'tenant' ? {
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} documents`,
-            } : { pageSize: 25 }}
-          />
+          <Table hoverable>
+            <Table.Head>
+              {tableProps.columns?.map((col, idx) => (
+                <Table.HeadCell key={idx}>{col.title}</Table.HeadCell>
+              ))}
+            </Table.Head>
+            <Table.Body className="divide-y">
+              {documentsSearch.filteredData?.map((row) => (
+                <Table.Row key={row.id}>
+                  {tableProps.columns?.map((col, idx) => (
+                    <Table.Cell key={idx}>
+                      {col.render ? col.render(row[col.dataIndex], row) : row[col.dataIndex]}
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
         )}
       </Card>
     </div>
@@ -975,186 +964,174 @@ export default function LibraryClient({
     <>
       {/* Upload Modal */}
       <Modal
-        title={userRole === 'tenant' ? (
-          <Space>
-            <CloudUploadOutlined style={{ color: '#1890ff' }} />
-            <span>Upload Document</span>
-          </Space>
-        ) : "Upload Document"}
-        open={library.uploadModalOpen}
-        onCancel={library.closeUploadModal}
-        footer={userRole === 'tenant' ? null : >{
-          <Button key="cancel" onClick={library.closeUploadModal} disabled={library.uploading}>
-            Cancel
-          </Button>,
-          <Button
-            key="upload"
-            type="primary"
-            loading={library.uploading}
-            onClick={library.handleUpload}
-            disabled={
-              !library.category ||
-              !library.description ||
-              !library.selectedFile ||
-              (Array.isArray(library.selectedFile) && library.selectedFile.length === 0)
-            }
-          >
-            {library.uploading && library.uploadProgress.total > 1 
-              ? `Uploading ${library.uploadProgress.current}/${library.uploadProgress.total}...`
-              : 'Upload'}
-          </Button>,
-        }
-        width={600}
-        destroyOnClose={userRole === 'tenant'}
+        show={library.uploadModalOpen}
+        onClose={library.closeUploadModal}
+        size="md"
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Modal.Header>
+          {userRole === 'tenant' ? (
+            <div className="flex items-center gap-2">
+              <HiCloudUpload className="h-5 w-5 text-blue-600" />
+              <span>Upload Document</span>
+            </div>
+          ) : "Upload Document"}
+        </Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
           {library.uploading && library.uploadProgress.total > 1 && (
-            <Alert
-              message={`Uploading file ${library.uploadProgress.current} of ${library.uploadProgress.total}`}
-              type="info"
-              showIcon
-              icon={<CloudUploadOutlined />}
-              description={
+            <Alert color="info">
+              <div>
+                <p className="font-semibold mb-2">Uploading file {library.uploadProgress.current} of {library.uploadProgress.total}</p>
                 <Progress 
-                  percent={Math.round((library.uploadProgress.current / library.uploadProgress.total) * 100)} 
-                  status="active"
+                  progress={Math.round((library.uploadProgress.current / library.uploadProgress.total) * 100)}
+                  color="blue"
                 />
-              }
-            />
+              </div>
+            </Alert>
           )}
 
           {userRole === 'tenant' ? (
             <>
               <div>
-                <Text strong>Select Document Type</Text>
+                <Label className="mb-2 block font-semibold">Select Document Type</Label>
                 <Select
-                  style={{ width: '100%', marginTop: 8 }}
-                  placeholder="Choose document category..."
+                  className="w-full"
                   value={library.category}
-                  onChange={library.setCategory}
-                  options={Object.values(DOCUMENT_CATEGORIES).filter(cat => 
+                  onChange={(e) => library.setCategory(e.target.value)}
+                >
+                  <option value="">Choose document category...</option>
+                  {Object.values(DOCUMENT_CATEGORIES).filter(cat => 
                     cat.uploadedBy === 'tenant'
-                  ).map(cat => ({
-                    label: cat.name,
-                    value: cat.id,
-                  }))}
-                />
+                  ).map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </Select>
               </div>
 
               {library.category && (
                 <div>
-                  <Text strong>Upload File</Text>
-                  <Dragger
+                  <Label className="mb-2 block font-semibold">Upload File</Label>
+                  <FileInput
                     {...uploadProps}
-                    style={{ marginTop: 8 }}
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  >
-                    <p className="ant-upload-drag-icon">
-                      <InboxOutlined />
-                    </p>
-                    <p className="ant-upload-text">Click or drag file to upload</p>
-                    <p className="ant-upload-hint">
-                      Supports PDF, JPG, PNG, DOC, DOCX
-                    </p>
-                  </Dragger>
+                    helperText="Supports PDF, JPG, PNG, DOC, DOCX"
+                  />
                 </div>
               )}
 
               {library.category && library.selectedFile && getCategoryById(library.category)?.requiresExpiration && (
                 <div>
-                  <Text strong>Expiration Date (if applicable)</Text>
-                  <DatePicker
-                    style={{ width: '100%', marginTop: 8 }}
+                  <Label className="mb-2 block font-semibold">Expiration Date (if applicable)</Label>
+                  <Datepicker
+                    className="w-full"
                     value={library.expirationDate}
-                    onChange={library.setExpirationDate}
-                    format="YYYY-MM-DD"
+                    onSelectedDateChanged={(date) => library.setExpirationDate(date)}
                     placeholder="Select expiration date"
                   />
                 </div>
               )}
 
-              <div style={{ textAlign: 'right' }}>
-                <Space>
-                  <Button onClick={library.closeUploadModal}>Cancel</Button>
-                  <Button
-                    type="primary"
-                    icon={<CloudUploadOutlined />}
-                    onClick={library.handleUpload}
-                    disabled={!library.category || !library.selectedFile}
-                    loading={library.uploading}
-                  >
-                    Upload
-                  </Button>
-                </Space>
+              <div className="flex justify-end gap-2">
+                <Button color="gray" onClick={library.closeUploadModal}>Cancel</Button>
+                <Button
+                  color="blue"
+                  className="flex items-center gap-2"
+                  onClick={library.handleUpload}
+                  disabled={!library.category || !library.selectedFile}
+                >
+                  {library.uploading ? (
+                    <>
+                      <Spinner size="sm" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <HiCloudUpload className="h-4 w-4" />
+                      Upload
+                    </>
+                  )}
+                </Button>
               </div>
             </>
           ) : (
             <>
-              <Row gutter={16}>
-                <Col span={library.category ? 12 : 24}>
-                  <Text strong>Category *</Text>
+              <div className={`grid ${library.category ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                <div>
+                  <Label className="mb-2 block font-semibold">Category *</Label>
                   <Select
                     value={library.category}
-                    onChange={(value) => library.setCategory(value)}
-                    style={{ width: '100%', marginTop: 8 }}
-                    placeholder="Select category"
+                    onChange={(e) => library.setCategory(e.target.value)}
+                    className="w-full"
                   >
+                    <option value="">Select category</option>
                     {Object.values(CATEGORY_GROUPS).flatMap(group =>
                       group.categories
                         .map(catId => getCategoryById(catId))
                         .filter(cat => cat && cat.id != null)
                         .filter(cat => cat.uploadedBy === 'landlord' || cat.uploadedBy === 'both')
                         .map(cat => (
-                          <Select.Option key={cat.id} value={cat.id}>
+                          <option key={cat.id} value={cat.id}>
                             {cat.name}
-                          </Select.Option>
+                          </option>
                         ))
                     )}
                   </Select>
-                </Col>
+                </div>
                 {library.category && (
-                  <Col span={12}>
-                    <Text strong>Expiration Date</Text>
-                    <DatePicker
+                  <div>
+                    <Label className="mb-2 block font-semibold">Expiration Date</Label>
+                    <Datepicker
+                      className="w-full"
                       value={library.expirationDate}
-                      onChange={(date) => library.setExpirationDate(date)}
-                      style={{ width: '100%', marginTop: 8 }}
-                      format="YYYY-MM-DD"
+                      onSelectedDateChanged={(date) => library.setExpirationDate(date)}
                       placeholder="Select date"
                     />
-                  </Col>
+                  </div>
                 )}
-              </Row>
+              </div>
 
               <div>
-                <Text strong>Description {library.category === 'OTHER' && '*'}</Text>
-                <TextArea
+                <Label className="mb-2 block font-semibold">Description {library.category === 'OTHER' && '*'}</Label>
+                <Textarea
                   rows={3}
                   placeholder={library.category === 'OTHER' ? "Please provide description (required for Other documents)" : "Optional: Provide additional details"}
                   value={library.description}
                   onChange={(e) => library.setDescription(e.target.value)}
-                  style={{ marginTop: 8 }}
                 />
               </div>
 
               <div>
-                <Text strong>Upload File *</Text>
-                <Dragger {...uploadProps} style={{ marginTop: 8 }}>
-                  <p className="ant-upload-drag-icon">
-                    <InboxOutlined />
-                  </p>
-                  <p className="ant-upload-text">
-                    Click or drag files to upload (multiple files supported)
-                  </p>
-                  <p className="ant-upload-hint">
-                    {library.category && getCategoryById(library.category).allowedFileTypes.join(', ')}
-                    <br />You can upload multiple files at once
-                  </p>
-                </Dragger>
+                <Label className="mb-2 block font-semibold">Upload File *</Label>
+                <FileInput
+                  {...uploadProps}
+                  helperText={`${library.category ? getCategoryById(library.category).allowedFileTypes.join(', ') : ''}. You can upload multiple files at once.`}
+                />
               </div>
             </>
           )}
-        </Space>
+          </div>
+        </Modal.Body>
+        {userRole !== 'tenant' && (
+          <Modal.Footer>
+            <Button color="gray" onClick={library.closeUploadModal} disabled={library.uploading}>
+              Cancel
+            </Button>
+            <Button
+              color="blue"
+              onClick={library.handleUpload}
+              disabled={
+                !library.category ||
+                !library.description ||
+                !library.selectedFile ||
+                (Array.isArray(library.selectedFile) && library.selectedFile.length === 0)
+              }
+            >
+              {library.uploading && library.uploadProgress.total > 1 
+                ? `Uploading ${library.uploadProgress.current}/${library.uploadProgress.total}...`
+                : 'Upload'}
+            </Button>
+          </Modal.Footer>
+        )}
       </Modal>
 
       {/* View Modal - PDFViewerModal */}
@@ -1166,12 +1143,13 @@ export default function LibraryClient({
           if (!library.viewingDocument) return;
           
           try {
-            message.loading({ content: 'Promoting version to current...', key: 'promote', duration: 0 });
+            const loadingToast = notify.loading('Promoting version to current...');
             
-            // Use v1Api to promote version
-            const { v1Api } = await import('@/lib/api/v1-client');
-            await v1Api.forms.promoteDocumentVersion(library.viewingDocument.id, versionIndex);
-            message.success({ content: 'Version promoted successfully', key: 'promote' });
+            // Use v2Api to promote version
+            const { v2Api } = await import('@/lib/api/v2-client');
+            await v2Api.forms.promoteDocumentVersion(library.viewingDocument.id, versionIndex);
+            loadingToast();
+            notify.success('Version promoted successfully');
             library.closeViewModal();
             setTimeout(() => {
               router.refresh();
@@ -1179,7 +1157,8 @@ export default function LibraryClient({
             }, 300);
           } catch (error) {
             console.error(`[${userRole === 'landlord' ? 'Landlord' : 'Tenant'} Library] Promote version error:`, error);
-            message.error({ content: 'Failed to promote version', key: 'promote' });
+            loadingToast();
+            notify.error('Failed to promote version');
           }
         }}
         documents={(() => {
@@ -1201,7 +1180,7 @@ export default function LibraryClient({
                   fileType: file.fileType,
                   fileSize: file.fileSize,
                   storagePath: file.storagePath,
-                  viewUrl: null, // Will use v1Api.forms.viewDocument() instead
+                  viewUrl: null, // Will use v2Api.forms.viewDocument() instead
                   fileIndex: index,
                 }));
               }
@@ -1222,7 +1201,7 @@ export default function LibraryClient({
                     uploadedByEmail: version.uploadedByEmail,
                     uploadedByName: version.uploadedByName,
                     uploadedAt: version.uploadedAt,
-                    viewUrl: null, // Will use v1Api.forms.viewDocument() instead
+                    viewUrl: null, // Will use v2Api.forms.viewDocument() instead
                     versionIndex: index,
                     versionLabel: `Version ${index + 2}`
                   }))
@@ -1235,7 +1214,7 @@ export default function LibraryClient({
           
           // Default: single document
           const doc = { ...library.viewingDocument };
-          doc.viewUrl = null; // Will use v1Api.forms.viewDocument() instead
+          doc.viewUrl = null; // Will use v2Api.forms.viewDocument() instead
           return [doc];
         })()}
         currentIndex={0}
@@ -1278,79 +1257,89 @@ export default function LibraryClient({
 
       {/* Delete Confirmation Modal */}
       <Modal
-        title={
-          <Space>
-            <DeleteOutlined style={{ color: '#ff4d4f' }} />
-            <Text>Delete Document</Text>
-          </Space>
-        }
-        open={library.deleteModal.visible}
-        onCancel={library.closeDeleteModal}
-        footer={
-          <Button key="cancel" onClick={library.closeDeleteModal} disabled={library.deleteModal.loading}>
-            Cancel
-          </Button>,
-          <Button
-            key="delete"
-            type="primary"
-            danger
-            loading={library.deleteModal.loading}
-            onClick={confirmDelete}
-          >
-            Delete Document
-          </Button>,
-        }
-        width={500}
+        show={library.deleteModal.visible}
+        onClose={library.closeDeleteModal}
+        size="md"
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Alert
-            message="Document Deletion Confirmation"
-            description="This document will be marked as deleted but retained in the system for legal audit purposes."
-            type="warning"
-            showIcon
-          />
-
-          {library.deleteModal.document && (
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="Document Name">
-                {library.deleteModal.document.originalName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Category">
-                {getCategoryById(library.deleteModal.document.category)?.name || library.deleteModal.document.category}
-              </Descriptions.Item>
-              {userRole === 'landlord' && (
-                <Descriptions.Item label="Uploaded By">
-                  <Space>
-                    <Tag color={library.deleteModal.document.uploadedBy === 'landlord' ? 'blue' : 'green'}>
-                      {library.deleteModal.document.uploadedBy === 'landlord' ? 'Landlord' : 'Tenant'}
-                    </Tag>
-                    {library.deleteModal.document.uploadedByName}
-                  </Space>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label={userRole === 'landlord' ? "Uploaded Date" : "Upload Date"}>
-                {formatDateTimeDisplay(library.deleteModal.document.uploadedAt)}
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-
-          <div>
-            <Text strong>Reason for Deletion {userRole === 'landlord' ? '(Optional but Recommended)' : ''}</Text>
-            <TextArea
-              rows={userRole === 'landlord' ? 4 : 3}
-              placeholder="Please provide a reason for deleting this document..."
-              value={library.deleteModal.reason}
-              onChange={(e) => library.updateDeleteReason(e.target.value)}
-              style={{ marginTop: 8 }}
-              disabled={library.deleteModal.loading}
-            />
-            {userRole === 'landlord' && (
-              <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-                This reason will be logged for audit trail purposes
-              </Text>
-            )}
+        <Modal.Header>
+          <div className="flex items-center gap-2">
+            <HiTrash className="h-5 w-5 text-red-600" />
+            <span>Delete Document</span>
           </div>
-        </Space>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="space-y-4">
+            <Alert color="warning">
+              <div>
+                <p className="font-semibold mb-1">Document Deletion Confirmation</p>
+                <p className="text-sm">This document will be marked as deleted but retained in the system for legal audit purposes.</p>
+              </div>
+            </Alert>
+
+            {library.deleteModal.document && (
+              <div className="grid grid-cols-1 gap-2 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Document Name:</span>
+                  <p className="text-sm">{library.deleteModal.document.originalName}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Category:</span>
+                  <p className="text-sm">{getCategoryById(library.deleteModal.document.category)?.name || library.deleteModal.document.category}</p>
+                </div>
+                {userRole === 'landlord' && (
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Uploaded By:</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge color={library.deleteModal.document.uploadedBy === 'landlord' ? 'blue' : 'success'}>
+                        {library.deleteModal.document.uploadedBy === 'landlord' ? 'Landlord' : 'Tenant'}
+                      </Badge>
+                      <span className="text-sm">{library.deleteModal.document.uploadedByName}</span>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{userRole === 'landlord' ? "Uploaded Date" : "Upload Date"}:</span>
+                  <p className="text-sm">{formatDateTimeDisplay(library.deleteModal.document.uploadedAt)}</p>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label className="mb-2 block font-semibold">Reason for Deletion {userRole === 'landlord' ? '(Optional but Recommended)' : ''}</Label>
+              <Textarea
+                rows={userRole === 'landlord' ? 4 : 3}
+                placeholder="Please provide a reason for deleting this document..."
+                value={library.deleteModal.reason}
+                onChange={(e) => library.updateDeleteReason(e.target.value)}
+                disabled={library.deleteModal.loading}
+              />
+              {userRole === 'landlord' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  This reason will be logged for audit trail purposes
+                </p>
+              )}
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="gray" onClick={library.closeDeleteModal} disabled={library.deleteModal.loading}>
+            Cancel
+          </Button>
+          <Button
+            color="failure"
+            onClick={confirmDelete}
+            disabled={library.deleteModal.loading}
+          >
+            {library.deleteModal.loading ? (
+              <>
+                <Spinner size="sm" />
+                Deleting...
+              </>
+            ) : (
+              'Delete Document'
+            )}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
     </>

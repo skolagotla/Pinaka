@@ -15,13 +15,13 @@
  * Usage:
  * <PageBanner
  *   title="Vault"
- *   stats={
- *     { label: 'Tenants', value: 3, color: '#1890ff' },
- *     { label: 'Documents', value: 9, color: '#52c41a' }
- *   }
- *   actions={
- *     { icon: <PlusOutlined />, tooltip: 'Add', onClick: handleAdd, type: 'primary' }
- *   }
+ *   stats={[
+ *     { label: 'Tenants', value: 3, color: '#3b82f6' },
+ *     { label: 'Documents', value: 9, color: '#22c55e' }
+ *   ]}
+ *   actions={[
+ *     { icon: <HiPlus />, tooltip: 'Add', onClick: handleAdd, type: 'primary' }
+ *   ]}
  *   dropdown={<Select ... />}
  *   showStats={true}
  *   searchValue={searchTerm}
@@ -31,11 +31,9 @@
  */
 
 import React, { memo } from 'react';
-import { Card, Typography, Space, Button, Tooltip } from 'antd';
+import { Card, Button, Tooltip } from 'flowbite-react';
 import SearchBar from './SearchBar';
 import { IconButton, ActionButton } from './buttons';
-
-const { Title, Text } = Typography;
 
 function PageBanner({ 
   title, 
@@ -52,63 +50,35 @@ function PageBanner({
 }) {
   return (
     <Card
-      style={{
-        marginBottom: 24,
-        borderRadius: 8,
-        background: '#ffffff',
-        border: '1px solid #e8e8e8',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        ...style
-      }}
-      bodyStyle={{ padding: '20px 24px' }}
+      className="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+      style={style}
     >
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'auto auto 1fr auto auto',
-        gap: '24px',
-        alignItems: 'center'
-      }}>
+      <div className="grid grid-cols-[auto_auto_1fr_auto_auto] gap-6 items-center">
         {/* SECTION 1: Title (Left) */}
         <div>
-          <Title level={2} style={{ margin: 0, color: '#1f1f1f' }}>{title}</Title>
+          <h2 className="text-2xl font-semibold m-0 text-gray-900 dark:text-white">{title}</h2>
           {subtitle && (
-            <Text type="secondary" style={{ fontSize: 14 }}>{subtitle}</Text>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
           )}
         </div>
         
         {/* DIVIDER 1 */}
-        <div style={{ 
-          width: '1px', 
-          height: '40px', 
-          background: '#e8e8e8',
-          alignSelf: 'center'
-        }} />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 self-center" />
         
         {/* SECTION 2: Stats (Middle) */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 24,
-          justifyContent: 'center',
-          overflow: 'hidden'
-        }}>
+        <div className="flex items-center gap-6 justify-center overflow-hidden">
           {showStats && stats.length > 0 && stats.map((stat, index) => (
-            <Text key={index} style={{ fontSize: 16, color: '#595959', whiteSpace: 'nowrap' }}>
-              {stat.label}: <Text strong style={{ fontSize: 18, color: stat.color }}>{stat.value}</Text>
-            </Text>
+            <span key={index} className="text-base text-gray-600 dark:text-gray-300 whitespace-nowrap">
+              {stat.label}: <strong className="text-lg" style={{ color: stat.color }}>{stat.value}</strong>
+            </span>
           ))}
         </div>
         
         {/* DIVIDER 2 */}
-        <div style={{ 
-          width: '1px', 
-          height: '40px', 
-          background: '#e8e8e8',
-          alignSelf: 'center'
-        }} />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 self-center" />
         
         {/* SECTION 3: Actions (Right) - Consistent Order: Search, Dropdown, Refresh, Add */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 'fit-content' }}>
+        <div className="flex items-center gap-2 min-w-fit">
           {/* Search First - Uses SearchBar component */}
           {onSearchChange && (
             <SearchBar
@@ -124,7 +94,7 @@ function PageBanner({
           {dropdown}
           
           {/* Other Action Buttons (Refresh, Add, etc.) */}
-          <Space size={8}>
+          <div className="flex items-center gap-2">
             {actions.map((action, index) => {
               // If action has a standard action type, use ActionButton
               if (action.action && ['add', 'edit', 'delete', 'save', 'cancel'].includes(action.action)) {
@@ -145,17 +115,19 @@ function PageBanner({
                 const button = (
                   <Button
                     key={index}
-                    icon={action.icon}
                     onClick={action.onClick}
-                    type={action.type || 'default'}
-                    loading={action.loading}
-                    disabled={action.disabled}
+                    color={action.type === 'primary' ? 'blue' : 'gray'}
+                    disabled={action.loading || action.disabled}
+                    className="flex items-center gap-2"
                   >
+                    {action.icon && <span>{action.icon}</span>}
                     {action.label}
                   </Button>
                 );
                 return action.tooltip ? (
-                  <Tooltip key={index} title={action.tooltip}button}</Tooltip>
+                  <Tooltip key={index} content={action.tooltip}>
+                    {button}
+                  </Tooltip>
                 ) : button;
               }
               
@@ -172,7 +144,7 @@ function PageBanner({
                 />
               );
             })}
-          </Space>
+          </div>
         </div>
       </div>
     </Card>

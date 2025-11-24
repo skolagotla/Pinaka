@@ -8,11 +8,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Modal, Form, Select, Space, Button, message, Alert, Tag } from 'antd';
-import { UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { RBACRole } from '@/lib/types/rbac';
-
-const { Option } = Select;
+import { Modal, Select, Button, Alert, Badge, Spinner } from 'flowbite-react';
+import { HiUser, HiCheckCircle } from 'react-icons/hi';
+import type { RBACRole } from '@/lib/types/rbac';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 interface RoleAssignmentModalProps {
   visible: boolean;
@@ -41,7 +41,7 @@ export default function RoleAssignmentModal({
   pmcId,
   landlordId,
 }: RoleAssignmentModalProps) {
-  const [form] = Form.useForm();
+  const form = useFormState({ roles: [] });
   const [loading, setLoading] = useState(false);
   const [existingRoles, setExistingRoles] = useState<any[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
@@ -70,19 +70,27 @@ export default function RoleAssignmentModal({
       } else {
         setExistingRoles([]);
         if (data.error) {
-          message.error(data.error);
+          notify.error(data.error);
         }
       }
     } catch (error) {
       console.error('Error loading existing roles:', error);
-      message.error('Failed to load existing roles');
+      notify.error('Failed to load existing roles');
       setExistingRoles([]);
     } finally {
       setLoadingRoles(false);
     }
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const values = form.getFieldsValue();
+    
+    if (!values.roles || values.roles.length === 0) {
+      notify.error('Please select at least one role');
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -125,13 +133,13 @@ export default function RoleAssignmentModal({
 
       await Promise.all(assignmentPromises);
 
-      message.success('Roles assigned successfully');
+      notify.success('Roles assigned successfully');
       onSuccess?.();
       onClose();
-      form.resetFields();
+      form.resetForm();
     } catch (error: any) {
       console.error('Error assigning roles:', error);
-      message.error(error.message || 'Failed to assign roles');
+      notify.error(error.message || 'Failed to assign roles');
     } finally {
       setLoading(false);
     }
@@ -168,86 +176,95 @@ export default function RoleAssignmentModal({
   };
 
   return (
-    <Modal
-      title={
-        <Space>
-          <UserOutlined />
+    <Modal show={visible} onClose={onClose} size="lg">
+      <Modal.Header>
+        <div className="flex items-center gap-2">
+          <HiUser className="h-5 w-5" />
           <span>Assign Roles</span>
-        </Space>
-      }
-      open={visible}
-      onCancel={onClose}
-      footer={null}
-      width={600}
-    >
-      <Alert
-        message={`Assigning roles to ${userName || userEmail || userId}`}
-        description="Select one or more roles to assign to this user. Roles determine what permissions the user has."
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
+        </div>
+      </Modal.Header>
+      <Modal.Body>
+        <Alert color="info" className="mb-4">
+          <div>
+            <h3 className="font-semibold">Assigning roles to {userName || userEmail || userId}</h3>
+            <p className="text-sm mt-1">
+              Select one or more roles to assign to this user. Roles determine what permissions the user has.
+            </p>
+          </div>
+        </Alert>
 
-      {loadingRoles ? (
-        <div>Loading existing roles...</div>
-      ) : (
-        <>
-          {existingRoles.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <strong>Current Roles:</strong>
-              <div style={{ marginTop: 8 }}>
-                {existingRoles.map((role, index) => (
-                  <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                    {role.roleDisplayName || role.roleName || role.role}
-                  </Tag>
-                ))}
+        {loadingRoles ? (
+          <div className="flex justify-center items-center py-8">
+            <Spinner size="xl" />
+            <span className="ml-3">Loading existing roles...</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {existingRoles.length > 0 && (
+              <div className="mb-4">
+                <p className="font-semibold mb-2">Current Roles:</p>
+                <div className="flex flex-wrap gap-2">
+                  {existingRoles.map((role, index) => (
+                    <Badge key={index} color="blue">
+                      {role.roleDisplayName || role.roleName || role.role}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-          >
-            <Form.Item
-              name="roles"
-              label="Roles"
-              rules={[{ required: true, message: 'Please select at least one role' }]}
-            >
+            <div>
+              <label htmlFor="roles" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                Roles <span className="text-red-500">*</span>
+              </label>
               <Select
-                mode="multiple"
-                placeholder="Select roles"
-                loading={loadingRoles}
+                id="roles"
+                multiple
+                value={form.values.roles || []}
+                onChange={(e) => {
+                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                  form.setFieldsValue({ roles: selectedOptions });
+                }}
+                required
+                className="w-full"
               >
                 {getAvailableRoles().map((role) => (
-                  <Option key={role} value={role}>
+                  <option key={role} value={role}>
                     {role.replace(/_/g, ' ')}
-                  </Option>
+                  </option>
                 ))}
               </Select>
-            </Form.Item>
+            </div>
 
             {/* Scope fields can be added here if needed */}
             {/* For now, scope is determined by context (pmcId, landlordId) */}
 
-            <Form.Item>
-              <Space>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  icon={<CheckCircleOutlined />}
-                >
-                  Assign Roles
-                </Button>
-                <Button onClick={onClose}>Cancel</Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </>
-      )}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button color="gray" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                color="blue"
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <HiCheckCircle className="h-4 w-4" />
+                    Assign Roles
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal.Body>
     </Modal>
   );
 }
-

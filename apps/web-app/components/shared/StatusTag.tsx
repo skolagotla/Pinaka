@@ -1,13 +1,12 @@
 import React from 'react';
-import { Tag } from 'antd';
+import { Badge } from 'flowbite-react';
 import { 
-  CheckCircleOutlined, 
-  CloseCircleOutlined, 
-  ClockCircleOutlined, 
-  WarningOutlined,
-  ExclamationCircleOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
+  HiCheckCircle, 
+  HiXCircle, 
+  HiClock, 
+  HiExclamation,
+  HiInformationCircle,
+} from 'react-icons/hi';
 
 export type StatusType = 
   | 'verified' 
@@ -56,68 +55,68 @@ export interface StatusTagProps {
 }
 
 const STATUS_CONFIG: Record<StatusType, { 
-  color: string; 
-  icon: React.ComponentType; 
+  color: 'success' | 'failure' | 'warning' | 'info' | 'gray'; 
+  icon: React.ComponentType<{ className?: string }>; 
   defaultText: string;
 }> = {
   verified: { 
     color: 'success', 
-    icon: CheckCircleOutlined, 
+    icon: HiCheckCircle, 
     defaultText: 'Verified' 
   },
   rejected: { 
-    color: 'error', 
-    icon: CloseCircleOutlined, 
+    color: 'failure', 
+    icon: HiXCircle, 
     defaultText: 'Rejected' 
   },
   pending: { 
     color: 'warning', 
-    icon: ClockCircleOutlined, 
+    icon: HiClock, 
     defaultText: 'Pending' 
   },
   active: { 
     color: 'success', 
-    icon: CheckCircleOutlined, 
+    icon: HiCheckCircle, 
     defaultText: 'Active' 
   },
   inactive: { 
-    color: 'default', 
-    icon: CloseCircleOutlined, 
+    color: 'gray', 
+    icon: HiXCircle, 
     defaultText: 'Inactive' 
   },
   warning: { 
     color: 'warning', 
-    icon: WarningOutlined, 
+    icon: HiExclamation, 
     defaultText: 'Warning' 
   },
   expired: { 
-    color: 'error', 
-    icon: ExclamationCircleOutlined, 
+    color: 'failure', 
+    icon: HiExclamation, 
     defaultText: 'Expired' 
   },
   urgent: { 
-    color: 'error', 
-    icon: WarningOutlined, 
+    color: 'failure', 
+    icon: HiExclamation, 
     defaultText: 'Urgent' 
   },
   success: { 
     color: 'success', 
-    icon: CheckCircleOutlined, 
+    icon: HiCheckCircle, 
     defaultText: 'Success' 
   },
   error: { 
-    color: 'error', 
-    icon: CloseCircleOutlined, 
+    color: 'failure', 
+    icon: HiXCircle, 
     defaultText: 'Error' 
   },
   info: { 
-    color: 'blue', 
-    icon: InfoCircleOutlined, 
+    color: 'info', 
+    icon: HiInformationCircle, 
     defaultText: 'Info' 
   },
   default: { 
-    color: 'default', 
-    icon: InfoCircleOutlined, 
+    color: 'gray', 
+    icon: HiInformationCircle, 
     defaultText: 'Status' 
   },
 };
@@ -146,14 +145,14 @@ export function StatusTag({
   const Icon = config.icon;
 
   return (
-    <Tag 
+    <Badge 
       color={config.color} 
-      icon={icon && (customIcon || <Icon />)}
+      icon={icon && (customIcon || <Icon className="h-3 w-3" />)}
       style={style}
       className={className}
     >
       {text || config.defaultText}
-    </Tag>
+    </Badge>
   );
 }
 
@@ -227,4 +226,3 @@ export function MaintenanceStatusTag({ status }: { status: string }) {
 }
 
 export default StatusTag;
-

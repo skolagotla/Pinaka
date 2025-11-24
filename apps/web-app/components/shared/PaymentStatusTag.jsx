@@ -6,16 +6,16 @@
  */
 
 import React from 'react';
-import { Tag, Tooltip } from 'antd';
+import { Badge, Tooltip } from 'flowbite-react';
 import { 
-  CheckCircleOutlined, 
-  WarningOutlined, 
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  SyncOutlined,
-  ExclamationCircleOutlined,
-  PauseCircleOutlined
-} from '@ant-design/icons';
+  HiCheckCircle, 
+  HiExclamation, 
+  HiXCircle,
+  HiClock,
+  HiRefresh,
+  HiExclamationCircle,
+  HiPause
+} from 'react-icons/hi';
 import { getPaymentStatusColor, getPaymentStatusIcon } from '@/lib/utils/rent-display-helpers';
 
 const PaymentStatusTag = React.memo(({ payment, showIcon = true, stripePayment = null }) => {
@@ -23,19 +23,19 @@ const PaymentStatusTag = React.memo(({ payment, showIcon = true, stripePayment =
   if (stripePayment?.retryCount > 0 && stripePayment?.retryCount < 3) {
     if (stripePayment?.requiresTenantApproval && stripePayment?.tenantApprovedRetry === null) {
       return (
-        <Tooltip title={`Retry #${stripePayment.retryCount} pending your approval. Scheduled for ${stripePayment.retryScheduledAt ? new Date(stripePayment.retryScheduledAt).toLocaleString() : 'soon'}`}>
-          <Tag icon={showIcon ? <ClockCircleOutlined /> : null} color="orange">
+        <Tooltip content={`Retry #${stripePayment.retryCount} pending your approval. Scheduled for ${stripePayment.retryScheduledAt ? new Date(stripePayment.retryScheduledAt).toLocaleString() : 'soon'}`}>
+          <Badge color="warning" icon={showIcon ? <HiClock className="h-3 w-3" /> : undefined}>
             Retry Pending Approval
-          </Tag>
+          </Badge>
         </Tooltip>
       );
     }
     if (stripePayment?.retryScheduledAt && new Date(stripePayment.retryScheduledAt) > new Date()) {
       return (
-        <Tooltip title={`Retry #${stripePayment.retryCount} scheduled for ${new Date(stripePayment.retryScheduledAt).toLocaleString()}`}>
-          <Tag icon={showIcon ? <SyncOutlined spin /> : null} color="blue">
+        <Tooltip content={`Retry #${stripePayment.retryCount} scheduled for ${new Date(stripePayment.retryScheduledAt).toLocaleString()}`}>
+          <Badge color="info" icon={showIcon ? <HiRefresh className="h-3 w-3 animate-spin" /> : undefined}>
             Retry Scheduled
-          </Tag>
+          </Badge>
         </Tooltip>
       );
     }
@@ -46,28 +46,28 @@ const PaymentStatusTag = React.memo(({ payment, showIcon = true, stripePayment =
     const disputeStatus = stripePayment.disputeStatus;
     if (disputeStatus === 'chargeback_pending') {
       return (
-        <Tooltip title="Payment is under dispute. Late fees are frozen until resolved.">
-          <Tag icon={showIcon ? <ExclamationCircleOutlined /> : null} color="red">
+        <Tooltip content="Payment is under dispute. Late fees are frozen until resolved.">
+          <Badge color="failure" icon={showIcon ? <HiExclamationCircle className="h-3 w-3" /> : undefined}>
             Chargeback Pending
-          </Tag>
+          </Badge>
         </Tooltip>
       );
     }
     if (disputeStatus === 'chargeback_won') {
       return (
-        <Tooltip title="Dispute resolved in your favor. Payment restored.">
-          <Tag icon={showIcon ? <CheckCircleOutlined /> : null} color="green">
+        <Tooltip content="Dispute resolved in your favor. Payment restored.">
+          <Badge color="success" icon={showIcon ? <HiCheckCircle className="h-3 w-3" /> : undefined}>
             Dispute Won
-          </Tag>
+          </Badge>
         </Tooltip>
       );
     }
     if (disputeStatus === 'chargeback_lost') {
       return (
-        <Tooltip title="Dispute resolved against you. Payment permanently lost.">
-          <Tag icon={showIcon ? <CloseCircleOutlined /> : null} color="red">
+        <Tooltip content="Dispute resolved against you. Payment permanently lost.">
+          <Badge color="failure" icon={showIcon ? <HiXCircle className="h-3 w-3" /> : undefined}>
             Dispute Lost
-          </Tag>
+          </Badge>
         </Tooltip>
       );
     }
@@ -76,10 +76,10 @@ const PaymentStatusTag = React.memo(({ payment, showIcon = true, stripePayment =
   // Check for queued status (gateway failure)
   if (payment.notes?.includes('queued due to gateway failure')) {
     return (
-      <Tooltip title="Payment queued due to gateway outage. Will be processed automatically when gateway recovers.">
-        <Tag icon={showIcon ? <PauseCircleOutlined /> : null} color="default">
+      <Tooltip content="Payment queued due to gateway outage. Will be processed automatically when gateway recovers.">
+        <Badge color="gray" icon={showIcon ? <HiPause className="h-3 w-3" /> : undefined}>
           Queued - Gateway Down
-        </Tag>
+        </Badge>
       </Tooltip>
     );
   }
@@ -88,17 +88,27 @@ const PaymentStatusTag = React.memo(({ payment, showIcon = true, stripePayment =
   const statusColor = getPaymentStatusColor(payment);
   const StatusIcon = getPaymentStatusIcon(payment.status);
   
+  // Map Ant Design colors to Flowbite colors
+  const colorMap = {
+    'green': 'success',
+    'red': 'failure',
+    'orange': 'warning',
+    'blue': 'info',
+    'default': 'gray',
+  };
+  
+  const flowbiteColor = colorMap[statusColor] || 'gray';
+  
   return (
-    <Tag 
-      icon={showIcon && StatusIcon ? <StatusIcon /> : null} 
-      color={statusColor}
+    <Badge 
+      color={flowbiteColor}
+      icon={showIcon && StatusIcon ? <StatusIcon className="h-3 w-3" /> : undefined}
     >
       {payment.status}
-    </Tag>
+    </Badge>
   );
 });
 
 PaymentStatusTag.displayName = 'PaymentStatusTag';
 
 export default PaymentStatusTag;
-

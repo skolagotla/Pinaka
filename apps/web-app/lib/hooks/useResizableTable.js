@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Table } from 'antd';
 import { Resizable } from 'react-resizable';
 
 /**

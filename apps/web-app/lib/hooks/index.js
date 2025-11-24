@@ -78,7 +78,7 @@ export { useConfirmDialog } from './useConfirmDialog';
 export { useFormValidation } from './useFormValidation';
 export { useDialog } from './useDialog';
 export { useFormDataSanitizer } from './useFormDataSanitizer';
-export { useUnifiedApi } from './useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client instead
 export { useMaintenanceRequests } from './useMaintenanceRequests';
 export { useMaintenanceActions } from './useMaintenanceActions';
 export { useTenantFormData } from './useTenantFormData';

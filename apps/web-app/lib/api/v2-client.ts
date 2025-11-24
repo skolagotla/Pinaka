@@ -42,7 +42,8 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retries = 2
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers: HeadersInit = {
@@ -54,36 +55,51 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
 
-    if (!response.ok) {
-      const error: ApiError = {
-        detail: `HTTP ${response.status}: ${response.statusText}`,
-        status: response.status,
-      };
+      if (!response.ok) {
+        const error: ApiError = {
+          detail: `HTTP ${response.status}: ${response.statusText}`,
+          status: response.status,
+        };
 
-      try {
-        const errorData = await response.json();
-        if (errorData.detail) {
-          error.detail = errorData.detail;
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            error.detail = errorData.detail;
+          }
+        } catch (e) {
+          // Ignore JSON parse errors
         }
-      } catch (e) {
-        // Ignore JSON parse errors
+
+        // Retry on network errors (5xx) or rate limiting (429), not client errors (4xx)
+        if (retries > 0 && (response.status >= 500 || response.status === 429)) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries))); // Exponential backoff
+          return this.request<T>(endpoint, options, retries - 1);
+        }
+
+        throw error;
       }
 
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return null as T;
+      }
+
+      return response.json();
+    } catch (error: any) {
+      // Retry on network errors (not HTTP errors)
+      if (retries > 0 && error.name === 'TypeError' && error.message.includes('fetch')) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries))); // Exponential backoff
+        return this.request<T>(endpoint, options, retries - 1);
+      }
       throw error;
     }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    return response.json();
   }
 
   // Auth endpoints
@@ -1091,6 +1107,30 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  }
+
+  // RBAC endpoints
+  async checkPermission(resource: string, action: string, category?: string, scope?: any) {
+    return this.request<{ has_permission: boolean; reason?: string }>('/rbac/permissions/check', {
+      method: 'POST',
+      body: JSON.stringify({ resource, action, category, scope }),
+    });
+  }
+
+  async getUserScopes() {
+    return this.request<{ scopes: Array<{ portfolio_id?: string; property_id?: string; unit_id?: string; organization_id?: string }>; roles: string[] }>('/rbac/scopes');
+  }
+
+  async checkResourceAccess(resourceId: string, resourceType: string) {
+    return this.request<{ has_access: boolean; reason?: string }>(`/rbac/access/${resourceId}?resource_type=${resourceType}`);
+  }
+
+  async listRoles() {
+    return this.request<Array<{ id: string; name: string; description?: string }>>('/rbac/roles');
+  }
+
+  async getUserRoles(userId: string) {
+    return this.request<Array<{ id: string; role_id: string; role_name: string; organization_id?: string; created_at?: string }>>(`/rbac/users/${userId}/roles`);
   }
 }
 

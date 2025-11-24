@@ -80,7 +80,8 @@ export default function AdminAuditLogsPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `audit-logs-${new Date().toISOString().split('T')[0].csv`;
+        const dateStr = new Date().toISOString().split('T')[0];
+        a.download = 'audit-logs-' + dateStr + '.csv';
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -179,9 +180,15 @@ export default function AdminAuditLogsPage() {
                       {new Date(log.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      {log.admin
-                        ? `${log.admin.firstName || ''} ${log.admin.lastName || ''}`.trim() || log.admin.email
-                        : log.details?.userName || log.details?.userEmail || 'System'}
+                      {(() => {
+                        if (log.admin) {
+                          const firstName = log.admin.firstName || '';
+                          const lastName = log.admin.lastName || '';
+                          const fullName = (firstName + ' ' + lastName).trim();
+                          return fullName || log.admin.email || 'Unknown';
+                        }
+                        return log.details?.userName || log.details?.userEmail || 'System';
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Badge color="blue">{log.action}</Badge>

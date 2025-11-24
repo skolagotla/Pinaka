@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Table, Tag, Space, Empty, Avatar } from 'antd';
-import { UserOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
-import { ProCard } from '../shared/LazyProComponents';
+import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Badge, Spinner } from 'flowbite-react';
+import { HiUser, HiMail, HiPhone } from 'react-icons/hi';
+import { Card } from 'flowbite-react';
+import FlowbiteTable from '../shared/FlowbiteTable';
 
 export default function PropertyTenantsTab({ property }) {
   const [tenants, setTenants] = useState([]);
@@ -29,14 +30,23 @@ export default function PropertyTenantsTab({ property }) {
   }, [property]);
 
   if (loading) {
-    return <ProCard loading />;
+    return (
+      <Card>
+        <div className="flex justify-center items-center py-12">
+          <Spinner size="xl" />
+        </div>
+      </Card>
+    );
   }
 
   if (!tenants.length) {
     return (
-      <ProCard>
-        <Empty description="No tenants found for this property" />
-      </ProCard>
+      <Card>
+        <div className="text-center py-12">
+          <HiUser className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No tenants found for this property</p>
+        </div>
+      </Card>
     );
   }
 
@@ -45,35 +55,46 @@ export default function PropertyTenantsTab({ property }) {
       title: 'Tenant',
       key: 'name',
       render: (_, record) => (
-        <Space>
-          <Avatar icon={<UserOutlined />} />
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+              <HiUser className="h-5 w-5 text-gray-500" />
+            </div>
+          </div>
           <div>
-            <div><strong>{record.firstName} {record.lastName}</strong></div>
-            <div style={{ fontSize: '12px', color: '#999' }}>
+            <div className="font-semibold text-gray-900 dark:text-white">
+              {record.firstName} {record.lastName}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               {record.email}
             </div>
           </div>
-        </Space>
+        </div>
       ),
     },
     {
       title: 'Phone',
       dataIndex: 'phone',
       key: 'phone',
-      render: (phone) => phone || '-',
+      render: (phone) => (
+        <div className="flex items-center gap-2">
+          <HiPhone className="h-4 w-4 text-gray-400" />
+          <span>{phone || '-'}</span>
+        </div>
+      ),
     },
     {
       title: 'Status',
       key: 'status',
       render: (_, record) => {
         if (record.approvalStatus === 'APPROVED') {
-          return <Tag color="green">Approved</Tag>;
+          return <Badge color="success">Approved</Badge>;
         } else if (record.approvalStatus === 'PENDING') {
-          return <Tag color="orange">Pending</Tag>;
+          return <Badge color="warning">Pending</Badge>;
         } else if (record.approvalStatus === 'REJECTED') {
-          return <Tag color="red">Rejected</Tag>;
+          return <Badge color="failure">Rejected</Badge>;
         }
-        return <Tag>Unknown</Tag>;
+        return <Badge color="gray">Unknown</Badge>;
       },
     },
     {
@@ -81,22 +102,21 @@ export default function PropertyTenantsTab({ property }) {
       dataIndex: 'hasAccess',
       key: 'hasAccess',
       render: (hasAccess) => (
-        <Tag color={hasAccess ? 'green' : 'default'}>
+        <Badge color={hasAccess ? 'success' : 'gray'}>
           {hasAccess ? 'Has Access' : 'No Access'}
-        </Tag>
+        </Badge>
       ),
     },
   ];
 
   return (
-    <ProCard>
-      <Table
+    <Card>
+      <FlowbiteTable
         columns={columns}
         dataSource={tenants}
         rowKey="id"
         pagination={{ pageSize: 10 }}
       />
-    </ProCard>
+    </Card>
   );
 }
-

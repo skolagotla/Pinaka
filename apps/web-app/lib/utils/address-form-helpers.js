@@ -133,6 +133,10 @@ export function createAddressFormItemProps({
  * @param {string} props.tooltip - Custom tooltip
  * @returns {JSX.Element} Form.Item with AddressAutocomplete
  */
+/**
+ * @deprecated This function uses Ant Design Form.Item - migrate to Flowbite form components
+ * Use AddressAutocomplete directly with Flowbite Label and TextInput instead
+ */
 export function StandardAddressInput({
   form,
   country,
@@ -145,6 +149,9 @@ export function StandardAddressInput({
   label = null,
   tooltip = 'Start typing an address to see autocomplete suggestions',
 }) {
+  // Legacy Ant Design implementation - deprecated
+  // Use AddressAutocomplete directly with Flowbite components instead
+  console.warn('[StandardAddressInput] This function is deprecated. Use AddressAutocomplete with Flowbite components directly.');
   const { Form } = require('antd');
   const { AddressAutocomplete } = require('../../components/forms');
   
@@ -185,6 +192,10 @@ export function StandardAddressInput({
  * @param {boolean} options.includeAddressLine2 - Whether to include address line 2 (default: true for addressLine1, false for currentAddress)
  * @returns {Object} Object with address form components
  */
+/**
+ * @deprecated This function uses Ant Design Form.Item and Input - migrate to Flowbite form components
+ * Use AddressAutocomplete and TextInput directly with Flowbite Label instead
+ */
 export function createAddressFormFields({
   form,
   country,
@@ -193,8 +204,11 @@ export function createAddressFormFields({
   fieldName = 'addressLine1',
   includeAddressLine2 = fieldName === 'addressLine1',
 }) {
+  // Legacy Ant Design implementation - deprecated
+  // Use AddressAutocomplete and TextInput directly with Flowbite components instead
+  console.warn('[createAddressFormFields] This function is deprecated. Use AddressAutocomplete and TextInput with Flowbite components directly.');
   const { Form, Input, Row, Col } = require('antd');
-  const { HomeOutlined } = require('@ant-design/icons');
+  const { HiHome } = require('react-icons/hi');
   const { AddressAutocomplete } = require('../../components/forms');
   
   const autocompleteProps = createAddressAutocompleteProps({
@@ -221,7 +235,7 @@ export function createAddressFormFields({
         name="addressLine2"
         label="Address Line 2"
       >
-        <Input prefix={<HomeOutlined />} placeholder="Apartment, suite, etc." />
+        <Input prefix={<HiHome />} placeholder="Apartment, suite, etc." />
       </Form.Item>
     ) : null,
   };

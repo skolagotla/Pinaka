@@ -27,7 +27,7 @@ import {
   HiClock,
   HiEye,
 } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import dayjs from 'dayjs';
 
 const DOCUMENT_TYPES = [
@@ -72,7 +72,7 @@ export default function VerificationClient({ user, pmcRelationships }) {
   const [selectedRelationship, setSelectedRelationship] = useState(null);
   const { loading: uploading, withLoading: withUploading } = useLoading();
   const [selectedFile, setSelectedFile] = useState(null);
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
 
   // Flatten all verifications from all relationships
   const allVerifications = pmcRelationships.flatMap(rel =>

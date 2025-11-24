@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { ProTable } from '@ant-design/pro-components';
+import { Table, Spinner } from 'flowbite-react';
 import { useResizableTable, configureTableColumns } from '@/lib/hooks';
 
 /**
@@ -46,28 +46,66 @@ const MaintenanceTable = React.memo(({
     return dataSource || [];
   }, [dataSource]);
 
+  // Convert columns to Flowbite Table format
+  const flowbiteColumns = useMemo(() => {
+    return tableProps.columns.map(col => ({
+      ...col,
+      // Flowbite Table uses different prop names
+      header: col.title,
+      accessorKey: col.dataIndex || col.key,
+    }));
+  }, [tableProps.columns]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+
   return (
-    <ProTable
-      columns={tableProps.columns}
-      components={tableProps.components}
-      bordered={tableProps.bordered}
-      dataSource={memoizedDataSource}
-      rowKey="id"
-      search={false}
-      toolBarRender={false}
-      loading={loading}
-      rowSelection={rowSelection}
-      pagination={{
-        pageSize: 25,
-        showSizeChanger: true,
-        showTotal: (total) => `Total ${total} requests`,
-      }}
-      size="small"
-      onRow={(record) => ({
-        onClick: () => onRowClick && onRowClick(record),
-        style: { cursor: onRowClick ? 'pointer' : 'default' },
-      })}
-    />
+    <div className="overflow-x-auto">
+      <Table hoverable={!!onRowClick}>
+        <Table.Head>
+          {flowbiteColumns.map((col, idx) => (
+            <Table.HeadCell key={col.key || col.dataIndex || idx}>
+              {col.header || col.title}
+            </Table.HeadCell>
+          ))}
+        </Table.Head>
+        <Table.Body className="divide-y">
+          {memoizedDataSource.map((record) => (
+            <Table.Row
+              key={record.id}
+              className={onRowClick ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}
+              onClick={() => onRowClick && onRowClick(record)}
+            >
+              {flowbiteColumns.map((col, idx) => {
+                const value = col.dataIndex ? record[col.dataIndex] : record[col.key];
+                const rendered = col.render ? col.render(value, record, idx) : value;
+                return (
+                  <Table.Cell key={col.key || col.dataIndex || idx}>
+                    {rendered}
+                  </Table.Cell>
+                );
+              })}
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table>
+      {memoizedDataSource.length === 0 && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No maintenance requests found
+        </div>
+      )}
+      {/* Pagination would need to be implemented separately with Flowbite Pagination component */}
+      {memoizedDataSource.length > 0 && (
+        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+          Total {memoizedDataSource.length} requests
+        </div>
+      )}
+    </div>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for better performance

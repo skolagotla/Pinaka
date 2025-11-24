@@ -4,11 +4,11 @@
  */
 
 import {
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileWordOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons';
+  HiDocument,
+  HiPhotograph,
+  HiDocumentText,
+  HiDocumentText as HiFileText,
+} from 'react-icons/hi';
 
 /**
  * Get file icon component based on file type
@@ -16,19 +16,17 @@ import {
  * @param {object} style - Optional style object for the icon
  * @returns {JSX.Element} Icon component
  */
-export const getFileIcon = (fileType, style = { fontSize: 48 }) => {
-  const defaultStyle = { ...style };
-  
+export const getFileIcon = (fileType, className = 'h-12 w-12') => {
   if (fileType.includes('pdf')) {
-    return <FilePdfOutlined style={{ ...defaultStyle, color: '#ff4d4f' }} />;
+    return <HiDocument className={`${className} text-red-500`} />;
   }
   if (fileType.includes('image')) {
-    return <FileImageOutlined style={{ ...defaultStyle, color: '#52c41a' }} />;
+    return <HiPhotograph className={`${className} text-green-500`} />;
   }
   if (fileType.includes('word') || fileType.includes('doc')) {
-    return <FileWordOutlined style={{ ...defaultStyle, color: '#1890ff' }} />;
+    return <HiDocumentText className={`${className} text-blue-500`} />;
   }
-  return <FileTextOutlined style={{ ...defaultStyle, color: '#8c8c8c' }} />;
+  return <HiFileText className={`${className} text-gray-500`} />;
 };
 
 /**

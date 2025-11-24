@@ -10,6 +10,7 @@ from uuid import UUID
 from datetime import datetime
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.form import Form, FormCreate, FormUpdate, FormSignature, FormSignatureCreate
 from db.models_v2 import (
     Form as FormModel,
@@ -27,10 +28,12 @@ async def list_forms(
     form_type: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     entity_id: Optional[UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List forms (scoped by organization)"""
+    """List forms (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(FormModel).options(selectinload(FormModel.signatures))
@@ -49,6 +52,8 @@ async def list_forms(
         query = query.where(FormModel.entity_type == entity_type)
     if entity_id:
         query = query.where(FormModel.entity_id == entity_id)
+    
+    query = apply_pagination(query, page, limit, FormModel.created_at.desc())
     
     result = await db.execute(query)
     forms = result.scalars().all()

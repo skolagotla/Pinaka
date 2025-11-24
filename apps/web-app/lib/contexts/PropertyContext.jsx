@@ -57,7 +57,7 @@ export function PropertyProvider({ children, userRole, initialProperties = [] })
     setLoading(true);
     try {
       // Use v1Api for properties list
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.properties.list();
       const props = response.data || response.properties || [];
       const propertiesArray = Array.isArray(props) ? props : [];

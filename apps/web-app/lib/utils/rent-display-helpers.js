@@ -101,18 +101,18 @@ export function getPaymentStatusColor(payment) {
  */
 export function getPaymentStatusIcon(status) {
   const { 
-    CheckCircleOutlined, 
-    WarningOutlined, 
-    CloseCircleOutlined 
-  } = require('@ant-design/icons');
+    HiCheckCircle, 
+    HiExclamation, 
+    HiXCircle
+  } = require('react-icons/hi');
   
   switch (status) {
     case 'Paid':
-      return CheckCircleOutlined;
+      return HiCheckCircle;
     case 'Overdue':
-      return WarningOutlined;
+      return HiExclamation;
     case 'Unpaid':
-      return CloseCircleOutlined;
+      return HiXCircle;
     default:
       return null;
   }

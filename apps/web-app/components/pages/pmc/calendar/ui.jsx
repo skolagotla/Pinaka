@@ -18,7 +18,7 @@ import {
   HiPlus, HiCheckCircle, HiClock, HiCalendar, HiPencil, HiTrash,
   HiX
 } from 'react-icons/hi';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { useFormState } from '@/lib/hooks/useFormState';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
@@ -28,8 +28,9 @@ import dayjs from 'dayjs';
 import { formatDateShort } from '@/lib/utils/safe-date-formatter';
 
 export default function PMCCalendarClient({ initialProperties = [] }) {
-  const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const { user } = useV2Auth();
+  const [loading, setLoading] = useState(false);
   const organizationId = user?.organization_id;
   const { data: propertiesData, isLoading: propertiesLoading } = useProperties(organizationId);
   
@@ -113,8 +114,7 @@ export default function PMCCalendarClient({ initialProperties = [] }) {
 
   const handleCompleteTask = async (taskId) => {
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
-      await v1Api.tasks.update(taskId, {
+      await v2Api.tasks.update(taskId, {
         isCompleted: true,
         completedAt: new Date().toISOString()
       });

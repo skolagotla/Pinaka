@@ -1,7 +1,7 @@
 """
 User management endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2, get_password_hash
+from core.crud_helpers import apply_pagination
 from schemas.user import User, UserCreate, UserUpdate, UserWithRoles
 from schemas.role import Role
 from db.models_v2 import User as UserModel, UserRole, Role as RoleModel, Organization
@@ -26,13 +27,19 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("", response_model=List[User])
 async def list_users(
     organization_id: Optional[UUID] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List users (scoped by organization)"""
+    """List users (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(UserModel)
+    # Eager load relationships to prevent N+1 queries
+    query = select(UserModel).options(
+        selectinload(UserModel.organization),
+        selectinload(UserModel.user_roles).selectinload(UserRole.role),
+    )
     
     # Filter by organization
     if RoleEnum.SUPER_ADMIN in user_roles:
@@ -41,6 +48,8 @@ async def list_users(
     else:
         # Non-super users can only see their organization's users
         query = query.where(UserModel.organization_id == current_user.organization_id)
+    
+    query = apply_pagination(query, page, limit, UserModel.created_at.desc())
     
     result = await db.execute(query)
     users = result.scalars().all()

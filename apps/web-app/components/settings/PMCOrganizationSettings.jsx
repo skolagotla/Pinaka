@@ -3,25 +3,17 @@
 import { useState, useEffect } from 'react';
 import {
   Card,
-  Typography,
-  Space,
-  Statistic,
   Alert,
-  Tag,
-  Row,
-  Col,
+  Badge,
   Button,
-  Descriptions,
-  Spin,
-} from 'antd';
+  Spinner,
+} from 'flowbite-react';
 import {
-  TeamOutlined,
-  HomeOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import { safeJsonParse } from '@/lib/utils/safe-json-parser';
-
-const { Title, Text, Paragraph } = Typography;
+  HiUserGroup,
+  HiHome,
+  HiUser,
+} from 'react-icons/hi';
+import FlowbiteStatistic from '../shared/FlowbiteStatistic';
 
 export default function PMCOrganizationSettings({ pmcData }) {
   const [loading, setLoading] = useState(false);
@@ -93,35 +85,35 @@ export default function PMCOrganizationSettings({ pmcData }) {
     plan: 'PMC', // PMC plan type
   } : null;
 
-  const getStatusTag = (status) => {
+  const getStatusBadge = (status) => {
     const statusConfig = {
       ACTIVE: { color: 'success', text: 'Active' },
-      SUSPENDED: { color: 'error', text: 'Suspended' },
-      CANCELLED: { color: 'default', text: 'Cancelled' },
+      SUSPENDED: { color: 'failure', text: 'Suspended' },
+      CANCELLED: { color: 'gray', text: 'Cancelled' },
       TRIAL: { color: 'warning', text: 'Trial' },
-      INACTIVE: { color: 'default', text: 'Inactive' },
+      INACTIVE: { color: 'gray', text: 'Inactive' },
     };
-    const config = statusConfig[status] || { color: 'default', text: status };
-    return <Tag color={config.color}>{config.text}</Tag>;
+    const config = statusConfig[status] || { color: 'gray', text: status };
+    return <Badge color={config.color}>{config.text}</Badge>;
   };
 
-  const getPlanTag = (plan) => {
+  const getPlanBadge = (plan) => {
     const planColors = {
-      FREE: 'default',
-      STARTER: 'blue',
+      FREE: 'gray',
+      STARTER: 'info',
       PROFESSIONAL: 'purple',
-      ENTERPRISE: 'gold',
+      ENTERPRISE: 'warning',
       CUSTOM: 'cyan',
       PMC: 'purple',
     };
-    return <Tag color={planColors[plan] || 'default'}>{plan}</Tag>;
+    return <Badge color={planColors[plan] || 'gray'}>{plan}</Badge>;
   };
 
   if (loading && !pmcData) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: '16px' }}>Loading organization information...</div>
+      <div className="text-center py-10">
+        <Spinner size="xl" />
+        <div className="mt-4 text-gray-600">Loading organization information...</div>
       </div>
     );
   }
@@ -129,19 +121,21 @@ export default function PMCOrganizationSettings({ pmcData }) {
   if (!organization || !pmcData) {
     return (
       <Alert
-        message="PMC Information Not Found"
-        description={
-          error || 
-          'Unable to load PMC company information. This may happen if the PMC record is not properly configured. Please contact support or refresh the page.'
-        }
-        type="error"
-        showIcon
+        color="failure"
         action={
-          <Button size="small" onClick={() => window.location.reload()}>
+          <Button size="sm" color="gray" onClick={() => window.location.reload()}>
             Refresh Page
           </Button>
         }
-      />
+      >
+        <div>
+          <h3 className="font-semibold">PMC Information Not Found</h3>
+          <p className="text-sm mt-1">
+            {error || 
+              'Unable to load PMC company information. This may happen if the PMC record is not properly configured. Please contact support or refresh the page.'}
+          </p>
+        </div>
+      </Alert>
     );
   }
 
@@ -153,149 +147,170 @@ export default function PMCOrganizationSettings({ pmcData }) {
     statusAlerts.push(
       <Alert
         key="inactive"
-        message="PMC Account Inactive"
-        description="Your PMC account is currently inactive. Please contact support for assistance."
-        type="warning"
-        showIcon
-        style={{ marginBottom: 16 }}
-      />
+        color="warning"
+        className="mb-4"
+      >
+        <div>
+          <h3 className="font-semibold">PMC Account Inactive</h3>
+          <p className="text-sm mt-1">Your PMC account is currently inactive. Please contact support for assistance.</p>
+        </div>
+      </Alert>
     );
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="mb-6 flex justify-between items-center">
         <div>
-          <Title level={4} style={{ margin: 0 }}>PMC Organization</Title>
-          <Paragraph type="secondary" style={{ margin: '8px 0 0 0' }}>
+          <h4 className="text-lg font-semibold m-0">PMC Organization</h4>
+          <p className="text-sm text-gray-500 mt-2">
             View your PMC company details and management statistics.
-          </Paragraph>
+          </p>
         </div>
-        <Button onClick={fetchUsageData}>Refresh</Button>
+        <Button color="gray" onClick={fetchUsageData}>Refresh</Button>
       </div>
 
       {statusAlerts}
 
-      <Row gutter={[16, 16}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Organization Info */}
-        <Col xs={24} lg={12}>
-          <Card title="Organization Information">
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="Company Name">{organization.name}</Descriptions.Item>
-              <Descriptions.Item label="Company ID">
-                <Text code>{organization.companyId}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Email">{organization.email}</Descriptions.Item>
-              {organization.phone && (
-                <Descriptions.Item label="Phone">{organization.phone}</Descriptions.Item>
-              )}
-              {organization.address?.addressLine1 && (
-                <Descriptions.Item label="Address">
+        <Card>
+          <h5 className="text-lg font-semibold mb-4">Organization Information</h5>
+          <div className="space-y-3">
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Company Name</div>
+              <div className="text-gray-900 dark:text-white">{organization.name}</div>
+            </div>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Company ID</div>
+              <div>
+                <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-sm">
+                  {organization.companyId}
+                </code>
+              </div>
+            </div>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Email</div>
+              <div className="text-gray-900 dark:text-white">{organization.email}</div>
+            </div>
+            {organization.phone && (
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Phone</div>
+                <div className="text-gray-900 dark:text-white">{organization.phone}</div>
+              </div>
+            )}
+            {organization.address?.addressLine1 && (
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Address</div>
+                <div className="text-gray-900 dark:text-white">
+                  <div>{organization.address.addressLine1}</div>
+                  {organization.address.addressLine2 && (
+                    <div>{organization.address.addressLine2}</div>
+                  )}
                   <div>
-                    <div>{organization.address.addressLine1}</div>
-                    {organization.address.addressLine2 && (
-                      <div>{organization.address.addressLine2}</div>
-                    )}
-                    <div>
-                      {organization.address.city}
-                      {organization.address.provinceState && `, ${organization.address.provinceState}`}
-                      {organization.address.postalZip && ` ${organization.address.postalZip}`}
-                    </div>
-                    {organization.address.country && (
-                      <div>{organization.address.country}</div>
-                    )}
+                    {organization.address.city}
+                    {organization.address.provinceState && `, ${organization.address.provinceState}`}
+                    {organization.address.postalZip && ` ${organization.address.postalZip}`}
                   </div>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="Plan">{getPlanTag(organization.plan)}</Descriptions.Item>
-              <Descriptions.Item label="Status">{getStatusTag(organization.status)}</Descriptions.Item>
-              {organization.createdAt && (
-                <Descriptions.Item label="Created">
+                  {organization.address.country && (
+                    <div>{organization.address.country}</div>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Plan</div>
+              <div>{getPlanBadge(organization.plan)}</div>
+            </div>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status</div>
+              <div>{getStatusBadge(organization.status)}</div>
+            </div>
+            {organization.createdAt && (
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Created</div>
+                <div className="text-gray-900 dark:text-white">
                   {typeof organization.createdAt === 'string' 
                     ? new Date(organization.createdAt).toLocaleDateString()
                     : organization.createdAt.toLocaleDateString()}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
-        </Col>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
 
         {/* Usage Statistics */}
-        <Col xs={24} lg={12}>
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card title="Usage Statistics">
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                {/* Managed Properties */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>
-                      <HomeOutlined /> Managed Properties
-                    </Text>
-                    <Text strong>{usageData?.propertyCount || 0}</Text>
+        <div className="space-y-4">
+          <Card>
+            <h5 className="text-lg font-semibold mb-4">Usage Statistics</h5>
+            <div className="space-y-6">
+              {/* Managed Properties */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <HiHome className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Managed Properties</span>
                   </div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Properties managed across all landlords
-                  </Text>
+                  <span className="text-sm font-semibold">{usageData?.propertyCount || 0}</span>
                 </div>
+                <p className="text-xs text-gray-500">
+                  Properties managed across all landlords
+                </p>
+              </div>
 
-                {/* Managed Tenants */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>
-                      <TeamOutlined /> Managed Tenants
-                    </Text>
-                    <Text strong>{usageData?.tenantCount || 0}</Text>
+              {/* Managed Tenants */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <HiUserGroup className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Managed Tenants</span>
                   </div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Tenants across all managed properties
-                  </Text>
+                  <span className="text-sm font-semibold">{usageData?.tenantCount || 0}</span>
                 </div>
+                <p className="text-xs text-gray-500">
+                  Tenants across all managed properties
+                </p>
+              </div>
 
-                {/* Managed Landlords */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text>
-                      <UserOutlined /> Managed Landlords
-                    </Text>
-                    <Text strong>{usageData?.landlordCount || 0}</Text>
+              {/* Managed Landlords */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <HiUser className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Managed Landlords</span>
                   </div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Landlords under management
-                  </Text>
+                  <span className="text-sm font-semibold">{usageData?.landlordCount || 0}</span>
                 </div>
-              </Space>
-            </Card>
+                <p className="text-xs text-gray-500">
+                  Landlords under management
+                </p>
+              </div>
+            </div>
+          </Card>
 
-            {/* Management Overview */}
-            <Card title="Management Overview">
-              <Row gutter={[16, 16}>
-                <Col xs={24} sm={12} md={8}>
-                  <Statistic
-                    title="Properties Managed"
-                    value={usageData?.propertyCount || 0}
-                    prefix={<HomeOutlined />}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={8}>
-                  <Statistic
-                    title="Tenants Managed"
-                    value={usageData?.tenantCount || 0}
-                    prefix={<TeamOutlined />}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={8}>
-                  <Statistic
-                    title="Landlords Managed"
-                    value={usageData?.landlordCount || 0}
-                    prefix={<UserOutlined />}
-                  />
-                </Col>
-              </Row>
-            </Card>
-          </Space>
-        </Col>
-      </Row>
+          {/* Management Overview */}
+          <Card>
+            <h5 className="text-lg font-semibold mb-4">Management Overview</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FlowbiteStatistic
+                title="Properties Managed"
+                value={usageData?.propertyCount || 0}
+                prefix={<HiHome className="h-6 w-6" />}
+              />
+              <FlowbiteStatistic
+                title="Tenants Managed"
+                value={usageData?.tenantCount || 0}
+                prefix={<HiUserGroup className="h-6 w-6" />}
+              />
+              <FlowbiteStatistic
+                title="Landlords Managed"
+                value={usageData?.landlordCount || 0}
+                prefix={<HiUser className="h-6 w-6" />}
+              />
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
-

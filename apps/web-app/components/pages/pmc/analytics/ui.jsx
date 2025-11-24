@@ -27,7 +27,7 @@ import {
 import { ProCard } from '@/components/shared/LazyProComponents';
 import { PageLayout, FilterBar, LoadingWrapper, FlowbiteTable, EmptyState } from '@/components/shared';
 import { useLoading } from '@/lib/hooks/useLoading';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useLandlords, useProperties, useTenants } from '@/lib/hooks/useV2Data';
 import dayjs from 'dayjs';
@@ -50,7 +50,7 @@ const DelinquencyRiskChart = dynamic(
 );
 
 export default function AnalyticsDashboardClient({ user, userRole }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: false });
+  // useUnifiedApi removed({ showUserMessage: false });
   const { user: v2User } = useV2Auth();
   const organizationId = v2User?.organization_id;
   const { loading, withLoading } = useLoading(true);
@@ -88,8 +88,8 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         const endDate = dayjs(dateRangeEnd);
 
       // Load portfolio performance
-      const { v1Api } = await import('@/lib/api/v1-client');
-      const portfolioResponse = await v1Api.specialized.portfolioperformance({
+      const { v2Api } = await import('@/lib/api/v2-client');
+      const portfolioResponse = await v2Api.specialized.portfolioperformance({
         landlordId: selectedLandlord,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -100,7 +100,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
 
       // Load property performance if property selected
       if (selectedProperty) {
-        const propertyResponse = await v1Api.specialized.propertyperformance({
+        const propertyResponse = await v2Api.specialized.propertyperformance({
           propertyId: selectedProperty,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
@@ -111,7 +111,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       }
 
       // Load cash flow forecast
-      const cashFlowResponse = await v1Api.specialized.cashflowforecast({
+      const cashFlowResponse = await v2Api.specialized.cashflowforecast({
         landlordId: selectedLandlord,
         months: 12,
       });
@@ -125,7 +125,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
       // Load risk for each tenant
       const riskPromises = filteredTenants.map(async (tenant) => {
         try {
-          const riskResponse = await v1Api.specialized.tenantdelinquencyrisk({ tenantId: tenant.id });
+          const riskResponse = await v2Api.specialized.tenantdelinquencyrisk({ tenantId: tenant.id });
           if (riskResponse.success) {
             return {
               tenantId: tenant.id,
@@ -164,7 +164,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         params.append('landlordId', selectedLandlord);
       }
 
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const query = {
         type,
         format,
@@ -173,7 +173,7 @@ export default function AnalyticsDashboardClient({ user, userRole }) {
         ...(selectedProperty && { propertyId: selectedProperty }),
         ...(selectedLandlord && { landlordId: selectedLandlord }),
       };
-      const response = await v1Api.specialized.exportAnalytics(query);
+      const response = await v2Api.specialized.exportAnalytics(query);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

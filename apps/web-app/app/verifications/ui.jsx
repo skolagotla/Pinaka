@@ -2,69 +2,62 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
-  Typography,
   Table,
-  Tag,
+  Badge,
   Button,
   Modal,
-  Form,
-  Input,
-  Space,
-  message,
+  Textarea,
+  Label,
   Card,
-  Row,
-  Col,
-  Statistic,
   Select,
   Tabs,
   Empty,
-  Badge,
-} from 'antd';
+  Spinner,
+} from 'flowbite-react';
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  EyeOutlined,
-  CheckOutlined,
-  StopOutlined,
-  FileOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+  HiCheckCircle,
+  HiXCircle,
+  HiClock,
+  HiEye,
+  HiCheck,
+  HiStop,
+  HiDocumentText,
+  HiRefresh,
+} from 'react-icons/hi';
 import { ProCard } from '@/components/shared/LazyProComponents';
 import { PageLayout, EmptyState, TableWrapper, FilterBar, StandardModal, FormTextInput } from '@/components/shared';
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 import dayjs from 'dayjs';
-
-const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const VERIFICATION_TYPES = {
   PROPERTY_OWNERSHIP: { label: 'Property Ownership', color: 'blue' },
   TENANT_DOCUMENT: { label: 'Tenant Document', color: 'cyan' },
   APPLICATION: { label: 'Application', color: 'purple' },
-  ENTITY_APPROVAL: { label: 'Entity Approval', color: 'orange' },
-  FINANCIAL_APPROVAL: { label: 'Financial Approval', color: 'green' },
-  INSPECTION: { label: 'Inspection', color: 'geekblue' },
-  OTHER: { label: 'Other', color: 'default' },
+  ENTITY_APPROVAL: { label: 'Entity Approval', color: 'warning' },
+  FINANCIAL_APPROVAL: { label: 'Financial Approval', color: 'success' },
+  INSPECTION: { label: 'Inspection', color: 'info' },
+  OTHER: { label: 'Other', color: 'gray' },
 };
 
 const STATUS_COLORS = {
-  PENDING: 'orange',
-  VERIFIED: 'green',
-  REJECTED: 'red',
-  EXPIRED: 'default',
-  CANCELLED: 'default',
+  PENDING: 'warning',
+  VERIFIED: 'success',
+  REJECTED: 'failure',
+  EXPIRED: 'gray',
+  CANCELLED: 'gray',
 };
 
 const STATUS_ICONS = {
-  PENDING: <ClockCircleOutlined />,
-  VERIFIED: <CheckCircleOutlined />,
-  REJECTED: <CloseCircleOutlined />,
-  EXPIRED: <ClockCircleOutlined />,
-  CANCELLED: <CloseCircleOutlined />,
+  PENDING: <HiClock className="h-4 w-4" />,
+  VERIFIED: <HiCheckCircle className="h-4 w-4" />,
+  REJECTED: <HiXCircle className="h-4 w-4" />,
+  EXPIRED: <HiClock className="h-4 w-4" />,
+  CANCELLED: <HiXCircle className="h-4 w-4" />,
 };
 
 export default function VerificationsClient({ user, initialStats }) {
-  const [form] = Form.useForm();
+  const form = useFormState({ verificationNotes: '', rejectionReason: '' });
   const [verifications, setVerifications] = useState([]);
   const [stats, setStats] = useState(initialStats || {});
   const [loading, setLoading] = useState(false);
@@ -72,11 +65,16 @@ export default function VerificationsClient({ user, initialStats }) {
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [verifyModalVisible, setVerifyModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(0); // Use index for Flowbite Tabs
   const [filters, setFilters] = useState({
     verificationType: null,
     status: null,
   });
+
+  // Map tab index to tab key
+  const tabKeys = ['all', 'pending', 'my-requests', 'history'];
+  const activeTabKey = tabKeys[activeTab] || 'all';
+
   // Load verifications
   const loadVerifications = useCallback(async () => {
     setLoading(true);
@@ -85,13 +83,13 @@ export default function VerificationsClient({ user, initialStats }) {
       const query = {};
       if (filters.verificationType) query.verificationType = filters.verificationType;
       // Only add status filter if not using a tab filter
-      if (filters.status && activeTab !== 'pending' && activeTab !== 'my-requests') {
+      if (filters.status && activeTabKey !== 'pending' && activeTabKey !== 'my-requests') {
         query.status = filters.status;
       }
-      if (activeTab === 'pending') {
+      if (activeTabKey === 'pending') {
         query.status = 'PENDING';
       }
-      if (activeTab === 'my-requests') {
+      if (activeTabKey === 'my-requests') {
         query.requestedBy = user.id;
       }
       
@@ -106,7 +104,7 @@ export default function VerificationsClient({ user, initialStats }) {
     } finally {
       setLoading(false);
     }
-  }, [filters, activeTab, user.id]);
+  }, [filters, activeTabKey, user.id]);
 
   // Load stats
   const loadStats = useCallback(async () => {
@@ -125,40 +123,44 @@ export default function VerificationsClient({ user, initialStats }) {
   }, [loadVerifications, loadStats]);
 
   // Handle verify
-  const handleVerify = useCallback(async (values) => {
+  const handleVerify = useCallback(async (e) => {
+    e.preventDefault();
     if (!selectedVerification) return;
 
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
+      const values = form.getFieldsValue();
       await adminApi.verifyVerification(selectedVerification.id, values.verificationNotes || null);
-      message.success('Verification approved successfully');
+      notify.success('Verification approved successfully');
       setVerifyModalVisible(false);
       setSelectedVerification(null);
-      form.resetFields();
+      form.resetForm();
       loadVerifications();
       loadStats();
     } catch (error) {
       console.error('[Verifications] Error verifying:', error);
-      message.error(error?.message || 'Failed to verify');
+      notify.error(error?.message || 'Failed to verify');
     }
   }, [selectedVerification, form, loadVerifications, loadStats]);
 
   // Handle reject
-  const handleReject = useCallback(async (values) => {
+  const handleReject = useCallback(async (e) => {
+    e.preventDefault();
     if (!selectedVerification) return;
 
     try {
       const { adminApi } = await import('@/lib/api/admin-api');
+      const values = form.getFieldsValue();
       await adminApi.rejectVerification(selectedVerification.id, values.rejectionReason);
-      message.success('Verification rejected');
+      notify.success('Verification rejected');
       setRejectModalVisible(false);
       setSelectedVerification(null);
-      form.resetFields();
+      form.resetForm();
       loadVerifications();
       loadStats();
     } catch (error) {
       console.error('[Verifications] Error rejecting:', error);
-      message.error(error?.message || 'Failed to reject verification');
+      notify.error(error?.message || 'Failed to reject verification');
     }
   }, [selectedVerification, form, loadVerifications, loadStats]);
 
@@ -168,17 +170,16 @@ export default function VerificationsClient({ user, initialStats }) {
       title: 'Type',
       dataIndex: 'verificationType',
       key: 'verificationType',
-      width: 150,
       render: (type) => {
         const typeConfig = VERIFICATION_TYPES[type] || VERIFICATION_TYPES.OTHER;
-        return <Tag color={typeConfig.color}>{typeConfig.label}</Tag>;
+        return <Badge color={typeConfig.color}>{typeConfig.label}</Badge>;
       },
     },
     {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: true,
+      render: (title) => <div className="truncate max-w-xs">{title}</div>,
     },
     {
       title: 'Requester',
@@ -186,9 +187,9 @@ export default function VerificationsClient({ user, initialStats }) {
       render: (_, record) => (
         <div>
           <div>{record.requestedByName}</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
             {record.requestedByRole}
-          </Text>
+          </div>
         </div>
       ),
     },
@@ -196,34 +197,33 @@ export default function VerificationsClient({ user, initialStats }) {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
       render: (status) => (
-        <Tag icon={STATUS_ICONS[status]} color={STATUS_COLORS[status]}>
+        <Badge color={STATUS_COLORS[status]} icon={STATUS_ICONS[status]}>
           {status}
-        </Tag>
+        </Badge>
       ),
     },
     {
       title: 'Requested',
       dataIndex: 'requestedAt',
       key: 'requestedAt',
-      width: 120,
       render: (date) => new Date(date).toLocaleDateString(),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 150,
       render: (_, record) => (
-        <Space>
+        <div className="flex items-center gap-2">
           <Button
-            type="link"
-            icon={<EyeOutlined />}
+            color="light"
+            size="sm"
             onClick={() => {
               setSelectedVerification(record);
               setViewModalVisible(true);
             }}
+            className="flex items-center gap-1"
           >
+            <HiEye className="h-4 w-4" />
             View
           </Button>
           {record.status === 'PENDING' && 
@@ -231,29 +231,32 @@ export default function VerificationsClient({ user, initialStats }) {
            ['pmc', 'landlord', 'admin'].includes(user.role) && (
             <>
               <Button
-                type="link"
-                icon={<CheckOutlined />}
+                color="success"
+                size="sm"
                 onClick={() => {
                   setSelectedVerification(record);
                   setVerifyModalVisible(true);
                 }}
+                className="flex items-center gap-1"
               >
+                <HiCheck className="h-4 w-4" />
                 Verify
               </Button>
               <Button
-                type="link"
-                danger
-                icon={<StopOutlined />}
+                color="failure"
+                size="sm"
                 onClick={() => {
                   setSelectedVerification(record);
                   setRejectModalVisible(true);
                 }}
+                className="flex items-center gap-1"
               >
+                <HiStop className="h-4 w-4" />
                 Reject
               </Button>
             </>
           )}
-        </Space>
+        </div>
       ),
     },
   ], [user.id, user.role]);
@@ -262,39 +265,36 @@ export default function VerificationsClient({ user, initialStats }) {
   const filteredVerifications = useMemo(() => {
     let filtered = verifications;
 
-    if (activeTab === 'pending') {
+    if (activeTabKey === 'pending') {
       filtered = filtered.filter(v => v.status === 'PENDING');
-    } else if (activeTab === 'my-requests') {
+    } else if (activeTabKey === 'my-requests') {
       filtered = filtered.filter(v => v.requestedBy === user.id);
-    } else if (activeTab === 'history') {
+    } else if (activeTabKey === 'history') {
       filtered = filtered.filter(v => ['VERIFIED', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(v.status));
     }
 
     return filtered;
-  }, [verifications, activeTab, user.id]);
+  }, [verifications, activeTabKey, user.id]);
 
   const verificationStats = [
     {
       title: 'Total',
-      value: stats.total,
+      value: stats.total || 0,
     },
     {
       title: 'Pending',
-      value: stats.pending,
-      prefix: <ClockCircleOutlined />,
-      valueStyle: { color: '#faad14' },
+      value: stats.pending || 0,
+      prefix: <HiClock className="h-4 w-4 text-yellow-500" />,
     },
     {
       title: 'Verified',
-      value: stats.verified,
-      prefix: <CheckCircleOutlined />,
-      valueStyle: { color: '#52c41a' },
+      value: stats.verified || 0,
+      prefix: <HiCheckCircle className="h-4 w-4 text-green-500" />,
     },
     {
       title: 'Rejected',
-      value: stats.rejected,
-      prefix: <CloseCircleOutlined />,
-      valueStyle: { color: '#ff4d4f' },
+      value: stats.rejected || 0,
+      prefix: <HiXCircle className="h-4 w-4 text-red-500" />,
     },
   ];
 
@@ -321,7 +321,12 @@ export default function VerificationsClient({ user, initialStats }) {
 
   return (
     <PageLayout
-      headerTitle={<><FileOutlined /> Verifications</>}
+      headerTitle={
+        <div className="flex items-center gap-2">
+          <HiDocumentText className="h-5 w-5" />
+          Verifications
+        </div>
+      }
       stats={verificationStats}
       statsCols={4}
       contentStyle={{ padding: 0, display: 'flex', flexDirection: 'column' }}
@@ -337,40 +342,24 @@ export default function VerificationsClient({ user, initialStats }) {
         showSearch={false}
       />
       {/* Tabs */}
-      <Card 
-        size="small" 
-        style={{ marginBottom: 12 }}
-        bodyStyle={{ padding: '0 16px' }}
-      >
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab}
-          size="small"
-        >
-          <Tabs.TabPane
-            tab={
-              <span>
-                All <Badge count={stats.total} style={{ marginLeft: 4 }} />
-              </span>
-            }
-            key="all"
-          />
-          <Tabs.TabPane
-            tab={
-              <span>
-                Pending <Badge count={stats.pending} style={{ marginLeft: 4 }} />
-              </span>
-            }
-            key="pending"
-          />
-          <Tabs.TabPane
-            tab="My Requests"
-            key="my-requests"
-          />
-          <Tabs.TabPane
-            tab="History"
-            key="history"
-          />
+      <Card className="mb-3">
+        <Tabs aria-label="Verification tabs" style="underline" onActiveTabChange={setActiveTab}>
+          <Tabs.Item active={activeTab === 0} title={
+            <span className="flex items-center gap-2">
+              All <Badge color="blue">{stats.total || 0}</Badge>
+            </span>
+          }>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 1} title={
+            <span className="flex items-center gap-2">
+              Pending <Badge color="warning">{stats.pending || 0}</Badge>
+            </span>
+          }>
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 2} title="My Requests">
+          </Tabs.Item>
+          <Tabs.Item active={activeTab === 3} title="History">
+          </Tabs.Item>
         </Tabs>
       </Card>
 
@@ -382,157 +371,225 @@ export default function VerificationsClient({ user, initialStats }) {
         />
       ) : (
         <TableWrapper>
-          <Table
-            dataSource={filteredVerifications}
-            columns={columns}
-            rowKey="id"
-            loading={loading}
-            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} items` }}
-            scroll={{ x: 'max-content' }}
-          />
+          <div className="overflow-x-auto">
+            <Table hoverable>
+              <Table.Head>
+                {columns.map(col => (
+                  <Table.HeadCell key={col.key}>{col.title}</Table.HeadCell>
+                ))}
+              </Table.Head>
+              <Table.Body className="divide-y">
+                {loading ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={columns.length} className="text-center py-8">
+                      <Spinner size="xl" />
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  filteredVerifications.map((record) => (
+                    <Table.Row key={record.id}>
+                      {columns.map((col) => (
+                        <Table.Cell key={col.key}>
+                          {col.render ? col.render(record[col.dataIndex], record) : record[col.dataIndex]}
+                        </Table.Cell>
+                      ))}
+                    </Table.Row>
+                  ))
+                )}
+              </Table.Body>
+            </Table>
+          </div>
         </TableWrapper>
       )}
+      
       {/* View Modal */}
       <Modal
-        title="Verification Details"
-        open={viewModalVisible}
-        onCancel={() => {
+        show={viewModalVisible}
+        onClose={() => {
           setViewModalVisible(false);
           setSelectedVerification(null);
         }}
-        footer={[
-          <Button key="close" onClick={() => {
-            setViewModalVisible(false);
-            setSelectedVerification(null);
-          }}>
+        size="2xl"
+      >
+        <Modal.Header>Verification Details</Modal.Header>
+        <Modal.Body>
+          {selectedVerification && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold mb-1">Type:</p>
+                  <Badge color={VERIFICATION_TYPES[selectedVerification.verificationType]?.color}>
+                    {VERIFICATION_TYPES[selectedVerification.verificationType]?.label}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">Status:</p>
+                  <Badge color={STATUS_COLORS[selectedVerification.status]} icon={STATUS_ICONS[selectedVerification.status]}>
+                    {selectedVerification.status}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold mb-1">Title:</p>
+                  <p>{selectedVerification.title}</p>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1">Requested By:</p>
+                  <p>{selectedVerification.requestedByName} ({selectedVerification.requestedByRole})</p>
+                </div>
+              </div>
+              {selectedVerification.description && (
+                <div>
+                  <p className="font-semibold mb-1">Description:</p>
+                  <p>{selectedVerification.description}</p>
+                </div>
+              )}
+              {selectedVerification.status === 'VERIFIED' && selectedVerification.verifiedByName && (
+                <div>
+                  <p className="font-semibold mb-1">Verified By:</p>
+                  <p>{selectedVerification.verifiedByName} on {new Date(selectedVerification.verifiedAt).toLocaleString()}</p>
+                  {selectedVerification.verificationNotes && (
+                    <div className="mt-2">
+                      <p className="font-semibold mb-1">Notes:</p>
+                      <p>{selectedVerification.verificationNotes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {selectedVerification.status === 'REJECTED' && selectedVerification.rejectedByName && (
+                <div>
+                  <p className="font-semibold mb-1">Rejected By:</p>
+                  <p>{selectedVerification.rejectedByName} on {new Date(selectedVerification.rejectedAt).toLocaleString()}</p>
+                  {selectedVerification.rejectionReason && (
+                    <div className="mt-2">
+                      <p className="font-semibold mb-1">Reason:</p>
+                      <p>{selectedVerification.rejectionReason}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {selectedVerification.fileUrl && (
+                <div className="mt-4">
+                  <Button
+                    color="blue"
+                    href={selectedVerification.fileUrl}
+                    target="_blank"
+                    className="flex items-center gap-2"
+                  >
+                    <HiEye className="h-4 w-4" />
+                    View Document
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            color="gray"
+            onClick={() => {
+              setViewModalVisible(false);
+              setSelectedVerification(null);
+            }}
+          >
             Close
           </Button>
-        }
-        width={800}
-      >
-        {selectedVerification && (
-          <div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>Type:</Text>
-                <div>
-                  <Tag color={VERIFICATION_TYPES[selectedVerification.verificationType]?.color}>
-                    {VERIFICATION_TYPES[selectedVerification.verificationType]?.label}
-                  </Tag>
-                </div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Status:</Text>
-                <div>
-                  <Tag icon={STATUS_ICONS[selectedVerification.status} color={STATUS_COLORS[selectedVerification.status}>
-                    {selectedVerification.status}
-                  </Tag>
-                </div>
-              </Col>
-            </Row>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Text strong>Title:</Text>
-                <div>{selectedVerification.title}</div>
-              </Col>
-              <Col span={12}>
-                <Text strong>Requested By:</Text>
-                <div>{selectedVerification.requestedByName} ({selectedVerification.requestedByRole})</div>
-              </Col>
-            </Row>
-            {selectedVerification.description && (
-              <div style={{ marginBottom: 16 }}>
-                <Text strong>Description:</Text>
-                <div>{selectedVerification.description}</div>
-              </div>
-            )}
-            {selectedVerification.status === 'VERIFIED' && selectedVerification.verifiedByName && (
-              <div style={{ marginBottom: 16 }}>
-                <Text strong>Verified By:</Text>
-                <div>{selectedVerification.verifiedByName} on {new Date(selectedVerification.verifiedAt).toLocaleString()}</div>
-                {selectedVerification.verificationNotes && (
-                  <div style={{ marginTop: 8 }}>
-                    <Text strong>Notes:</Text>
-                    <div>{selectedVerification.verificationNotes}</div>
-                  </div>
-                )}
-              </div>
-            )}
-            {selectedVerification.status === 'REJECTED' && selectedVerification.rejectedByName && (
-              <div style={{ marginBottom: 16 }}>
-                <Text strong>Rejected By:</Text>
-                <div>{selectedVerification.rejectedByName} on {new Date(selectedVerification.rejectedAt).toLocaleString()}</div>
-                {selectedVerification.rejectionReason && (
-                  <div style={{ marginTop: 8 }}>
-                    <Text strong>Reason:</Text>
-                    <div>{selectedVerification.rejectionReason}</div>
-                  </div>
-                )}
-              </div>
-            )}
-            {selectedVerification.fileUrl && (
-              <div style={{ marginTop: 16 }}>
-                <Button
-                  type="primary"
-                  icon={<EyeOutlined />}
-                  href={selectedVerification.fileUrl}
-                  target="_blank"
-                >
-                  View Document
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+        </Modal.Footer>
       </Modal>
 
       {/* Verify Modal */}
-      <StandardModal
-        title="Verify Request"
-        open={verifyModalVisible}
-        form={form}
-        loading={false}
-        submitText="Verify"
-        onCancel={() => {
+      <Modal
+        show={verifyModalVisible}
+        onClose={() => {
           setVerifyModalVisible(false);
           setSelectedVerification(null);
-          form.resetFields();
+          form.resetForm();
         }}
-        onFinish={handleVerify}
+        size="md"
       >
-        <FormTextInput
-          name="verificationNotes"
-          label="Notes (Optional)"
-          textArea
-          rows={4}
-          placeholder="Add any notes about this verification"
-        />
-      </StandardModal>
+        <Modal.Header>Verify Request</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleVerify} className="space-y-4">
+            <div>
+              <Label htmlFor="verificationNotes" className="mb-2 block">
+                Notes (Optional)
+              </Label>
+              <Textarea
+                id="verificationNotes"
+                rows={4}
+                placeholder="Add any notes about this verification"
+                value={form.values.verificationNotes}
+                onChange={(e) => form.setFieldsValue({ verificationNotes: e.target.value })}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                color="gray"
+                onClick={() => {
+                  setVerifyModalVisible(false);
+                  setSelectedVerification(null);
+                  form.resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" color="success">
+                Verify
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
 
       {/* Reject Modal */}
-      <StandardModal
-        title="Reject Request"
-        open={rejectModalVisible}
-        form={form}
-        loading={false}
-        submitText="Reject"
-        onCancel={() => {
+      <Modal
+        show={rejectModalVisible}
+        onClose={() => {
           setRejectModalVisible(false);
           setSelectedVerification(null);
-          form.resetFields();
+          form.resetForm();
         }}
-        onFinish={handleReject}
+        size="md"
       >
-        <FormTextInput
-          name="rejectionReason"
-          label="Rejection Reason"
-          textArea
-          rows={4}
-          required
-          placeholder="Explain why this verification is being rejected"
-        />
-      </StandardModal>
+        <Modal.Header>Reject Request</Modal.Header>
+        <Modal.Body>
+          <form onSubmit={handleReject} className="space-y-4">
+            <div>
+              <Label htmlFor="rejectionReason" className="mb-2 block">
+                Rejection Reason <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="rejectionReason"
+                rows={4}
+                placeholder="Explain why this verification is being rejected"
+                value={form.values.rejectionReason}
+                onChange={(e) => form.setFieldsValue({ rejectionReason: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                color="gray"
+                onClick={() => {
+                  setRejectModalVisible(false);
+                  setSelectedVerification(null);
+                  form.resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                color="failure"
+                disabled={!form.values.rejectionReason}
+              >
+                Reject
+              </Button>
+            </div>
+          </form>
+        </Modal.Body>
+      </Modal>
     </PageLayout>
   );
 }
-

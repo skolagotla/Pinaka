@@ -32,7 +32,6 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Space } from 'antd';
 import { ActionButton } from '@/components/shared/buttons';
 import { useMessage } from './useMessage';
 const logger = require('../logger');
@@ -479,7 +478,7 @@ export function usePinakaCRUD({
   const renderFormButtons = useCallback((options = {}) => {
     const { hideCancel = false } = options;
     return (
-      <Space style={{ width: '100%', justifyContent: 'flex-end' }} size="middle">
+      <div className="flex justify-end gap-4 w-full">
         {!hideCancel && (
           <ActionButton
             action="cancel"
@@ -496,7 +495,7 @@ export function usePinakaCRUD({
           size="large"
           tooltip={isEditing ? 'Save Changes' : `Add ${entityName}`}
         />
-      </Space>
+      </div>
     );
   }, [close, loading, isEditing, entityName]);
 

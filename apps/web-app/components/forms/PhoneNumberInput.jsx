@@ -1,6 +1,6 @@
 "use client";
-import { Input } from 'antd';
-import { PhoneOutlined } from '@ant-design/icons';
+import { TextInput } from 'flowbite-react';
+import { HiPhone } from 'react-icons/hi';
 import { usePhoneInput } from '@/lib/hooks/useRegionalInput';
 
 /**
@@ -44,17 +44,29 @@ export default function PhoneNumberInput({
   // Ensure we always return a valid React element
   try {
     return (
-      <Input
-        {...restProps}
-        value={value || ''}
-        {...safeInputProps}
-        prefix={<PhoneOutlined />}
-      />
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiPhone className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput
+          {...restProps}
+          type="tel"
+          value={value || ''}
+          {...safeInputProps}
+          className="pl-10"
+        />
+      </div>
     );
   } catch (error) {
-    console.error('[PhoneNumberInput] Error rendering Input:', error);
+    console.error('[PhoneNumberInput] Error rendering TextInput:', error);
     // Fallback to basic input
-    return <Input {...restProps} value={value || ''} prefix={<PhoneOutlined />} />;
+    return (
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <HiPhone className="h-5 w-5 text-gray-400" />
+        </div>
+        <TextInput {...restProps} type="tel" value={value || ''} className="pl-10" />
+      </div>
+    );
   }
 }
-

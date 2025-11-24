@@ -256,7 +256,7 @@ export default function PMCInvitationsClient({ initialInvitations = [] }) {
                       {columns.map((col, colIdx) => {
                         const value = col.dataIndex ? record[col.dataIndex] : null;
                         return (
-                           <TableCell key={colIdx}
+                           <TableCell key={colIdx}>
                             {col.render ? col.render(value, record, rowIdx) : value}
                           </TableCell>
                         );

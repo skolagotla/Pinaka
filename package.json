@@ -15,7 +15,6 @@
     "build": "pnpm run generate:types || echo '⚠️  OpenAPI types generation skipped (FastAPI server may not be running)' && pnpm run build:packages && pnpm run build:apps",
     "build:apps": "pnpm --filter '@pinaka/web-app' build",
     "build:packages": "pnpm --filter './packages/*' --filter '!@pinaka/server-stubs' --filter '!@pinaka/domains' build",
-    "build:apps": "pnpm --filter './apps/*' build",
     "build:schema": "cd schema/types && npm run build",
     "generate:schema": "cd schema/types && npm run generate:all",
     "schema:generate": "node ci/generate-schemas.js",

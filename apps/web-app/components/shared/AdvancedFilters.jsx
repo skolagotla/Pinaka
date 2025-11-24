@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, Space, Select, DatePicker, Input, Button, Tag, Row, Col } from 'antd';
-import { FilterOutlined, ClearOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, Select, TextInput, Button, Badge } from 'flowbite-react';
+import { HiFilter, HiX, HiSave } from 'react-icons/hi';
 import dayjs from 'dayjs';
-
-const { RangePicker } = DatePicker;
 
 export default function AdvancedFilters({
   filters = [],
@@ -42,29 +40,49 @@ export default function AdvancedFilters({
       case 'select':
         return (
           <Select
-            style={{ width: '100%' }}
-            placeholder={filter.placeholder}
-            value={activeFilters[filter.key}
-            onChange={(value) => handleFilterChange(filter.key, value)}
-            options={filter.options}
-            allowClear
-          />
+            className="w-full"
+            value={activeFilters[filter.key]}
+            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+          >
+            <option value="">{filter.placeholder || 'Select...'}</option>
+            {filter.options?.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
         );
       case 'dateRange':
         return (
-          <RangePicker
-            style={{ width: '100%' }}
-            value={activeFilters[filter.key}
-            onChange={(dates) => handleFilterChange(filter.key, dates)}
-          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              value={activeFilters[filter.key]?.[0] || ''}
+              onChange={(e) => {
+                const dates = activeFilters[filter.key] || [];
+                dates[0] = e.target.value;
+                handleFilterChange(filter.key, dates);
+              }}
+            />
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              value={activeFilters[filter.key]?.[1] || ''}
+              onChange={(e) => {
+                const dates = activeFilters[filter.key] || [];
+                dates[1] = e.target.value;
+                handleFilterChange(filter.key, dates);
+              }}
+            />
+          </div>
         );
       case 'input':
         return (
-          <Input
+          <TextInput
             placeholder={filter.placeholder}
-            value={activeFilters[filter.key}
+            value={activeFilters[filter.key] || ''}
             onChange={(e) => handleFilterChange(filter.key, e.target.value)}
-            allowClear
           />
         );
       default:
@@ -77,84 +95,88 @@ export default function AdvancedFilters({
   ).length;
 
   return (
-    <Card
-      title={
-        <Space>
-          <FilterOutlined />
-          <span>Filters</span>
+    <Card className="mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <HiFilter className="h-5 w-5" />
+          <span className="font-semibold">Filters</span>
           {activeFilterCount > 0 && (
-            <Tag color="blue">{activeFilterCount} active</Tag>
+            <Badge color="blue">{activeFilterCount} active</Badge>
           )}
-        </Space>
-      }
-      size="small"
-      style={{ marginBottom: 16 }}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        </div>
+      </div>
+
+      <div className="space-y-4">
         {/* Saved Presets */}
         {savedPresets.length > 0 && (
           <div>
-            <Text type="secondary" style={{ fontSize: '12px', marginBottom: 8, display: 'block' }}>
-              Saved Presets:
-            </Text>
-            <Space wrap>
+            <p className="text-xs text-gray-500 mb-2">Saved Presets:</p>
+            <div className="flex flex-wrap gap-2">
               {savedPresets.map((preset) => (
-                <Tag
+                <Badge
                   key={preset.id}
                   color="blue"
-                  style={{ cursor: 'pointer' }}
+                  className="cursor-pointer hover:bg-blue-600"
                   onClick={() => {
                     setActiveFilters(preset.filters);
                     onLoadPreset(preset);
                   }}
                 >
                   {preset.name}
-                </Tag>
+                </Badge>
               ))}
-            </Space>
+            </div>
           </div>
         )}
 
         {/* Filter Inputs */}
-        <Row gutter={[16, 16}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filters.map((filter) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={filter.key}>
-              <div>
-                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
-                  {filter.label}
-                </Text>
-                {renderFilterInput(filter)}
-              </div>
-            </Col>
+            <div key={filter.key}>
+              <label className="block text-xs text-gray-500 mb-1">
+                {filter.label}
+              </label>
+              {renderFilterInput(filter)}
+            </div>
           ))}
-        </Row>
+        </div>
 
         {/* Actions */}
-        <Space>
-          <Button icon={<ClearOutlined />} onClick={handleReset}>
+        <div className="flex items-center gap-2">
+          <Button
+            color="light"
+            onClick={handleReset}
+            className="flex items-center gap-2"
+          >
+            <HiX className="h-4 w-4" />
             Reset
           </Button>
           {onSavePreset && (
             <>
-              <Input
+              <TextInput
                 placeholder="Preset name"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
-                style={{ width: 150 }}
-                onPressEnter={handleSavePreset}
+                className="w-40"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSavePreset();
+                  }
+                }}
               />
               <Button
-                icon={<SaveOutlined />}
+                color="light"
                 onClick={handleSavePreset}
                 disabled={!presetName.trim()}
+                className="flex items-center gap-2"
               >
+                <HiSave className="h-4 w-4" />
                 Save Preset
               </Button>
             </>
           )}
-        </Space>
-      </Space>
+        </div>
+      </div>
     </Card>
   );
 }
-

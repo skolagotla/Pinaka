@@ -1,24 +1,34 @@
 "use client";
-// Auth0 Provider (conditional - only imported when needed)
-import { ConfigProvider, App, theme as antdTheme } from 'antd';
-import enUS from 'antd/locale/en_US';
+// Providers - Flowbite-compatible (no Ant Design ConfigProvider needed)
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { getThemeById } from '@/lib/themes/theme-config';
 import { TimezoneProvider } from '@/lib/context/TimezoneContext';
 import { PropertyProvider } from '@/lib/contexts/PropertyContext';
 import { initializeApiInterceptors } from '@/lib/utils/api-interceptors';
 import { suppressBrowserExtensionErrors } from '@/lib/utils/error-suppression';
 import { reportWebVital } from './web-vitals';
 
-// Create a client for React Query
+// Create a client for React Query with optimized caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000, // 1 minute
-      refetchOnWindowFocus: false,
-      retry: 1,
+      staleTime: 2 * 60 * 1000, // 2 minutes (increased from 1 minute for better performance)
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime - keep data in cache longer)
+      refetchOnWindowFocus: false, // Don't refetch on window focus (better UX)
+      refetchOnMount: false, // Don't refetch if data is fresh
+      refetchOnReconnect: true, // Refetch on reconnect (network recovery)
+      retry: (failureCount, error) => {
+        // Retry on network errors, not 4xx/5xx
+        if (error?.status >= 400 && error?.status < 500) {
+          return false; // Don't retry client errors
+        }
+        return failureCount < 2; // Retry up to 2 times for network errors
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    },
+    mutations: {
+      retry: false, // Don't retry mutations
     },
   },
 });
@@ -30,61 +40,37 @@ if (typeof window !== 'undefined') {
   dayjs.locale('en');
 }
 
-// Suppress Ant Design false positive warning at ALL levels
+// Suppress browser extension errors
 if (typeof window !== 'undefined') {
-  // 1. Suppress console.warn
-  const originalWarn = console.warn;
-  console.warn = function(...args) {
-    if (args && args[0] && typeof args[0] === 'string') {
-      if (args[0].includes('[antd: compatible]') || args[0].includes('antd v5 support React')) {
-        return; // Suppress - we ARE using React 18
-      }
-    }
-    originalWarn.apply(console, args);
-  };
-
-  // 2. Suppress console.error (some warnings use error)
   const originalError = console.error;
   console.error = function(...args) {
     if (args && args[0] && typeof args[0] === 'string') {
-      // Suppress Ant Design React version warnings
-      if (args[0].includes('[antd: compatible]') || args[0].includes('antd v5 support React')) {
-        return; // Suppress - we ARE using React 18
-      }
-      // Suppress hydration errors for aria-describedby (Ant Design Tooltip dynamic IDs)
+      // Suppress hydration errors for aria-describedby (Tooltip dynamic IDs)
       if (args[0].includes('aria-describedby')) {
-        return; // Suppress - known issue with Ant Design Tooltip IDs
+        return;
       }
       // Suppress general hydration mismatch warnings
       if (args[0].includes('A tree hydrated but some attributes')) {
-        return; // Suppress - React hydration mismatch (non-critical)
+        return;
       }
       // Suppress React hydration mismatch errors
       if (args[0].includes('hydration-mismatch')) {
-        return; // Suppress - known issue with dynamic content
-      }
-      // Suppress Ant Design Form useForm warning (forms created but not yet rendered)
-      if (args[0].includes('Instance created by `useForm` is not connected')) {
-        return; // Suppress - forms are connected but initialized before modal opens
-      }
-      // Suppress Ant Design message static function warning
-      if (args[0].includes('Static function can not consume context like dynamic theme')) {
-        return; // Suppress - static message API works fine for our use case
+        return;
       }
       // Suppress browser extension errors (password managers, autocomplete, etc.)
       if (args[0].includes('Cannot read properties of undefined') && 
           (args[0].includes("reading 'control'") || args[0].includes('content_script'))) {
-        return; // Suppress - browser extension trying to access form controls
+        return;
       }
       // Suppress NEXT_REDIRECT errors - these are expected in Next.js when using redirect()
       const errorStr = typeof args[0] === 'string' ? args[0] : (args[0]?.message || String(args[0] || ''));
       if (errorStr.includes('NEXT_REDIRECT') || 
           (args[0]?.digest && String(args[0].digest).includes('NEXT_REDIRECT'))) {
-        return; // Suppress - this is how Next.js handles redirects, not an error
+        return;
       }
       // Suppress redirect-related error messages from page-wrapper
       if (errorStr.includes('[page-wrapper]') && errorStr.includes('NEXT_REDIRECT')) {
-        return; // Suppress - redirect is working as intended
+        return;
       }
     }
     originalError.apply(console, args);
@@ -95,20 +81,6 @@ if (typeof window !== 'undefined') {
 }
 
 export default function Providers({ children, userTheme = 'default', userTimezone = null, userRole = null, initialProperties = [], useAuth0 = false }) {
-  // AUTH0 DISABLED: Commented out to use password-based authentication only
-  // const [Auth0ProviderComponent, setAuth0ProviderComponent] = useState(null);
-
-  // // Dynamically load Auth0Provider only when useAuth0 is true
-  // useEffect(() => {
-  //   if (useAuth0) {
-  //     import('@auth0/nextjs-auth0/client').then((module) => {
-  //       setAuth0ProviderComponent(() => module.Auth0Provider);
-  //     }).catch((error) => {
-  //       console.error('Failed to load Auth0Provider:', error);
-  //     });
-  //   }
-  // }, [useAuth0]);
-
   // Initialize API interceptors once on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -135,69 +107,20 @@ export default function Providers({ children, userTheme = 'default', userTimezon
       }
     }
   }, []);
-  
-  useEffect(() => {
-    // Suppress Ant Design notification system warnings
-    // Override App.notification to filter out compatibility warnings
-    if (typeof window !== 'undefined' && window.antd) {
-      const originalNotification = window.antd.notification;
-      if (originalNotification) {
-        const originalError = originalNotification.error;
-        originalNotification.error = function(config) {
-          // Check if this is the compatibility warning
-          if (config && config.message && typeof config.message === 'string') {
-            if (config.message.includes('[antd: compatible]') || config.message.includes('antd v5 support React')) {
-              return; // Suppress notification
-            }
-          }
-          if (config && config.description && typeof config.description === 'string') {
-            if (config.description.includes('[antd: compatible]') || config.description.includes('antd v5 support React')) {
-              return; // Suppress notification
-            }
-          }
-          return originalError.call(this, config);
-        };
-      }
-    }
-  }, [userTheme]);
 
-  // Get theme configuration based on user preference
-  const themeConfig = getThemeById(userTheme);
-  const isDarkMode = themeConfig.config.algorithm === 'dark';
-
-  // Conditionally wrap with Auth0Provider only when using Auth0
+  // Conditionally wrap with providers
   const content = (
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider initialTimezone={userTimezone}>
         <PropertyProvider userRole={userRole} initialProperties={initialProperties}>
-          <ConfigProvider 
-            locale={enUS}
-            theme={{
-              ...themeConfig.config,
-              algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-            }}
-            warning={{
-              // Disable React version compatibility warning
-              strict: false
-            }}
-          >
-            <App>
-              {children}
-              {process.env.NODE_ENV === 'development' && (
-                <ReactQueryDevtools initialIsOpen={false} />
-              )}
-            </App>
-          </ConfigProvider>
+          {children}
+          {process.env.NODE_ENV === 'development' && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
         </PropertyProvider>
       </TimezoneProvider>
     </QueryClientProvider>
   );
 
-  // AUTH0 DISABLED: Using password-based authentication only
-  // if (useAuth0 && Auth0ProviderComponent) {
-  //   return <Auth0ProviderComponent>{content}</Auth0ProviderComponent>;
-  // }
-
   return content;
 }
-

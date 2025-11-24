@@ -21,7 +21,7 @@ import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import { renderStatus } from '@/components/shared/FlowbiteTableRenderers';
 import { STANDARD_COLUMNS, customizeColumn } from '@/lib/constants/standard-columns';
 import { notify } from '@/lib/utils/notification-helper';
-import { useUnifiedApi } from '@/lib/hooks/useUnifiedApi';
+// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
 import { useModalState } from '@/lib/hooks/useModalState';
 import { formatDateDisplay } from '@/lib/utils/safe-date-formatter';
 import FlowbitePopconfirm from '@/components/shared/FlowbitePopconfirm';
@@ -29,7 +29,7 @@ import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useUpdateInspection } from '@/lib/hooks/useV2Data';
 
 export default function InspectionsClient({ initialChecklists = [] }) {
-  const { fetch } = useUnifiedApi({ showUserMessage: true });
+  // useUnifiedApi removed - use v2Api
   const { user } = useV2Auth();
   const updateInspection = useUpdateInspection();
   const [checklists, setChecklists] = useState(initialChecklists);

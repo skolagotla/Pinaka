@@ -33,7 +33,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 import { useRegionalInput } from './useRegionalInput';
 import { useFormButtons } from './useFormButtons';
@@ -47,7 +47,6 @@ export function useAddressForm({
   onCancel = null,
   apiEndpoint = null,
 }) {
-  const { message } = App.useApp();
 
   // Determine if this is edit mode
   const isEditMode = !!initialData?.id;
@@ -189,7 +188,7 @@ export function useAddressForm({
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       validation.setErrors(errors);
-      message.error('Please fix the errors before saving');
+      notify.error('Please fix the errors before saving');
       return false;
     }
 
@@ -217,7 +216,7 @@ export function useAddressForm({
       }
 
       if (result.success) {
-        message.success(isEditMode ? 'Updated successfully' : 'Created successfully');
+        notify.success(isEditMode ? 'Updated successfully' : 'Created successfully');
         
         if (onSuccess) {
           onSuccess(result.data);
@@ -226,17 +225,17 @@ export function useAddressForm({
         buttons.setLoading(false);
         return true;
       } else {
-        message.error(result.error || 'Operation failed');
+        notify.error(result.error || 'Operation failed');
         buttons.setLoading(false);
         return false;
       }
     } catch (error) {
       console.error('[useAddressForm] Save error:', error);
-      message.error(error.message || 'Failed to save');
+      notify.error(error.message || 'Failed to save');
       buttons.setLoading(false);
       return false;
     }
-  }, [formData, validateForm, validation, buttons, regional, crud, isEditMode, initialData, message, onSuccess, entityType]);
+  }, [formData, validateForm, validation, buttons, regional, crud, isEditMode, initialData, onSuccess, entityType]);
 
   // Handle form cancel
   const handleCancel = useCallback(() => {

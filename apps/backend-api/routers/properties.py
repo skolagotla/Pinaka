@@ -4,6 +4,7 @@ Property endpoints
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
@@ -17,7 +18,7 @@ from core.crud_helpers import (
     apply_pagination
 )
 from schemas.property import Property, PropertyCreate, PropertyUpdate
-from db.models_v2 import Property as PropertyModel, User, Organization
+from db.models_v2 import Property as PropertyModel, User, Organization, Landlord, Unit
 
 router = APIRouter(prefix="/properties", tags=["properties"])
 
@@ -33,7 +34,13 @@ async def list_properties(
     """List properties (scoped by organization) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
-    query = select(PropertyModel)
+    # Eager load relationships to prevent N+1 queries
+    query = select(PropertyModel).options(
+        selectinload(PropertyModel.landlord),
+        selectinload(PropertyModel.organization),
+        # Only load units if needed (can be expensive for large properties)
+        # selectinload(PropertyModel.units),
+    )
     query = await apply_organization_filter(query, PropertyModel, current_user, user_roles, organization_id)
     query = apply_pagination(query, page, limit, PropertyModel.created_at.desc())
     
@@ -77,7 +84,25 @@ async def get_property(
 ):
     """Get property by ID"""
     user_roles = await get_user_roles(current_user, db)
-    property_obj = await get_entity_or_404(PropertyModel, property_id, db, "Property not found")
+    
+    # Eager load relationships
+    result = await db.execute(
+        select(PropertyModel)
+        .options(
+            selectinload(PropertyModel.landlord),
+            selectinload(PropertyModel.organization),
+            selectinload(PropertyModel.units),
+        )
+        .where(PropertyModel.id == property_id)
+    )
+    property_obj = result.scalar_one_or_none()
+    
+    if not property_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
     await check_organization_access(property_obj, current_user, user_roles)
     
     return property_obj

@@ -1,13 +1,13 @@
 "use client";
-import { Modal, Button, Descriptions, Tag, Space, Typography, Badge, Input, Collapse, Alert, Image, Spin } from 'antd';
+import { Modal, Button, Badge, Textarea, Label, Alert, Spinner } from 'flowbite-react';
 import { 
-  DownloadOutlined, 
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LeftOutlined, 
-  RightOutlined,
-  MessageOutlined
-} from '@ant-design/icons';
+  HiDownload, 
+  HiCheckCircle,
+  HiXCircle,
+  HiArrowLeft, 
+  HiArrowRight,
+  HiChatAlt2
+} from 'react-icons/hi';
 import dayjs from 'dayjs';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import { useState, useEffect } from 'react';
@@ -17,9 +17,6 @@ import {
   getVersionApprovalStatus, 
   getDeletionApprovalStatus 
 } from '@/lib/utils/document-metadata';
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 /**
  * PDFViewerModal Component
@@ -119,11 +116,11 @@ export default function PDFViewerModal({
       if (currentDoc.id && !currentDoc.viewUrl) {
         setLoadingViewUrl(true);
         try {
-          const { v1Api } = await import('@/lib/api/v1-client');
+          const { v2Api } = await import('@/lib/api/v2-client');
           
           // Check if it's a rent payment receipt
           if (currentDoc.type === 'rent-receipt' || currentDoc.rentPaymentId) {
-            const response = await v1Api.specialized.viewRentPaymentReceipt(currentDoc.rentPaymentId || currentDoc.id);
+            const response = await v2Api.specialized.viewRentPaymentReceipt(currentDoc.rentPaymentId || currentDoc.id);
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             setViewUrl(url);
@@ -132,7 +129,7 @@ export default function PDFViewerModal({
           
           // Check if it's a maintenance ticket
           if (currentDoc.type === 'maintenance-ticket' || currentDoc.ticketNumber) {
-            const response = await v1Api.specialized.downloadMaintenancePDF(currentDoc.id);
+            const response = await v2Api.specialized.downloadMaintenancePDF(currentDoc.id);
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             setViewUrl(url);
@@ -140,7 +137,7 @@ export default function PDFViewerModal({
           }
           
           // Default to documents API (v1)
-          const response = await v1Api.specialized.viewDocument(
+          const response = await v2Api.specialized.viewDocument(
             currentDoc.id,
             currentDoc.fileIndex,
             currentDoc.versionIndex
@@ -196,52 +193,46 @@ export default function PDFViewerModal({
 
   // Modal title with document counter for multi-mode
   const modalTitle = isMultiMode ? (
-    <Space wrap>
+    <div className="flex items-center gap-2 flex-wrap">
       <span>{documentTitle}</span>
-      <Badge 
-        count={`${activeIndex + 1} / ${documents.length}`} 
-        style={{ backgroundColor: '#1890ff' }}
-      />
+      <Badge color="blue">
+        {activeIndex + 1} / {documents.length}
+      </Badge>
       {currentDoc.versionLabel && (
-        <Tag color="purple">{currentDoc.versionLabel}</Tag>
+        <Badge color="purple">{currentDoc.versionLabel}</Badge>
       )}
       {showMakeCurrentButton && (
         <Button
-          type="primary"
-          size="small"
+          color="blue"
+          size="sm"
           onClick={() => {
             // Calculate version index: activeIndex - 1 (because index 0 is current)
             const versionIndex = activeIndex - 1;
             console.log('[PDFViewerModal] Promoting version:', { versionIndex, activeIndex });
             onPromoteVersion(versionIndex);
           }}
-          style={{ fontWeight: 600 }}
+          className="font-semibold"
         >
           ⭐ Make Current
         </Button>
       )}
-    </Space>
+    </div>
   ) : documentTitle;
 
   return (
     <>
     <Modal
-      title={modalTitle}
-      open={isOpen}
-      onCancel={onClose}
-      width={width}
-      footer={null}
+      show={isOpen}
+      onClose={onClose}
+      size="7xl"
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Modal.Header>{modalTitle}</Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
         {/* Metadata Section - Inline Layout */}
         {showMetadata && metadata.length > 0 && (
-          <div style={{ 
-            background: '#fafafa',
-            border: '1px solid #e8e8e8',
-            borderRadius: '6px',
-            padding: '14px 18px',
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 40px' }}>
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-x-10 gap-y-2">
               {/* Row 1: Category | Uploaded By */}
               {(() => {
                 const category = metadata.find(item => item.label === 'Category');
@@ -249,21 +240,21 @@ export default function PDFViewerModal({
                 return (
                   <>
                     {category && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '80px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[80px] text-gray-600 dark:text-gray-400">
                           {category.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {category.render ? category.render(category.value) : category.value}
                         </div>
                       </div>
                     )}
                     {uploadedBy && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '100px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[100px] text-gray-600 dark:text-gray-400">
                           {uploadedBy.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {uploadedBy.render ? uploadedBy.render(uploadedBy.value) : uploadedBy.value}
                         </div>
                       </div>
@@ -279,21 +270,21 @@ export default function PDFViewerModal({
                 return (
                   <>
                     {totalFiles && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '80px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[80px] text-gray-600 dark:text-gray-400">
                           {totalFiles.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {totalFiles.render ? totalFiles.render(totalFiles.value) : totalFiles.value}
                         </div>
                       </div>
                     )}
                     {uploaded && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '100px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[100px] text-gray-600 dark:text-gray-400">
                           {uploaded.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {uploaded.render ? uploaded.render(uploaded.value) : uploaded.value}
                         </div>
                       </div>
@@ -309,21 +300,21 @@ export default function PDFViewerModal({
                 return (
                   <>
                     {status && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '80px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[80px] text-gray-600 dark:text-gray-400">
                           {status.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {status.render ? status.render(status.value) : status.value}
                         </div>
                       </div>
                     )}
                     {approvedBy && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '100px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[100px] text-gray-600 dark:text-gray-400">
                           {approvedBy.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {approvedBy.render ? approvedBy.render(approvedBy.value) : approvedBy.value}
                         </div>
                       </div>
@@ -338,49 +329,52 @@ export default function PDFViewerModal({
                 return (
                   <>
                     {description ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Text strong style={{ fontSize: '13px', minWidth: '80px', color: '#595959' }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-[80px] text-gray-600 dark:text-gray-400">
                           {description.label}:
-                        </Text>
-                        <div style={{ fontSize: '13px', flex: 1 }}>
+                        </span>
+                        <div className="text-xs flex-1">
                           {description.render ? description.render(description.value) : description.value}
                         </div>
                       </div>
                     ) : <div></div>}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Text strong style={{ fontSize: '13px', minWidth: '100px', color: '#595959' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold min-w-[100px] text-gray-600 dark:text-gray-400">
                         Actions:
-                      </Text>
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      </span>
+                      <div className="flex gap-1">
                         {onVerify && !currentDoc?.isVerified && !currentDoc?.isRejected && (
                           <Button
-                            type="text"
-                            size="small"
-                            icon={<CheckCircleOutlined style={{ fontSize: '16px', color: '#52c41a' }} />}
+                            color="light"
+                            size="sm"
+                            className="p-1 h-auto"
                             onClick={() => setVerifyModalVisible(true)}
                             title="Approve"
-                            style={{ padding: '4px', height: 'auto' }}
-                          />
+                          >
+                            <HiCheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
                         )}
                         {onReject && !currentDoc?.isRejected && (
                           <Button
-                            type="text"
-                            size="small"
-                            icon={<CloseCircleOutlined style={{ fontSize: '16px', color: '#ff4d4f' }} />}
+                            color="light"
+                            size="sm"
+                            className="p-1 h-auto"
                             onClick={() => setRejectModalVisible(true)}
                             title="Reject"
-                            style={{ padding: '4px', height: 'auto' }}
-                          />
+                          >
+                            <HiXCircle className="h-4 w-4 text-red-600" />
+                          </Button>
                         )}
                         {onDownload && currentDoc && (
                           <Button
-                            type="text"
-                            size="small"
-                            icon={<DownloadOutlined style={{ fontSize: '16px', color: '#1890ff' }} />}
+                            color="light"
+                            size="sm"
+                            className="p-1 h-auto"
                             onClick={() => onDownload(currentDoc)}
                             title="Download"
-                            style={{ padding: '4px', height: 'auto' }}
-                          />
+                          >
+                            <HiDownload className="h-4 w-4 text-blue-600" />
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -393,11 +387,11 @@ export default function PDFViewerModal({
             {metadata.filter(item => 
               ['Expiration'].includes(item.label)
             ).map((item, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #e8e8e8' }}>
-                <Text strong style={{ fontSize: '13px', minWidth: '100px', color: '#595959' }}>
+              <div key={index} className="flex items-start gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-xs font-semibold min-w-[100px] text-gray-600 dark:text-gray-400">
                   {item.label}:
-                </Text>
-                <div style={{ fontSize: '13px', flex: 1 }}>
+                </span>
+                <div className="text-xs flex-1">
                   {item.render ? item.render(item.value) : item.value}
                 </div>
               </div>
@@ -479,13 +473,12 @@ export default function PDFViewerModal({
           }
 
           return (
-            <Alert
-              type={type}
-              showIcon
-              style={{ marginTop: '12px' }}
-              message={message}
-              description={description}
-            />
+            <Alert color={type === 'error' ? 'failure' : type === 'warning' ? 'warning' : 'info'} className="mt-3">
+              <div>
+                <p className="font-semibold mb-1">{message}</p>
+                <p className="text-sm">{description}</p>
+              </div>
+            </Alert>
           );
         })()}
 
@@ -553,12 +546,11 @@ export default function PDFViewerModal({
               />
               {/* Approve Deletion Button */}
               {needsApproval && (
-                <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                <div className="mt-3 text-center">
                   <Button
-                    type="primary"
-                    danger
-                    size="large"
-                    icon={<CheckCircleOutlined />}
+                    color="failure"
+                    size="lg"
+                    className="flex items-center gap-2"
                     onClick={() => {
                       const confirmDelete = window.confirm(
                         `Are you sure you want to approve the deletion of this document?\n\n` +
@@ -570,6 +562,7 @@ export default function PDFViewerModal({
                       }
                     }}
                   >
+                    <HiCheckCircle className="h-5 w-5" />
                     Approve Deletion
                   </Button>
                 </div>
@@ -580,90 +573,91 @@ export default function PDFViewerModal({
 
         {/* Default metadata for common document fields */}
         {showMetadata && !metadata.length && (
-          <div style={{ position: 'relative' }}>
-            <Descriptions column={2} size="small">
+          <div className="relative">
+            <div className="grid grid-cols-2 gap-4 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             {currentDoc.category && (
-              <Descriptions.Item label="Category">
-                {currentDoc.category}
-              </Descriptions.Item>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Category:</span>
+                <p className="text-sm">{currentDoc.category}</p>
+              </div>
             )}
             {currentDoc.fileSize && (
-              <Descriptions.Item label="File Size">
-                {formatFileSize(currentDoc.fileSize)}
-              </Descriptions.Item>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">File Size:</span>
+                <p className="text-sm">{formatFileSize(currentDoc.fileSize)}</p>
+              </div>
             )}
             {currentDoc.uploadedAt && (
-              <Descriptions.Item label="Uploaded">
-                {formatDateTimeDisplay(currentDoc.uploadedAt)}
-              </Descriptions.Item>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Uploaded:</span>
+                <p className="text-sm">{formatDateTimeDisplay(currentDoc.uploadedAt)}</p>
+              </div>
             )}
             {currentDoc.uploadedByName && (
-              <Descriptions.Item label="Uploaded By">
-                {currentDoc.uploadedByName}
-              </Descriptions.Item>
+              <div>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Uploaded By:</span>
+                <p className="text-sm">{currentDoc.uploadedByName}</p>
+              </div>
             )}
             {currentDoc.isVerified !== undefined && (
-              <Descriptions.Item label="Verification" span={2}>
-                {currentDoc.isVerified ? (
-                  <>
-                    <Tag color="green">
-                      <CheckCircleOutlined /> Verified
-                    </Tag>
-                    {currentDoc.verifiedAt && (
-                      <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                        on {formatDateDisplay(currentDoc.verifiedAt)}
-                      </Text>
-                    )}
-                  </>
-                ) : (
-                  <Tag color="default">Pending Verification</Tag>
-                )}
-              </Descriptions.Item>
+              <div className="col-span-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Verification:</span>
+                <div className="flex items-center gap-2 mt-1">
+                  {currentDoc.isVerified ? (
+                    <>
+                      <Badge color="success" icon={HiCheckCircle}>
+                        Verified
+                      </Badge>
+                      {currentDoc.verifiedAt && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          on {formatDateDisplay(currentDoc.verifiedAt)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <Badge color="gray">Pending Verification</Badge>
+                  )}
+                </div>
+              </div>
             )}
             {currentDoc.expirationDate && (
-              <Descriptions.Item label="Expiration" span={2}>
-                <Space>
-                  <Text>{formatDateDisplay(currentDoc.expirationDate)}</Text>
+              <div className="col-span-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Expiration:</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm">{formatDateDisplay(currentDoc.expirationDate)}</span>
                   {getExpirationTag(currentDoc.expirationDate)}
-                </Space>
-              </Descriptions.Item>
+                </div>
+              </div>
             )}
             {currentDoc.description && (
-              <Descriptions.Item label="Description" span={2}>
-                {currentDoc.description}
-              </Descriptions.Item>
+              <div className="col-span-2">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Description:</span>
+                <p className="text-sm">{currentDoc.description}</p>
+              </div>
             )}
-            </Descriptions>
+            </div>
             
             {/* Floating Action Buttons - Only Approve/Reject */}
-            <div style={{ 
-              position: 'absolute', 
-              top: 0, 
-              right: 0,
-              display: 'flex',
-              gap: '8px',
-              zIndex: 10
-            }}>
+            <div className="absolute top-0 right-0 flex gap-2 z-10">
               {onVerify && (
                 <Button
-                  type="primary"
-                  shape="circle"
-                  size="large"
-                  icon={<CheckCircleOutlined />}
+                  color="success"
+                  className="rounded-full p-2"
                   onClick={() => setVerifyModalVisible(true)}
-                  style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                   title="Approve"
-                />
+                >
+                  <HiCheckCircle className="h-5 w-5" />
+                </Button>
               )}
               {onReject && (
                 <Button
-                  danger
-                  shape="circle"
-                  size="large"
-                  icon={<CloseCircleOutlined />}
+                  color="failure"
+                  className="rounded-full p-2"
                   onClick={() => setRejectModalVisible(true)}
                   title="Reject"
-                />
+                >
+                  <HiXCircle className="h-5 w-5" />
+                </Button>
               )}
             </div>
           </div>
@@ -671,20 +665,20 @@ export default function PDFViewerModal({
 
         {/* Document Viewer */}
         {loadingViewUrl ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary">Loading document...</Text>
+          <div className="text-center py-10">
+            <Spinner size="xl" />
+            <div className="mt-4">
+              <span className="text-gray-500 dark:text-gray-400">Loading document...</span>
             </div>
           </div>
         ) : viewUrl ? (
           <div style={{ position: 'relative' }}>
             {/* PDF Viewer */}
             {isPDF && (
-              <div style={{ height: '600px', border: '1px solid #d9d9d9', borderRadius: '4px', overflow: 'hidden' }}>
+              <div className="h-[600px] border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
                 <iframe
                   src={viewUrl}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  className="w-full h-full border-0"
                   title={documentTitle}
                 />
               </div>
@@ -692,24 +686,21 @@ export default function PDFViewerModal({
             
             {/* Image Viewer */}
             {isImage && !isPDF && (
-              <div style={{ textAlign: 'center', border: '1px solid #d9d9d9', borderRadius: '4px', padding: '16px', backgroundColor: '#fafafa', minHeight: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                <Image
+              <div className="text-center border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 min-h-[600px] flex items-center justify-center relative">
+                <img
                   src={viewUrl}
                   alt={documentTitle}
-                  width={1200}
-                  height={600}
-                  style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain' }}
-                  sizes="(max-width: 1200px) 100vw, 1200px"
+                  className="max-w-full max-h-[600px] object-contain"
                 />
               </div>
             )}
 
             {/* Video Viewer */}
             {isVideo && !isPDF && !isImage && (
-              <div style={{ textAlign: 'center', border: '1px solid #d9d9d9', borderRadius: '4px', padding: '16px', backgroundColor: '#000', minHeight: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="text-center border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-black min-h-[600px] flex items-center justify-center">
                 <video
                   controls
-                  style={{ maxWidth: '100%', maxHeight: '600px' }}
+                  className="max-w-full max-h-[600px]"
                   src={viewUrl}
                 >
                   <source src={viewUrl} type={currentDoc.fileType || 'video/mp4'} />
@@ -723,185 +714,220 @@ export default function PDFViewerModal({
               <>
                 {/* Previous Button - Left Side */}
                 <Button
-                  icon={<LeftOutlined />}
+                  color="light"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-[100] rounded-full p-3 bg-white/95 shadow-md border border-gray-300"
                   onClick={handlePrevious}
                   disabled={!canGoPrevious}
-                  size="large"
-                  shape="circle"
-                  style={{
-                    position: 'absolute',
-                    left: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 100,
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    border: '1px solid #d9d9d9',
-                  }}
                   title="Previous"
-                />
+                >
+                  <HiArrowLeft className="h-5 w-5" />
+                </Button>
                 
                 {/* Next Button - Right Side */}
                 <Button
-                  icon={<RightOutlined />}
+                  color="light"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-[100] rounded-full p-3 bg-white/95 shadow-md border border-gray-300"
                   onClick={handleNext}
                   disabled={!canGoNext}
-                  size="large"
-                  shape="circle"
-                  style={{
-                    position: 'absolute',
-                    right: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 100,
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    border: '1px solid #d9d9d9',
-                  }}
                   title="Next"
-                />
+                >
+                  <HiArrowRight className="h-5 w-5" />
+                </Button>
               </>
             )}
 
             {/* Unsupported File Type */}
             {!isPDF && !isImage && !isVideo && viewUrl && (
-              <div style={{ textAlign: 'center', padding: '40px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-                <Text type="secondary">
+              <div className="text-center py-10 border border-gray-300 dark:border-gray-600 rounded-lg">
+                <span className="text-gray-500 dark:text-gray-400">
                   Preview not available for this file type. Please download to view.
-                </Text>
+                </span>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-            <Text type="secondary">
+          <div className="text-center py-10 border border-gray-300 dark:border-gray-600 rounded-lg">
+            <span className="text-gray-500 dark:text-gray-400">
               Document preview not available.
-            </Text>
+            </span>
           </div>
         )}
 
         {/* Document Discussion/Chat */}
         {userRole && userName && currentDoc && (
-          <Collapse
-            size="small"
-            items={
-              {
-                key: 'chat',
-                label: (
-                  <Space>
-                    <MessageOutlined />
-                    <Text strong>Discuss this Document</Text>
-                  </Space>
-                ),
-                children: (
-                  <DocumentChat
-                    documentId={currentDoc.id}
-                    document={currentDoc}
-                    userRole={userRole}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
+              <HiChatAlt2 className="h-5 w-5" />
+              <h5 className="font-semibold">Discuss this Document</h5>
+            </div>
+            <div className="p-4">
+              <DocumentChat
+                documentId={currentDoc.id}
+                document={currentDoc}
+                userRole={userRole}
                     userName={userName}
                   />
-                ),
-              },
-            }
-          />
+            </div>
+          </div>
         )}
-      </Space>
-    </Modal>
+          </div>
+        </Modal.Body>
+      </Modal>
 
     {/* Rejection Confirmation Modal */}
     <Modal
-      title="Reject Document"
-      open={rejectModalVisible}
-      onCancel={() => {
+      show={rejectModalVisible}
+      onClose={() => {
         setRejectModalVisible(false);
         setRejectionReason('');
       }}
-      onOk={async () => {
-        if (!rejectionReason.trim()) {
-          return;
-        }
-        setRejecting(true);
-        try {
-          await onReject(rejectionReason.trim());
-          setRejectModalVisible(false);
-          setRejectionReason('');
-          onClose(); // Close main modal after rejection
-        } finally {
-          setRejecting(false);
-        }
-      }}
-      okText="Reject Document"
-      okButtonProps={{ danger: true, loading: rejecting, disabled: !rejectionReason.trim() }}
-      cancelButtonProps={{ disabled: rejecting }}
+      size="md"
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Text>
-          Please provide a reason for rejecting this document. 
-          {isMultiMode && ` This will reject all ${documents.length} files in this batch.`}
-        </Text>
-        <TextArea
-          rows={4}
-          placeholder="E.g., 'Document is blurry and unreadable', 'Wrong document type', 'Expired document'..."
-          value={rejectionReason}
-          onChange={(e) => setRejectionReason(e.target.value)}
-          maxLength={500}
-          showCount
+      <Modal.Header>Reject Document</Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <p>
+            Please provide a reason for rejecting this document. 
+            {isMultiMode && ` This will reject all ${documents.length} files in this batch.`}
+          </p>
+          <div>
+            <Label className="mb-2 block">Rejection Reason</Label>
+            <Textarea
+              rows={4}
+              placeholder="E.g., 'Document is blurry and unreadable', 'Wrong document type', 'Expired document'..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              maxLength={500}
+              disabled={rejecting}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {rejectionReason.length} / 500 characters
+            </p>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            The uploader will be notified and can re-upload the correct document.
+          </p>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button
+          color="gray"
+          onClick={() => {
+            setRejectModalVisible(false);
+            setRejectionReason('');
+          }}
           disabled={rejecting}
-        />
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          The uploader will be notified and can re-upload the correct document.
-        </Text>
-      </Space>
+        >
+          Cancel
+        </Button>
+        <Button
+          color="failure"
+          onClick={async () => {
+            if (!rejectionReason.trim()) {
+              return;
+            }
+            setRejecting(true);
+            try {
+              await onReject(rejectionReason.trim());
+              setRejectModalVisible(false);
+              setRejectionReason('');
+              onClose(); // Close main modal after rejection
+            } finally {
+              setRejecting(false);
+            }
+          }}
+          disabled={rejecting || !rejectionReason.trim()}
+        >
+          {rejecting ? (
+            <>
+              <Spinner size="sm" />
+              Rejecting...
+            </>
+          ) : (
+            'Reject Document'
+          )}
+        </Button>
+      </Modal.Footer>
     </Modal>
 
     {/* Verification Confirmation Modal */}
     <Modal
-      title="Verify Document"
-      open={verifyModalVisible}
-      onCancel={() => {
+      show={verifyModalVisible}
+      onClose={() => {
         setVerifyModalVisible(false);
         setVerificationComment('');
       }}
-      onOk={async () => {
-        console.log('[PDFViewerModal] Verify clicked, onVerify:', typeof onVerify);
-        if (!onVerify) {
-          console.error('[PDFViewerModal] onVerify is not defined');
-          return;
-        }
-        setVerifying(true);
-        try {
-          await onVerify(verificationComment.trim() || null);
-          setVerifyModalVisible(false);
-          setVerificationComment('');
-          onClose(); // Close main modal after verification
-        } catch (error) {
-          console.error('[PDFViewerModal] Verification error:', error);
-        } finally {
-          setVerifying(false);
-        }
-      }}
-      okText="Verify Document"
-      okButtonProps={{ loading: verifying, style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } }}
-      cancelButtonProps={{ disabled: verifying }}
+      size="md"
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Text>
-          You are about to verify this document.
-          {isMultiMode && ` This will verify all ${documents.length} files in this batch.`}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Optional: Add a comment about this verification (e.g., "All information verified and correct")
-        </Text>
-        <TextArea
-          rows={3}
-          placeholder="Optional comment..."
-          value={verificationComment}
-          onChange={(e) => setVerificationComment(e.target.value)}
-          maxLength={300}
-          showCount
+      <Modal.Header>Verify Document</Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <p>
+            You are about to verify this document.
+            {isMultiMode && ` This will verify all ${documents.length} files in this batch.`}
+          </p>
+          <div>
+            <Label className="mb-2 block">Verification Comment (Optional)</Label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Add a comment about this verification (e.g., "All information verified and correct")
+            </p>
+            <Textarea
+              rows={3}
+              placeholder="Optional comment..."
+              value={verificationComment}
+              onChange={(e) => setVerificationComment(e.target.value)}
+              maxLength={300}
+              disabled={verifying}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {verificationComment.length} / 300 characters
+            </p>
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button
+          color="gray"
+          onClick={() => {
+            setVerifyModalVisible(false);
+            setVerificationComment('');
+          }}
           disabled={verifying}
-        />
-      </Space>
+        >
+          Cancel
+        </Button>
+        <Button
+          color="success"
+          onClick={async () => {
+            console.log('[PDFViewerModal] Verify clicked, onVerify:', typeof onVerify);
+            if (!onVerify) {
+              console.error('[PDFViewerModal] onVerify is not defined');
+              return;
+            }
+            setVerifying(true);
+            try {
+              await onVerify(verificationComment.trim() || null);
+              setVerifyModalVisible(false);
+              setVerificationComment('');
+              onClose(); // Close main modal after verification
+            } catch (error) {
+              console.error('[PDFViewerModal] Verification error:', error);
+            } finally {
+              setVerifying(false);
+            }
+          }}
+          disabled={verifying}
+        >
+          {verifying ? (
+            <>
+              <Spinner size="sm" />
+              Verifying...
+            </>
+          ) : (
+            'Verify Document'
+          )}
+        </Button>
+      </Modal.Footer>
     </Modal>
   </>
   );
@@ -925,13 +951,13 @@ function getExpirationTag(expirationDate) {
   const daysRemaining = expiry.diff(now, 'day');
   
   if (daysRemaining < 0) {
-    return <Tag color="red">Expired</Tag>;
+    return <Badge color="failure">Expired</Badge>;
   } else if (daysRemaining <= 7) {
-    return <Tag color="orange">{daysRemaining} days remaining</Tag>;
+    return <Badge color="warning">{daysRemaining} days remaining</Badge>;
   } else if (daysRemaining <= 30) {
-    return <Tag color="gold">{daysRemaining} days remaining</Tag>;
+    return <Badge color="warning">{daysRemaining} days remaining</Badge>;
   } else {
-    return <Tag color="green">{daysRemaining} days remaining</Tag>;
+    return <Badge color="success">{daysRemaining} days remaining</Badge>;
   }
 }
 

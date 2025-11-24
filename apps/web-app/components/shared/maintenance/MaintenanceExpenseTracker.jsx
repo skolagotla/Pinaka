@@ -8,16 +8,15 @@
 "use client";
 import { useState } from 'react';
 import {
-  Modal, Form, Input, Select, DatePicker, Button, Space, Row, Col,
-  Upload, message, App
-} from 'antd';
-import { SaveOutlined, UploadOutlined } from '@ant-design/icons';
+  Modal, Select, TextInput, Textarea, Button, Label, Spinner
+} from 'flowbite-react';
+import { HiSave, HiCloudUpload } from 'react-icons/hi';
 import dayjs from 'dayjs';
 import CurrencyInput from '@/components/rules/CurrencyInput';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { useCreateExpense } from '@/lib/hooks/useV2Data';
-
-const { TextArea } = Input;
+import { useFormState } from '@/lib/hooks/useFormState';
+import { notify } from '@/lib/utils/notification-helper';
 
 /**
  * Maintenance Expense Tracker Component
@@ -36,46 +35,64 @@ export default function MaintenanceExpenseTracker({
   vendors = [],
   onExpenseAdded
 }) {
-  const { message: messageApi } = App.useApp();
   const { user } = useV2Auth();
   const organizationId = user?.organization_id;
   const createExpense = useCreateExpense();
-  const [form] = Form.useForm();
+  const form = useFormState({
+    vendorId: '',
+    paidTo: '',
+    paymentMethod: 'Cash',
+    amount: '',
+    date: dayjs().format('YYYY-MM-DD'),
+    description: '',
+  });
   const [loading, setLoading] = useState(false);
-  const [invoiceFileList, setInvoiceFileList] = useState([]);
+  const [invoiceFile, setInvoiceFile] = useState(null);
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!selectedRequest) return;
+    
+    const values = form.getFieldsValue();
+    
+    // Validation
+    if (!values.paymentMethod) {
+      notify.error('Please select payment method');
+      return;
+    }
+    if (!values.amount || parseFloat(values.amount) <= 0) {
+      notify.error('Please enter a valid amount');
+      return;
+    }
+    if (!values.date) {
+      notify.error('Please select date');
+      return;
+    }
+    if (!values.description) {
+      notify.error('Please enter description');
+      return;
+    }
+    
     setLoading(true);
     try {
       // Extract local date components to avoid UTC conversion
-      let dateString;
-      if (values.date) {
-        if (dayjs.isDayjs(values.date)) {
-          dateString = values.date.format('YYYY-MM-DD');
-        } else if (values.date instanceof Date) {
-          const d = new Date(values.date);
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          dateString = `${year}-${month}-${day}`;
-        } else {
-          dateString = values.date;
-        }
-      } else {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
+      let dateString = values.date;
+      if (dayjs.isDayjs(values.date)) {
+        dateString = values.date.format('YYYY-MM-DD');
+      } else if (values.date instanceof Date) {
+        const d = new Date(values.date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
         dateString = `${year}-${month}-${day}`;
       }
       
       // Upload invoice file if present
       let receiptUrl = null;
-      if (invoiceFileList && invoiceFileList.length > 0 && invoiceFileList[0].originFileObj) {
+      if (invoiceFile) {
         try {
           const formData = new FormData();
-          formData.append('invoice', invoiceFileList[0].originFileObj);
+          formData.append('invoice', invoiceFile);
           
           // Use v1 API for expense invoice upload
           const uploadResponse = await fetch(
@@ -98,7 +115,7 @@ export default function MaintenanceExpenseTracker({
           }
         } catch (uploadError) {
           console.error('[Add Expense] Invoice upload failed:', uploadError);
-          messageApi.warning('Expense created but invoice upload failed. You can add it later.');
+          notify.warning('Expense created but invoice upload failed. You can add it later.');
         }
       }
       
@@ -109,10 +126,8 @@ export default function MaintenanceExpenseTracker({
         receiptUrl: receiptUrl
       };
       
-      delete expenseData.invoice;
-      
       if (!organizationId) {
-        messageApi.error('Organization ID is required');
+        notify.error('Organization ID is required');
         return;
       }
       
@@ -122,9 +137,9 @@ export default function MaintenanceExpenseTracker({
         organization_id: organizationId,
         work_order_id: selectedRequest.id,
       });
-      messageApi.success('Expense recorded successfully');
-      form.resetFields();
-      setInvoiceFileList([]);
+      notify.success('Expense recorded successfully');
+      form.resetForm();
+      setInvoiceFile(null);
       onCancel();
       
       if (onExpenseAdded) {
@@ -143,171 +158,162 @@ export default function MaintenanceExpenseTracker({
       }
     } catch (error) {
       console.error('[MaintenanceExpenseTracker] Error:', error);
-      messageApi.error(error.message || 'Failed to record expense');
+      notify.error(error.message || 'Failed to record expense');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    form.resetFields();
-    setInvoiceFileList([]);
+    form.resetForm();
+    setInvoiceFile(null);
     onCancel();
   };
 
   return (
     <Modal
-      title="Record Expense"
-      open={open}
-      onCancel={handleCancel}
-      footer={null}
-      width={600}
+      show={open}
+      onClose={handleCancel}
+      size="lg"
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        initialValues={{
-          date: dayjs(),
-          paymentMethod: 'Cash'
-        }}
-      >
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="vendorId"
-              label="Vendor/Contractor"
-            >
+      <Modal.Header>Record Expense</Modal.Header>
+      <Modal.Body>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="vendorId" className="mb-2 block">
+                Vendor/Contractor
+              </Label>
               <Select
-                placeholder="Select vendor (optional)"
-                showSearch
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                options={vendors.map(v => ({
-                  value: v.id,
-                  label: v.businessName || v.name
-                }))}
-                allowClear
-              />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="paidTo"
-              label="Paid To (if not a vendor)"
-            >
-              <Input placeholder="Name or company" />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item
-              name="paymentMethod"
-              label="Payment Method"
-              rules={[{ required: true, message: 'Please select payment method' }}
-            >
-              <Select>
-                <Select.Option value="Cash">Cash</Select.Option>
-                <Select.Option value="Check">Check</Select.Option>
-                <Select.Option value="Credit Card">Credit Card</Select.Option>
-                <Select.Option value="Debit Card">Debit Card</Select.Option>
-                <Select.Option value="Bank Transfer">Bank Transfer</Select.Option>
-                <Select.Option value="Other">Other</Select.Option>
+                id="vendorId"
+                value={form.values.vendorId}
+                onChange={(e) => form.setFieldsValue({ vendorId: e.target.value })}
+              >
+                <option value="">Select vendor (optional)</option>
+                {vendors.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.businessName || v.name}
+                  </option>
+                ))}
               </Select>
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item
-              name="amount"
-              label="Amount"
-              rules={
-                { required: true, message: 'Please enter amount' },
-                { 
-                  type: 'number', 
-                  min: 0.01, 
-                  message: 'Amount must be greater than 0' 
-                }
-              }
-            >
+            </div>
+            <div>
+              <Label htmlFor="paidTo" className="mb-2 block">
+                Paid To (if not a vendor)
+              </Label>
+              <TextInput
+                id="paidTo"
+                value={form.values.paidTo}
+                onChange={(e) => form.setFieldsValue({ paidTo: e.target.value })}
+                placeholder="Name or company"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="paymentMethod" className="mb-2 block">
+                Payment Method <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                id="paymentMethod"
+                value={form.values.paymentMethod}
+                onChange={(e) => form.setFieldsValue({ paymentMethod: e.target.value })}
+                required
+              >
+                <option value="Cash">Cash</option>
+                <option value="Check">Check</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Other">Other</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="amount" className="mb-2 block">
+                Amount <span className="text-red-500">*</span>
+              </Label>
               <CurrencyInput
+                id="amount"
                 country={selectedRequest?.property?.country || 'CA'}
-                style={{ width: '100%' }}
+                value={form.values.amount}
+                onChange={(value) => form.setFieldsValue({ amount: value })}
                 placeholder="0.00"
                 min={0.01}
+                required
               />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item
-              name="date"
-              label="Payment Date"
-              rules={[{ required: true, message: 'Please select date' }}
-            >
-              <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
+            </div>
+            <div>
+              <Label htmlFor="date" className="mb-2 block">
+                Payment Date <span className="text-red-500">*</span>
+              </Label>
+              <TextInput
+                id="date"
+                type="date"
+                value={form.values.date}
+                onChange={(e) => form.setFieldsValue({ date: e.target.value })}
+                required
+              />
+            </div>
+          </div>
 
-        <Form.Item
-          name="description"
-          label="Description"
-          rules={[{ required: true, message: 'Please enter description' }}
-        >
-          <TextArea
-            rows={3}
-            placeholder="Describe the expense (e.g., Plumbing repair, HVAC service, etc.)"
-          />
-        </Form.Item>
+          <div>
+            <Label htmlFor="description" className="mb-2 block">
+              Description <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="description"
+              rows={3}
+              value={form.values.description}
+              onChange={(e) => form.setFieldsValue({ description: e.target.value })}
+              placeholder="Describe the expense (e.g., Plumbing repair, HVAC service, etc.)"
+              required
+            />
+          </div>
 
-        <Form.Item
-          name="invoice"
-          label="Upload Invoice"
-          valuePropName="fileList"
-          getValueFromEvent={(e) => {
-            if (Array.isArray(e)) {
-              return e;
-            }
-            return e?.fileList;
-          }}
-        >
-          <Upload
-            beforeUpload={() => false}
-            maxCount={1}
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-            fileList={invoiceFileList}
-            onChange={({ fileList }) => {
-              setInvoiceFileList(fileList);
-              form.setFieldsValue({ invoice: fileList });
-            }}
-            onRemove={() => {
-              setInvoiceFileList([]);
-              form.setFieldsValue({ invoice: [] });
-            }}
-          >
-            <Button icon={<UploadOutlined />}>Upload Invoice</Button>
-          </Upload>
-        </Form.Item>
+          <div>
+            <Label htmlFor="invoice" className="mb-2 block">
+              Upload Invoice
+            </Label>
+            <input
+              type="file"
+              id="invoice"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {invoiceFile && (
+              <p className="mt-2 text-sm text-gray-600">
+                Selected: {invoiceFile.name}
+              </p>
+            )}
+          </div>
 
-        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-          <Space>
-            <Button onClick={handleCancel}>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button color="gray" onClick={handleCancel}>
               Cancel
             </Button>
             <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading}
-              icon={<SaveOutlined />}
+              type="submit"
+              color="blue"
+              disabled={loading}
+              className="flex items-center gap-2"
             >
-              Record Expense
+              {loading ? (
+                <>
+                  <Spinner size="sm" />
+                  Recording...
+                </>
+              ) : (
+                <>
+                  <HiSave className="h-4 w-4" />
+                  Record Expense
+                </>
+              )}
             </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+          </div>
+        </form>
+      </Modal.Body>
     </Modal>
   );
 }
-

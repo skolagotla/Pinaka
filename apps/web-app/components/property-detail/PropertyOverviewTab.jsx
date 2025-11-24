@@ -1,13 +1,14 @@
 "use client";
 
-import { Row, Col, Statistic, Card, Descriptions, Tag } from 'antd';
+import { Badge } from 'flowbite-react';
 import {
-  HomeOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  DollarOutlined,
-} from '@ant-design/icons';
-import { ProCard } from '../shared/LazyProComponents';
+  HiHome,
+  HiUserGroup,
+  HiDocumentText,
+  HiCurrencyDollar,
+} from 'react-icons/hi';
+import { Card } from 'flowbite-react';
+import FlowbiteStatistic from '../shared/FlowbiteStatistic';
 
 export default function PropertyOverviewTab({ property }) {
   if (!property) return null;
@@ -28,73 +29,81 @@ export default function PropertyOverviewTab({ property }) {
 
   return (
     <div>
-      <Row gutter={[16, 16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard>
-            <Statistic
-              title="Total Units"
-              value={totalUnits}
-              prefix={<HomeOutlined />}
-            />
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard>
-            <Statistic
-              title="Active Leases"
-              value={activeLeases}
-              prefix={<FileTextOutlined />}
-            />
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard>
-            <Statistic
-              title="Total Tenants"
-              value={totalTenants}
-              prefix={<TeamOutlined />}
-            />
-          </ProCard>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <ProCard>
-            <Statistic
-              title="Vacant Units"
-              value={vacantUnits}
-              prefix={<HomeOutlined />}
-            />
-          </ProCard>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <FlowbiteStatistic
+            title="Total Units"
+            value={totalUnits}
+            icon={<HiHome className="h-6 w-6" />}
+          />
+        </Card>
+        <Card>
+          <FlowbiteStatistic
+            title="Active Leases"
+            value={activeLeases}
+            icon={<HiDocumentText className="h-6 w-6" />}
+          />
+        </Card>
+        <Card>
+          <FlowbiteStatistic
+            title="Total Tenants"
+            value={totalTenants}
+            icon={<HiUserGroup className="h-6 w-6" />}
+          />
+        </Card>
+        <Card>
+          <FlowbiteStatistic
+            title="Vacant Units"
+            value={vacantUnits}
+            icon={<HiHome className="h-6 w-6" />}
+          />
+        </Card>
+      </div>
 
-      <ProCard title="Property Details">
-        <Descriptions column={2} bordered>
-          <Descriptions.Item label="Property ID">
-            <Tag>{property.propertyId}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Type">
-            <Tag>{property.propertyType || 'N/A'}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Address">
-            {property.addressLine1}
-            {property.addressLine2 && `, ${property.addressLine2}`}
-          </Descriptions.Item>
-          <Descriptions.Item label="City">
-            {property.city}, {property.provinceState} {property.postalZip}
-          </Descriptions.Item>
+      <Card>
+        <h3 className="text-lg font-semibold mb-4">Property Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Property ID</div>
+            <div>
+              <Badge color="gray">{property.propertyId}</Badge>
+            </div>
+          </div>
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Type</div>
+            <div>
+              <Badge color="gray">{property.propertyType || 'N/A'}</Badge>
+            </div>
+          </div>
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Address</div>
+            <div className="text-gray-900 dark:text-white">
+              {property.addressLine1}
+              {property.addressLine2 && `, ${property.addressLine2}`}
+            </div>
+          </div>
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">City</div>
+            <div className="text-gray-900 dark:text-white">
+              {property.city}, {property.provinceState} {property.postalZip}
+            </div>
+          </div>
           {property.yearBuilt && (
-            <Descriptions.Item label="Year Built">
-              {property.yearBuilt}
-            </Descriptions.Item>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Year Built</div>
+              <div className="text-gray-900 dark:text-white">{property.yearBuilt}</div>
+            </div>
           )}
           {property.rent && (
-            <Descriptions.Item label="Base Rent">
-              ${property.rent.toLocaleString()}
-            </Descriptions.Item>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Base Rent</div>
+              <div className="text-gray-900 dark:text-white">
+                ${property.rent.toLocaleString()}
+              </div>
+            </div>
           )}
-        </Descriptions>
-      </ProCard>
+        </div>
+      </Card>
     </div>
   );
 }
-

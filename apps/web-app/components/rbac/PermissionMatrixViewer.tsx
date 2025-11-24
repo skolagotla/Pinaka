@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Select, Badge, Spinner, Alert } from 'flowbite-react';
 import { HiLockClosed } from 'react-icons/hi';
-import { RBACRole, ResourceCategory, PermissionAction } from '@/lib/types/rbac';
+import type { RBACRole, ResourceCategory, PermissionAction } from '@/lib/types/rbac';
 import { getResourceLabel, getCategoryLabel, getRoleLabel } from '@/lib/rbac/resourceLabels';
 
 interface PermissionMatrixViewerProps {

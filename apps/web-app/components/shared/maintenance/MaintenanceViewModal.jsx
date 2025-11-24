@@ -5,17 +5,19 @@
  * Extracted from MaintenanceClient for better code organization
  */
 
+"use client";
 import React, { useMemo } from 'react';
 import {
-  Modal, Descriptions, Tag, Space, Button, Timeline, Avatar, Divider,
-  Alert, Rate, Tooltip, Badge
-} from 'antd';
+  Modal, Badge, Button, Tooltip, Alert, Spinner
+} from 'flowbite-react';
 import {
-  CheckCircleOutlined, CloseCircleOutlined, UserOutlined,
-  DownloadOutlined, EyeOutlined
-} from '@ant-design/icons';
+  HiCheckCircle, HiXCircle, HiUser,
+  HiDownload, HiEye
+} from 'react-icons/hi';
 import { formatDateDisplay, formatDateTimeDisplay } from '@/lib/utils/safe-date-formatter';
 import EscalateButton from '@/components/maintenance/EscalateButton';
+import SimpleTimeline from '@/components/shared/SimpleTimeline';
+import { useFormState } from '@/lib/hooks/useFormState';
 
 /**
  * Memoized Maintenance View Modal
@@ -38,6 +40,11 @@ const MaintenanceViewModal = React.memo(({
   comments = [],
   expenses = [],
 }) => {
+  const form = useFormState({
+    comment: newComment || '',
+    status: newStatus || request?.status || '',
+  });
+
   if (!request) return null;
 
   // Memoize status options
@@ -67,151 +74,174 @@ const MaintenanceViewModal = React.memo(({
     }
   }, [request, userRole]);
 
+  // Build timeline items from comments
+  const timelineItems = comments.map((comment, index) => ({
+    color: 'gray',
+    children: (
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center">
+            <HiUser className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-semibold text-sm">{comment.authorName}</span>
+          <Badge color="info" size="sm">{comment.authorRole}</Badge>
+          <span className="text-xs text-gray-500">
+            {formatDateTimeDisplay(comment.createdAt)}
+          </span>
+        </div>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{comment.comment}</p>
+      </div>
+    )
+  }));
+
   return (
     <Modal
-      title={
-        <Space>
-          <span>Maintenance Request</span>
-          <Tag color={request.status === 'Closed' ? 'green' : 'blue'}>
-            {request.ticketNumber || '—'}
-          </Tag>
-        </Space>
-      }
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={900}
-      destroyOnClose
+      show={open}
+      onClose={onClose}
+      size="5xl"
     >
-      <Descriptions bordered column={2} size="small">
-        <Descriptions.Item label="Title" span={2}>
-          {request.title}
-        </Descriptions.Item>
-        <Descriptions.Item label="Status">
-          <Tag color={request.status === 'Closed' ? 'green' : 'blue'}>
-            {request.status}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Priority">
-          <Tag color={request.priority === 'Urgent' ? 'red' : 'blue'}>
-            {request.priority}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Category">
-          {request.category}
-        </Descriptions.Item>
-        <Descriptions.Item label="Created">
-          {formatDateTimeDisplay(request.createdAt)}
-        </Descriptions.Item>
-        <Descriptions.Item label="Description" span={2}>
-          {request.description}
-        </Descriptions.Item>
-      </Descriptions>
+      <Modal.Header>
+        <div className="flex items-center gap-2">
+          <span>Maintenance Request</span>
+          <Badge color={request.status === 'Closed' ? 'success' : 'info'}>
+            {request.ticketNumber || '—'}
+          </Badge>
+        </div>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          {/* Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Title</p>
+              <p className="font-semibold">{request.title}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Status</p>
+              <Badge color={request.status === 'Closed' ? 'success' : 'info'}>
+                {request.status}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Priority</p>
+              <Badge color={request.priority === 'Urgent' ? 'failure' : 'info'}>
+                {request.priority}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Category</p>
+              <p className="text-sm">{request.category}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Created</p>
+              <p className="text-sm">{formatDateTimeDisplay(request.createdAt)}</p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-xs text-gray-500 mb-1">Description</p>
+              <p className="text-sm">{request.description}</p>
+            </div>
+          </div>
 
-      {/* Approval Status */}
-      {request.status === 'Closed' && (
-        <Alert
-          message={
-            approvalStatus.otherPartyApproved
-              ? 'Both parties have approved the closure'
-              : 'Waiting for approval from the other party'
-          }
-          type={approvalStatus.otherPartyApproved ? 'success' : 'info'}
-          style={{ marginTop: 16 }}
-        />
-      )}
+          {/* Approval Status */}
+          {request.status === 'Closed' && (
+            <Alert
+              color={approvalStatus.otherPartyApproved ? 'success' : 'info'}
+            >
+              <p className="text-sm">
+                {approvalStatus.otherPartyApproved
+                  ? 'Both parties have approved the closure'
+                  : 'Waiting for approval from the other party'}
+              </p>
+            </Alert>
+          )}
 
-      {/* Comments Section */}
-      {comments.length > 0 && (
-        <>
-          <Divider>Comments</Divider>
-          <Timeline>
-            {comments.map((comment, index) => (
-              <Timeline.Item
-                key={index}
-                dot={
-                  <Avatar icon={<UserOutlined />} size="small" />
-                }
+          {/* Comments Section */}
+          {comments.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h5 className="font-semibold mb-4">Comments</h5>
+                <SimpleTimeline items={timelineItems} />
+              </div>
+            </>
+          )}
+
+          {/* Add Comment */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h5 className="font-semibold mb-4">Add Comment</h5>
+            <div className="space-y-3">
+              <textarea
+                value={form.values.comment}
+                onChange={(e) => {
+                  form.setFieldsValue({ comment: e.target.value });
+                  if (setNewComment) setNewComment(e.target.value);
+                }}
+                placeholder="Add a comment..."
+                rows={3}
+                className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              />
+              <Button
+                color="blue"
+                onClick={() => onAddComment && onAddComment(request.id, form.values.comment)}
+                disabled={!form.values.comment.trim()}
+                className="flex items-center gap-2"
               >
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <Space>
-                    <strong>{comment.authorName}</strong>
-                    <Tag>{comment.authorRole}</Tag>
-                    <span style={{ color: '#8c8c8c', fontSize: 12 }}>
-                      {formatDateTimeDisplay(comment.createdAt)}
-                    </span>
-                  </Space>
-                  <div>{comment.comment}</div>
-                </Space>
-              </Timeline.Item>
-            ))}
-          </Timeline>
-        </>
-      )}
+                Add Comment
+              </Button>
+            </div>
+          </div>
 
-      {/* Add Comment */}
-      <Divider>Add Comment</Divider>
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Add a comment..."
-          rows={3}
-          style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #d9d9d9' }}
-        />
-        <Button
-          type="primary"
-          onClick={() => onAddComment && onAddComment(request.id, newComment)}
-          disabled={!newComment.trim()}
-        >
-          Add Comment
-        </Button>
-      </Space>
-
-      {/* Actions */}
-      <Divider>Actions</Divider>
-      <Space>
-        {approvalStatus.canApprove && (
-          <Button
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={() => onApprove && onApprove(request.id)}
-          >
-            Approve
-          </Button>
-        )}
-        {approvalStatus.canReject && (
-          <Button
-            danger
-            icon={<CloseCircleOutlined />}
-            onClick={() => onReject && onReject(request.id)}
-          >
-            Reject
-          </Button>
-        )}
-        {(userRole === 'pmc' || userRole === 'landlord') && request.status !== 'Closed' && (
-          <EscalateButton
-            maintenanceRequestId={request.id}
-            userRole={userRole}
-            onSuccess={() => {
-              if (onRefresh) {
-                onRefresh();
-              }
-              if (onClose) {
-                onClose();
-              }
-            }}
-          />
-        )}
-        {onDownloadPDF && (
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => onDownloadPDF(request.id)}
-          >
-            Download PDF
-          </Button>
-        )}
-      </Space>
+          {/* Actions */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h5 className="font-semibold mb-4">Actions</h5>
+            <div className="flex flex-wrap gap-2">
+              {approvalStatus.canApprove && (
+                <Button
+                  color="success"
+                  onClick={() => onApprove && onApprove(request.id)}
+                  className="flex items-center gap-2"
+                >
+                  <HiCheckCircle className="h-4 w-4" />
+                  Approve
+                </Button>
+              )}
+              {approvalStatus.canReject && (
+                <Button
+                  color="failure"
+                  onClick={() => onReject && onReject(request.id)}
+                  className="flex items-center gap-2"
+                >
+                  <HiXCircle className="h-4 w-4" />
+                  Reject
+                </Button>
+              )}
+              {(userRole === 'pmc' || userRole === 'landlord') && request.status !== 'Closed' && (
+                <EscalateButton
+                  maintenanceRequestId={request.id}
+                  userRole={userRole}
+                  onSuccess={() => {
+                    if (onRefresh) {
+                      onRefresh();
+                    }
+                    if (onClose) {
+                      onClose();
+                    }
+                  }}
+                />
+              )}
+              {onDownloadPDF && (
+                <Button
+                  color="gray"
+                  onClick={() => onDownloadPDF(request.id)}
+                  className="flex items-center gap-2"
+                >
+                  <HiDownload className="h-4 w-4" />
+                  Download PDF
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal.Body>
     </Modal>
   );
 }, (prevProps, nextProps) => {
@@ -228,4 +258,3 @@ const MaintenanceViewModal = React.memo(({
 MaintenanceViewModal.displayName = 'MaintenanceViewModal';
 
 export default MaintenanceViewModal;
-

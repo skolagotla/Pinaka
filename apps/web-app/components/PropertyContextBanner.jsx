@@ -1,8 +1,8 @@
 "use client";
 
 import { useProperty } from '@/lib/contexts/PropertyContext';
-import { Alert, Space, Button } from 'antd';
-import { HomeOutlined, CloseOutlined } from '@ant-design/icons';
+import { Alert, Button } from 'flowbite-react';
+import { HiHome, HiX } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
 
 export default function PropertyContextBanner({ userRole, onDismiss }) {
@@ -29,33 +29,24 @@ export default function PropertyContextBanner({ userRole, onDismiss }) {
 
   return (
     <Alert
-      message={
-        <Space>
-          <HomeOutlined />
-          <span>
-            <strong>{propertyName}</strong>
-            {propertyAddress && <span style={{ marginLeft: 8, color: '#666' }}propertyAddress}</span>}
-          </span>
-        </Space>
-      }
-      type="info"
-      showIcon={false}
-      action={
-        <Space>
-          <Button size="small" onClick={handleViewDetails}>
+      color="info"
+      icon={HiHome}
+      onDismiss={handleClear}
+      className="mb-4"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{propertyName}</span>
+          {propertyAddress && (
+            <span className="text-sm text-gray-500">{propertyAddress}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" color="light" onClick={handleViewDetails}>
             View Details
           </Button>
-          <Button size="small" icon={<CloseOutlined />} onClick={handleClear}>
-            Clear
-          </Button>
-        </Space>
-      }
-      closable={false}
-      style={{
-        marginBottom: 16,
-        borderRadius: 6,
-      }}
-    />
+        </div>
+      </div>
+    </Alert>
   );
 }
-

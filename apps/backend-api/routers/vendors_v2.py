@@ -11,7 +11,8 @@ from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_
 from core.crud_helpers import (
     apply_organization_filter,
     get_entity_or_404,
-    update_entity_fields
+    update_entity_fields,
+    apply_pagination
 )
 from schemas.vendor_v2 import VendorResponse, VendorCreate, VendorUpdate
 from db.models_v2 import Vendor as VendorModel, User, Organization
@@ -24,10 +25,12 @@ async def list_vendors(
     organization_id: Optional[UUID] = Query(None),
     search: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List vendors (scoped by organization and role)"""
+    """List vendors (scoped by organization and role) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     query = select(VendorModel)
@@ -45,6 +48,8 @@ async def list_vendors(
                 VendorModel.email.ilike(f"%{search}%"),
             )
         )
+    
+    query = apply_pagination(query, page, limit, VendorModel.created_at.desc())
     
     result = await db.execute(query)
     vendors = result.scalars().all()

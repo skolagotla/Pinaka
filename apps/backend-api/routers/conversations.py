@@ -9,6 +9,7 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.crud_helpers import apply_pagination
 from schemas.conversation import Conversation, ConversationCreate, ConversationUpdate, Message, MessageCreate
 from db.models_v2 import (
     Conversation as ConversationModel,
@@ -26,10 +27,12 @@ async def list_conversations(
     organization_id: Optional[UUID] = Query(None),
     entity_type: Optional[str] = Query(None),
     entity_id: Optional[UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT, RoleEnum.VENDOR], require_organization=True)),
     db: AsyncSession = Depends(get_db)
 ):
-    """List conversations (user sees only conversations they're part of)"""
+    """List conversations (user sees only conversations they're part of) with pagination"""
     user_roles = await get_user_roles(current_user, db)
     
     # Get conversations where user is a participant
@@ -53,6 +56,8 @@ async def list_conversations(
         query = query.where(ConversationModel.entity_type == entity_type)
     if entity_id:
         query = query.where(ConversationModel.entity_id == entity_id)
+    
+    query = apply_pagination(query, page, limit, ConversationModel.created_at.desc())
     
     result = await db.execute(query)
     conversations = result.scalars().unique().all()

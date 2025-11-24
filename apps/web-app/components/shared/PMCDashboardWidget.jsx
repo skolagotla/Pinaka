@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Alert, Space, Button, Badge, Card, Statistic, Row, Col } from 'antd';
+import { Alert, Button, Badge, Card } from 'flowbite-react';
 import { 
-  InfoCircleOutlined, 
-  BellOutlined, 
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DollarOutlined,
-} from '@ant-design/icons';
+  HiInformationCircle, 
+  HiBell, 
+  HiCheckCircle,
+  HiXCircle,
+  HiCurrencyDollar,
+} from 'react-icons/hi';
 import { ProCard } from './LazyProComponents';
 import { useRouter } from 'next/navigation';
 
@@ -57,88 +57,72 @@ export default function PMCDashboardWidget({ pmcName, landlordId }) {
   }
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <Alert
-        message={
-          <Space>
-            <InfoCircleOutlined />
+    <div className="mb-6">
+      <Alert color="info" className="mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HiInformationCircle className="h-5 w-5" />
             <span>
               <strong>Managed by {pmcName}</strong>
               {pendingCount > 0 && (
-                <Badge 
-                  count={pendingCount} 
-                  style={{ marginLeft: 8 }}
-                  showZero={false}
-                >
-                  <Button
-                    type="link"
-                    icon={<BellOutlined />}
-                    onClick={() => router.push('/verifications')}
-                  >
-                    Pending Approvals
-                  </Button>
+                <Badge color="blue" className="ml-2">
+                  {pendingCount} pending
                 </Badge>
               )}
             </span>
-          </Space>
-        }
-        type="info"
-        showIcon={false}
-        action={
-          <Space>
+          </div>
+          <div className="flex items-center gap-2">
             {pendingCount > 0 && (
               <Button
-                type="primary"
+                color="blue"
                 onClick={() => router.push('/verifications')}
+                className="flex items-center gap-2"
               >
+                <HiBell className="h-4 w-4" />
                 Review Approvals ({pendingCount})
               </Button>
             )}
-            <Button onClick={() => router.push('/activity-logs')}>
+            <Button
+              color="light"
+              onClick={() => router.push('/activity-logs')}
+            >
               View Activity Log
             </Button>
-          </Space>
-        }
-        style={{
-          borderRadius: 6,
-        }}
-      />
+          </div>
+        </div>
+      </Alert>
 
       {pendingCount > 0 && (
-        <Row gutter={16} style={{ marginTop: 16 }}>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Pending Approvals"
-                value={pendingCount}
-                prefix={<BellOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Approved This Month"
-                value={approvedCount}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card>
-              <Statistic
-                title="Rejected This Month"
-                value={rejectedCount}
-                prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <div className="flex items-center gap-2">
+              <HiBell className="h-5 w-5 text-orange-500" />
+              <div>
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-semibold">{pendingCount}</p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-center gap-2">
+              <HiCheckCircle className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="text-sm text-gray-500">Approved</p>
+                <p className="text-2xl font-semibold">{approvedCount}</p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="flex items-center gap-2">
+              <HiXCircle className="h-5 w-5 text-red-500" />
+              <div>
+                <p className="text-sm text-gray-500">Rejected</p>
+                <p className="text-2xl font-semibold">{rejectedCount}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
 }
-

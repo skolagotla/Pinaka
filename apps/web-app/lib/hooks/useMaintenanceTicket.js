@@ -5,10 +5,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { App } from 'antd';
+import { notify } from '@/lib/utils/notification-helper';
 
 export function useMaintenanceTicket(userRole = 'landlord') {
-  const { message } = App.useApp();
   
   // State management
   const [requests, setRequests] = useState([]);
@@ -27,7 +26,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     setLoading(true);
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.list({ page: 1, limit: 1000 });
       const requestsData = response.data?.data || response.data || [];
       const data = Array.isArray(requestsData) ? requestsData : [];
@@ -42,11 +41,11 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       }
     } catch (error) {
       console.error('[useMaintenanceTicket] Fetch error:', error);
-      message.error(error.message || 'Failed to fetch maintenance requests');
+      notify.error(error.message || 'Failed to fetch maintenance requests');
     } finally {
       setLoading(false);
     }
-  }, [message, selectedRequest]);
+  }, [selectedRequest]);
 
   /**
    * Open ticket details modal
@@ -57,7 +56,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     
     // Mark as viewed (v1 API)
     try {
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       await v1Api.specialized.markMaintenanceViewed(request.id, userRole);
       
       // Refresh to update the red dot
@@ -85,7 +84,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     setCommentLoading(true);
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.specialized.addMaintenanceComment(
         selectedRequest.id,
         comment.trim(),
@@ -98,17 +97,17 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       const updated = data.request || data.data || data;
       setSelectedRequest(updated);
       setNewComment('');
-      message.success('Comment added successfully');
+      notify.success('Comment added successfully');
       
       // Refresh to get latest data
       fetchRequests();
     } catch (error) {
       console.error('[useMaintenanceTicket] Add comment error:', error);
-      message.error(error.message || 'Failed to add comment');
+      notify.error(error.message || 'Failed to add comment');
     } finally {
       setCommentLoading(false);
     }
-  }, [selectedRequest, userRole, message, fetchRequests]);
+  }, [selectedRequest, userRole, fetchRequests]);
 
   /**
    * Update ticket status (v1 API)
@@ -119,7 +118,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     setStatusUpdateLoading(true);
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.update(selectedRequest.id, {
         status: newStatus,
         authorRole: userRole,
@@ -128,17 +127,17 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       });
       const updated = response.data || response;
       setSelectedRequest(updated);
-      message.success(`Status updated to ${newStatus}`);
+      notify.success(`Status updated to ${newStatus}`);
       
       // Refresh to get latest data
       fetchRequests();
     } catch (error) {
       console.error('[useMaintenanceTicket] Update status error:', error);
-      message.error(error.message || 'Failed to update status');
+      notify.error(error.message || 'Failed to update status');
     } finally {
       setStatusUpdateLoading(false);
     }
-  }, [selectedRequest, userRole, message, fetchRequests]);
+  }, [selectedRequest, userRole, fetchRequests]);
 
   /**
    * Approve ticket closure
@@ -149,7 +148,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     setStatusUpdateLoading(true);
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.specialized.approveMaintenance(selectedRequest.id, {
         approved: true,
         authorRole: userRole,
@@ -158,17 +157,17 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       });
       const updated = data.request || data.data || data;
       setSelectedRequest(updated);
-      message.success('Ticket closure approved');
+      notify.success('Ticket closure approved');
       
       // Refresh to get latest data
       fetchRequests();
     } catch (error) {
       console.error('[useMaintenanceTicket] Approve error:', error);
-      message.error(error.message || 'Failed to approve ticket');
+      notify.error(error.message || 'Failed to approve ticket');
     } finally {
       setStatusUpdateLoading(false);
     }
-  }, [selectedRequest, userRole, message, fetchRequests]);
+  }, [selectedRequest, userRole, fetchRequests]);
 
   /**
    * Reject ticket closure (reopen)
@@ -179,7 +178,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
     setStatusUpdateLoading(true);
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const data = await v1Api.specialized.approveMaintenance(selectedRequest.id, {
         approved: false,
         authorRole: userRole,
@@ -188,17 +187,17 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       });
       const updated = data.request || data.data || data;
       setSelectedRequest(updated);
-      message.success('Ticket reopened');
+      notify.success('Ticket reopened');
       
       // Refresh to get latest data
       fetchRequests();
     } catch (error) {
       console.error('[useMaintenanceTicket] Reject error:', error);
-      message.error(error.message || 'Failed to reject ticket');
+      notify.error(error.message || 'Failed to reject ticket');
     } finally {
       setStatusUpdateLoading(false);
     }
-  }, [selectedRequest, userRole, message, fetchRequests]);
+  }, [selectedRequest, userRole, fetchRequests]);
 
   /**
    * Create new maintenance request (landlord only) (v1 API)
@@ -206,20 +205,20 @@ export function useMaintenanceTicket(userRole = 'landlord') {
   const createRequest = useCallback(async (requestData) => {
     try {
       // Use v1Api client
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const response = await v1Api.maintenance.create(requestData);
       const request = response.data || response;
       
-      message.success('Maintenance request created successfully');
+      notify.success('Maintenance request created successfully');
       setIsCreateModalOpen(false);
       fetchRequests();
       return { success: true, request };
     } catch (error) {
       console.error('[useMaintenanceTicket] Create error:', error);
-      message.error(error.message || 'Failed to create request');
+      notify.error(error.message || 'Failed to create request');
       return { success: false, error: error.message };
     }
-  }, [message, fetchRequests]);
+  }, [fetchRequests]);
 
   /**
    * Download ticket as PDF (v1 API)
@@ -227,7 +226,7 @@ export function useMaintenanceTicket(userRole = 'landlord') {
   const downloadTicketPDF = useCallback(async (ticketId) => {
     try {
       // Use v1Api to download maintenance PDF
-      const { v1Api } = await import('@/lib/api/v1-client');
+      const { v2Api } = await import('@/lib/api/v2-client');
       const blob = await v1Api.forms.downloadMaintenancePDF(ticketId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -237,12 +236,12 @@ export function useMaintenanceTicket(userRole = 'landlord') {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      message.success('Ticket downloaded');
+      notify.success('Ticket downloaded');
     } catch (error) {
       console.error('[useMaintenanceTicket] Download error:', error);
-      message.error('Failed to download ticket');
+      notify.error('Failed to download ticket');
     }
-  }, [message]);
+  }, []);
 
   return {
     // State

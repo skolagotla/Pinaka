@@ -4,7 +4,7 @@
  * Utilities for testing v1 API endpoints
  */
 
-import { v1Api } from '@/lib/api/v1-client';
+// v1Api removed - use v2Api from @/lib/api/v2-client';
 import type { PropertyCreate, TenantCreate, LeaseCreate } from '@/lib/schemas';
 
 /**
