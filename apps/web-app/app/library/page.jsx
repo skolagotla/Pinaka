@@ -44,9 +44,9 @@ export default function LibraryPage() {
     );
   }
   
-  // Redirect admin users to /admin/library for consistency
+  // Redirect admin users to platform library for super_admin
   if (hasRole('super_admin')) {
-    router.push('/admin/library');
+    router.push('/platform/library');
     return null;
   }
   

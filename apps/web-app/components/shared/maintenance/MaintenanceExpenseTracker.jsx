@@ -96,7 +96,7 @@ export default function MaintenanceExpenseTracker({
           
           // Use v1 API for expense invoice upload
           const uploadResponse = await fetch(
-            '/api/v1/expenses/upload-invoice',
+            '/api/v2/expenses/upload-invoice',
             {
               method: 'POST',
               credentials: 'include',

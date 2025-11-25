@@ -31,7 +31,7 @@ export default function TaxReportingClient({ user, userRole }) {
       try {
         // TODO: Implement v2 endpoint for T776 generation
         const { apiClient } = await import('@/lib/utils/api-client');
-        const response = await apiClient('/api/v1/analytics/t776/generate', {
+        const response = await apiClient('/api/v2/analytics/t776/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

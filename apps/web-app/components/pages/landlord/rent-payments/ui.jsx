@@ -250,7 +250,7 @@ function RentPaymentsClient({ leases, landlordCountry }) {
       const referenceNumber = generateReferenceNumber();
       
       const response = await fetch(
-        `/api/v1/rent-payments/${selectedPayment.id}/partial`,
+        `/api/v2/rent-payments/${selectedPayment.id}/partial`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -339,7 +339,7 @@ function RentPaymentsClient({ leases, landlordCountry }) {
   async function handleSaveInlineEdit(partialPaymentId) {
     try {
       const response = await fetch(
-        `/api/v1/rent-payments/${selectedPayment.id}/partial-payment/${partialPaymentId}`,
+        `/api/v2/rent-payments/${selectedPayment.id}/partial-payment/${partialPaymentId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -373,7 +373,7 @@ function RentPaymentsClient({ leases, landlordCountry }) {
   async function handleDeletePartialPayment(partialPayment) {
     try {
       const response = await fetch(
-        `/api/v1/rent-payments/${selectedPayment.id}/partial-payment/${partialPayment.id}`,
+        `/api/v2/rent-payments/${selectedPayment.id}/partial-payment/${partialPayment.id}`,
         { method: 'DELETE' }
       );
       if (!response.ok) {

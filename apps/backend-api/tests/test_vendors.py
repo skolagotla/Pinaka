@@ -32,7 +32,7 @@ async def test_health_check(client: AsyncClient):
 async def test_list_vendors_empty(client: AsyncClient, auth_token: str):
     """Test listing vendors when none exist"""
     response = await client.get(
-        "/api/v1/vendors",
+        "/api/v2/vendors",
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     assert response.status_code == 200
@@ -54,7 +54,7 @@ async def test_create_vendor(client: AsyncClient, auth_token: str, db_session):
     }
     
     response = await client.post(
-        "/api/v1/vendors",
+        "/api/v2/vendors",
         json=vendor_data,
         headers={"Authorization": f"Bearer {auth_token}"},
     )
@@ -70,7 +70,7 @@ async def test_create_vendor(client: AsyncClient, auth_token: str, db_session):
 async def test_get_vendor_not_found(client: AsyncClient, auth_token: str):
     """Test getting a non-existent vendor"""
     response = await client.get(
-        "/api/v1/vendors/non_existent_id",
+        "/api/v2/vendors/non_existent_id",
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     assert response.status_code == 404

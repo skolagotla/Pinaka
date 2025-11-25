@@ -40,36 +40,8 @@ import { ActionButton } from '@/components/shared/buttons';
 import { useMessage } from './useMessage';
 const logger = require('../logger');
 
-// Lazy load v1Api to avoid circular dependencies
-let v1Api = null;
-const getV1Api = () => {
-  if (!v1Api) {
-    v1Api = require('@/lib/api/v1-client').v1Api;
-  }
-  return v1Api;
-};
-
-// Map domain names to v1Api resources
-const getV1Resource = (domain) => {
-  const api = getV1Api();
-  const resourceMap = {
-    properties: api.properties,
-    tenants: api.tenants,
-    leases: api.leases,
-    rentPayments: api.rentPayments,
-    maintenance: api.maintenance,
-    documents: api.documents,
-    expenses: api.expenses,
-    inspections: api.inspections,
-    vendors: api.vendors,
-    conversations: api.conversations,
-    applications: api.applications,
-    notifications: api.notifications,
-    tasks: api.tasks,
-    invitations: api.invitations,
-  };
-  return resourceMap[domain];
-};
+// V1 API removed - use v2Api from @/lib/api/v2-client instead
+// This hook is deprecated - migrate to useUnifiedCRUD
 
 export function usePinakaCRUD({
   apiEndpoint,
@@ -85,7 +57,7 @@ export function usePinakaCRUD({
   onAfterUpdate,
   onAfterDelete,
   confirmDelete = true,
-  useV1Api = false, // Set to true to use v1Api instead of fetch
+  useV1Api = false, // DEPRECATED: V1 API removed - always uses v2 API
 }) {
   // Ant Design message API
   const message = useMessage();
@@ -161,14 +133,9 @@ export function usePinakaCRUD({
 
       let created;
       
-      if (useV1Api && domain) {
-        // Use v1Api client
-        const resource = getV1Resource(domain);
-        const response = await resource.create(finalPayload);
-        // v1 API returns { success: true, data: {...} }
-        created = response.data || response;
-      } else {
-        // Use legacy fetch API
+      // V1 API removed - always use v2 API via fetch
+      {
+        // Use v2 API
         const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -207,7 +174,7 @@ export function usePinakaCRUD({
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, domain, useV1Api, createSuccess, createError, message, onBeforeCreate, onAfterCreate]);
+  }, [apiEndpoint, createSuccess, createError, message, onBeforeCreate, onAfterCreate]);
 
   /**
    * Update an existing item
@@ -226,14 +193,9 @@ export function usePinakaCRUD({
 
       let updated;
       
-      if (useV1Api && domain) {
-        // Use v1Api client
-        const resource = getV1Resource(domain);
-        const response = await resource.update(id, finalPayload);
-        // v1 API returns { success: true, data: {...} }
-        updated = response.data || response;
-      } else {
-        // Use legacy fetch API
+      // V1 API removed - always use v2 API via fetch
+      {
+        // Use v2 API
         let requestBody;
         try {
           requestBody = JSON.stringify(finalPayload);
@@ -309,7 +271,7 @@ export function usePinakaCRUD({
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, domain, useV1Api, updateSuccess, updateError, message, onBeforeUpdate, onAfterUpdate]);
+  }, [apiEndpoint, updateSuccess, updateError, message, onBeforeUpdate, onAfterUpdate]);
 
   /**
    * Delete an item
@@ -335,12 +297,9 @@ export function usePinakaCRUD({
         }
       }
 
-      if (useV1Api && domain) {
-        // Use v1Api client
-        const resource = getV1Resource(domain);
-        await resource.delete(id);
-      } else {
-        // Use legacy fetch API
+      // V1 API removed - always use v2 API via fetch
+      {
+        // Use v2 API
         const response = await fetch(`${apiEndpoint}/${id}`, {
           method: 'DELETE',
         });
@@ -373,7 +332,7 @@ export function usePinakaCRUD({
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, domain, useV1Api, deleteSuccess, deleteError, message, confirmDelete, onBeforeDelete, onAfterDelete, entityName]);
+  }, [apiEndpoint, deleteSuccess, deleteError, message, confirmDelete, onBeforeDelete, onAfterDelete, entityName]);
 
   /**
    * Refresh data from API
@@ -386,13 +345,8 @@ export function usePinakaCRUD({
     try {
       let data = [];
       
-      if (useV1Api && domain) {
-        // Use v1Api client
-        const resource = getV1Resource(domain);
-        const response = await resource.list(query);
-        // v1 API returns { success: true, data: { data: [...], pagination: {...} } }
-        data = response.data?.data || response.data || [];
-      } else {
+      // V1 API removed - always use v2 API
+      {
         // Use legacy fetch API
         const cacheBuster = `?t=${Date.now()}`;
         const url = apiEndpoint.includes('?') 
@@ -452,7 +406,7 @@ export function usePinakaCRUD({
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, domain, useV1Api, message, selectedItem]);
+  }, [apiEndpoint, message, selectedItem]);
   
   // Store refresh function in ref to avoid circular dependency
   useEffect(() => {

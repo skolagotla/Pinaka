@@ -42,7 +42,12 @@ export default function AdminLoginPage() {
       if (user && user.success && user.user) {
         // Store user data
         localStorage.setItem('v2_user', JSON.stringify(user.user));
-        router.push('/admin/dashboard');
+        // Redirect to platform dashboard for super_admin, regular dashboard for others
+        if (user.user.role === 'SUPER_ADMIN' || user.user.role === 'super_admin') {
+          router.push('/platform');
+        } else {
+          router.push('/dashboard');
+        }
         return;
       }
       

@@ -18,7 +18,7 @@ export default function MortgageClient() {
     try {
       // Use v1Api for mortgage analytics
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient('/api/v1/analytics/mortgage', {
+      const response = await apiClient('/api/v2/analytics/mortgage', {
         method: 'GET',
       });
       if (response && response.ok) {

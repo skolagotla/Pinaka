@@ -221,7 +221,7 @@ export default function TicketViewModal({
       
       // Use v1 API for expense invoice upload
       const uploadResponse = await fetch(
-        '/api/v1/expenses/upload-invoice',
+        '/api/v2/expenses/upload-invoice',
         {
           method: 'POST',
           credentials: 'include',
@@ -271,7 +271,7 @@ export default function TicketViewModal({
   if (!ticket) return null;
 
   const handleDownload = onDownload || (() => {
-    window.open(`/api/v1/maintenance/${ticket.id}/download-pdf`, '_blank');
+    window.open(`/api/v2/work-orders/${ticket.id}/download-pdf`, '_blank');
   });
 
   // Build timeline items

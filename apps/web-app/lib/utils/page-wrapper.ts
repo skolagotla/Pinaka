@@ -24,7 +24,9 @@
 // import { auth0 } from '../auth0';
 import { redirect } from "next/navigation";
 import { cookies } from 'next/headers';
-const { prisma } = require("../prisma");
+// TODO: Migrate to v2 API - page-wrapper disabled for now
+// Prisma removed - page-wrapper needs v2 API migration
+const prisma = null; // Temporarily disabled
 const { validateSession } = require("../admin/session");
 
 /**
@@ -127,7 +129,11 @@ export function withAuth(pageComponent: (context: { user: any; userRole: string 
         redirect(redirectTo);
       }
 
-      // prisma is available from require above
+      // TODO: Migrate to v2 API - use v2Api to fetch user data
+      if (!prisma) {
+        // For now, redirect to login if prisma is not available
+        redirect(redirectTo);
+      }
 
       // Find user based on role requirement
       let user: any = null;

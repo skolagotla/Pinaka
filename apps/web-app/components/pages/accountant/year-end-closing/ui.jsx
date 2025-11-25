@@ -35,7 +35,7 @@ export default function YearEndClosingClient({ user, userRole }) {
       try {
         // TODO: Implement v2 endpoint for period validation
         const { apiClient } = await import('@/lib/utils/api-client');
-        const response = await apiClient(`/api/v1/analytics/close-period?periodId=${formData.periodId}`, {
+        const response = await apiClient(`/api/v2/analytics/close-period?periodId=${formData.periodId}`, {
           method: 'GET',
         });
 
@@ -63,7 +63,7 @@ export default function YearEndClosingClient({ user, userRole }) {
       try {
         // TODO: Implement v2 endpoint for period closing
         const { apiClient } = await import('@/lib/utils/api-client');
-        const response = await apiClient('/api/v1/analytics/close-period', {
+        const response = await apiClient('/api/v2/analytics/close-period', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

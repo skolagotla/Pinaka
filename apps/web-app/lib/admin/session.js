@@ -5,7 +5,9 @@
  */
 
 const crypto = require('crypto');
-const { prisma } = require('../prisma');
+// TODO: Migrate to v2 API - admin sessions disabled for now
+// Prisma removed - admin session management needs v2 API migration
+const prisma = null; // Temporarily disabled
 
 const SESSION_MAX_AGE = parseInt(process.env.ADMIN_SESSION_MAX_AGE || '1800000', 10); // 30 minutes default
 const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -38,9 +40,9 @@ async function createSession(adminId, ipAddress, userAgent, googleTokens = null)
     let encryptedAccessToken = googleTokens?.access_token || null;
     let encryptedRefreshToken = googleTokens?.refresh_token || null;
 
-    // Ensure Prisma client is available
-    if (!prisma || !prisma.adminSession) {
-      throw new Error('Prisma client not initialized or adminSession model not available');
+    // TODO: Migrate to v2 API
+    if (!prisma) {
+      throw new Error('Admin session management needs migration to v2 API');
     }
 
     const session = await prisma.adminSession.create({

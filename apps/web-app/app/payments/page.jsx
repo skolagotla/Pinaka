@@ -57,7 +57,7 @@ export default function PaymentsPage() {
         const adminUser = await adminApi.getCurrentUser();
         if (adminUser && adminUser.user) {
           // Admin users shouldn't access tenant payments page
-          router.push('/admin/dashboard');
+          router.push('/platform');
           return;
         }
       } catch (adminError) {

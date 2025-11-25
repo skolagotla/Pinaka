@@ -171,9 +171,9 @@ export default function PortfolioClient({ userRole, user }) {
     switch (normalizedRole) {
       case 'super_admin':
         baseLinks.push(
-          { label: 'Manage PMCs', href: '/admin/users?role=pmc', icon: HiOfficeBuilding },
+          { label: 'Manage PMCs', href: '/platform/users?role=pmc', icon: HiOfficeBuilding },
           { label: 'All Properties', href: '/properties', icon: HiHome },
-          { label: 'System Settings', href: '/admin/settings', icon: HiCog },
+          { label: 'System Settings', href: '/platform/settings', icon: HiCog },
         );
         break;
       

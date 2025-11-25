@@ -8,6 +8,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { v2Api } from '@/lib/api/v2-client';
+import { useOrganizationId, useQueryEnabled } from './useOrganizationScoped';
 
 // StaleTime constants (in milliseconds) - controls how long data is considered fresh
 // Longer staleTime = fewer refetches, better performance
@@ -53,10 +54,14 @@ export function useOrganization(orgId: string) {
 
 // Properties
 export function useProperties(organizationId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'properties', organizationId],
-    queryFn: () => v2Api.listProperties(organizationId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'properties', finalOrgId],
+    queryFn: () => v2Api.listProperties(finalOrgId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.properties,
   });
 }
@@ -155,10 +160,14 @@ export function useDeleteUnit() {
 
 // Landlords
 export function useLandlords(organizationId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'landlords', organizationId],
-    queryFn: () => v2Api.listLandlords(organizationId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'landlords', finalOrgId],
+    queryFn: () => v2Api.listLandlords(finalOrgId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.landlords,
   });
 }
@@ -196,10 +205,14 @@ export function useUpdateLandlord() {
 
 // Tenants
 export function useTenants(organizationId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'tenants', organizationId],
-    queryFn: () => v2Api.listTenants(organizationId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'tenants', finalOrgId],
+    queryFn: () => v2Api.listTenants(finalOrgId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.tenants,
   });
 }
@@ -260,9 +273,17 @@ export function useRejectTenant() {
 
 // Leases
 export function useLeases(filters?: { organization_id?: string; unit_id?: string; tenant_id?: string; landlord_id?: string }) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalFilters = {
+    ...filters,
+    organization_id: filters?.organization_id !== undefined ? filters.organization_id : effectiveOrgId,
+  };
+  
   return useQuery({
-    queryKey: ['v2', 'leases', filters],
-    queryFn: () => v2Api.listLeases(filters),
+    queryKey: ['v2', 'leases', finalFilters],
+    queryFn: () => v2Api.listLeases(finalFilters),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.leases,
   });
 }
@@ -338,9 +359,17 @@ export function useWorkOrders(filters?: {
   property_id?: string;
   status?: string;
 }) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalFilters = {
+    ...filters,
+    organization_id: filters?.organization_id !== undefined ? filters.organization_id : effectiveOrgId,
+  };
+  
   return useQuery({
-    queryKey: ['v2', 'work-orders', filters],
-    queryFn: () => v2Api.listWorkOrders(filters),
+    queryKey: ['v2', 'work-orders', finalFilters],
+    queryFn: () => v2Api.listWorkOrders(finalFilters),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.workOrders,
   });
 }
@@ -458,10 +487,14 @@ export function useMarkAllNotificationsRead() {
 
 // Users (for admin)
 export function useUsers(organizationId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'users', organizationId],
-    queryFn: () => v2Api.listUsers(organizationId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'users', finalOrgId],
+    queryFn: () => v2Api.listUsers(finalOrgId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.users,
   });
 }
@@ -489,10 +522,14 @@ export function useAssignRole() {
 
 // Vendors
 export function useVendors(organizationId?: string, search?: string, status?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'vendors', organizationId, search, status],
-    queryFn: () => v2Api.listVendors(organizationId, search, status),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'vendors', finalOrgId, search, status],
+    queryFn: () => v2Api.listVendors(finalOrgId, search, status),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.vendors,
   });
 }
@@ -540,10 +577,14 @@ export function useDeleteVendor() {
 
 // Tasks
 export function useTasks(organizationId?: string, propertyId?: string, statusFilter?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'tasks', organizationId, propertyId, statusFilter],
-    queryFn: () => v2Api.listTasks(organizationId, propertyId, statusFilter),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'tasks', finalOrgId, propertyId, statusFilter],
+    queryFn: () => v2Api.listTasks(finalOrgId, propertyId, statusFilter),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.tasks,
   });
 }
@@ -591,10 +632,14 @@ export function useDeleteTask() {
 
 // Conversations
 export function useConversations(organizationId?: string, entityType?: string, entityId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'conversations', organizationId, entityType, entityId],
-    queryFn: () => v2Api.listConversations(organizationId, entityType, entityId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'conversations', finalOrgId, entityType, entityId],
+    queryFn: () => v2Api.listConversations(finalOrgId, entityType, entityId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.conversations,
   });
 }
@@ -641,10 +686,14 @@ export function useCreateMessage() {
 
 // Invitations
 export function useInvitations(organizationId?: string, statusFilter?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'invitations', organizationId, statusFilter],
-    queryFn: () => v2Api.listInvitations(organizationId, statusFilter),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'invitations', finalOrgId, statusFilter],
+    queryFn: () => v2Api.listInvitations(finalOrgId, statusFilter),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.invitations,
   });
 }
@@ -671,10 +720,14 @@ export function useAcceptInvitation() {
 
 // Forms
 export function useForms(organizationId?: string, formType?: string, entityType?: string, entityId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'forms', organizationId, formType, entityType, entityId],
-    queryFn: () => v2Api.listForms(organizationId, formType, entityType, entityId),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'forms', finalOrgId, formType, entityType, entityId],
+    queryFn: () => v2Api.listForms(finalOrgId, formType, entityType, entityId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.forms,
   });
 }
@@ -712,10 +765,14 @@ export function useCreateFormSignature() {
 
 // Rent Payments
 export function useRentPayments(organizationId?: string, leaseId?: string, tenantId?: string, statusFilter?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'rent-payments', organizationId, leaseId, tenantId, statusFilter],
-    queryFn: () => v2Api.listRentPayments(organizationId, leaseId, tenantId, statusFilter),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'rent-payments', finalOrgId, leaseId, tenantId, statusFilter],
+    queryFn: () => v2Api.listRentPayments(finalOrgId, leaseId, tenantId, statusFilter),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.rentPayments,
   });
 }
@@ -744,10 +801,14 @@ export function useUpdateRentPayment() {
 
 // Expenses
 export function useExpenses(organizationId?: string, propertyId?: string, category?: string, statusFilter?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'expenses', organizationId, propertyId, category, statusFilter],
-    queryFn: () => v2Api.listExpenses(organizationId, propertyId, category, statusFilter),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'expenses', finalOrgId, propertyId, category, statusFilter],
+    queryFn: () => v2Api.listExpenses(finalOrgId, propertyId, category, statusFilter),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.expenses,
   });
 }
@@ -776,10 +837,14 @@ export function useUpdateExpense() {
 
 // Inspections
 export function useInspections(organizationId?: string, propertyId?: string, statusFilter?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'inspections', organizationId, propertyId, statusFilter],
-    queryFn: () => v2Api.listInspections(organizationId, propertyId, statusFilter),
-    enabled: organizationId !== undefined,
+    queryKey: ['v2', 'inspections', finalOrgId, propertyId, statusFilter],
+    queryFn: () => v2Api.listInspections(finalOrgId, propertyId, statusFilter),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.inspections,
   });
 }

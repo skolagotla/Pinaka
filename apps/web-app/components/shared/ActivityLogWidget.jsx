@@ -38,7 +38,7 @@ export default function ActivityLogWidget({ limit = 4, userRole, showViewAll = t
       setLoading(true);
       // Use v2Api for activity logs
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/activity-logs?limit=${limit}`, {
+      const response = await apiClient(`/api/v2/audit-logs?limit=${limit}`, {
         method: 'GET',
       });
 

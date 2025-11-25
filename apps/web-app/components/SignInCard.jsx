@@ -38,9 +38,9 @@ export default function SignInCard() {
           notify.success('Login successful');
           
           if (isSuperAdmin) {
-            router.push('/admin/dashboard');
+            router.push('/platform');
           } else if (isPmcAdmin) {
-            router.push('/admin/dashboard');
+            router.push('/platform');
           } else {
             router.push('/dashboard');
           }
@@ -54,7 +54,7 @@ export default function SignInCard() {
           
           if (adminUser && adminUser.user) {
             notify.success('Login successful');
-            router.push('/admin/dashboard');
+            router.push('/platform');
             return;
           }
         } catch (adminError) {

@@ -72,7 +72,7 @@ export default function ActivityLogsClient({ user }) {
 
       // TODO: Implement v2 endpoint for activity logs
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/activity-logs?${params.toString()}`, {
+      const response = await apiClient(`/api/v2/audit-logs?${params.toString()}`, {
         method: 'GET',
       });
 

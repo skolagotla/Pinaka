@@ -73,16 +73,32 @@ export default function Navigation({ show, userRole: propUserRole, collapsed = f
 
   // Base navigation items - role-aware visibility
   const baseNavItems = [
+    { key: "/dashboard", label: "Dashboard", icon: HiHome, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
     { key: "/portfolio", label: "Portfolio", icon: HiOfficeBuilding, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
     { key: "/properties", label: "Properties", icon: HiHome, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord'] },
+    { key: "/units", label: "Units", icon: HiHome, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord'] },
     { key: "/leases", label: "Leases", icon: HiDocumentText, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant'] },
     { key: "/tenants", label: "Tenants", icon: HiUser, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord'] },
     { key: "/landlords", label: "Landlords", icon: HiUser, roles: ['super_admin', 'pmc_admin', 'pm'] },
-    { key: "/operations", label: "Work Orders", icon: HiCog, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
+    { key: "/work-orders-v2", label: "Work Orders", icon: HiClipboard, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
     { key: "/partners", label: "Vendors", icon: HiShoppingBag, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord'] },
+    { key: "/messages", label: "Messages", icon: HiChat, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
     { key: "/reports", label: "Reports", icon: HiChartBar, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord'] },
     { key: "/settings", label: "Settings", icon: HiCog, roles: ['super_admin', 'pmc_admin', 'pm', 'landlord', 'tenant', 'vendor'] },
   ];
+
+  // Platform admin items (super_admin only) - shown as a submenu
+  const platformNavItems = isSuperAdmin ? [
+    { key: "/platform", label: "Platform Dashboard", icon: HiDatabase, roles: ['super_admin'] },
+    { key: "/platform/organizations", label: "Organizations", icon: HiOfficeBuilding, roles: ['super_admin'] },
+    { key: "/platform/users", label: "Users", icon: HiUser, roles: ['super_admin'] },
+    { key: "/platform/rbac", label: "RBAC", icon: HiLockClosed, roles: ['super_admin'] },
+    { key: "/platform/audit-logs", label: "Audit Logs", icon: HiDocumentText, roles: ['super_admin'] },
+    { key: "/platform/verifications", label: "Verifications", icon: HiShieldCheck, roles: ['super_admin'] },
+    { key: "/platform/system", label: "System", icon: HiDatabase, roles: ['super_admin'] },
+    { key: "/platform/security", label: "Security", icon: HiShieldCheck, roles: ['super_admin'] },
+    { key: "/platform/settings", label: "Settings", icon: HiCog, roles: ['super_admin'] },
+  ] : [];
 
   // Filter navigation items based on role
   const getNavItemsForRole = (role) => {
@@ -109,7 +125,7 @@ export default function Navigation({ show, userRole: propUserRole, collapsed = f
 
   // Get navigation items for current role
   // Default to empty array if no role
-  const navItems = userRole ? getNavItemsForRole(userRole) : [];
+  const navItems = userRole ? [...getNavItemsForRole(userRole), ...platformNavItems] : [];
   
   const handleClick = (path) => {
     if (path !== pathname) {

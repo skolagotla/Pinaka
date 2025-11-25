@@ -158,7 +158,7 @@ function LTBDocumentsGrid({
       }
 
       const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient(`/api/v1/ltb-documents?${params.toString()}`, {
+      const response = await apiClient(`/api/v2/ltb-documents?${params.toString()}`, {
         method: 'GET',
       });
 
@@ -202,7 +202,7 @@ function LTBDocumentsGrid({
 
   // Handle view document
   const handleViewDocument = useCallback((doc) => {
-    const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
+    const proxyUrl = `/api/v2/ltb-documents/${doc.formNumber}/view`;
     setSelectedDocument({ ...doc, pdfUrl: proxyUrl });
     setPdfViewerOpen(true);
   }, []);
@@ -210,7 +210,7 @@ function LTBDocumentsGrid({
   // Handle download document
   const handleDownloadDocument = useCallback(async (doc) => {
     try {
-      const proxyUrl = `/api/v1/ltb-documents/${doc.formNumber}/view`;
+      const proxyUrl = `/api/v2/ltb-documents/${doc.formNumber}/view`;
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);

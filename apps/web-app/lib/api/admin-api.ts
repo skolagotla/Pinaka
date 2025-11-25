@@ -7,6 +7,9 @@
 
 import { apiClient } from '@/lib/utils/api-client';
 
+// FastAPI v2 backend base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+
 /**
  * Helper function to safely parse JSON response and handle errors
  */
@@ -44,7 +47,7 @@ export const adminApi = {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await apiClient('/api/admin/auth/me', {
+      const response = await apiClient(`${API_BASE_URL}/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -89,9 +92,10 @@ export const adminApi = {
 
   /**
    * Admin login
+   * Uses FastAPI v2 endpoint: /api/v2/auth/login
    */
   async login(email: string, password: string) {
-    const response = await apiClient('/api/admin/auth/login', {
+    const response = await apiClient(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -209,10 +213,17 @@ export const adminApi = {
 
   /**
    * Get audit logs
+   * Uses FastAPI v2 endpoint: /api/v2/audit-logs
    */
-  async getAuditLogs(query?: { type?: string; page?: number; limit?: number }) {
-    const queryString = query ? '?' + new URLSearchParams(query as any).toString() : '';
-    const response = await apiClient(`/api/admin/audit-logs${queryString}`, {
+  async getAuditLogs(query?: { type?: string; page?: number; limit?: number; userId?: string; search?: string }) {
+    const params = new URLSearchParams();
+    if (query?.type) params.append('type', query.type);
+    if (query?.page) params.append('page', query.page.toString());
+    if (query?.limit) params.append('limit', query.limit.toString());
+    if (query?.userId) params.append('user_id', query.userId);
+    if (query?.search) params.append('search', query.search);
+    const queryString = params.toString();
+    const response = await apiClient(`${API_BASE_URL}/audit-logs${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
     return parseResponse(response, 'Failed to get audit logs');

@@ -47,12 +47,12 @@ export default function AdminDashboardPage() {
       if (data.success) {
         setAdmin(data.user);
       } else {
-        router.push('/admin/login');
+        router.push('/login');
       }
     } catch (err) {
       console.error('Error fetching admin:', err);
       setError(err?.message || 'An error occurred');
-      router.push('/admin/login');
+        router.push('/login');
     } finally {
       setLoading(false);
     }
@@ -203,7 +203,7 @@ export default function AdminDashboardPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Information</h3>
-            <Button color="light" size="xs" onClick={() => router.push('/admin/settings')}>
+            <Button color="light" size="xs" onClick={() => router.push('/platform/settings')}>
               Edit Profile
             </Button>
           </div>
@@ -248,7 +248,7 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card 
               className="p-6 hover:shadow-xl transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 group"
-              onClick={() => router.push('/admin/users')}
+              onClick={() => router.push('/platform/users')}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
@@ -264,7 +264,7 @@ export default function AdminDashboardPage() {
 
             <Card 
               className="p-6 hover:shadow-xl transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500 group"
-              onClick={() => router.push('/admin/portfolio')}
+              onClick={() => router.push('/portfolio')}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
@@ -280,7 +280,7 @@ export default function AdminDashboardPage() {
 
             <Card 
               className="p-6 hover:shadow-xl transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-500 group"
-              onClick={() => router.push('/admin/audit-logs')}
+              onClick={() => router.push('/platform/audit-logs')}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
@@ -296,7 +296,7 @@ export default function AdminDashboardPage() {
 
             <Card 
               className="p-6 hover:shadow-xl transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500 group"
-              onClick={() => router.push('/admin/settings')}
+              onClick={() => router.push('/platform/settings')}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
@@ -323,7 +323,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link 
-              href="/admin/rbac" 
+              href="/platform/rbac" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
@@ -332,7 +332,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">RBAC Settings</span>
             </Link>
             <Link 
-              href="/admin/analytics" 
+              href="/platform/analytics" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
@@ -341,7 +341,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">Analytics</span>
             </Link>
             <Link 
-              href="/admin/verifications" 
+              href="/platform/verifications" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
@@ -350,7 +350,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">Verifications</span>
             </Link>
             <Link 
-              href="/admin/library" 
+              href="/platform/library" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg group-hover:bg-yellow-200 dark:group-hover:bg-yellow-900/50 transition-colors">
@@ -359,7 +359,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">Library</span>
             </Link>
             <Link 
-              href="/admin/support-tickets" 
+              href="/platform/support-tickets" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-lg group-hover:bg-red-200 dark:group-hover:bg-red-900/50 transition-colors">
@@ -368,7 +368,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">Support Tickets</span>
             </Link>
             <Link 
-              href="/admin/notifications" 
+              href="/platform/notifications" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors">
@@ -377,7 +377,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">Notifications</span>
             </Link>
             <Link 
-              href="/admin/api-keys" 
+              href="/platform/api-keys" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-pink-300 dark:hover:border-pink-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-pink-100 dark:bg-pink-900/30 rounded-lg group-hover:bg-pink-200 dark:group-hover:bg-pink-900/50 transition-colors">
@@ -386,7 +386,7 @@ export default function AdminDashboardPage() {
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 text-center">API Keys</span>
             </Link>
             <Link 
-              href="/admin/data-export" 
+              href="/platform/data-export" 
               className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-md group"
             >
               <div className="p-2.5 bg-teal-100 dark:bg-teal-900/30 rounded-lg group-hover:bg-teal-200 dark:group-hover:bg-teal-900/50 transition-colors">

@@ -115,7 +115,7 @@ export default function AdminLayout({ children }) {
         setAdmin(data.user);
       } else {
         if (pathname !== '/admin/login') {
-          router.push('/admin/login');
+          router.push('/login');
         }
       }
     } catch (err) {
@@ -139,25 +139,28 @@ export default function AdminLayout({ children }) {
     }
   };
 
+  // Note: Admin layout is deprecated - all routes now use /platform
+  // This layout is kept temporarily for backward compatibility
+  // All menu items redirect to /platform equivalents
   const adminMenuItems = [
-    { path: '/admin/dashboard', name: 'Dashboard', icon: HiChartBar },
-    { path: '/admin/portfolio', name: 'Portfolio', icon: HiOfficeBuilding },
-    { path: '/admin/users', name: 'Users', icon: HiUsers },
-    { path: '/admin/rbac', name: 'RBAC Settings', icon: HiLockClosed },
-    { path: '/admin/verifications', name: 'Verifications', icon: HiShieldCheck },
-    { path: '/admin/system', name: 'System Monitoring', icon: HiDatabase },
-    { path: '/admin/audit-logs', name: 'Audit Logs', icon: HiDocumentText },
-    { path: '/admin/library', name: 'Library', icon: HiDocumentText },
-    { path: '/admin/settings', name: 'Platform Settings', icon: HiCog },
-    { path: '/admin/analytics', name: 'Analytics', icon: HiChartBar },
-    { path: '/admin/support-tickets', name: 'Support Tickets', icon: HiMail },
-    { path: '/admin/security', name: 'Security Center', icon: HiShieldCheck },
-    { path: '/admin/data-export', name: 'Data Export', icon: HiDownload },
-    { path: '/admin/notifications', name: 'Notifications', icon: HiBell },
-    { path: '/admin/user-activity', name: 'User Activity', icon: HiUser },
-    { path: '/admin/content', name: 'Content Management', icon: HiDocumentText },
-    { path: '/admin/api-keys', name: 'API Keys', icon: HiKey },
-    { path: '/admin/database', name: 'Database', icon: HiDatabase },
+    { path: '/platform', name: 'Platform Dashboard', icon: HiChartBar },
+    { path: '/portfolio', name: 'Portfolio', icon: HiOfficeBuilding },
+    { path: '/platform/users', name: 'Users', icon: HiUsers },
+    { path: '/platform/rbac', name: 'RBAC Settings', icon: HiLockClosed },
+    { path: '/platform/verifications', name: 'Verifications', icon: HiShieldCheck },
+    { path: '/platform/system', name: 'System Monitoring', icon: HiDatabase },
+    { path: '/platform/audit-logs', name: 'Audit Logs', icon: HiDocumentText },
+    { path: '/platform/library', name: 'Library', icon: HiDocumentText },
+    { path: '/platform/settings', name: 'Platform Settings', icon: HiCog },
+    { path: '/platform/analytics', name: 'Analytics', icon: HiChartBar },
+    { path: '/platform/support-tickets', name: 'Support Tickets', icon: HiMail },
+    { path: '/platform/security', name: 'Security Center', icon: HiShieldCheck },
+    { path: '/platform/data-export', name: 'Data Export', icon: HiDownload },
+    { path: '/platform/notifications', name: 'Notifications', icon: HiBell },
+    { path: '/platform/user-activity', name: 'User Activity', icon: HiUser },
+    { path: '/platform/content', name: 'Content Management', icon: HiDocumentText },
+    { path: '/platform/api-keys', name: 'API Keys', icon: HiKey },
+    { path: '/platform/database', name: 'Database', icon: HiDatabase },
   ];
 
   if (pathname === '/admin/login') {
@@ -211,7 +214,7 @@ export default function AdminLayout({ children }) {
               </button>
 
               {/* Logo */}
-              <Link href="/admin/dashboard" className="mr-4 flex items-center">
+              <Link href="/platform" className="mr-4 flex items-center">
                 <img
                   src="/favicon.ico"
                   className="mr-3 h-8"
@@ -303,21 +306,21 @@ export default function AdminLayout({ children }) {
                 </div>
                 <div className="grid grid-cols-3 gap-4 p-4">
                   <a
-                    href="/admin/dashboard"
+                    href="/platform"
                     className="block rounded-lg p-3 text-center hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <HiChartBar className="mx-auto mb-2 h-6 w-6 text-gray-500 dark:text-gray-400" />
                     <div className="text-xs font-medium text-gray-900 dark:text-white">Dashboard</div>
                   </a>
                   <a
-                    href="/admin/users"
+                    href="/platform/users"
                     className="block rounded-lg p-3 text-center hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <HiUsers className="mx-auto mb-2 h-6 w-6 text-gray-500 dark:text-gray-400" />
                     <div className="text-xs font-medium text-gray-900 dark:text-white">Users</div>
                   </a>
                   <a
-                    href="/admin/portfolio"
+                    href="/portfolio"
                     className="block rounded-lg p-3 text-center hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <HiOfficeBuilding className="mx-auto mb-2 h-6 w-6 text-gray-500 dark:text-gray-400" />
@@ -357,14 +360,14 @@ export default function AdminLayout({ children }) {
                 </div>
                 <DropdownItem
                   className="flex items-center"
-                  onClick={() => router.push('/admin/settings')}
+                  onClick={() => router.push('/platform/settings')}
                 >
                   <HiUser className="mr-2 h-4 w-4" />
                   My profile
                 </DropdownItem>
                 <DropdownItem
                   className="flex items-center"
-                  onClick={() => router.push('/admin/settings')}
+                  onClick={() => router.push('/platform/settings')}
                 >
                   <HiCog className="mr-2 h-4 w-4" />
                   Settings

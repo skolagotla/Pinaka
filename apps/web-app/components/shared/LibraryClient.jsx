@@ -310,7 +310,7 @@ export default function LibraryClient({
         
         // Use v1 API for document replace
         const replaceResponse = await fetch(
-          `/api/v1/documents/upload?replaceId=${existingDoc.id}`,
+          `/api/v2/attachments/upload?replaceId=${existingDoc.id}`,
           {
             method: "POST",
             credentials: 'include',
@@ -335,7 +335,7 @@ export default function LibraryClient({
         
         // Use v1 API for document upload
         const uploadResponse = await fetch(
-          "/api/v1/documents/upload",
+          "/api/v2/attachments/upload",
           {
             method: "POST",
             credentials: 'include',

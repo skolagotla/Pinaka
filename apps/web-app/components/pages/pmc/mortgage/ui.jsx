@@ -1,43 +1,37 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Card, Table, Spinner, Badge } from 'flowbite-react';
 import { HiBanknotes } from 'react-icons/hi';
-// useUnifiedApi removed - use v2Api from @/lib/api/v2-client';
-import { safeJsonParse } from '@/lib/utils/safe-json-parser';
+import { useQuery } from '@tanstack/react-query';
+import { v2Api } from '@/lib/api/v2-client';
 import CurrencyDisplay from '@/components/rules/CurrencyDisplay';
 import { PageLayout, TableWrapper, EmptyState, LoadingWrapper, renderDate } from '@/components/shared';
 import FlowbiteTable from '@/components/shared/FlowbiteTable';
 import dayjs from 'dayjs';
 
 export default function PMCMortgageClient() {
-  const { fetch, loading } = useUnifiedApi({ showUserMessage: true });
-  const [mortgageData, setMortgageData] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
-  const loadMortgageData = useCallback(async () => {
-    try {
-      // Use v1Api for mortgage analytics
-      const { apiClient } = await import('@/lib/utils/api-client');
-      const response = await apiClient('/api/v1/analytics/mortgage', {
-        method: 'GET',
+  // Use React Query for data fetching
+  const { data: mortgageData, isLoading: loading, error } = useQuery({
+    queryKey: ['mortgage', 'analytics'],
+    queryFn: async () => {
+      const token = v2Api.getToken();
+      const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+      const response = await fetch(`${baseUrl}/analytics/mortgage`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
       });
-      if (response && response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setMortgageData(data.data);
-        } else {
-          setMortgageData(data);
-        }
+      if (!response.ok) {
+        throw new Error('Failed to fetch mortgage data');
       }
-    } catch (error) {
-      console.error('Error loading mortgage data:', error);
-      setMortgageData(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadMortgageData();
-  }, [loadMortgageData]);
+      const data = await response.json();
+      return data.success?.data || data.data || data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   if (loading) {
     return (

@@ -53,11 +53,11 @@ export default function AdminPortfolioPage() {
         }
       } catch (adminError) {
         // Both failed
-        router.push('/admin/login');
+        router.push('/login');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
-      router.push('/admin/login');
+        router.push('/login');
     } finally {
       setLoading(false);
     }

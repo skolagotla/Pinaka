@@ -538,7 +538,7 @@ export default function AdminRBACPage() {
             </Alert>
             <Button
               color="blue"
-              onClick={() => window.location.href = '/admin/users'}
+              onClick={() => window.location.href = '/platform/users'}
             >
               <HiUser className="h-4 w-4 mr-2" />
               Go to Users Page

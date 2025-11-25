@@ -59,7 +59,7 @@ export default function Home() {
 
     // Check for super_admin
     if (hasRole('super_admin')) {
-      router.push('/dashboard');
+      router.push('/platform');
       return;
     }
 

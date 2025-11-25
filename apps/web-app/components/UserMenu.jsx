@@ -7,6 +7,7 @@ import {
   HiLogout,
   HiUser,
 } from 'react-icons/hi';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
 
 export default function UserMenu({ 
   firstName, 
@@ -18,12 +19,18 @@ export default function UserMenu({
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const { hasRole } = useV2Auth();
 
   function handleSettings() {
     if (onSettings) {
       onSettings();
-    } else if (userRole === 'admin') {
-      router.push("/admin/settings");
+    } else if (userRole === 'admin' || hasRole('super_admin')) {
+      // Redirect to platform settings for super_admin, regular settings for others
+      if (hasRole('super_admin')) {
+        router.push("/platform/settings");
+      } else {
+        router.push("/settings");
+      }
     } else {
       router.push("/settings");
     }
@@ -37,10 +44,10 @@ export default function UserMenu({
       try {
         const { adminApi } = await import('@/lib/api/admin-api');
         await adminApi.logout();
-        window.location.href = '/admin/login';
+        window.location.href = '/login';
       } catch (err) {
         console.error('Admin logout error:', err);
-        window.location.href = '/admin/login';
+        window.location.href = '/login';
       }
     } else {
       const hasTestCookie = document.cookie.includes('auth0_test_email=');

@@ -84,6 +84,7 @@ export const queryKeys = {
  */
 export function usePortfolio(role?: string) {
   const { user } = useV2Auth();
+  // organizationId is now handled automatically by hooks (super_admin gets undefined, others get their org)
   const organizationId = user?.organization_id || undefined;
   
   // Import hooks directly from useV2Data
@@ -97,6 +98,7 @@ export function usePortfolio(role?: string) {
   
   // Use individual hooks - React Query will cache each independently
   // This allows other components to reuse cached data
+  // Hooks now automatically handle organization scoping (super_admin sees all, others see their org)
   const propertiesQuery = useProperties(organizationId);
   const leasesQuery = useLeases({ organization_id: organizationId });
   const workOrdersQuery = useWorkOrders({ organization_id: organizationId });

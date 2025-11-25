@@ -69,10 +69,9 @@ export async function proxy(request: NextRequest) {
   // If subdomain exists and is not 'www' or 'app', try to route to organization
   if (subdomain && subdomain !== 'www' && subdomain !== 'app' && subdomain !== 'admin') {
     try {
-      const { prisma } = require('./lib/prisma');
-      const { getOrganizationBySubdomain } = require('./lib/utils/organization-helpers');
-
-      const organization = await getOrganizationBySubdomain(prisma, subdomain);
+      // TODO: Migrate to v2 API - subdomain routing disabled for now
+      // Subdomain routing requires v2 API integration
+      const organization = null; // Temporarily disabled
 
       if (organization) {
         // Organization found - add to request headers for use in API routes

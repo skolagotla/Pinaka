@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ]
     
     # API
-    API_V1_PREFIX: str = "/api/v1"
+    # V1 API removed - all endpoints use /api/v2
     
     class Config:
         env_file = ".env"

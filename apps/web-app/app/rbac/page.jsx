@@ -14,5 +14,35 @@
 
 // Re-export the admin RBAC page component
 // This allows both admin and PMC users to access RBAC settings
-export { default } from '@/app/admin/rbac/page';
+/**
+ * RBAC Page - Redirects to platform RBAC for super_admin
+ */
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useV2Auth } from '@/lib/hooks/useV2Auth';
+import { Spinner } from 'flowbite-react';
+
+export default function RBACPage() {
+  const router = useRouter();
+  const { user, loading, hasRole } = useV2Auth();
+
+  useEffect(() => {
+    if (!loading) {
+      if (hasRole('super_admin')) {
+        router.replace('/platform/rbac');
+      } else {
+        router.replace('/dashboard');
+      }
+    }
+  }, [user, loading, hasRole, router]);
+
+  return (
+    <div className="flex justify-center items-center min-h-screen">
+      <Spinner size="xl" />
+    </div>
+  );
+}
+
 

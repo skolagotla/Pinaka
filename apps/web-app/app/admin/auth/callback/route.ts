@@ -65,7 +65,9 @@ export async function GET(request: NextRequest) {
     
     // If API sets cookies, forward them
     const setCookieHeaders = response.headers.getSetCookie();
-    const redirectResponse = NextResponse.redirect(new URL('/admin/dashboard', origin));
+    // Redirect to platform for super_admin, dashboard for others
+    // Note: We can't determine role here, so redirect to platform and let it handle routing
+    const redirectResponse = NextResponse.redirect(new URL('/platform', origin));
     setCookieHeaders.forEach(cookie => {
       redirectResponse.headers.append('Set-Cookie', cookie);
     });

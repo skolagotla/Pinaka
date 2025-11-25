@@ -45,9 +45,9 @@ export default function LoginPage() {
           const nextUrl = searchParams?.get('next') || '/';
           
           if (isSuperAdmin) {
-            router.push('/admin/dashboard');
+            router.push('/platform');
           } else if (isPmcAdmin) {
-            router.push('/admin/dashboard');
+            router.push('/dashboard');
           } else {
             router.push(nextUrl);
           }
@@ -60,7 +60,12 @@ export default function LoginPage() {
           const adminUser = await adminApi.getCurrentUser();
           
           if (adminUser && adminUser.user) {
-            router.push('/admin/dashboard');
+            // Redirect to platform for super_admin, dashboard for others
+            if (adminUser.user.role === 'SUPER_ADMIN' || adminUser.user.role === 'super_admin') {
+              router.push('/platform');
+            } else {
+              router.push('/dashboard');
+            }
             return;
           }
         } catch (adminError) {

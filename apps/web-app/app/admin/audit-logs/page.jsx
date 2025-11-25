@@ -29,28 +29,23 @@ export default function AdminAuditLogsPage() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(filters.adminId && { adminId: filters.adminId }),
-        ...(filters.action && { action: filters.action }),
-        ...(filters.resource && { resource: filters.resource }),
-        ...(filters.success && { success: filters.success }),
+      const { adminApi } = await import('@/lib/api/admin-api');
+      const data = await adminApi.getAuditLogs({
+        page: pagination.page,
+        limit: pagination.limit,
+        ...(filters.adminId && { userId: filters.adminId }),
+        ...(filters.action && { type: filters.action }),
         ...(filters.search && { search: filters.search }),
-        ...(filters.dateRange && filters.dateRange[0] && {
-          startDate: filters.dateRange[0].toISOString(),
-        }),
-        ...(filters.dateRange && filters.dateRange[1] && {
-          endDate: filters.dateRange[1].toISOString(),
-        }),
       });
 
-      const response = await fetch(`/api/admin/audit-logs?${params}`);
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setLogs(data.data);
-        setPagination(prev => ({ ...prev, total: data.pagination.total }));
+      if (data.success) {
+        // Transform v2 API response to expected format
+        const transformedLogs = Array.isArray(data.data) ? data.data : (data.data?.items || []);
+        setLogs(transformedLogs);
+        setPagination(prev => ({ 
+          ...prev, 
+          total: data.data?.total || data.pagination?.total || transformedLogs.length 
+        }));
       } else {
         alert(data.error || 'Failed to fetch audit logs');
       }

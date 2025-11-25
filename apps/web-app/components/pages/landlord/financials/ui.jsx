@@ -97,7 +97,7 @@ export default function FinancialsClient() {
     await withMortgageLoading(async () => {
       try {
         const { apiClient } = await import('@/lib/utils/api-client');
-        const response = await apiClient('/api/v1/analytics/mortgage', {
+        const response = await apiClient('/api/v2/analytics/mortgage', {
           method: 'GET',
         });
         const data = await response.json();
