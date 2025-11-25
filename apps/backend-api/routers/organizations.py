@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
 from schemas.organization import Organization, OrganizationCreate, OrganizationUpdate
 from db.models_v2 import Organization as OrgModel, User
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 @router.get("", response_model=List[Organization])
 async def list_organizations(
-    current_user: User = Depends(get_current_user_v2),
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=False)),
     db: AsyncSession = Depends(get_db)
 ):
     """List organizations (super_admin sees all, others see their own)"""
@@ -40,12 +40,13 @@ async def list_organizations(
 @router.post("", response_model=Organization, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     org_data: OrganizationCreate,
-    current_user: User = Depends(get_current_user_v2),
+    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN], require_organization=False)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create organization (super_admin only)"""
     user_roles = await get_user_roles(current_user, db)
     
+    # Double-check (require_role_v2 should have already checked, but for safety)
     if RoleEnum.SUPER_ADMIN not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,3 +1,17 @@
+/**
+ * Prisma Client - DEPRECATED
+ * 
+ * ⚠️ This file is deprecated. Services should migrate to use FastAPI v2 API endpoints.
+ * 
+ * For server-side services, use:
+ *   const { serverV2Api } = require('@/lib/api/v2-server-client');
+ * 
+ * Migration guide: See lib/services/README.md
+ * 
+ * This file is kept temporarily for backward compatibility during service migration.
+ * It will be removed once all services are migrated to v2 API.
+ */
+
 // Load .env file early to ensure DATABASE_URL is available
 // Next.js loads .env automatically, but we need it for db-config utility
 try {
@@ -30,6 +44,7 @@ let enginePathFound = false;
 const enginePath = setPrismaEnginePath(rootDir) || setPrismaEnginePath(appRootDir);
 
 if (enginePath) {
+  console.warn('[Prisma] DEPRECATED: Using Prisma client. Migrate to v2 API.');
   console.log('[Prisma] Found query engine at:', enginePath);
   enginePathFound = true;
 } else {
@@ -190,5 +205,3 @@ if (typeof process !== 'undefined') {
 }
 
 module.exports = { prisma };
-
-

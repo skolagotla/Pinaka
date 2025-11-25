@@ -87,9 +87,8 @@ export type UserResponse = components["schemas"]["User"];
 
 // Add more type aliases as needed from components["schemas"]
 
-// Re-export Zod schemas for legacy handlers (runtime validation in Next.js API routes)
-// These are kept for backward compatibility with legacy Next.js API handlers
-// New code should use FastAPI which validates with Pydantic
+// Re-export Zod schemas for UI validation only
+// FastAPI backend validates with Pydantic - these are for client-side form validation
 export {
   propertyCreateSchema,
   propertyUpdateSchema,

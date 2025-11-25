@@ -1,12 +1,12 @@
 /**
  * Unified V2 CRUD Hook
  * 
+ * @deprecated Use useUnifiedCRUD from './useUnifiedCRUD' instead
+ * This hook is deprecated in favor of useUnifiedCRUD which uses React Query
+ * for better caching and state management.
+ * 
  * Consolidates all CRUD operations using FastAPI v2 endpoints.
  * Replaces usePinakaCRUD, useCRUD, useCrudHooks for v2 API usage.
- * 
- * @deprecated usePinakaCRUD - Migrate to useV2CRUD
- * @deprecated useCRUD - Migrate to useV2CRUD
- * @deprecated useCrudHooks - Migrate to useV2CRUD
  * 
  * Usage:
  * ```jsx

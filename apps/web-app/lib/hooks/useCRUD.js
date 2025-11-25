@@ -1,5 +1,10 @@
 /**
  * Custom hook for CRUD operations
+ * 
+ * @deprecated Use useUnifiedCRUD from './useUnifiedCRUD' instead
+ * This hook is deprecated in favor of the V2-compliant useUnifiedCRUD hook
+ * which uses React Query, FastAPI v2, and OpenAPI types.
+ * 
  * Provides standardized Create, Read, Update, Delete functionality
  * with loading states, error handling, and optimistic updates
  * 

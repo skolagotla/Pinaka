@@ -5,7 +5,15 @@
  * in your API endpoints.
  */
 
-import { UserContext } from '../middleware/apiMiddleware';
+// Legacy API middleware removed - use FastAPI v2 endpoints directly
+// import { UserContext } from '../middleware/apiMiddleware'; // DEPRECATED
+type UserContext = {
+  userId: string;
+  role: string;
+  email: string;
+  userName: string;
+  organizationId?: string | null;
+};
 import { addOrganizationFilter, checkOrganizationLimits } from './organization-helpers';
 const { prisma } = require('../prisma');
 

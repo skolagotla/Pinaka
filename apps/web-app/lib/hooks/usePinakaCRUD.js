@@ -1,6 +1,10 @@
 /**
  * 🎯 PINAKA CRUD HOOK - Unified hook for all CRUD operations
  * 
+ * @deprecated Use useUnifiedCRUD from './useUnifiedCRUD' instead
+ * This hook is deprecated in favor of the V2-compliant useUnifiedCRUD hook
+ * which uses React Query, FastAPI v2, and OpenAPI types.
+ * 
  * Combines 4 related hooks into one powerful, lean interface:
  * - useCRUD: Data management (create, update, delete, refresh)
  * - useDialog: Modal state management (open, close, add/edit modes)
