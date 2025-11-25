@@ -128,6 +128,9 @@ class ApiClient {
         phone: string | null;
         status: string;
         organization_id: string | null;
+        onboarding_completed: boolean;
+        onboarding_step: number;
+        onboarding_data: Record<string, any> | null;
         created_at: string;
         updated_at: string;
       };
@@ -138,6 +141,40 @@ class ApiClient {
       }>;
       organization_id: string | null;
     }>('/auth/me');
+  }
+
+  // Onboarding endpoints
+  async getOnboardingStatus() {
+    return this.request<{
+      onboarding_completed: boolean;
+      onboarding_step: number;
+      onboarding_data: Record<string, any>;
+    }>('/onboarding/status');
+  }
+
+  async updateOnboardingStatus(data: {
+    step?: number;
+    completed?: boolean;
+    data?: Record<string, any>;
+  }) {
+    return this.request<{
+      onboarding_completed: boolean;
+      onboarding_step: number;
+      onboarding_data: Record<string, any>;
+    }>('/onboarding/status', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async completeOnboarding() {
+    return this.request<{
+      onboarding_completed: boolean;
+      onboarding_step: number;
+      message: string;
+    }>('/onboarding/complete', {
+      method: 'POST',
+    });
   }
 
   // Organization endpoints

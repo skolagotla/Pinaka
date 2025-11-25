@@ -108,12 +108,18 @@ export function useDeleteProperty() {
 }
 
 // Units
-export function useUnits(propertyId?: string) {
+export function useUnits(propertyId?: string, organizationId?: string) {
+  const effectiveOrgId = useOrganizationId();
+  const queryEnabled = useQueryEnabled();
+  const finalOrgId = organizationId !== undefined ? organizationId : effectiveOrgId;
+  
   return useQuery({
-    queryKey: ['v2', 'units', propertyId],
+    queryKey: ['v2', 'units', propertyId, finalOrgId],
     queryFn: () => v2Api.listUnits(propertyId),
+    enabled: queryEnabled,
     staleTime: STALE_TIMES.units,
     // Allow querying all units or filtered by property
+    // Organization scoping handled by backend based on user role
   });
 }
 

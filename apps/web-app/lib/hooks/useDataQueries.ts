@@ -83,9 +83,11 @@ export const queryKeys = {
  * Uses individual hooks to leverage React Query caching instead of Promise.all
  */
 export function usePortfolio(role?: string) {
-  const { user } = useV2Auth();
-  // organizationId is now handled automatically by hooks (super_admin gets undefined, others get their org)
-  const organizationId = user?.organization_id || undefined;
+  const { user, hasRole } = useV2Auth();
+  // For super_admin, pass undefined to see all data. For others, use their organization_id
+  // The individual hooks will handle this via useOrganizationId(), but we need to pass it explicitly
+  // Use the same path as useOrganizationId: user.user.organization_id (matches API response structure)
+  const organizationId = hasRole('super_admin') ? undefined : (user?.user?.organization_id || user?.organization_id || undefined);
   
   // Import hooks directly from useV2Data
   const { 
@@ -99,12 +101,41 @@ export function usePortfolio(role?: string) {
   // Use individual hooks - React Query will cache each independently
   // This allows other components to reuse cached data
   // Hooks now automatically handle organization scoping (super_admin sees all, others see their org)
+  // Pass undefined for super_admin to let hooks handle scoping internally
   const propertiesQuery = useProperties(organizationId);
-  const leasesQuery = useLeases({ organization_id: organizationId });
-  const workOrdersQuery = useWorkOrders({ organization_id: organizationId });
+  const leasesQuery = useLeases(organizationId !== undefined ? { organization_id: organizationId } : undefined);
+  const workOrdersQuery = useWorkOrders(organizationId !== undefined ? { organization_id: organizationId } : undefined);
   const tenantsQuery = useTenants(organizationId);
   const landlordsQuery = useLandlords(organizationId);
   
+  // Collect all errors to identify which queries failed
+  const errors = {
+    properties: propertiesQuery.error,
+    leases: leasesQuery.error,
+    workOrders: workOrdersQuery.error,
+    tenants: tenantsQuery.error,
+    landlords: landlordsQuery.error,
+  };
+  
+  const hasError = propertiesQuery.isError || leasesQuery.isError || 
+                   workOrdersQuery.isError || tenantsQuery.isError || 
+                   landlordsQuery.isError;
+  
+  // Find the first meaningful error, or create a summary
+  const firstError = propertiesQuery.error || leasesQuery.error || 
+                     workOrdersQuery.error || tenantsQuery.error || 
+                     landlordsQuery.error;
+  
+  // Create a detailed error object if any query failed
+  const detailedError = hasError ? {
+    message: firstError?.message || 'One or more portfolio queries failed',
+    errors,
+    failedQueries: Object.entries(errors)
+      .filter(([_, error]) => error)
+      .map(([query]) => query),
+    firstError,
+  } : null;
+
   return {
     data: {
       properties: propertiesQuery.data || [],
@@ -116,15 +147,9 @@ export function usePortfolio(role?: string) {
     isLoading: propertiesQuery.isLoading || leasesQuery.isLoading || 
                workOrdersQuery.isLoading || tenantsQuery.isLoading || 
                landlordsQuery.isLoading,
-    isError: propertiesQuery.isError || leasesQuery.isError || 
-             workOrdersQuery.isError || tenantsQuery.isError || 
-             landlordsQuery.isError,
-    error: propertiesQuery.error || leasesQuery.error || 
-           workOrdersQuery.error || tenantsQuery.error || 
-           landlordsQuery.error,
-    success: !(propertiesQuery.isError || leasesQuery.isError || 
-               workOrdersQuery.isError || tenantsQuery.isError || 
-               landlordsQuery.isError),
+    isError: hasError,
+    error: detailedError || firstError,
+    success: !hasError,
     // Allow refetching individual pieces
     refetch: async () => {
       await Promise.all([

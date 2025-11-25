@@ -21,7 +21,7 @@ import PropertySelector from './PropertySelector';
 import ErrorBoundary from './ErrorBoundary';
 import NotificationCenter from './shared/NotificationCenter';
 import TestDatabaseBanner from './TestDatabaseBanner';
-import Navigation from './Navigation';
+import UnifiedSidebar from './layout/UnifiedSidebar';
 import QuickActionsFAB from './shared/QuickActionsFAB';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 
@@ -148,8 +148,8 @@ export default function ProLayoutWrapper({ children }) {
               )}
             </Link>
 
-            {/* Navigation */}
-            <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
+            {/* Navigation - Using UnifiedSidebar */}
+            <UnifiedSidebar collapsed={sidebarCollapsed} />
           </div>
         </Sidebar>
 

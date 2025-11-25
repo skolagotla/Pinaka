@@ -8,7 +8,8 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import (
     apply_organization_filter,
     check_organization_access,
@@ -28,7 +29,7 @@ async def list_properties(
     organization_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.PROPERTY)),
     db: AsyncSession = Depends(get_db)
 ):
     """List properties (scoped by organization) with pagination"""
@@ -53,7 +54,7 @@ async def list_properties(
 @router.post("", response_model=Property, status_code=status.HTTP_201_CREATED)
 async def create_property(
     property_data: PropertyCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.PROPERTY)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create property"""
@@ -79,7 +80,7 @@ async def create_property(
 @router.get("/{property_id}", response_model=Property)
 async def get_property(
     property_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.PROPERTY)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get property by ID"""

@@ -54,8 +54,16 @@ export const adminApi = {
         },
       });
       
-      // Handle 401/403 (not authenticated) gracefully
-      if (response && (response.status === 401 || response.status === 403)) {
+      if (!response) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      
+      // Clone response before parsing to avoid "body already read" error
+      // (interceptors may have already read the original response)
+      const responseToParse = response.clone ? response.clone() : response;
+      
+      // Handle 401/403 (not authenticated) gracefully - check status without consuming body
+      if (response.status === 401 || response.status === 403) {
         // Clear invalid token
         if (typeof window !== 'undefined') {
           localStorage.removeItem('v2_access_token');
@@ -64,7 +72,8 @@ export const adminApi = {
         return { success: false, error: 'Not authenticated' };
       }
       
-      const data = await parseResponse(response, 'Failed to get admin user');
+      // Parse the cloned response
+      const data = await parseResponse(responseToParse, 'Failed to get admin user');
       
       // Transform FastAPI v2 response to expected format
       if (data.user) {
@@ -107,12 +116,17 @@ export const adminApi = {
 
   /**
    * Admin logout
+   * Clears JWT token from localStorage (no server-side logout needed for JWT)
    */
   async logout() {
-    const response = await apiClient('/api/admin/auth/logout', {
-      method: 'POST',
-    });
-    return parseResponse(response, 'Logout failed');
+    // Clear JWT token and user data from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('v2_access_token');
+      localStorage.removeItem('v2_user');
+      // Also clear any other auth-related items
+      localStorage.removeItem('v2_refresh_token');
+    }
+    return { success: true };
   },
 
   /**
@@ -139,15 +153,20 @@ export const adminApi = {
 
   /**
    * Get admin users list
+   * Uses v2 API: /api/v2/users
    */
-  async getUsers(query?: { role?: string; limit?: number; page?: number; search?: string; status?: string }) {
-    // Filter out undefined values to avoid sending "undefined" as string
-    const cleanQuery = query ? Object.fromEntries(
-      Object.entries(query).filter(([_, value]) => value !== undefined && value !== null && value !== 'undefined')
-    ) : {};
-    const queryString = Object.keys(cleanQuery).length > 0 ? '?' + new URLSearchParams(cleanQuery as any).toString() : '';
-    const response = await apiClient(`/api/admin/users${queryString}`, {
+  async getUsers(query?: { role?: string; limit?: number; page?: number; search?: string; status?: string; organization_id?: string }) {
+    const params = new URLSearchParams();
+    if (query?.organization_id) params.append('organization_id', query.organization_id);
+    if (query?.page) params.append('page', query.page.toString());
+    if (query?.limit) params.append('limit', query.limit.toString());
+    
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    const response = await apiClient(`${API_BASE_URL}/users${params.toString() ? `?${params}` : ''}`, {
       method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
     });
     return parseResponse(response, 'Failed to get users');
   },
@@ -179,10 +198,15 @@ export const adminApi = {
 
   /**
    * Get RBAC roles
+   * Uses v2 API: /api/v2/rbac/roles
    */
   async getRBACRoles() {
-    const response = await apiClient('/api/rbac/roles', {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    const response = await apiClient(`${API_BASE_URL}/rbac/roles`, {
       method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
     });
     return parseResponse(response, 'Failed to get RBAC roles');
   },
@@ -379,35 +403,53 @@ export const adminApi = {
 
   /**
    * Get single user by ID
+   * Uses v2 API: /api/v2/users/{id}
    */
   async getUserById(id: string, role?: string) {
-    const queryString = role ? `?role=${role}` : '';
-    const response = await apiClient(`/api/admin/users/${id}${queryString}`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    const response = await apiClient(`${API_BASE_URL}/users/${id}`, {
       method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
     });
     return parseResponse(response, 'Failed to get user');
   },
 
   /**
    * Get user RBAC roles
+   * Uses v2 API: /api/v2/rbac/users/{userId}/roles
    */
   async getUserRoles(userId: string, userType: string) {
-    const response = await apiClient(`/api/rbac/users/${userId}/roles?userType=${userType}`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    const response = await apiClient(`${API_BASE_URL}/rbac/users/${userId}/roles`, {
       method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
     });
     return parseResponse(response, 'Failed to get user roles');
   },
 
   /**
    * Assign role to user
+   * Uses v2 API: /api/v2/users/{userId}/roles
    */
   async assignUserRole(userId: string, userType: string, roleId: string, scope?: any) {
-    const response = await apiClient(`/api/rbac/users/${userId}/roles?userType=${userType}`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    // v2 API uses role_name instead of roleId, and organization_id from scope
+    const roleName = roleId; // Assuming roleId is actually role name
+    const organizationId = scope?.organization_id;
+    const response = await apiClient(`${API_BASE_URL}/users/${userId}/roles`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
       },
-      body: JSON.stringify({ roleId, scope }),
+      body: JSON.stringify({ 
+        role_name: roleName,
+        organization_id: organizationId,
+      }),
     });
     return parseResponse(response, 'Failed to assign role');
   },
@@ -653,12 +695,18 @@ export const adminApi = {
 
   /**
    * Update user role
+   * Uses v2 API: /api/v2/users/{userId}/roles (assigns new role)
    */
   async updateUserRole(userId: string, role: string) {
-    const response = await apiClient(`/api/admin/users/${userId}/role`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
+    const token = typeof window !== 'undefined' ? localStorage.getItem('v2_access_token') : null;
+    // v2 API assigns roles, so we use assignRole endpoint
+    const response = await apiClient(`${API_BASE_URL}/users/${userId}/roles`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({ role_name: role }),
     });
     return parseResponse(response, 'Failed to update user role');
   },

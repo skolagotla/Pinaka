@@ -24,6 +24,15 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     status: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[int] = None
+    onboarding_data: Optional[dict] = None
+
+
+class OnboardingUpdate(BaseModel):
+    step: Optional[int] = None
+    completed: Optional[bool] = None
+    data: Optional[dict] = None
 
 
 class UserLogin(BaseModel):
@@ -35,6 +44,9 @@ class User(UserBase):
     id: UUID
     organization_id: Optional[UUID] = None
     status: str
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
+    onboarding_data: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
     roles: Optional[List[Role]] = []

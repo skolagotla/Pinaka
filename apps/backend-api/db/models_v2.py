@@ -3,6 +3,7 @@ SQLAlchemy models for v2 database schema
 All tables use UUID primary keys and snake_case naming
 """
 from sqlalchemy import Column, String, Boolean, Integer, Numeric, Date, DateTime, Text, ForeignKey, Index, UniqueConstraint, BigInteger
+import sqlalchemy as sa
 from sqlalchemy.sql import text as sa_text
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship
@@ -53,6 +54,9 @@ class User(Base):
     full_name = Column(Text, nullable=True)
     phone = Column(Text, nullable=True)
     status = Column(Text, server_default='active', nullable=False)  # 'active', 'invited', 'suspended'
+    onboarding_completed = Column(sa.Boolean, server_default=sa_text('false'), nullable=False)
+    onboarding_step = Column(sa.Integer, server_default=sa_text('0'), nullable=False)  # Current step in onboarding flow
+    onboarding_data = Column(sa.JSON, nullable=True)  # Store onboarding progress data
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     

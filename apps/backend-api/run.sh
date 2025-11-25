@@ -18,9 +18,16 @@ if [ ! -f ".env" ]; then
     echo "✅ Created .env file. Please edit it with your database credentials."
 fi
 
-# Run FastAPI
+# Create logs directory if it doesn't exist
+mkdir -p ../../logs
+
+# Generate log filename with timestamp
+LOG_FILE="../../logs/fastapi-$(date +%Y%m%d-%H%M%S).log"
+
+# Run FastAPI with logging
 echo "🚀 Starting FastAPI backend on http://localhost:8000"
 echo "📚 API Documentation: http://localhost:8000/docs"
+echo "📝 Logging to: $LOG_FILE"
 echo ""
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000 2>&1 | tee "$LOG_FILE"
 

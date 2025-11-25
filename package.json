@@ -10,7 +10,10 @@
   "scripts": {
     "bootstrap": "pnpm install",
     "dev": "pnpm --filter @pinaka/web-app dev",
+    "dev:log": "pnpm --filter @pinaka/web-app dev:log",
     "dev:backend": "cd apps/backend-api && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:backend:log": "cd apps/backend-api && bash run.sh",
+    "start:webapp:log": "pnpm --filter @pinaka/web-app start:log",
     "build": "pnpm run generate:types || echo '⚠️  OpenAPI types generation skipped (FastAPI server may not be running)' && pnpm run build:packages && pnpm run build:apps",
     "build:apps": "pnpm --filter '@pinaka/web-app' build",
     "build:packages": "pnpm --filter './packages/*' --filter '!@pinaka/server-stubs' --filter '!@pinaka/domains' build",

@@ -26,7 +26,7 @@ interface UseRequireRoleOptions {
 }
 
 export function useRequireRole(options: UseRequireRoleOptions) {
-  const { allowedRoles, redirectTo = '/admin/login', redirectMessage, fetchUser } = options;
+  const { allowedRoles, redirectTo = '/login', redirectMessage, fetchUser } = options;
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

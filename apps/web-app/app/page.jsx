@@ -8,7 +8,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import SignInCard from '@/components/SignInCard';
 import { useV2Auth } from '@/lib/hooks/useV2Auth';
 import { Spinner, Alert } from 'flowbite-react';
 
@@ -20,53 +19,59 @@ export default function Home() {
     if (loading) return;
 
     if (!user) {
-      // Not authenticated - show sign-in card (already rendered below)
+      router.push('/auth/login');
       return;
     }
 
-    // Check roles and redirect based on priority:
+    // Check onboarding status first
+    const onboardingCompleted = user.user?.onboarding_completed ?? false;
+    
+    if (!onboardingCompleted) {
+      router.push('/onboarding/start');
+      return;
+    }
+
+    // Onboarding completed - check roles and redirect based on priority:
     // Landlord > Tenant > PMC (including PMC Admin) > Vendor > Contractor
     
     // Check for landlord role
     if (hasRole('landlord')) {
-      router.push('/dashboard');
+      router.push('/portfolio');
       return;
     }
 
     // Check for tenant role
     if (hasRole('tenant')) {
-      router.push('/dashboard');
+      router.push('/portfolio');
       return;
     }
 
     // Check for PMC roles (pmc_admin, pm)
     if (hasRole('pmc_admin') || hasRole('pm')) {
-      router.push('/dashboard');
+      router.push('/portfolio');
       return;
     }
 
     // Check for vendor role
     if (hasRole('vendor')) {
-      router.push('/vendor/dashboard');
+      router.push('/portfolio');
       return;
     }
 
     // Check for contractor role
     if (hasRole('contractor')) {
-      router.push('/contractor/dashboard');
+      router.push('/portfolio');
       return;
     }
 
     // Check for super_admin
     if (hasRole('super_admin')) {
-      router.push('/platform');
+      router.push('/portfolio');
       return;
     }
 
-    // User has no recognized role - show pending approval or error
-    // Note: Approval status checking would require additional API calls
-    // For now, redirect to dashboard and let the dashboard handle approval checks
-    router.push('/dashboard');
+    // Default redirect to portfolio
+    router.push('/portfolio');
   }, [user, loading, hasRole, router]);
 
   if (loading) {
@@ -77,13 +82,14 @@ export default function Home() {
     );
   }
 
-  // Show sign-in card if not authenticated
+  // Redirect to login page if not authenticated
   if (!user) {
+    useEffect(() => {
+      router.push('/auth/login');
+    }, [router]);
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center min-h-[70vh]">
-          <SignInCard />
-        </div>
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner size="xl" />
       </div>
     );
   }

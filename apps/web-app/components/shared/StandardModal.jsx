@@ -1,8 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Modal, Button, Spinner } from 'flowbite-react';
 import { HiX } from 'react-icons/hi';
+import FocusTrap from '@/components/a11y/FocusTrap';
+import { useFocusManagement } from '@/components/a11y/useFocusManagement';
 
 /**
  * StandardModal Component (Flowbite Pro Enhanced)
@@ -23,6 +25,9 @@ export default function StandardModal({
   submitColor = "blue",
   ...props
 }) {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useFocusManagement({ isOpen: open, initialFocus: titleRef });
+
   const handleSubmit = async () => {
     if (form) {
       try {
@@ -51,22 +56,32 @@ export default function StandardModal({
       onClose={onCancel}
       size={getModalSize()}
       className="[&>div]:rounded-lg"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
       {...props}
     >
-      <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
-        <div className="flex items-center justify-between w-full">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {title}
-          </h3>
-          <button
-            onClick={onCancel}
-            className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors"
-          >
-            <HiX className="h-5 w-5" />
-            <span className="sr-only">Close modal</span>
-          </button>
-        </div>
-      </Modal.Header>
+      <FocusTrap active={open} onEscape={onCancel}>
+        <Modal.Header className="border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center justify-between w-full">
+            <h3 
+              id="modal-title"
+              ref={titleRef}
+              className="text-xl font-semibold text-gray-900 dark:text-white"
+              tabIndex={-1}
+            >
+              {title}
+            </h3>
+            <button
+              onClick={onCancel}
+              className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label="Close modal"
+            >
+              <HiX className="h-5 w-5" aria-hidden="true" />
+              <span className="sr-only">Close modal</span>
+            </button>
+          </div>
+        </Modal.Header>
       <Modal.Body className="p-6">
         <div className="space-y-4">
           {children}
@@ -78,7 +93,8 @@ export default function StandardModal({
             color="gray" 
             onClick={onCancel} 
             disabled={loading}
-            className="min-w-[100px]"
+            className="min-w-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={cancelText}
           >
             {cancelText}
           </Button>
@@ -86,11 +102,13 @@ export default function StandardModal({
             color={submitColor}
             onClick={handleSubmit} 
             disabled={loading}
-            className="min-w-[100px]"
+            className="min-w-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={submitText}
           >
             {loading ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" />
+              <span className="flex items-center gap-2" aria-live="polite" aria-busy="true">
+                <Spinner size="sm" aria-hidden="true" />
+                <span className="sr-only">Loading</span>
                 Loading...
               </span>
             ) : (
@@ -99,6 +117,7 @@ export default function StandardModal({
           </Button>
         </div>
       </Modal.Footer>
+      </FocusTrap>
     </Modal>
   );
 }

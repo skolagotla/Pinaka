@@ -9,6 +9,7 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import apply_organization_filter, apply_pagination
 from schemas.work_order import WorkOrder, WorkOrderCreate, WorkOrderUpdate, WorkOrderApprovalRequest, WorkOrderMarkViewedRequest, WorkOrderAssignVendorRequest
 from schemas.work_order_comment import WorkOrderComment, WorkOrderCommentCreate
@@ -33,7 +34,7 @@ async def list_work_orders(
     status_filter: Optional[str] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT, RoleEnum.VENDOR], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """List work orders (scoped by organization and role) with pagination"""
@@ -88,7 +89,7 @@ async def list_work_orders(
 @router.post("", response_model=WorkOrder, status_code=status.HTTP_201_CREATED)
 async def create_work_order(
     work_order_data: WorkOrderCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create work order"""
@@ -127,7 +128,7 @@ async def create_work_order(
 @router.get("/{work_order_id}", response_model=WorkOrder)
 async def get_work_order(
     work_order_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT, RoleEnum.VENDOR], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get work order by ID"""
@@ -211,7 +212,7 @@ async def update_work_order(
 async def create_work_order_comment(
     work_order_id: UUID,
     comment_data: WorkOrderCommentCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT, RoleEnum.VENDOR], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """Add comment to work order"""
@@ -387,7 +388,7 @@ async def assign_vendor_to_work_order(
 async def mark_work_order_viewed(
     work_order_id: UUID,
     view_data: WorkOrderMarkViewedRequest,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """Mark work order as viewed"""
@@ -459,7 +460,7 @@ async def mark_work_order_viewed(
 @router.get("/{work_order_id}/download-pdf")
 async def download_work_order_pdf(
     work_order_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.WORK_ORDER)),
     db: AsyncSession = Depends(get_db)
 ):
     """Download work order as PDF"""

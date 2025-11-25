@@ -15,6 +15,7 @@ from routers import auth_v2, organizations, properties, work_orders, attachments
 from routers import landlords, tenants, leases, units, notifications, audit_logs, users
 from routers import vendors_v2, search
 from routers import tasks, conversations, invitations, forms, rent_payments, expenses, inspections, rbac
+from routers import onboarding
 from core.exceptions import setup_exception_handlers
 
 
@@ -81,6 +82,7 @@ app.include_router(rent_payments.router, prefix="/api/v2")
 app.include_router(expenses.router, prefix="/api/v2")
 app.include_router(inspections.router, prefix="/api/v2")
 app.include_router(rbac.router, prefix="/api/v2")
+app.include_router(onboarding.router, prefix="/api/v2")
 
 
 @app.get("/")

@@ -9,6 +9,7 @@ from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
 from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import apply_organization_filter, apply_pagination
 from schemas.lease import Lease, LeaseCreate, LeaseUpdate, LeaseWithTenants, LeaseRenewalRequest, LeaseTerminationRequest
 from db.models_v2 import Lease as LeaseModel, LeaseTenant, Unit, Property, Tenant, User, Landlord
@@ -24,7 +25,7 @@ async def list_leases(
     landlord_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """List leases (scoped by organization and filters) with pagination"""
@@ -33,8 +34,7 @@ async def list_leases(
     # Base query with eager loading for related entities
     query = select(LeaseModel).options(
         selectinload(LeaseModel.lease_tenants).selectinload(LeaseTenant.tenant),
-        selectinload(LeaseModel.unit),
-        selectinload(LeaseModel.property),
+        selectinload(LeaseModel.unit).selectinload(Unit.property),
         selectinload(LeaseModel.landlord),
     )
     
@@ -82,7 +82,7 @@ async def list_leases(
 @router.post("", response_model=Lease, status_code=status.HTTP_201_CREATED)
 async def create_lease(
     lease_data: LeaseCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create lease"""
@@ -140,7 +140,7 @@ async def create_lease(
 @router.get("/{lease_id}", response_model=Lease)
 async def get_lease(
     lease_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get lease by ID"""
@@ -192,7 +192,7 @@ async def get_lease(
 async def update_lease(
     lease_id: UUID,
     lease_data: LeaseUpdate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """Update lease"""
@@ -266,7 +266,7 @@ async def delete_lease(
 async def renew_lease(
     lease_id: UUID,
     renewal_data: LeaseRenewalRequest,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """Renew a lease"""
@@ -355,7 +355,7 @@ async def renew_lease(
 async def terminate_lease(
     lease_id: UUID,
     termination_data: LeaseTerminationRequest,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LEASE)),
     db: AsyncSession = Depends(get_db)
 ):
     """Terminate a lease"""

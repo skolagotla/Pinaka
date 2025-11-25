@@ -7,7 +7,8 @@ from sqlalchemy import select, or_
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import (
     apply_organization_filter,
     get_entity_or_404,
@@ -27,7 +28,7 @@ async def list_vendors(
     status_filter: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.VENDOR)),
     db: AsyncSession = Depends(get_db)
 ):
     """List vendors (scoped by organization and role) with pagination"""
@@ -60,7 +61,7 @@ async def list_vendors(
 @router.get("/{vendor_id}", response_model=VendorResponse)
 async def get_vendor(
     vendor_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.VENDOR], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.VENDOR)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get vendor by ID"""
@@ -81,7 +82,7 @@ async def get_vendor(
 @router.post("", response_model=VendorResponse, status_code=status.HTTP_201_CREATED)
 async def create_vendor(
     vendor_data: VendorCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.VENDOR)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create vendor"""
@@ -104,7 +105,7 @@ async def create_vendor(
 async def update_vendor(
     vendor_id: UUID,
     vendor_data: VendorUpdate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.VENDOR)),
     db: AsyncSession = Depends(get_db)
 ):
     """Update vendor"""
@@ -131,7 +132,7 @@ async def update_vendor(
 @router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_vendor(
     vendor_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.VENDOR)),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete vendor (soft delete by setting status)"""

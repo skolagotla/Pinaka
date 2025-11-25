@@ -87,13 +87,14 @@ export default function QuickActionsFAB({ userRole }: QuickActionsFABProps) {
       <Dropdown
         arrowIcon={false}
         label={
-          <Button
-            color="blue"
-            size="lg"
-            className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all"
+          <div
+            className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center cursor-pointer focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800"
+            role="button"
+            tabIndex={0}
+            aria-label="Quick actions menu"
           >
             <HiPlus className="h-6 w-6" />
-          </Button>
+          </div>
         }
         className="mb-2"
         placement="top"

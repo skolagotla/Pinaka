@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, Card, Spinner, Badge, Alert, Button } from 'flowbite-react';
 import { PageLayout } from '@/components/shared';
 import FlowbiteTable from '@/components/shared/FlowbiteTable';
@@ -42,7 +42,26 @@ const OccupancyTrendsChart = dynamic(
  */
 export default function PortfolioClient({ userRole, user }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview');
+  const pathname = usePathname();
+  
+  // Sync active tab with URL
+  const getActiveTabFromPath = () => {
+    if (pathname === '/portfolio' || pathname === '/portfolio/') return 'overview';
+    if (pathname?.includes('/portfolio/properties')) return 'properties';
+    if (pathname?.includes('/portfolio/landlords')) return 'landlords';
+    if (pathname?.includes('/portfolio/tenants')) return 'tenants';
+    if (pathname?.includes('/portfolio/leases')) return 'leases';
+    if (pathname?.includes('/portfolio/vendors')) return 'vendors';
+    return 'overview';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
+  
+  // Update tab when pathname changes
+  useEffect(() => {
+    const tab = getActiveTabFromPath();
+    setActiveTab(tab);
+  }, [pathname]);
   
   // Normalize role
   const normalizedRole = useMemo(() => {
@@ -52,39 +71,105 @@ export default function PortfolioClient({ userRole, user }) {
   }, [userRole]);
 
   // Fetch data using React Query hooks
-  const { data: portfolioData, isLoading: portfolioLoading, refetch: refetchPortfolio } = usePortfolio(normalizedRole);
-  const { data: workOrdersData, isLoading: workOrdersLoading } = useWorkOrders({ 
-    status: 'New,In Progress,Pending',
-    limit: 100 
-  });
-  const { data: leasesData } = useLeases({ limit: 100 });
-  const { data: propertiesData } = useProperties({ limit: 100 });
-  const { data: tenantsData } = useTenants({ limit: 100 });
-  const { data: landlordsData } = useLandlords({ limit: 100 });
+  // usePortfolio already fetches all the data we need
+  const { data: portfolioData, isLoading: portfolioLoading, isError: portfolioError, error: portfolioErrorObj, refetch: refetchPortfolio } = usePortfolio(normalizedRole);
+  // useWorkOrders accepts filters: { organization_id?, property_id?, status? }
+  // Note: status filter format may need to be a single value, not comma-separated
+  const { data: workOrdersData, isLoading: workOrdersLoading } = useWorkOrders();
+  // For super_admin, also fetch organizations to get accurate PMC count
+  const { useOrganizations } = require('@/lib/hooks/useV2Data');
+  const organizationsQuery = normalizedRole === 'super_admin' ? useOrganizations() : { data: null, isLoading: false };
 
-  // Extract stats from portfolio data
-  const stats = portfolioData?.data?.stats;
-  const portfolio = portfolioData?.data;
+  // Extract data from portfolio - usePortfolio returns: { data: { properties: [...], tenants: [...], etc. }, isLoading, ... }
+  // Note: portfolioData IS the data object (from destructuring { data: portfolioData }), not portfolioData.data
+  const portfolio = portfolioData; // portfolioData is already the data object
+  const stats = portfolioData?.stats; // stats would be at the top level if it exists
+  
+  // Extract arrays from portfolio data (they're already arrays, not wrapped in .data)
+  const properties = portfolio?.properties || [];
+  const tenants = portfolio?.tenants || [];
+  const leases = portfolio?.leases || [];
+  const landlords = portfolio?.landlords || [];
+  const vendors = portfolio?.vendors || [];
+
+  // Debug logging to diagnose data loading issues
+  useEffect(() => {
+    if (portfolioError && portfolioErrorObj) {
+      // Handle the improved error structure from usePortfolio
+      const errorInfo = portfolioErrorObj;
+      
+      // Check if it's the new detailed error format
+      if (errorInfo?.failedQueries && Array.isArray(errorInfo.failedQueries)) {
+        console.error('[Portfolio] Error loading data:', {
+          message: errorInfo.message,
+          failedQueries: errorInfo.failedQueries,
+          errors: errorInfo.errors,
+          firstError: errorInfo.firstError,
+        });
+      } else if (errorInfo && typeof errorInfo === 'object') {
+        // Check if error has meaningful properties
+        const hasErrorInfo = Object.keys(errorInfo).length > 0 || 
+                           errorInfo?.message || 
+                           errorInfo?.response || 
+                           errorInfo?.status;
+        if (hasErrorInfo) {
+          console.error('[Portfolio] Error loading data:', {
+            error: errorInfo,
+            message: errorInfo?.message || 'Unknown error',
+            status: errorInfo?.status || errorInfo?.response?.status,
+            data: errorInfo?.response?.data || errorInfo?.data,
+          });
+        }
+        // If error object is empty, it might be a false positive - don't log it
+      } else if (errorInfo) {
+        // Error is not an object, log it directly
+        console.error('[Portfolio] Error loading data:', errorInfo);
+      }
+    }
+    console.log('[Portfolio] Data state:', {
+      portfolioLoading,
+      portfolioError,
+      hasPortfolioData: !!portfolioData,
+      portfolioDataStructure: portfolioData ? Object.keys(portfolioData) : 'null',
+      portfolioDataValue: portfolioData,
+      hasPortfolio: !!portfolio,
+      portfolioStructure: portfolio ? Object.keys(portfolio) : 'null',
+      propertiesCount: properties.length,
+      tenantsCount: tenants.length,
+      leasesCount: leases.length,
+      landlordsCount: landlords.length,
+      vendorsCount: vendors.length,
+      normalizedRole,
+    });
+  }, [portfolioLoading, portfolioError, portfolioErrorObj, properties.length, tenants.length, leases.length, landlords.length, vendors.length, portfolioData, portfolio, normalizedRole]);
 
   // Calculate role-specific metrics
   const roleMetrics = useMemo(() => {
     if (!stats && !portfolio) return null;
 
-    // Extract work orders from response - API returns { success: true, data: [...], pagination: {...} }
-    const workOrders = workOrdersData?.data || workOrdersData?.maintenanceRequests || [];
-    // Extract leases from response - API returns { success: true, data: [...], pagination: {...} }
-    const leases = leasesData?.data || leasesData?.leases || [];
+    // Extract work orders from response - v2 API returns array directly
+    const workOrders = Array.isArray(workOrdersData) ? workOrdersData : (workOrdersData?.data || []);
 
     switch (normalizedRole) {
       case 'super_admin':
+        const organizations = organizationsQuery?.data || [];
+        const totalLeases = leases.length || 0;
+        const activeLeases = leases.filter(l => l.status === 'active').length || 0;
+        const totalTenants = tenants.length || 0;
+        const totalVendors = vendors.length || 0;
         return {
-          totalPMCs: landlordsData?.data?.pagination?.total || 0, // Approximate - would need PMC count
-          totalLandlords: stats?.totalLandlords || 0,
-          totalProperties: stats?.totalProperties || 0,
+          totalPMCs: stats?.totalPMCs || organizations.length || 0,
+          totalLandlords: stats?.totalLandlords || landlords.length || 0,
+          totalProperties: stats?.totalProperties || properties.length || 0,
+          totalLeases: totalLeases,
+          activeLeases: activeLeases,
+          totalTenants: totalTenants,
+          totalVendors: totalVendors,
           occupancyRate: stats?.occupiedUnits && stats?.vacantUnits 
             ? Math.round((stats.occupiedUnits / (stats.occupiedUnits + stats.vacantUnits)) * 100)
             : 0,
-          openWorkOrders: workOrders.length || 0,
+          openWorkOrders: workOrders.filter(wo => wo.status === 'open' || wo.status === 'in_progress').length || 0,
+          totalWorkOrders: workOrders.length || 0,
         };
       
       case 'pmc_admin':
@@ -162,7 +247,7 @@ export default function PortfolioClient({ userRole, user }) {
       default:
         return null;
     }
-  }, [normalizedRole, stats, portfolio, workOrdersData, leasesData, propertiesData, user]);
+  }, [normalizedRole, stats, portfolio, workOrdersData, leases, properties, tenants, landlords, user, organizationsQuery]);
 
   // Role-specific quick links
   const quickLinks = useMemo(() => {
@@ -231,8 +316,11 @@ export default function PortfolioClient({ userRole, user }) {
             { title: 'Total PMCs', value: roleMetrics.totalPMCs, icon: HiOfficeBuilding, color: 'blue' },
             { title: 'Total Landlords', value: roleMetrics.totalLandlords, icon: HiUser, color: 'purple' },
             { title: 'Total Properties', value: roleMetrics.totalProperties, icon: HiHome, color: 'green' },
-            { title: 'Occupancy Rate', value: `${roleMetrics.occupancyRate}%`, icon: HiChartBar, color: 'indigo' },
-            { title: 'Open Work Orders', value: roleMetrics.openWorkOrders, icon: HiCog, color: 'orange' },
+            { title: 'Active Leases', value: roleMetrics.activeLeases || 0, icon: HiDocumentText, color: 'indigo' },
+            { title: 'Total Tenants', value: roleMetrics.totalTenants || 0, icon: HiUser, color: 'blue' },
+            { title: 'Occupancy Rate', value: `${roleMetrics.occupancyRate}%`, icon: HiChartBar, color: 'green' },
+            { title: 'Open Work Orders', value: roleMetrics.openWorkOrders || 0, icon: HiCog, color: 'orange' },
+            { title: 'Total Vendors', value: roleMetrics.totalVendors || 0, icon: HiOfficeBuilding, color: 'purple' },
           ];
         
         case 'pmc_admin':
@@ -295,7 +383,7 @@ export default function PortfolioClient({ userRole, user }) {
         {cards.map((metric, idx) => {
           const Icon = metric.icon;
           return (
-            <Card key={idx} className="p-4 hover:shadow-lg transition-all duration-200">
+            <Card key={idx} className="p-4 hover:shadow-lg transition-all duration-200" {...(idx === 0 ? { 'data-tour-id': 'dashboard-summary' } : {})}>
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -355,7 +443,7 @@ export default function PortfolioClient({ userRole, user }) {
     }
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-tour-id="dashboard-overview">
         {/* Role-specific metrics */}
         <MetricCards />
 
@@ -747,14 +835,25 @@ export default function PortfolioClient({ userRole, user }) {
         </Button>
       }
     >
-      <Tabs aria-label="Portfolio tabs" onActiveTabChange={setActiveTab}>
+      <Tabs 
+        aria-label="Portfolio tabs" 
+        onActiveTabChange={(tab) => {
+          setActiveTab(tab);
+          // Navigate to the corresponding route when tab changes
+          if (tab === 'overview') {
+            router.push('/portfolio');
+          } else {
+            router.push(`/portfolio/${tab}`);
+          }
+        }}
+      >
         {availableTabs.map((tab) => (
           <Tabs.Item key={tab.key} active={activeTab === tab.key} title={tab.label}>
             <div className="mt-4">
               {tab.key === 'overview' && <OverviewTab />}
               {tab.key === 'properties' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.properties?.data || []}
+                  dataSource={properties}
                   columns={propertyColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -762,7 +861,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'tenants' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.tenants?.data || []}
+                  dataSource={tenants}
                   columns={tenantColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -770,7 +869,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'leases' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.leases?.data || []}
+                  dataSource={leases}
                   columns={leaseColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -778,7 +877,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'landlords' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.landlords?.data || []}
+                  dataSource={landlords}
                   columns={landlordColumns}
                   loading={portfolioLoading}
                   rowKey="id"
@@ -786,7 +885,7 @@ export default function PortfolioClient({ userRole, user }) {
               )}
               {tab.key === 'vendors' && (
                 <FlowbiteTable
-                  dataSource={portfolio?.vendors?.data || []}
+                  dataSource={vendors}
                   columns={vendorColumns}
                   loading={portfolioLoading}
                   rowKey="id"

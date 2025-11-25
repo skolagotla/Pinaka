@@ -8,7 +8,8 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import apply_pagination
 from schemas.unit import Unit, UnitCreate, UnitUpdate
 from db.models_v2 import Unit as UnitModel, Property, User
@@ -21,7 +22,7 @@ async def list_units(
     property_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.UNIT)),
     db: AsyncSession = Depends(get_db)
 ):
     """List units (optionally filtered by property) with pagination"""
@@ -52,7 +53,7 @@ async def list_units(
 @router.post("", response_model=Unit, status_code=status.HTTP_201_CREATED)
 async def create_unit(
     unit_data: UnitCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.UNIT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create unit"""
@@ -89,7 +90,7 @@ async def create_unit(
 @router.get("/{unit_id}", response_model=Unit)
 async def get_unit(
     unit_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.UNIT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get unit by ID"""
@@ -124,7 +125,7 @@ async def get_unit(
 async def update_unit(
     unit_id: UUID,
     unit_data: UnitUpdate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.UPDATE, ResourceType.UNIT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Update unit"""
@@ -168,7 +169,7 @@ async def update_unit(
 @router.delete("/{unit_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_unit(
     unit_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.DELETE, ResourceType.UNIT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete unit"""

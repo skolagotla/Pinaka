@@ -14,6 +14,9 @@ export interface V2User {
   phone: string | null;
   status: string;
   organization_id: string | null;
+  onboarding_completed: boolean;
+  onboarding_step: number;
+  onboarding_data: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,7 +83,7 @@ export function useV2Auth() {
   const logout = useCallback(() => {
     v2Api.logout();
     setUser(null);
-    router.push('/login');
+    router.push('/auth/login');
   }, [router]);
 
   const hasRole = useCallback((roleName: string): boolean => {

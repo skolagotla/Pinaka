@@ -6,6 +6,8 @@ module.exports = {
     './node_modules/flowbite-react/**/*.{js,ts,jsx,tsx}',
     './components/flowbite-pro/**/*.{js,ts,jsx,tsx}', // Flowbite Pro components
   ],
+  // Exclude patterns - files that no longer exist or should be ignored
+  safelist: [],
   theme: {
     extend: {
       colors: {

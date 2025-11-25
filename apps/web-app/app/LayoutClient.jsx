@@ -5,7 +5,6 @@ import { Sidebar, Button, Tooltip, Spinner } from 'flowbite-react';
 import { HiSearch, HiMenu, HiX } from 'react-icons/hi';
 import Link from 'next/link';
 import UserMenu from '@/components/UserMenu';
-import Navigation from '@/components/Navigation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import GlobalSearch from '@/components/GlobalSearch';
 import ProLayoutWrapper from '@/components/ProLayoutWrapper';
@@ -35,10 +34,12 @@ export default function LayoutClient({ children }) {
   const pathname = usePathname();
   const { user, loading: authLoading, hasRole } = useV2Auth();
   
-  // Check if we're on an admin route - admin has its own layout
-  const isAdminRoute = pathname?.startsWith('/admin');
+  // Check if we're on a protected route - these have their own unified layout
+  const isProtectedRoute = pathname?.startsWith('/portfolio') || pathname?.startsWith('/platform');
   // Don't show banner on db-switcher page itself
   const isDbSwitcherRoute = pathname === '/db-switcher';
+  // Don't show navigation on login/auth pages or onboarding
+  const isAuthRoute = pathname?.startsWith('/auth') || pathname === '/login' || pathname?.startsWith('/onboarding');
   
   // ALL HOOKS MUST BE CALLED FIRST (before any conditional returns)
   const [isMounted, setIsMounted] = useState(false);
@@ -132,8 +133,8 @@ export default function LayoutClient({ children }) {
     );
   }
 
-  // Admin routes have their own layout - don't wrap with LayoutClient's layout
-  if (isAdminRoute) {
+  // Protected routes have their own unified layout - don't wrap with LayoutClient's layout
+  if (isProtectedRoute) {
     return (
       <ErrorBoundary>
         {children}
@@ -143,6 +144,15 @@ export default function LayoutClient({ children }) {
 
   // Database switcher route - standalone page, no layout
   if (isDbSwitcherRoute) {
+    return (
+      <ErrorBoundary>
+        {children}
+      </ErrorBoundary>
+    );
+  }
+
+  // Auth routes (login, etc.) - standalone page, no layout
+  if (isAuthRoute) {
     return (
       <ErrorBoundary>
         {children}
@@ -195,9 +205,9 @@ export default function LayoutClient({ children }) {
                 )}
               </Link>
               
-              {/* Navigation Menu */}
+              {/* Navigation Menu - Protected routes use UnifiedSidebar in ProtectedLayoutWrapper */}
               <div className="flex-1 overflow-y-auto pb-20">
-                <Navigation show={showNav} userRole={userRole} collapsed={sidebarCollapsed} />
+                {/* Navigation removed - use UnifiedSidebar in ProtectedLayoutWrapper for protected routes */}
               </div>
               
               {/* User Menu at bottom */}

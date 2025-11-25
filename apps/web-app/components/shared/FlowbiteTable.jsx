@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, TableHead, TableHeadCell, TableBody, TableRow, TableCell, Spinner, Button, Select, Label } from 'flowbite-react';
+import { generateAriaId } from '@/lib/utils/a11y';
 
 /**
  * FlowbiteTable Component
@@ -66,6 +67,7 @@ export default function FlowbiteTable({
 
   // Total pages
   const totalPages = pagination ? Math.ceil(dataSource.length / pageSize) : 1;
+  const tableId = useMemo(() => generateAriaId('table'), []);
 
   if (loading) {
     return (
@@ -77,41 +79,72 @@ export default function FlowbiteTable({
 
   return (
     <div className="overflow-x-auto shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
-      <Table hoverable className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <TableHead className="bg-gray-50 dark:bg-gray-800">
-          <TableRow>
+      <Table 
+        hoverable 
+        className="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+        role="table"
+        aria-label="Data table"
+        id={tableId}
+      >
+        <TableHead className="bg-gray-50 dark:bg-gray-800" role="rowgroup">
+          <TableRow role="row">
             {flowbiteColumns.map((col, idx) => (
               <TableHeadCell 
                 key={idx}
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400"
+                role="columnheader"
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
               >
                 {col.header}
               </TableHeadCell>
             ))}
           </TableRow>
         </TableHead>
-        <TableBody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-          {paginatedData.map((record, rowIdx) => {
-            const key = typeof rowKey === 'function' ? rowKey(record) : record[rowKey] || rowIdx;
-            const rowProps = onRow ? onRow(record, rowIdx) : {};
-            
-            return (
-              <TableRow 
-                key={key} 
-                className={`${rowProps.style?.cursor === 'pointer' ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800'} transition-colors`}
-                onClick={rowProps.onDoubleClick}
+        <TableBody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700" role="rowgroup">
+          {paginatedData.length === 0 ? (
+            <TableRow role="row">
+              <TableCell 
+                colSpan={flowbiteColumns.length}
+                className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                role="cell"
               >
-                {flowbiteColumns.map((col, colIdx) => (
-                  <TableCell 
-                    key={colIdx}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
-                  >
-                    {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey]}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
+                No data available
+              </TableCell>
+            </TableRow>
+          ) : (
+            paginatedData.map((record, rowIdx) => {
+              const key = typeof rowKey === 'function' ? rowKey(record) : record[rowKey] || rowIdx;
+              const rowProps = onRow ? onRow(record, rowIdx) : {};
+              const isClickable = rowProps.style?.cursor === 'pointer' || rowProps.onDoubleClick;
+              
+              return (
+                <TableRow 
+                  key={key}
+                  role="row"
+                  className={`${isClickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 focus-within:bg-gray-50 dark:focus-within:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800'} transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  onClick={rowProps.onDoubleClick}
+                  onKeyDown={(e) => {
+                    if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      rowProps.onDoubleClick?.(e);
+                    }
+                  }}
+                  tabIndex={isClickable ? 0 : undefined}
+                  aria-label={`Row ${rowIdx + 1} of ${paginatedData.length}`}
+                >
+                  {flowbiteColumns.map((col, colIdx) => (
+                    <TableCell 
+                      key={colIdx}
+                      role="cell"
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white"
+                    >
+                      {col.cell ? col.cell({ row: { original: record, index: rowIdx } }) : record[col.accessorKey]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })
+          )}
         </TableBody>
       </Table>
       
@@ -141,7 +174,8 @@ export default function FlowbiteTable({
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="w-24"
+                  className="w-24 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  aria-label="Items per page"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -156,11 +190,12 @@ export default function FlowbiteTable({
                 color="gray"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="min-w-[80px]"
+                className="min-w-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="Go to previous page"
               >
                 Previous
               </Button>
-              <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded">
+              <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded" aria-live="polite" aria-atomic="true">
                 Page {currentPage} of {totalPages}
               </span>
               <Button
@@ -168,7 +203,8 @@ export default function FlowbiteTable({
                 color="gray"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="min-w-[80px]"
+                className="min-w-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="Go to next page"
               >
                 Next
               </Button>

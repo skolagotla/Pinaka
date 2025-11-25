@@ -7,7 +7,8 @@ from sqlalchemy import select, delete
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import (
     apply_organization_filter,
     check_organization_access,
@@ -27,7 +28,7 @@ async def list_landlords(
     organization_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LANDLORD)),
     db: AsyncSession = Depends(get_db)
 ):
     """List landlords (scoped by organization) with pagination"""
@@ -46,7 +47,7 @@ async def list_landlords(
 @router.post("", response_model=Landlord, status_code=status.HTTP_201_CREATED)
 async def create_landlord(
     landlord_data: LandlordCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.LANDLORD)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create landlord"""
@@ -72,7 +73,7 @@ async def create_landlord(
 @router.get("/{landlord_id}", response_model=Landlord)
 async def get_landlord(
     landlord_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.LANDLORD)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get landlord by ID"""
@@ -87,7 +88,7 @@ async def get_landlord(
 async def update_landlord(
     landlord_id: UUID,
     landlord_data: LandlordUpdate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.LANDLORD)),
     db: AsyncSession = Depends(get_db)
 ):
     """Update landlord"""
@@ -108,7 +109,7 @@ async def update_landlord(
 @router.delete("/{landlord_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_landlord(
     landlord_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.DELETE, ResourceType.LANDLORD)),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete landlord"""

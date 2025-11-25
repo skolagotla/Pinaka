@@ -13,8 +13,10 @@ const TenantSettingsClient = dynamic(() => import('@/components/pages/tenant/set
 export default function SettingsPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Force rebuild - ensure no TypeScript syntax
 
   useEffect(() => {
     fetchUser();
@@ -82,7 +84,11 @@ export default function SettingsPage() {
   }
 
   // Route to appropriate settings client based on role
-  if (userRole === 'landlord') {
+  if (userRole === 'super_admin') {
+    // Super admin should go to platform settings
+    router.replace('/platform/settings');
+    return null;
+  } else if (userRole === 'landlord') {
     return <LandlordSettingsClient landlord={user} />;
   } else if (userRole === 'pmc_admin' || userRole === 'pm') {
     return <PMCSettingsClient pmc={user} />;

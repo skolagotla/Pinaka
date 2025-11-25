@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 from core.database import get_db
-from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum, require_role_v2
+from core.auth_v2 import get_current_user_v2, get_user_roles, RoleEnum
+from core.rbac import require_permission, PermissionAction, ResourceType
 from core.crud_helpers import (
     apply_organization_filter,
     check_organization_access,
@@ -29,7 +30,7 @@ async def list_tenants(
     organization_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """List tenants (scoped by organization) with pagination"""
@@ -52,7 +53,7 @@ async def list_tenants(
 @router.post("", response_model=Tenant, status_code=status.HTTP_201_CREATED)
 async def create_tenant(
     tenant_data: TenantCreate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Create tenant"""
@@ -78,7 +79,7 @@ async def create_tenant(
 @router.get("/{tenant_id}", response_model=Tenant)
 async def get_tenant(
     tenant_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD, RoleEnum.TENANT], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get tenant by ID"""
@@ -103,7 +104,7 @@ async def get_tenant(
 async def update_tenant(
     tenant_id: UUID,
     tenant_data: TenantUpdate,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.CREATE, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Update tenant"""
@@ -124,7 +125,7 @@ async def update_tenant(
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tenant(
     tenant_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.UPDATE, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete tenant"""
@@ -142,7 +143,7 @@ async def delete_tenant(
 async def approve_tenant(
     tenant_id: UUID,
     approval_data: TenantApprovalRequest,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Approve a tenant"""
@@ -180,7 +181,7 @@ async def approve_tenant(
 async def reject_tenant(
     tenant_id: UUID,
     rejection_data: TenantRejectionRequest,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Reject a tenant"""
@@ -215,7 +216,7 @@ async def reject_tenant(
 @router.get("/{tenant_id}/rent-data")
 async def get_tenant_rent_data(
     tenant_id: UUID,
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get tenant rent data (rent payments, lease info)"""
@@ -299,7 +300,7 @@ async def get_tenant_rent_data(
 
 @router.get("/with-outstanding-balance")
 async def get_tenants_with_outstanding_balance(
-    current_user: User = Depends(require_role_v2([RoleEnum.SUPER_ADMIN, RoleEnum.PMC_ADMIN, RoleEnum.PM, RoleEnum.LANDLORD], require_organization=True)),
+    current_user: User = Depends(require_permission(PermissionAction.READ, ResourceType.TENANT)),
     db: AsyncSession = Depends(get_db)
 ):
     """Get tenants with outstanding balance"""
