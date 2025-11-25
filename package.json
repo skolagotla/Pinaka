@@ -8,7 +8,6 @@
     "apps/*"
   ],
   "scripts": {
-    "postinstall": "prisma generate",
     "bootstrap": "pnpm install",
     "dev": "pnpm --filter @pinaka/web-app dev",
     "dev:backend": "cd apps/backend-api && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
@@ -72,7 +71,6 @@
     "@ant-design/charts": "^1.4.3",
     "@ant-design/icons": "^5.6.1",
     "@ant-design/pro-card": "^2.10.0",
-    "@prisma/client": "6.18.0",
     "antd": "^5.29.0",
     "dayjs": "^1.11.19",
     "dotenv": "^16.6.1",

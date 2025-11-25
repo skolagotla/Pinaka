@@ -26,7 +26,13 @@ export function useReferenceData() {
 
       try {
         setLoading(true);
-        const response = await fetch('/api/reference-data');
+        // Use v2 API endpoint
+        const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+        const response = await fetch(`${baseUrl}/reference-data`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch reference data');

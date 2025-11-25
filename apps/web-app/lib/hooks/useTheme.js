@@ -30,7 +30,11 @@ export function useTheme() {
     setError(null);
     
     try {
-      const res = await fetch('/api/user/theme');
+      // Theme API endpoint - use v2 API
+      const baseUrl = process.env.NEXT_PUBLIC_API_V2_BASE_URL || 'http://localhost:8000/api/v2';
+      const res = await fetch(`${baseUrl}/users/me`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
       
       if (res.ok) {
         const data = await res.json();

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 
 from core.config import settings
 from core.database import engine, Base
-from routers import health, vendors, auth
+from routers import health
 from routers import auth_v2, organizations, properties, work_orders, attachments
 from routers import landlords, tenants, leases, units, notifications, audit_logs, users
 from routers import vendors_v2, search
@@ -57,10 +57,8 @@ setup_exception_handlers(app)
 
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["health"])
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(vendors.router, prefix="/api/v1/vendors", tags=["vendors"])
 
-# V2 API routers
+# V2 API routers (all routes use RBAC)
 app.include_router(auth_v2.router, prefix="/api/v2")
 app.include_router(organizations.router, prefix="/api/v2")
 app.include_router(properties.router, prefix="/api/v2")

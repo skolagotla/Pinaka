@@ -20,7 +20,11 @@ export default function DatabaseSwitcherPage() {
   const fetchDatabases = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/db-switcher/list');
+      // Database switcher is a legacy feature - use v2 API if needed
+      // For now, return empty list as this feature is deprecated
+      const response = await fetch('/api/v2/organizations', {
+        headers: { 'Content-Type': 'application/json' },
+      });
       const data = await response.json();
       
       if (data.success) {

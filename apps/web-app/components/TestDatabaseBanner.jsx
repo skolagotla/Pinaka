@@ -13,7 +13,8 @@ export default function TestDatabaseBanner() {
 
   const checkDatabase = async () => {
     try {
-      const response = await fetch('/api/db-switcher/list');
+      // Database switcher is a legacy feature - skip check
+      return;
       const data = await response.json();
       
       // Check if current database is PT (case-insensitive)
